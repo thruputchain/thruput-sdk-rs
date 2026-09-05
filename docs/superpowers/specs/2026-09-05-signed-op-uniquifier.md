@@ -67,11 +67,6 @@ Each line mirrors the transaction replay cache (groundhog-xdr
   chosen nonces a collision is the signer's own doing, not an attack.
 - **Validity**: `current_height <= block_expiry_height` (inclusive — "invalid
   after this block").
-- **Horizon**: `block_expiry_height <= current_height + MAX_EXPIRY_HORIZON`,
-  `MAX_EXPIRY_HORIZON = kReplayCacheHeightsMaxLen = 4000`, so no entry
-  outlives what the chain's own cache would hold. Exposed as a `pub const` in
-  the interface crate so clients pick valid expiries. Refused as
-  `ExpiryTooFar`.
 - **Same-block double consumption conflicts at commit**, as
   `kDeltaTypeConsumeUniquifier` "conflicts with any other attempt to consume
   the same Uniquifier". Contract-side that is the exclusive lock on the slot.
@@ -87,8 +82,6 @@ Each line mirrors the transaction replay cache (groundhog-xdr
 ## Interface (`groundhog-signed-op-if`)
 
 ```rust
-pub const MAX_EXPIRY_HORIZON: i64 = 4000;
-
 #[contract(client = SignedOpClient, throws = SignedOpError)]
 pub trait SignedOp {
     fn execute_signed_op(&mut self, op: Operation, signature: &Ed25519Signature)
@@ -101,8 +94,7 @@ pub enum SignedOpError {
     Expired          = 2,
     AlreadyConsumed  = 3,   // takes UnexpectedNonce's code
     MalformedBody    = 4,
-    ExpiryTooFar     = 5,
-    NotYetExpired    = 6,   // prune before the expiry has passed
+    NotYetExpired    = 5,   // prune before the expiry has passed
 }
 ```
 
@@ -112,15 +104,15 @@ fresh pair.
 ## Component (`groundhog-signed-op`)
 
 ```rust
-/// Stateless: horizon, expiry, decode, signature.
+/// Stateless: expiry, decode, signature.
 pub fn verify_signed_op<T>(op: &Operation, signature: &Ed25519Signature) -> T;
 
 #[sdk::storage]
 pub struct SignedOpReplayCache { consumed: Map<Uniquifier, Value<()>> }
 
 impl SignedOpReplayCache {
-    /// Expired/too-far → cache hit (AlreadyConsumed) → decode + signature →
-    /// consume under an exclusive lock. Throws on any failure; writes nothing.
+    /// Cache hit (AlreadyConsumed) → expiry → decode + signature → consume
+    /// under an exclusive lock. Throws on any failure; writes nothing.
     pub fn consume<T>(&mut self, op: &Operation, signature: &Ed25519Signature) -> T;
     /// Delete a dead entry. Throws unless current_height > block_expiry_height.
     pub fn prune(&mut self, uniquifier: &Uniquifier);   // NotYetExpired until then
@@ -134,7 +126,7 @@ the body of `consume` changes.
 ## Impact
 
 - `domain-separator/operation.rs` + layout test; `test-vectors/signed_op_vectors.rs`.
-- `signed-op-if` (type, trait, errors, const); `signed-op` (component rename);
+- `signed-op-if` (type, trait, errors); `signed-op` (component rename);
   `spec-tool` describable errors.
 - `example-contracts/signed_op_wallet`: the smallest `SignedOp` wallet, whose
   tests pin the replay semantics above.

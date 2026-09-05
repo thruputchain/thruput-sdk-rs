@@ -32,8 +32,7 @@
 //! [`SignedOpReplayCache::consume`] performs all of it, and each check maps
 //! to a [`SignedOpError`]:
 //!
-//! - `block_expiry_height`, against the current block height, and against
-//!   [`MAX_EXPIRY_HORIZON`];
+//! - `block_expiry_height`, against the current block height;
 //! - the `(nonce, block_expiry_height)` pair, against what this contract has
 //!   already consumed;
 //! - that the body decodes as the payload type the contract expects;
@@ -67,8 +66,8 @@ use sdk::types::Ed25519Signature;
 use sdk::types::transaction::Uniquifier;
 use sdk::xdr::{ReadXDR, WriteXDR};
 
-/// The stateless checks: expiry, horizon, decode, signature. Returns the
-/// decoded payload, or throws the matching [`SignedOpError`].
+/// The stateless checks: expiry, decode, signature. Returns the decoded
+/// payload, or throws the matching [`SignedOpError`].
 ///
 /// This does not touch the replay cache, so on its own it does not make an
 /// operation single-use. Use [`SignedOpReplayCache::consume`] unless the
@@ -85,9 +84,6 @@ where
     // Inclusive, as the chain reads a transaction's block_expiry_height.
     if now > op.block_expiry_height {
         sdk::throw(SignedOpError::Expired);
-    }
-    if op.block_expiry_height > now + MAX_EXPIRY_HORIZON {
-        sdk::throw(SignedOpError::ExpiryTooFar);
     }
 
     let body: T = match sdk::xdr::cxs::decode(op.body.0.as_slice()) {

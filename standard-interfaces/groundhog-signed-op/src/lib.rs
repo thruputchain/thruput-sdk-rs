@@ -49,16 +49,6 @@ use sdk::types::{Ed25519PublicKey, Ed25519Signature};
 use sdk::xdr::BytesM;
 use sdk::{BlockHeight, contract};
 
-/// How far past the current height an operation may set its expiry.
-///
-/// The chain's replay cache keeps consumed uniquifiers until they expire and
-/// bounds how many distinct unexpired heights it will hold
-/// (`kReplayCacheHeightsMaxLen`); a verifying contract applies the same bound
-/// so no consumed operation outlives what the chain's own cache would keep.
-/// Signers pick `block_expiry_height` at most this far ahead.
-pub const MAX_EXPIRY_HORIZON: i64 =
-    groundhog_xdr::storage_item::kReplayCacheHeightsMaxLen as i64;
-
 /// The wire form of a signed operation.
 ///
 /// The network hash and the verifying contract are covered by the signature
@@ -75,8 +65,7 @@ pub struct Operation {
     /// The key that signed this operation. Whether that key is *allowed* to
     /// authorize the action is the verifying contract's policy.
     pub signer: Ed25519PublicKey,
-    /// Last block height (inclusive) at which this operation may execute. At
-    /// most [`MAX_EXPIRY_HORIZON`] past the current height.
+    /// Last block height (inclusive) at which this operation may execute.
     pub block_expiry_height: BlockHeight,
     /// Chosen by the signer: any value, as long as the pair
     /// `(nonce, block_expiry_height)` has not been consumed at the verifying

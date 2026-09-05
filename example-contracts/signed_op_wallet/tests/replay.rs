@@ -8,9 +8,7 @@
 
 use ed25519_dalek::{Signer, SigningKey};
 use groundhog_domain_separator::SignedOp as SignedOpPreimage;
-use groundhog_signed_op::{
-    MAX_EXPIRY_HORIZON, Operation, SignedOpClient, SignedOpError,
-};
+use groundhog_signed_op::{Operation, SignedOpClient, SignedOpError};
 use sdk::signer::{AssumeTokens, Signed};
 use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
@@ -217,16 +215,6 @@ fn an_expired_operation_is_refused() {
     let (op, sig) = alice_grant(&env, 0, NONCE);
     env.advance_block();
     assert_refuses!(&env, op, sig, SignedOpError::Expired);
-}
-
-#[test]
-fn the_expiry_horizon_is_inclusive() {
-    let env = setup();
-    let (op, sig) = alice_grant(&env, MAX_EXPIRY_HORIZON + 1, NONCE);
-    assert_refuses!(&env, op, sig, SignedOpError::ExpiryTooFar);
-
-    let (op, sig) = alice_grant(&env, MAX_EXPIRY_HORIZON, NONCE);
-    submit(&env, op, sig).assert_success();
 }
 
 /// Pruning drops a dead entry and can never re-admit the operation: the

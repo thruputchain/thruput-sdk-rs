@@ -84,8 +84,8 @@ impl SignedOp for SignedOpWallet {
             throw(WalletError::NotOwner);
         }
 
-        // Expiry, horizon, replay, body decode and signature, against a
-        // preimage bound to this network and this wallet; consumes the pair.
+        // Replay, expiry, body decode and signature, against a preimage
+        // bound to this network and this wallet; consumes the pair.
         let grant: Grant = self.replay.consume(&op, signature);
 
         let node =

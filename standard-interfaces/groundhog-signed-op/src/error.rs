@@ -22,13 +22,8 @@ pub enum SignedOpError {
     /// The body did not decode as the expected payload type.
     #[cfg_attr(feature = "dev", error("Malformed operation body"))]
     MalformedBody = 4,
-    /// `block_expiry_height` is more than
-    /// [`MAX_EXPIRY_HORIZON`](crate::MAX_EXPIRY_HORIZON) past the current
-    /// height.
-    #[cfg_attr(feature = "dev", error("Expiry is too far in the future"))]
-    ExpiryTooFar = 5,
     /// A consumed entry was asked to be pruned before its
     /// `block_expiry_height` had passed.
     #[cfg_attr(feature = "dev", error("Operation has not expired yet"))]
-    NotYetExpired = 6,
+    NotYetExpired = 5,
 }
