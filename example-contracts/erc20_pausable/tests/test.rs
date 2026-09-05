@@ -11,6 +11,10 @@ use groundhog_erc20_metadata_if::ERC20MetadataClient;
 use groundhog_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
+use groundhog_erc165_if::{
+    ERC165Client, probe_interface, try_probe_interface,
+};
+use sdk::call::CallError;
 use sdk::*;
 
 hash_ident! { static TEST_NONCE: SHA256Hash; }
@@ -301,4 +305,66 @@ fn roles_gate_pausing_and_are_administered() {
     });
     result.assert_success();
     assert_eq!(revoked_events(&result), vec![(PAUSER_ROLE, OTHER, ADMIN)]);
+}
+
+/// ERC-165: `supports_interface` answers for exactly the interfaces this
+/// contract implements (ERC-165 itself included), and the probe helpers
+/// fold a target without the entrypoint into `false`.
+#[test]
+fn supports_interface_reports_derived_claims() {
+    use erc20_pausable::{
+        AccessControl, ERC20, ERC20Metadata, ERC20Pausable,
+        PausableTokenContract as Token,
+    };
+
+    hash_ident! { static BARE_NONCE: SHA256Hash; }
+
+    let env = TestEnvironment::no_cost();
+    let addr = deploy_and_init(&env);
+    // A real contract that does not implement ERC-165.
+    let bare_hash = *counter::register_mock_contract(&env).as_hash();
+
+    let result = env.transact(|tx| {
+        tx.call(&OTHER).run(move || {
+            let bare_addr = deploy_contract(&BARE_NONCE, &bare_hash);
+            let erc165 = ERC165Client::new(&addr);
+
+            // Every implemented interface, named through the trait...
+            for id in [
+                groundhog_erc165_if::ERC165Entrypoints::INTERFACE_ID,
+                <Token as ERC20>::INTERFACE_ID,
+                <Token as ERC20Metadata>::INTERFACE_ID,
+                <Token as ERC20Pausable>::INTERFACE_ID,
+                <Token as AccessControl>::INTERFACE_ID,
+            ] {
+                assert!(erc165.supports_interface(id));
+                assert!(probe_interface(&addr, id));
+            }
+            // ...and the interface crates agree on those IDs without
+            // naming the implementing type.
+            assert!(erc165.supports_interface(
+                groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID
+            ));
+
+            // An interface it does not implement, and an arbitrary ID.
+            assert!(!erc165.supports_interface(
+                groundhog_signed_op_if::SignedOpEntrypoints::INTERFACE_ID
+            ));
+            assert!(!erc165.supports_interface([0xff; 8]));
+
+            // A target without ERC-165 is "no", not an error.
+            let erc20 = groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID;
+            assert_eq!(try_probe_interface(&bare_addr, erc20), Ok(false));
+            assert!(!probe_interface(&bare_addr, erc20));
+
+            // No contract at all is a real failure, not a "no".
+            const EMPTY_ADDR: ContractAddress =
+                ContractAddress::new([0x78; 32]);
+            assert_eq!(
+                try_probe_interface(&EMPTY_ADDR, erc20),
+                Err(CallError::Invalid)
+            );
+        })
+    });
+    result.assert_success();
 }

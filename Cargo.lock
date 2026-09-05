@@ -411,6 +411,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-erc165-if"
+version = "0.1.23"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "groundhog-erc20-if"
 version = "0.1.23"
 dependencies = [

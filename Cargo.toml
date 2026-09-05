@@ -87,6 +87,7 @@ groundhog-domain-separator = { path = "crates/domain-separator", registry = "gro
 groundhog-test-vectors = { path = "crates/test-vectors", registry = "groundhog", version = "=0.30.1" }
 groundhog-u256 = { path = "crates/u256", registry = "groundhog", version = "=0.30.1", default-features = false }
 # Standard interfaces (also this repository)
+groundhog-erc165-if = { path = "standard-interfaces/groundhog-erc165", registry = "groundhog", version = "=0.1.23" }
 groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.23" }
 groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.23" }
 groundhog-erc20-pausable-if = { path = "standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.23" }
