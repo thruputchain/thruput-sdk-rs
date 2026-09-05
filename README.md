@@ -125,10 +125,12 @@ There is no `U512`, and none is needed: Solidity has no type wider than
 `uint256` either, and the only consumers of a 512-bit intermediate in
 `Math.sol` — `mulDiv` and `mulShr` — are here whole.
 
-A plain `git clone` is sufficient to build and test the SDK. The one
-submodule, `integration_test/contracts`, is an optional private test corpus
-used only by `./scripts/dev.sh test-itc`; `git submodule update --init` will
-fail without access to it, and nothing else depends on it.
+A plain `git clone` is sufficient to build and test the SDK itself. The one
+submodule, `integration_test/contracts`, is a private test corpus, and
+`git submodule update --init` will fail without access to it. It is consumed
+by `./scripts/dev.sh test-itc` and by the integration block of
+`./scripts/ci.sh`; without the submodule, skip that block with
+`SKIP_INTEGRATION=1 ./scripts/ci.sh`.
 
 ## Requirements
 
@@ -150,6 +152,9 @@ does not need it.
 ```shell
 # Run the CI test to ensure everything builds; this also runs many tests
 ./scripts/ci.sh
+
+# Without access to the integration_test/contracts submodule
+SKIP_INTEGRATION=1 ./scripts/ci.sh
 ```
 
 ## Documentation

@@ -320,7 +320,7 @@ pub fn calldata(count: u32) {
 
 - [ ] **Step 3: Verify the identifier is fully gone and the contract builds**
 
-Run: `grep -rn "with_calldata_and_auth_tokens" sdk_rs --include="*.rs"`
+Run: `grep -rn "with_calldata_and_auth_tokens" . --include="*.rs"`
 Expected: no output.
 
 Run (from the repo root): `scripts/dev.sh build integration_test/calldata_raw`
