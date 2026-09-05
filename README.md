@@ -143,22 +143,10 @@ git submodule update --init --recursive
 
 ### Rust toolchain
 
-Install [rustup](https://rustup.rs/). That is the whole requirement: this
-repository's `rust-toolchain.toml` pins the toolchain
-(`nightly-2026-07-01`) together with the `riscv32im-unknown-none-elf`
-contract target and the `rust-src` component (needed to recompile the
-standard library in a more compact form via `-Zbuild-std`), and rustup
-installs all three on the first `cargo` invocation inside this checkout.
-
-Do not add the target or component to the floating `nightly` channel
-(`rustup +nightly target add ...`) — that is a different toolchain from the
-pinned one this repository builds with.
-
-Contract (rv32) builds need that pinned nightly — `-Zbuild-std` is a
-nightly-only flag — while the host side is deliberately kept
-stable-compatible: the `nightly` feature of `groundhog-u256` rides the
-`riscv32` target gate precisely so that "host builds of `sdk` (the CLI's
-spec-tool path) stay compilable on stable" (`crates/sdk/Cargo.toml`).
+`rust-toolchain.toml` pins the toolchain (`nightly-2026-07-01`), the
+`riscv32im-unknown-none-elf` contract target and the `rust-src` component.
+Under [rustup](https://rustup.rs/) the first `cargo` invocation in this
+checkout installs all three.
 
 ### Building the hogd FFI from source (optional)
 
