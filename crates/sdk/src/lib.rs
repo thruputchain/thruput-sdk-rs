@@ -165,6 +165,7 @@ pub mod exn;
 pub mod hash;
 pub mod hasher;
 pub mod hex;
+pub mod interface_table;
 pub mod invoke_config;
 pub mod log;
 pub mod precompiles;

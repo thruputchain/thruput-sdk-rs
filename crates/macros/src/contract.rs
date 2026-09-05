@@ -90,6 +90,17 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                          traits",
                     ));
                 }
+                // `#[contract]` defines this const itself (below); a
+                // user-written one would collide with it.
+                if let syn::TraitItem::Const(assoc) = trait_item
+                    && assoc.ident == "INTERFACE_ID"
+                {
+                    return Err(syn::Error::new_spanned(
+                        &assoc.ident,
+                        "`INTERFACE_ID` is reserved: #[contract] derives it \
+                         from the interface name and major version",
+                    ));
+                }
             }
             let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_reserved_client_method_names(
@@ -147,6 +158,19 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
+            });
+            let interface_id_lit = common::entrypoint::interface_id_literal(
+                Some(&iface_name),
+                &iface_vers,
+            );
+            stripped.items.push(parse_quote! {
+                /// The identity of this interface at its major version, as
+                /// derived by `groundhog_contract_util::interface_id` from the
+                /// same (name, MAJOR) pair that namespaces its entrypoint IDs.
+                /// Every implementor inherits it, and every `#[contract]` impl
+                /// of this trait records it in the contract's interface table
+                /// (`sdk::interface_table`).
+                const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]

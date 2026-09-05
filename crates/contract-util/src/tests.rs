@@ -194,3 +194,36 @@ fn entrypoint_link_name_mirrors_id_preimage_equality() {
     assert_ne!(name("0.4.1"), name("0.5.0"));
     assert_eq!(name("0.4.1"), "__groundhog_entrypoint::Ledger::0.4::clash");
 }
+
+#[test]
+fn interface_id_is_deterministic_and_keyed_on_name_and_major() {
+    use crate::interface_id;
+
+    let a = interface_id(Some("ERC20"), "0.1.19");
+    assert_eq!(a, interface_id(Some("ERC20"), "0.1.19"));
+    // Same major line: same ID.
+    assert_eq!(a, interface_id(Some("ERC20"), "0.1.0"));
+    // Different major line, name, or the unnamed default: different ID.
+    assert_ne!(a, interface_id(Some("ERC20"), "0.2.0"));
+    assert_ne!(a, interface_id(Some("ERC20Metadata"), "0.1.19"));
+    assert_ne!(a, interface_id(None, "0.1.19"));
+    assert_eq!(
+        interface_id(None, "0.1.19"),
+        interface_id(Some(crate::UNNAMED_INTERFACE), "0.1.19")
+    );
+}
+
+#[test]
+fn interface_id_pinned() {
+    // echo -n 'groundhog-interface::ERC20::0.1' | shasum -a 256
+    let expected = {
+        use sha2::Digest;
+        let mut h = sha2::Sha256::new();
+        h.update(b"groundhog-interface::ERC20::0.1");
+        h.finalize()
+    };
+    assert_eq!(
+        crate::interface_id(Some("ERC20"), "0.1.19")[..],
+        expected[0..8]
+    );
+}

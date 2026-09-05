@@ -73,6 +73,19 @@ pub fn generate(
         TokenStream::new()
     };
 
+    // One interface-table record per impl block (see
+    // `sdk::interface_table`): the same `#[used]` + KEEP'd-section shape as
+    // the entrypoint records, and gated like them on rv32 — a dependency
+    // that does not enable `entrypoints` exports nothing, so it must not
+    // advertise anything either.
+    let interface_record = contract.self_ty().map(|_| {
+        let id_lit = interface_id_literal(iface_name, &iface_vers);
+        quote! {
+            #[cfg(any(not(target_arch = "riscv32"), feature = "entrypoints"))]
+            ::sdk::__interface_record!(#id_lit);
+        }
+    });
+
     // For trait impls, emit compile-time assertions that the impl-side
     // entrypoint metadata matches the trait definition.
     let trait_metadata_assertions = if let (Some(trait_path), Some(self_ty)) =
@@ -236,6 +249,8 @@ pub fn generate(
 
         #trait_metadata_assertions
 
+        #interface_record
+
         #domain_registration
 
         #domain_test
@@ -269,6 +284,7 @@ fn generate_entrypoints_wrapper(
 ) -> TokenStream {
     let entrypoints_ident =
         format_ident!("{}Entrypoints", effective_interface_name);
+    let interface_id_lit = interface_id_literal(iface_name, iface_vers);
     let entrypoints = methods.iter().map(|method| {
         let ident = &method.sig().ident;
         let entrypoint =
@@ -293,6 +309,12 @@ fn generate_entrypoints_wrapper(
 
         #[allow(non_upper_case_globals)]
         impl #entrypoints_ident {
+            /// The identity of this interface at its major version, shared
+            /// by every entrypoint below and derived by
+            /// `groundhog_contract_util::interface_id`. Equal to the trait's
+            /// `INTERFACE_ID` for trait-defined interfaces.
+            pub const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
+
             pub fn into_u64(self) -> u64 {
                 self.0.into_u64()
             }

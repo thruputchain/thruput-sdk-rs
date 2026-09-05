@@ -178,8 +178,12 @@ Notes:
 
 - `package_name` is emitted at the macro expansion site from
   `env!("CARGO_PKG_NAME")`, so it names the contract crate, not the SDK crate.
-- `self_type_key` is `None` for free functions.
-- `self_type_key` is `Some(...)` for trait impls and bare impls.
+- `self_type_key` is `None` for free functions, and for impl blocks none of
+  whose methods take `self`: such a block never loads its type's state, so
+  it is stateless like a free function and may sit beside the contract's
+  storage type (an ERC-165 carrier, for instance).
+- `self_type_key` is `Some(...)` for trait impls and bare impls with a
+  `self`-taking method.
 - The exact representation of `self_type_key` is an implementation detail; it
   only needs to support equality for crate-level validation.
 

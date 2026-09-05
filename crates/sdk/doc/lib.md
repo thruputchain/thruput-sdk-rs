@@ -414,6 +414,14 @@ crate and get the same generated client either way. That is how the standard
 interfaces in `standard-interfaces/` (`groundhog-erc20`,
 `groundhog-erc20-metadata`, `groundhog-signed-op`) are consumed.
 
+Every `#[contract]` trait also carries an [`InterfaceId`] as
+`Trait::INTERFACE_ID`, derived from its name and major version, and every
+`#[contract]` impl block leaves a record of its interface's id in the
+contract's [interface table](mod@interface_table). `groundhog-erc165` is the
+query surface: `impl_erc165!()` adds a `supports_interface` entrypoint
+answered by `implements!(id)` from the impls that actually linked. A
+contract without it carries no table in its deployed image.
+
 Alongside the entrypoints, the macros emit a machine-readable **contract
 spec**: the interface's methods, their argument and return types, and the
 exceptions it declares. Types reach the spec through

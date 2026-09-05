@@ -20,6 +20,7 @@ dev = [
     "groundhog-erc20-pausable-if/dev",
     "groundhog-access-control-if/dev",
     "groundhog-access-control/dev",
+    "groundhog-erc165-if/dev",
 ]
 
 [lib]
@@ -42,6 +43,11 @@ groundhog-erc20-metadata-if = { workspace = true }
 groundhog-erc20-pausable-if = { workspace = true }
 groundhog-access-control-if = { workspace = true }
 groundhog-access-control = { workspace = true }
+groundhog-erc165-if = { workspace = true }
 
 [dev-dependencies]
 erc20_pausable = { path = ".", features = ["dev"] }
+# Only for the ERC-165 negative cases: an interface this token does not
+# implement, and a contract that does not implement ERC-165.
+groundhog-signed-op-if = { workspace = true, features = ["dev"] }
+counter = { path = "../counter", features = ["dev"] }

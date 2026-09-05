@@ -11,6 +11,9 @@
 //!   `initialize` grants [`DEFAULT_ADMIN_ROLE`] and [`PAUSER_ROLE`] to
 //!   the administrator; the component's flat default administers every
 //!   role with [`DEFAULT_ADMIN_ROLE`].
+//! - [`ERC165`]: `impl_erc165!()`; `supports_interface` reads the
+//!   linker-collected interface table, so it reports exactly the impl
+//!   blocks in this file.
 
 use crate::interface::*;
 use groundhog_access_control::AccessControlState;
@@ -329,3 +332,9 @@ impl AccessControl for PausableTokenContract {
         self.access.renounce_role(role);
     }
 }
+
+// ERC-165 interface detection: `supports_interface` reads the interface
+// table the impl blocks above leave behind, so there is no list here to
+// keep in sync, and it needs no storage, so it lives on the macro's own
+// stateless carrier rather than on the token.
+groundhog_erc165_if::impl_erc165!();

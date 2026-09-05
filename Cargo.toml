@@ -91,6 +91,7 @@ groundhog-erc20-if = { path = "standard-interfaces/groundhog-erc20", registry = 
 groundhog-erc20-metadata-if = { path = "standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.22" }
 groundhog-erc20-pausable-if = { path = "standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.22" }
 groundhog-access-control-if = { path = "standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.22" }
+groundhog-erc165-if = { path = "standard-interfaces/groundhog-erc165", registry = "groundhog", version = "=0.1.22" }
 groundhog-signed-op-if = { path = "standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.22" }
 groundhog-erc20-permit-if = { path = "standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.22" }
 # Standard-interface implementation components (also this repository)
