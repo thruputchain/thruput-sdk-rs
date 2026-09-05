@@ -61,9 +61,11 @@ fn id_follows_name_and_major_version_only() {
     );
 }
 
-/// The host interface table holds exactly the impl blocks of each type.
+/// The host interface table holds the impl blocks of the contract crate a
+/// type belongs to, whichever struct carries them: a contract is an image,
+/// not a storage struct.
 #[test]
-fn interface_table_reflects_impl_blocks() {
+fn interface_table_reflects_the_contract_crate() {
     use sdk::interface_table::implements;
 
     assert!(implements::<CounterContract>(
@@ -72,9 +74,16 @@ fn interface_table_reflects_impl_blocks() {
     assert!(!implements::<CounterContract>(
         CounterV2Entrypoints::INTERFACE_ID
     ));
-    // A type with no #[contract] impl has no records at all.
-    struct Uninvolved;
-    assert!(!implements::<Uninvolved>(CounterEntrypoints::INTERFACE_ID));
+    // Another struct in the same crate sees the same table, as it would on
+    // the guest, where both would share one dispatch table.
+    struct SiblingInSameCrate;
+    assert!(implements::<SiblingInSameCrate>(
+        CounterEntrypoints::INTERFACE_ID
+    ));
+    // A type from another crate belongs to another contract (or none).
+    assert!(!implements::<sdk::ContractAddress>(
+        CounterEntrypoints::INTERFACE_ID
+    ));
 }
 
 #[sdk::storage]

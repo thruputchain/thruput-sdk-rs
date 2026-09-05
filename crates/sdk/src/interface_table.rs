@@ -22,16 +22,27 @@
 //! ships an image byte-identical to one built without this module; one with
 //! an impl pays four bytes of anchor plus 8 per impl block, plus the scan.
 //!
-//! On the host the records go through a `linkme` slice, keyed by the
-//! implementing type so a test process holding many contracts keeps them
-//! apart.
+//! # What counts as "this contract"
+//!
+//! The unit is the contract image, not the storage struct. A crate with
+//! `impl X for A` and `impl Y for B` links both into one image whose
+//! dispatch table answers to both interfaces at one address, so its table
+//! holds both ids and `supports_interface` says yes to both — which is the
+//! truth ERC-165 asks about. On the guest the table is simply the whole
+//! image. On the host, where one test process holds many contracts, the
+//! records go through a `linkme` slice and are keyed by the *crate* of the
+//! implementing type, so [`implements`]`::<A>` sees `B`'s impls too, the
+//! same as the guest, while another contract crate's records stay apart.
+//! That matches the mock registry, which also builds a host contract from
+//! one package's fragments.
 
 use crate::InterfaceId;
 
 /// One host-side record: the implementing type and the interface it
-/// implements. The type is identified by name at query time, which is why
-/// the record carries a function rather than a string: `type_name` is not
-/// usable in a static initializer.
+/// implements. The type is identified by name at query time (its crate
+/// segment is what the lookup compares), which is why the record carries a
+/// function rather than a string: `type_name` is not usable in a static
+/// initializer.
 #[cfg(not(target_arch = "riscv32"))]
 #[doc(hidden)]
 pub struct HostRecord {
@@ -45,12 +56,14 @@ pub struct HostRecord {
 #[linkme(crate = crate::__linkme)]
 pub static HOST_RECORDS: [HostRecord];
 
-/// True if `T` carries a `#[contract]` impl of the interface identified by
-/// `interface_id`.
+/// True if the contract `T` belongs to carries a `#[contract]` impl of the
+/// interface identified by `interface_id`.
 ///
-/// On the guest there is one contract per image, so `T` is not consulted
-/// and the table is scanned whole; on the host the records are filtered to
-/// `T`. Neither touches storage.
+/// `T` names the contract, not the storage struct: on the guest there is
+/// one contract per image, so `T` is not consulted and the table is scanned
+/// whole; on the host the records are filtered to `T`'s crate, so every
+/// impl block in the contract crate counts, whichever struct it is on (see
+/// the module docs). Neither touches storage.
 #[cfg_attr(
     target_arch = "riscv32",
     allow(clippy::extra_unused_type_parameters)
@@ -63,11 +76,18 @@ pub fn implements<T: ?Sized>(interface_id: InterfaceId) -> bool {
 
     #[cfg(not(target_arch = "riscv32"))]
     {
-        let type_name = core::any::type_name::<T>();
-        HOST_RECORDS
-            .iter()
-            .any(|r| r.id == interface_id && (r.type_name)() == type_name)
+        let krate = crate_of(core::any::type_name::<T>());
+        HOST_RECORDS.iter().any(|r| {
+            r.id == interface_id && crate_of((r.type_name)()) == krate
+        })
     }
+}
+
+/// The leading path segment of a `type_name` string: the crate the type
+/// was defined in, which is the host's stand-in for "the contract image".
+#[cfg(not(target_arch = "riscv32"))]
+fn crate_of(type_name: &str) -> &str {
+    type_name.split("::").next().unwrap_or(type_name)
 }
 
 #[cfg(target_arch = "riscv32")]
