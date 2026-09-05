@@ -349,29 +349,11 @@ where
 /// consumed by the contract named in `preimage.consumer`. Nested `Signed`
 /// fields inside the preimage are minted as child tokens of this one.
 ///
-/// # Limits
-///
-/// The protocol caps a token node at
-/// `groundhog_xdr::auth_token::kAuthTokenMaxChildNodes` (**4**) direct
-/// children, and this function does not check the cap gracefully: minting a
-/// preimage with more `Signed` fields at one level **panics**. The count is
-/// per node and per level, and containers do not open a new level — five
-/// elements in a `Vec<Signed<u64>>` field are five children of the same
-/// node, not one.
-///
-/// A panic in a deployed contract is a fault with no message, code or
-/// location (see [#358]), so this shows up on chain as an undifferentiated
-/// trap. Keep the shape of a preimage within the cap by construction, or
-/// mint a nested `Signed` to add a level.
-///
-/// The payload also has a size limit —
-/// `groundhog_xdr::auth_token::kAuthTokenMaxLen` (256 bytes) of encoded
-/// `T`. That one is reported, not panicked: it throws
-/// `AuthTokenError::MintEncodeFailure`.
+/// Panics past `kAuthTokenMaxChildNodes` (4) `Signed` fields at one level;
+/// containers do not open a level. Encoded `T` over `kAuthTokenMaxLen` (256
+/// bytes) throws `AuthTokenError::MintEncodeFailure` instead.
 ///
 /// Aborts the transaction if the `MintAuthToken` syscall fails.
-///
-/// [#358]: https://github.com/groundhogchain/sdk_rs/issues/358
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(
     expiry: groundhog_xdr::types::BlockHeight,
