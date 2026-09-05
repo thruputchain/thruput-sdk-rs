@@ -9,7 +9,8 @@
 use alloc::vec::Vec;
 
 use groundhog_contract_spec::ContractTypeSpec;
-use groundhog_xdr::types::{BlockHeight, ContractAddress, NetworkHash};
+use groundhog_xdr::transaction::Uniquifier;
+use groundhog_xdr::types::{ContractAddress, NetworkHash};
 use xdrs::{WriteResult, WriteXDR, Writer, WriterUnchecked};
 
 use crate::SIGNED_OP;
@@ -20,14 +21,16 @@ use crate::SIGNED_OP;
 ///
 /// ```text
 /// cxs(DomainSeparator("SignedOp")) || network || verifying_contract
-///     || cxs(T::TYPE_DEF) || cxs(nonce) || cxs(valid_until) || cxs(body)
+///     || cxs(T::TYPE_DEF) || cxs(uniquifier) || cxs(body)
 /// ```
 ///
-/// Each field closes one replay path: `network` stops replay on another
-/// network carrying the same address, `verifying_contract` stops replay
-/// against another contract, `nonce` and `valid_until` stop replay against
-/// the same one, and `T::TYPE_DEF` stops the signature being read as a
-/// different kind of message. That last one matters because CXS concatenates
+/// where `cxs(uniquifier)` is `cxs(block_expiry_height) || cxs(nonce)`, the
+/// chain's own [`Uniquifier`] encoding. Each field closes one replay path:
+/// `network` stops replay on another network carrying the same address,
+/// `verifying_contract` stops replay against another contract, the
+/// uniquifier stops replay against the same one — consumed once, dead after
+/// its expiry, as the transaction replay cache treats it — and `T::TYPE_DEF`
+/// stops the signature being read as a different kind of message. That last one matters because CXS concatenates
 /// struct fields with no framing: `Grant { amount: u64 }` and
 /// `Revoke { id: u64 }` encode identically, and a `Signed<_>` auth-token field
 /// encodes to nothing at all. `#[contract_type]` already emits the type's
@@ -42,10 +45,9 @@ pub struct SignedOp<'a, T: ?Sized> {
     pub network: NetworkHash,
     /// The contract entitled to act on this operation.
     pub verifying_contract: ContractAddress,
-    /// The signer's sequence number at the verifying contract.
-    pub nonce: u64,
-    /// Last block height (inclusive) at which this operation may execute.
-    pub valid_until: BlockHeight,
+    /// The signer-chosen nonce and the last height (inclusive) at which the
+    /// operation may execute; consumed as a pair by the verifying contract.
+    pub uniquifier: Uniquifier,
     /// The application payload, a `#[contract_type]`.
     pub body: &'a T,
 }
@@ -64,8 +66,7 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> WriteXDR for SignedOp<'_, T> {
         self.network.write_xdr(w)?;
         self.verifying_contract.write_xdr(w)?;
         T::TYPE_DEF.write_xdr(w)?;
-        self.nonce.write_xdr(w)?;
-        self.valid_until.write_xdr(w)?;
+        self.uniquifier.write_xdr(w)?;
         self.body.write_xdr(w)
     }
 
@@ -75,8 +76,7 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> WriteXDR for SignedOp<'_, T> {
             self.network.write_xdr_unchecked(w);
             self.verifying_contract.write_xdr_unchecked(w);
             T::TYPE_DEF.write_xdr_unchecked(w);
-            self.nonce.write_xdr_unchecked(w);
-            self.valid_until.write_xdr_unchecked(w);
+            self.uniquifier.write_xdr_unchecked(w);
             self.body.write_xdr_unchecked(w);
         }
     }
@@ -87,7 +87,7 @@ mod tests {
     use super::*;
     use groundhog_contract_spec::ContractTypeName;
     use groundhog_macros::ContractTypeSpec as DeriveContractTypeSpec;
-    use groundhog_xdr::types::SHA256Hash;
+    use groundhog_xdr::types::{BlockHeight, SHA256Hash};
 
     // Fixtures derive their spec impls through the same derive
     // `#[contract_type]` runs, so they cannot claim a shape the real macro
@@ -128,13 +128,17 @@ mod tests {
         SignedOp {
             network: NetworkHash::new(SHA256Hash::new([0x5a; 32])),
             verifying_contract: ContractAddress::from([0x03; 32]),
-            nonce: 1,
-            valid_until: BlockHeight::new(1_000),
+            uniquifier: Uniquifier {
+                block_expiry_height: BlockHeight::new(1_000),
+                nonce: 1,
+            },
             body,
         }
     }
 
     /// Pins the layout the TypeScript client has to reproduce byte for byte.
+    /// The uniquifier's two fields land expiry first, then nonce: the order
+    /// `Uniquifier` declares them, so a client can encode the chain type.
     #[test]
     fn layout_is_separator_header_type_def_then_body() {
         let body = Grant { amount: 42 };
@@ -146,10 +150,10 @@ mod tests {
         expected.extend_from_slice(&[0x03; 32]);
         expected
             .extend_from_slice(&xdrs::cxs::encode(&Grant::TYPE_DEF).unwrap());
-        expected.extend_from_slice(&xdrs::cxs::encode(&1u64).unwrap());
         expected.extend_from_slice(
             &xdrs::cxs::encode(&BlockHeight::new(1_000)).unwrap(),
         );
+        expected.extend_from_slice(&xdrs::cxs::encode(&1u64).unwrap());
         expected.extend_from_slice(&xdrs::cxs::encode(&body).unwrap());
         assert_eq!(preimage, expected);
     }
@@ -196,11 +200,17 @@ mod tests {
                 ..op(&body)
             },
             SignedOp {
-                nonce: 2,
+                uniquifier: Uniquifier {
+                    block_expiry_height: BlockHeight::new(1_000),
+                    nonce: 2,
+                },
                 ..op(&body)
             },
             SignedOp {
-                valid_until: BlockHeight::new(1_001),
+                uniquifier: Uniquifier {
+                    block_expiry_height: BlockHeight::new(1_001),
+                    nonce: 1,
+                },
                 ..op(&body)
             },
         ];

@@ -1,6 +1,15 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 
+//! ERC-1271-shaped signature validation: an opaque message, an opaque
+//! signature, and the auth tokens the wallet chooses to mint.
+//!
+//! Superseded by `groundhog-signed-op-if`, which is the same idea with the
+//! message format built in — typed, domain-separated, and replay-protected
+//! with the chain's own uniquifier model — so that every wallet and every
+//! client agree on what gets signed. New wallets should implement `SignedOp`.
+//! This crate remains while contracts that implement it are migrated.
+
 extern crate alloc;
 
 mod error;

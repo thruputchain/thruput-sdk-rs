@@ -305,10 +305,12 @@ bypass.
   contract acting as an account, declares the public keys and weights its
   address requires.
 
-`groundhog-erc1271` is the wallet-facing shape of this: `is_valid_signature`
-returns the auth tokens a wallet chooses to mint. The caller destructures them
-with `AssumeTokens`, then consumes each one and checks its minter against the
-wallet address it trusts.
+`groundhog-signed-op` is the wallet-facing shape of this — Groundhog's
+ERC-1271 equivalent, with the message typed and domain-separated in the
+spirit of EIP-712 and replay-protected by the chain's uniquifier model.
+`execute_signed_op` returns the auth tokens a wallet chooses to mint. The
+caller destructures them with `AssumeTokens`, then consumes each one and
+checks its minter against the wallet address it trusts.
 
 # Arithmetic
 
@@ -389,7 +391,7 @@ Other useful modules and types:
 impl of that trait exports an implementation. Callers depend on the interface
 crate and get the same generated client either way. That is how the standard
 interfaces in `standard-interfaces/` (`groundhog-erc20`,
-`groundhog-erc20-metadata`, `groundhog-erc1271`) are consumed.
+`groundhog-erc20-metadata`, `groundhog-signed-op`) are consumed.
 
 Alongside the entrypoints, the macros emit a machine-readable **contract
 spec**: the interface's methods, their argument and return types, and the
