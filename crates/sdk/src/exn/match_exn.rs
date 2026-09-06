@@ -115,13 +115,12 @@ pub fn __try_as<T: Exn + ReadXDROwned>(
 /// interface declared it `throws`.
 ///
 /// ```ignore
-/// match token.try_transfer_from(&from, &to, amount) {
+/// match token.try_transfer(&to, amount) {
 ///     Ok(()) => { /* ... */ }
 ///     Err(CallError::Fault(f)) => { /* ... */ }
 ///     Err(e) => match_exn!(e, {
 ///         ERC20Error::TooLarge               => { /* ... */ }
 ///         ERC20PausableError::EnforcedPause  => { /* ... */ }
-///         // Overspend: balances and allowances are `NNInt`.
 ///         LibraryExn::NonNegativeIntOverflow => { /* ... */ }
 ///         _ => e.re_throw(),
 ///     }),
