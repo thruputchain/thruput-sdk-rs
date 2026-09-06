@@ -2,6 +2,40 @@ This SDK facilitates writing contracts in Rust.
 
 ## Contract Author Quickstart
 
+The canonical way to start a contract is the CLI scaffold. It writes the
+manifest, `src/lib.rs`, the `#![no_main]` `src/main.rs` wrapper and a
+`rust-toolchain.toml`, and `scripts/scaffold-smoke.sh` runs exactly this
+path — `groundhog new`, then `groundhog build` — against this checkout on
+every push to `main`:
+
+```shell
+groundhog new my-contract
+cd my-contract
+groundhog build          # compiles and lowers the rv32 artifact
+```
+
+Installing the CLI goes through the private Groundhog registry today, which
+is what this repository's own scripts do (`scripts/ci.sh`,
+`scripts/scaffold-smoke.sh`):
+
+```shell
+cargo install groundhog-cli --registry groundhog --locked
+```
+
+`cargo install` resolves configuration from the directory you run it in, so
+this repository's `.cargo/config.toml` does not apply unless you happen to be
+standing in the checkout. Set the index and token globally instead:
+
+```shell
+export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://groundhog.dev/crates/api/v1/crates/"
+export CARGO_REGISTRIES_GROUNDHOG_TOKEN=...
+```
+
+CI additionally installs the exact version pinned in
+`scripts/groundhog-cli-version.sh`. There is no public install path yet —
+distribution is tracked in
+[groundhogchain/packaging#86](https://github.com/groundhogchain/packaging/issues/86).
+
 Polished examples and tutorials are maintained outside this repository:
 the [developer docs](https://docs.groundhog.dev/start/getting-started/) walk
 through scaffolding a project with `groundhog new`, and
@@ -10,23 +44,62 @@ holds worked contracts. (The `example-contracts/` directory here is an
 internal test corpus for SDK development, not a set of recommended starting
 points.)
 
-Contract crates using the native test harness typically need:
+### The contract crate
+
+A contract crate is an ordinary Rust crate: an rlib holding the contract,
+plus a thin rv32 binary that force-links it so the entrypoint records reach
+the artifact. It may pull in as many dependencies as you like, but one
+top-level build crate — the one with `src/main.rs` — becomes the deployed
+artifact. Without that `[[bin]]` and its wrapper there is nothing to
+deploy. [`crates/sdk/doc/lib.md`](crates/sdk/doc/lib.md) — the SDK's front
+page, also readable through `./scripts/dev.sh open-docs` — explains each
+piece. `groundhog new` writes this manifest:
 
 ```toml
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. The bin name must stay the snake_case package name:
+# `groundhog build` looks for the ELF at `release/<snake_name>`. src/main.rs
+# is a `#![no_std] #![no_main]` wrapper whose `extern crate my_contract;`
+# force-links the rlib so the entrypoint records reach the binary.
+[[bin]]
+name = "my_contract"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+test = false
+bench = false
+
+# These names are contracts with the toolchain, not free choices:
+# `#[contract]` keys guest entrypoint codegen on `entrypoints`, and
+# `groundhog test` runs host tests with `--features dev`.
 [features]
-# Required: the #[contract] macro gates guest entrypoint codegen on this.
 entrypoints = []
 dev = ["sdk/dev"]
 
-[lib]
-crate-type = ["rlib"]
+# `sdk` is declared per target: it needs `std` on the host and forbids it on
+# the guest, and Cargo resolves features per platform.
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+sdk = { version = "0.31.0", registry = "groundhog" }
 
-[dependencies]
-sdk = { path = "../sdk_rs/crates/sdk" }
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { version = "0.31.0", registry = "groundhog", features = ["std"] }
 
+# Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
+# keeping the library itself no_std for guest builds.
 [dev-dependencies]
 my-contract = { path = ".", features = ["dev"] }
 ```
+
+The scaffold also wires a `groundhog-integration-test` feature and its
+optional `groundhog-json-rpc-client`/`tokio` dependencies, for
+`groundhog test --integration`; they are omitted above.
+
+Native tests additionally link the hogd test-FFI library, downloaded on
+first build by `crates/hogd-sys/build.rs`, so `cargo test` needs access to
+that download as well as to the registry.
 
 Tests run contracts natively against a `TestEnvironment` (an in-process
 groundhog instance). The canonical pattern is the fluent transaction API:
