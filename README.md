@@ -40,10 +40,12 @@ points.)
 
 A contract crate is an ordinary Rust crate: an rlib holding the contract,
 plus a thin rv32 binary that force-links it so the entrypoint records reach
-the artifact. Without that `[[bin]]` and its `src/main.rs` wrapper there is
-no artifact to deploy. [`crates/sdk/doc/lib.md`](crates/sdk/doc/lib.md) —
-the SDK's front page, also readable through `./scripts/dev.sh open-docs` —
-explains each piece, and documents this manifest:
+the artifact. It may pull in as many dependencies as you like, but one
+top-level build crate — the one with `src/main.rs` — becomes the deployed
+artifact. Without that `[[bin]]` and its wrapper there is nothing to
+deploy. [`crates/sdk/doc/lib.md`](crates/sdk/doc/lib.md) — the SDK's front
+page, also readable through `./scripts/dev.sh open-docs` — explains each
+piece, and documents this manifest:
 
 ```toml
 [features]
@@ -66,17 +68,11 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+sdk = { version = "0.31.0", registry = "groundhog" }
 
 [dev-dependencies]
 my-contract = { path = ".", features = ["dev"] }
 ```
-
-`sdk = { workspace = true }` assumes a workspace to inherit the pin from; a
-standalone project carries a published version requirement on that line
-instead, which is what the scaffold writes (`scripts/scaffold-smoke.sh`
-rewrites it to a path dependency to test the scaffold against this
-checkout).
 
 Native tests additionally link the hogd test-FFI library, downloaded on
 first build by `crates/hogd-sys/build.rs`, so `cargo test` needs access to
