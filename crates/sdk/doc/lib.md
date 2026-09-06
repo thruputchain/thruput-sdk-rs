@@ -209,11 +209,12 @@ generated client, which exposes two calling styles:
   `try_decode`.
 
 ```rust,ignore
-match token.try_transfer(&to, amount) {
+match token.try_transfer_from(&from, &to, amount) {
     Ok(()) => { /* ... */ }
     Err(CallError::Fault(f)) => { /* ... */ }
     Err(e) => match_exn!(e, {
-        ERC20Error::InsufficientBalance    => { /* ... */ }
+        ERC20Error::TooLarge               => { /* ... */ }
+        // Overspend: balances and allowances are `NNInt`.
         LibraryExn::NonNegativeIntOverflow => { /* ... */ }
         _ => e.re_throw(),
     }),
