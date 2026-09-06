@@ -205,6 +205,10 @@ pub fn contract(
         .into()
 }
 
+/// Derive the storage impls directly, for a struct that cannot take the
+/// [`macro@storage`] attribute. Override the domain with
+/// `#[storage_domain = "..."]` — the attribute macro's `domain = "..."`
+/// argument lowers to exactly this.
 #[proc_macro_derive(Storage, attributes(slot, storage_domain))]
 pub fn derive_storage(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);

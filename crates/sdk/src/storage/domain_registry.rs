@@ -39,8 +39,9 @@ pub fn assert_unique_storage_domains() {
     if let Some((i, j)) = check_duplicate(records) {
         panic!(
             "storage domain collision: {} and {} derive the same storage \
-             root; set #[storage(domain = \"...\")] on one of them to \
-             disambiguate",
+             root; disambiguate one of them with #[storage(domain = \
+             \"...\")], or #[storage_domain = \"...\"] if it uses \
+             #[derive(Storage)] directly",
             records[i].type_path, records[j].type_path
         );
     }
