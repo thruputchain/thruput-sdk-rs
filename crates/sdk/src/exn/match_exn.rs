@@ -119,7 +119,7 @@ pub fn __try_as<T: Exn + ReadXDROwned>(
 ///     Ok(()) => { /* ... */ }
 ///     Err(CallError::Fault(f)) => { /* ... */ }
 ///     Err(e) => match_exn!(e, {
-///         ERC20Error::InsufficientBalance    => { /* ... */ }
+///         ERC20Error::TooLarge               => { /* ... */ }
 ///         ERC20PausableError::EnforcedPause  => { /* ... */ }
 ///         LibraryExn::NonNegativeIntOverflow => { /* ... */ }
 ///         _ => e.re_throw(),

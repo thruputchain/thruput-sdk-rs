@@ -213,7 +213,7 @@ match token.try_transfer(&to, amount) {
     Ok(()) => { /* ... */ }
     Err(CallError::Fault(f)) => { /* ... */ }
     Err(e) => match_exn!(e, {
-        ERC20Error::InsufficientBalance    => { /* ... */ }
+        ERC20Error::TooLarge               => { /* ... */ }
         LibraryExn::NonNegativeIntOverflow => { /* ... */ }
         _ => e.re_throw(),
     }),
