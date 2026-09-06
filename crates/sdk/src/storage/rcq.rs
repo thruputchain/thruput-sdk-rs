@@ -25,12 +25,12 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 ///
 /// # Size cap
 ///
-/// The host caps a queue entry at 256 bytes. That is well under the SDK's
-/// encode buffer, so `insert` encodes first and the cap is enforced by the
-/// insert syscall: an oversized entry aborts with the syscall's untyped
-/// `LibraryExn::Syscall`, not a typed serialization exception. `consume` and
-/// `peek` throw (and `try_consume` and `try_peek` return)
-/// `StorageSerialization` if an entry fails to decode as `T`.
+/// A queue entry is capped at
+/// [`kQueueEntryMaxLen`](crate::types::kQueueEntryMaxLen)
+/// bytes, enforced by the insert syscall: an oversized entry aborts with the
+/// syscall's untyped `LibraryExn::Syscall`, not a typed serialization
+/// exception. `consume` and `peek` throw (and `try_consume` and `try_peek`
+/// return) `StorageSerialization` if an entry fails to decode as `T`.
 ///
 #[derive(Debug)]
 pub struct RCQ<T> {

@@ -12,6 +12,7 @@ pub use groundhog_xdr::contract::ContractEntrypointID;
 pub use groundhog_xdr::event;
 pub use groundhog_xdr::exec_result::*;
 pub use groundhog_xdr::genesis;
+pub use groundhog_xdr::retrocausal_queue::kQueueEntryMaxLen;
 pub use groundhog_xdr::storage_cost::*;
 pub use groundhog_xdr::storage_item::StorageDeltaFlags;
 pub use groundhog_xdr::transaction;
