@@ -53,34 +53,49 @@ top-level build crate — the one with `src/main.rs` — becomes the deployed
 artifact. Without that `[[bin]]` and its wrapper there is nothing to
 deploy. [`crates/sdk/doc/lib.md`](crates/sdk/doc/lib.md) — the SDK's front
 page, also readable through `./scripts/dev.sh open-docs` — explains each
-piece, and documents this manifest:
+piece. `groundhog new` writes this manifest:
 
 ```toml
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. The bin name must stay the snake_case package name:
+# `groundhog build` looks for the ELF at `release/<snake_name>`. src/main.rs
+# is a `#![no_std] #![no_main]` wrapper whose `extern crate my_contract;`
+# force-links the rlib so the entrypoint records reach the binary.
+[[bin]]
+name = "my_contract"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+test = false
+bench = false
+
+# These names are contracts with the toolchain, not free choices:
+# `#[contract]` keys guest entrypoint codegen on `entrypoints`, and
+# `groundhog test` runs host tests with `--features dev`.
 [features]
-# Yours, not the SDK's. `#[contract]` gates guest entrypoint codegen on it,
-# so a dependency cannot inject entrypoints into your binary.
 entrypoints = []
 dev = ["sdk/dev"]
 
-[lib]
-crate-type = ["rlib"]
-
-# The rv32 artifact. `groundhog build -p my-contract` derives
-# `--bin my-contract` from the package name, so this name must match it.
-# src/main.rs is a `#![no_std] #![no_main]` wrapper whose `extern crate
-# my_contract;` force-links the rlib so the entrypoint records reach the
-# binary.
-[[bin]]
-name = "my-contract"
-path = "src/main.rs"
-required-features = ["entrypoints"]
-
-[dependencies]
+# `sdk` is declared per target: it needs `std` on the host and forbids it on
+# the guest, and Cargo resolves features per platform.
+[target.'cfg(target_arch = "riscv32")'.dependencies]
 sdk = { version = "0.31.0", registry = "groundhog" }
 
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { version = "0.31.0", registry = "groundhog", features = ["std"] }
+
+# Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
+# keeping the library itself no_std for guest builds.
 [dev-dependencies]
 my-contract = { path = ".", features = ["dev"] }
 ```
+
+The scaffold also wires a `groundhog-integration-test` feature and its
+optional `groundhog-json-rpc-client`/`tokio` dependencies, for
+`groundhog test --integration`; they are omitted above.
 
 Native tests additionally link the hogd test-FFI library, downloaded on
 first build by `crates/hogd-sys/build.rs`, so `cargo test` needs access to
