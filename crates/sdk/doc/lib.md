@@ -473,6 +473,21 @@ env.transact(|tx| {
 Use the full `env.transact` form when a test needs multiple transactions,
 asserts on aborts or faults, or decodes typed results.
 
+The chain settings an environment runs under -- the storage cost model, the
+network hash, the genesis root, and the network config parameters -- come
+from [`TestEnvironment::builder()`](crate::TestEnvironment::builder) when a
+test wants something other than the defaults. It is entirely optional; the
+constructors above are unaffected by it.
+
+```rust,ignore
+// A contract's behavior at the chain's live-hasher cap, without needing a
+// chain configured that way. Every unset parameter keeps its stock value.
+let env = TestEnvironment::builder()
+    .no_cost()
+    .with_max_sha256_buffers(2)
+    .build();
+```
+
 Advanced helpers are available when you need lower-level control:
 
 - [`contract_test!`]
