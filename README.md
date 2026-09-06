@@ -22,10 +22,18 @@ is what this repository's own scripts do (`scripts/ci.sh`,
 cargo install groundhog-cli --registry groundhog --locked
 ```
 
-That needs a `groundhog` registry index and token (see `.cargo/config.toml`
-and `CARGO_REGISTRIES_GROUNDHOG_TOKEN`); CI additionally installs the exact
-version pinned in `scripts/groundhog-cli-version.sh`. There is no public
-install path yet — distribution is tracked in
+`cargo install` resolves configuration from the directory you run it in, so
+this repository's `.cargo/config.toml` does not apply unless you happen to be
+standing in the checkout. Set the index and token globally instead:
+
+```shell
+export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://groundhog.dev/crates/api/v1/crates/"
+export CARGO_REGISTRIES_GROUNDHOG_TOKEN=...
+```
+
+CI additionally installs the exact version pinned in
+`scripts/groundhog-cli-version.sh`. There is no public install path yet —
+distribution is tracked in
 [groundhogchain/packaging#86](https://github.com/groundhogchain/packaging/issues/86).
 
 Polished examples and tutorials are maintained outside this repository:
