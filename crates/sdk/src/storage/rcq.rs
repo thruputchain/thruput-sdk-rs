@@ -25,12 +25,13 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 ///
 /// # Size cap
 ///
-/// Each queue entry's encoding is capped at the SDK's fixed encode-buffer size
-/// (~1 KiB). `insert` throws a typed exception if the entry exceeds that
-/// limit. `consume` and `peek` throw (and `try_consume` and `try_peek`
-/// return) `StorageSerialization` if an entry in the queue is larger — which
-/// can only happen if something other than the typed `insert` wrote the
-/// entry.
+/// A queue entry is capped at
+/// [`kQueueEntryMaxLen`](crate::types::kQueueEntryMaxLen)
+/// bytes, enforced by the insert syscall: `insert` encodes first, so an entry
+/// that encodes cleanly but exceeds the cap aborts with the syscall's untyped
+/// `LibraryExn::Syscall` rather than a typed exception. `consume` and `peek`
+/// throw (and `try_consume` and `try_peek` return) `StorageSerialization` if
+/// an entry fails to decode as `T`.
 ///
 #[derive(Debug)]
 pub struct RCQ<T> {
