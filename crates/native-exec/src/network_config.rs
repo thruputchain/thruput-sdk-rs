@@ -95,7 +95,7 @@ pub fn find_config_param(
 #[must_use = "a NetworkConfigBuilder does nothing until `build` is called"]
 pub struct NetworkConfigBuilder {
     base: Option<NetworkConfig>,
-    overrides: BTreeMap<i32, ConfigParam>,
+    overrides: BTreeMap<ConfigParamID, ConfigParam>,
 }
 
 impl NetworkConfigBuilder {
@@ -121,7 +121,7 @@ impl NetworkConfigBuilder {
     /// The typed setters below cover the parameters this SDK release knows;
     /// this is the escape hatch for one it does not.
     pub fn with_config_param(mut self, param: ConfigParam) -> Self {
-        self.overrides.insert(param.param().0, param);
+        self.overrides.insert(param.param(), param);
         self
     }
 
@@ -180,7 +180,8 @@ impl NetworkConfigBuilder {
 
         // Ascending id order (BTreeMap), so an override that extends the
         // prefix by one lands right after the parameters below it.
-        for (id, param) in self.overrides {
+        for (param_id, param) in self.overrides {
+            let id = param_id.0;
             let index = usize::try_from(id).unwrap_or_else(|_| {
                 panic!("network configuration parameter id {id} is negative")
             });
