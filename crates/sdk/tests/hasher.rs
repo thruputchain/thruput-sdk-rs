@@ -178,3 +178,33 @@ contract_test!(test_hasher_fork_respects_slot_budget {
     forked.update(b"bar");
     assert_eq!(forked.finish(), EXPECTED);
 });
+
+// The live-stream budget is a chain setting, so a test can pin it rather
+// than discover it: `TestEnvironment::builder` states a
+// `max_sha256_buffers` of its own, and the VM enforces exactly that.
+#[test]
+fn test_hasher_budget_is_the_configured_one() {
+    let env = TestEnvironment::builder()
+        .no_cost()
+        .with_max_sha256_buffers(2)
+        .build();
+
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("hasher_configured_budget"))
+            .run(|| {
+                let mut first = Hasher::try_new().unwrap();
+                first.update(b"foo");
+                let second = Hasher::try_new().unwrap();
+
+                assert!(
+                    Hasher::try_new().is_err(),
+                    "a third live stream must exceed the configured budget",
+                );
+
+                // Freeing one makes room for exactly one more.
+                drop(second);
+                assert!(Hasher::try_new().is_ok());
+            })
+    })
+    .assert_success();
+}

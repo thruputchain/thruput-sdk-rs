@@ -7,6 +7,7 @@ use groundhog_sys::ForeignTryCommitResult;
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::auth_claim::AuthClaim;
 use groundhog_xdr::event::TxEmittedEvent;
+use groundhog_xdr::syscall_error::SyscallErrorCode;
 use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::SHA256Hash;
 use std::cell::Cell;
@@ -136,6 +137,28 @@ pub struct MockInvocationFrame {
     fault_panic: Option<crate::invoke_error::PanicRecord>,
 }
 
+/// Name the rule that refused a frame, rather than leaving a caller with a
+/// bare code. These are production's own refusals: a contract's `Invoke` is
+/// turned away for the same reasons, and sees the same codes.
+fn frame_refusal_message(code: SyscallErrorCode) -> String {
+    let rule = match code {
+        c if c == SyscallErrorCode::kSyscallErrorCodeReentrance => {
+            "that address already has a frame open on this transaction's \
+             stack -- nested frames need distinct addresses"
+        }
+        c if c == SyscallErrorCode::kSyscallErrorCodeInvokeDepthExceeded => {
+            "the transaction already holds the chain's \
+             max_cross_invoke_depth frames open"
+        }
+        c if c == SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput => {
+            "the invoke flags carry bits production does not admit (only \
+             TryInvoke and ReadOnly are implemented)"
+        }
+        _ => "production refused the invocation",
+    };
+    format!("mock invocation frame refused: {rule} ({code})")
+}
+
 impl MockInvocationFrame {
     fn new(
         root_handler: *mut c_void,
@@ -149,14 +172,19 @@ impl MockInvocationFrame {
             len: serialized_invocation.len().try_into().unwrap(),
         };
 
-        let handler_res: groundhog_sys::FFIErrorCode = unsafe {
+        let res = unsafe {
             groundhog_sys::open_mock_invocation_frame(
                 root_handler,
                 ffi_invocation,
                 invoke_flags,
             )
-            .into()
         };
+
+        // Two distinct failures, and the FFI keeps them apart: an FFI code
+        // means this harness called the API wrong, a syscall code means the
+        // call was well-formed and production refused it. Both open no frame.
+        let handler_res: groundhog_sys::FFIErrorCode =
+            res.ffi_error_code.into();
         if handler_res != FFIErrorCode::None {
             // An InvokeError payload, not a plain panic!: the Unrecoverable
             // code propagates out of any enclosing frame instead of being
@@ -165,6 +193,11 @@ impl MockInvocationFrame {
                 "failed to open mock invocation frame: {:?}",
                 handler_res
             );
+            panic_any(crate::invoke_error::unrecoverable_error());
+        }
+        let refused = SyscallErrorCode(res.syscall_error_code);
+        if refused != SyscallErrorCode::kSyscallErrorCodeNone {
+            eprintln!("{}", frame_refusal_message(refused));
             panic_any(crate::invoke_error::unrecoverable_error());
         }
 
@@ -1346,5 +1379,29 @@ mod tests {
             result2.output().status_code(),
             InvocationFrameStatusCode::Return
         );
+    }
+
+    // The point of test-ffi 0.32.0: a refused frame says which rule refused
+    // it. Production hands a contract the same codes for the same reasons.
+    #[test]
+    fn refusal_messages_name_the_rule() {
+        let msg = frame_refusal_message(
+            SyscallErrorCode::kSyscallErrorCodeReentrance,
+        );
+        assert!(msg.contains("distinct addresses"), "{msg}");
+
+        let msg = frame_refusal_message(
+            SyscallErrorCode::kSyscallErrorCodeInvokeDepthExceeded,
+        );
+        assert!(msg.contains("max_cross_invoke_depth"), "{msg}");
+
+        let msg = frame_refusal_message(
+            SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+        );
+        assert!(msg.contains("TryInvoke"), "{msg}");
+
+        // An unnamed code still reports itself rather than going silent.
+        let msg = frame_refusal_message(SyscallErrorCode(9999));
+        assert!(msg.contains("9999"), "{msg}");
     }
 }

@@ -1,6 +1,7 @@
 use crate::frame_result::FrameResult;
 use crate::mock_contract::{MockContract, MockContractInner};
 use crate::mock_transaction_handler::MockTransactionHandler;
+use crate::test_environment_builder::TestEnvironmentBuilder;
 use crate::transact_result::TransactResult;
 use crate::transaction_builder::TransactionBuilder;
 use core::ffi::c_void;
@@ -77,6 +78,10 @@ pub struct TestEnvironmentInner {
 ///   environment and auto-commits; build frames with the fluent
 ///   `tx.call(&addr)` API. [`TestEnvironment::advance_block`] makes
 ///   committed effects visible to subsequent transactions.
+/// - [`TestEnvironment::builder`] reaches settings the constructors above
+///   do not, notably the chain's network config parameters. It is entirely
+///   optional: everything else here behaves the same whether or not any
+///   test uses it.
 ///
 /// ```no_run
 /// use groundhog_native_exec::test_environment::TestEnvironment;
@@ -131,6 +136,7 @@ impl DBWrapper {
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
         genesis_root_contract: &Contract,
+        network_config: Option<&NetworkConfig>,
     ) -> Self {
         let cost_model_bytes =
             cost_model.map(|model| model.serialize().unwrap());
@@ -142,9 +148,20 @@ impl DBWrapper {
 
         let genesis_root_bytes = txs::encode(genesis_root_contract).unwrap();
 
+        let network_config_bytes =
+            network_config.map(|config| txs::encode(config).unwrap());
+        let ffi_network_config_bytes: (*const u8, u32) = network_config_bytes
+            .as_ref()
+            .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
+            .unwrap_or((core::ptr::null(), 0));
+
         // hogd reads exactly 32 bytes from this pointer (it is not XDR), and
         // rejects a null one. A null network config takes this build's stock
-        // genesis values.
+        // genesis values; a non-null one must state a gapless prefix of the
+        // parameter id space, which hogd checks fatally (SIGABRT, no return
+        // through the FFI) -- build it with
+        // `crate::network_config::NetworkConfigBuilder`, which refuses to
+        // produce anything else.
         let res = unsafe {
             groundhog_sys::create_db(
                 ffi_cost_model_bytes.0,
@@ -152,8 +169,8 @@ impl DBWrapper {
                 network_hash.as_ptr(),
                 genesis_root_bytes.as_ptr(),
                 genesis_root_bytes.len().try_into().unwrap(),
-                core::ptr::null(),
-                0,
+                ffi_network_config_bytes.0,
+                ffi_network_config_bytes.1,
             )
         };
         let err: FFIErrorCode = res.ffi_error_code.into();
@@ -270,11 +287,13 @@ impl Drop for RuntimeContextWrapper {
 impl TestEnvironmentInner {
     /// Create a fresh in-memory database (with the given cost model) and
     /// runtime context on `network_hash`. `genesis_root_contract` is
-    /// installed as the genesis root deployment.
+    /// installed as the genesis root deployment, and `network_config`
+    /// states the execution parameters -- `None` for the stock ones.
     pub fn new(
         cost_model: Option<&StorageCostModel>,
         network_hash: &NetworkHash,
         genesis_root_contract: &Contract,
+        network_config: Option<&NetworkConfig>,
     ) -> Self {
         // the initialization in create_db() advances the block once, so it is prepped for
         // accepting new transactions (in proposal mode)
@@ -283,6 +302,7 @@ impl TestEnvironmentInner {
                 cost_model,
                 network_hash,
                 genesis_root_contract,
+                network_config,
             ),
             contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
@@ -528,7 +548,12 @@ impl Drop for TestEnvironmentInner {
 
 impl Default for TestEnvironmentInner {
     fn default() -> Self {
-        Self::new(None, &test_network_hash(), &mock_genesis_root_contract())
+        Self::new(
+            None,
+            &test_network_hash(),
+            &mock_genesis_root_contract(),
+            None,
+        )
     }
 }
 
@@ -577,11 +602,43 @@ impl TestEnvironment {
         network_hash: &NetworkHash,
         genesis_root_contract: &Contract,
     ) -> TestEnvironmentHandle {
+        Self::from_parts(cost_model, network_hash, genesis_root_contract, None)
+    }
+
+    /// Start configuring an environment that needs settings the plain
+    /// constructors do not reach -- notably the chain's network config
+    /// parameters.
+    ///
+    /// Returns a [`TestEnvironmentBuilder`]; chain `with_*` methods, then
+    /// finish with [`build`](TestEnvironmentBuilder::build):
+    ///
+    /// ```no_run
+    /// use groundhog_native_exec::test_environment::TestEnvironment;
+    ///
+    /// let env = TestEnvironment::builder()
+    ///     .no_cost()
+    ///     .with_max_sha256_buffers(2)
+    ///     .build();
+    /// ```
+    pub fn builder() -> TestEnvironmentBuilder {
+        TestEnvironmentBuilder::new()
+    }
+
+    /// Every constructor's common path: the one place an environment's
+    /// database and runtime context are created. `network_config` is
+    /// `None` for the stock execution parameters.
+    pub(crate) fn from_parts(
+        cost_model: Option<&StorageCostModel>,
+        network_hash: &NetworkHash,
+        genesis_root_contract: &Contract,
+        network_config: Option<&NetworkConfig>,
+    ) -> TestEnvironmentHandle {
         let te = Rc::new(Self {
             inner: RefCell::new(TestEnvironmentInner::new(
                 cost_model,
                 network_hash,
                 genesis_root_contract,
+                network_config,
             )),
         });
 

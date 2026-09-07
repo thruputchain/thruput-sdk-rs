@@ -19,9 +19,14 @@ mod mock_public {
         mock_transaction_handler::{
             MockTransactionConfig, MockTransactionHandler,
         },
+        // The optional non-default-settings lane: `TestEnvironment`'s own
+        // constructors stay the ordinary way in.
+        network_config,
+        network_config::NetworkConfigBuilder,
         test_environment::{
             TestEnvironment, TestEnvironmentHandle, test_network_hash,
         },
+        test_environment_builder::TestEnvironmentBuilder,
         test_helpers::Named,
         transact_result::TransactResult,
         transaction_builder::TransactionBuilder,
