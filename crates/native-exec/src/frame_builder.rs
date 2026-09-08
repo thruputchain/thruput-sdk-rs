@@ -1,7 +1,8 @@
 use crate::frame_result::FrameResult;
 use crate::mock_transaction_handler::{
-    MockInvocationFrame, MockInvocationFrameConfig,
+    MockInvocationFrame, MockInvocationFrameConfig, frame_refusal_message,
 };
+use groundhog_xdr::syscall_error::SyscallErrorCode;
 use std::panic::UnwindSafe;
 
 /// What an `execute` closure tells the harness to do with its frame.
@@ -67,7 +68,24 @@ impl<'a> FrameBuilder<'a> {
         self,
         f: impl FnOnce() -> T + UnwindSafe,
     ) -> FrameResult {
-        let frame = self.config.build();
+        self.try_run(f).unwrap_or_else(|refused| {
+            panic!("{}", frame_refusal_message(refused))
+        })
+    }
+
+    /// Execute the frame as [`run`](Self::run) does, but report a frame
+    /// production refuses to admit rather than failing the test binary.
+    ///
+    /// `Err` carries the rule -- reentrance, the cross-invoke depth cap, or
+    /// undefined invoke flags -- and means no frame opened and the closure
+    /// never ran, which is exactly what a contract's refused `Invoke` gets.
+    /// Use it to assert on a cap the chain sets; use `run` when the frame is
+    /// expected to open.
+    pub fn try_run<T: xdrs::WriteXDR>(
+        self,
+        f: impl FnOnce() -> T + UnwindSafe,
+    ) -> Result<FrameResult, SyscallErrorCode> {
+        let frame = self.config.try_build()?;
         frame.execute(|_| {
             let value = f();
             let encoded = xdrs::cxs::encode(&value)
@@ -83,7 +101,7 @@ impl<'a> FrameBuilder<'a> {
                 groundhog_xdr::syscalls::raw_Return(&encoded, false, &[])
             }
         });
-        frame.result()
+        Ok(frame.result())
     }
 
     /// Execute the frame with a closure that receives a FrameHandle
@@ -107,12 +125,25 @@ impl<'a> FrameBuilder<'a> {
         self,
         f: impl FnOnce(&mut FrameHandle) -> FrameAction + UnwindSafe,
     ) -> ContinuableFrame<'a> {
-        let frame = self.config.build();
+        self.try_run_continuable(f).unwrap_or_else(|refused| {
+            panic!("{}", frame_refusal_message(refused))
+        })
+    }
+
+    /// Open a continuable frame as
+    /// [`run_continuable`](Self::run_continuable) does, reporting a refused
+    /// frame rather than failing the test binary. See
+    /// [`try_run`](Self::try_run).
+    pub fn try_run_continuable(
+        self,
+        f: impl FnOnce(&mut FrameHandle) -> FrameAction + UnwindSafe,
+    ) -> Result<ContinuableFrame<'a>, SyscallErrorCode> {
+        let frame = self.config.try_build()?;
         frame.execute(|inner_frame| {
             let mut handle = FrameHandle { frame: inner_frame };
             f(&mut handle)
         });
-        ContinuableFrame { frame }
+        Ok(ContinuableFrame { frame })
     }
 }
 

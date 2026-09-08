@@ -135,14 +135,11 @@ impl NetworkConfigBuilder {
 
     /// Invocation frames one transaction may have open at once.
     ///
-    /// A test that drives past this cap does not see what a guest would.
-    /// The harness opens child frames itself, and any frame the executor
-    /// refuses becomes an unrecoverable harness panic rather than the
-    /// invoke error a contract would observe -- the same way breaking the
-    /// reentrance rule surfaces (see
-    /// [`FrameHandle::child_call`](crate::frame_builder::FrameHandle::child_call)).
-    /// Lowering this cap is for the configuration a contract runs under,
-    /// not for asserting on what it does at the cap.
+    /// To drive a test past this cap, open the frame with
+    /// [`try_run`](crate::frame_builder::FrameBuilder::try_run): a refused
+    /// frame comes back as the rule that refused it, leaving the parent
+    /// usable. Plain `run` panics on one, so it stays the right choice for
+    /// a frame the test expects to open.
     pub fn with_max_cross_invoke_depth(
         self,
         max_cross_invoke_depth: u32,
@@ -159,6 +156,14 @@ impl NetworkConfigBuilder {
     ) -> Self {
         self.with_config_param(ConfigParam::kConfigParamMaxNewContractsPerTx {
             max_new_contracts_per_tx,
+        })
+    }
+
+    /// The longest bytestring a storage item may hold, checked where one is
+    /// written rather than read.
+    pub fn with_max_bytestring_len(self, max_bytestring_len: u32) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxBytestringLen {
+            max_bytestring_len,
         })
     }
 

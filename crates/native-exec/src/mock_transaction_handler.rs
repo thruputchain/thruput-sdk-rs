@@ -101,17 +101,31 @@ impl<'a> MockInvocationFrameConfig<'a> {
     /// Open the frame at the FFI level, returning the
     /// [`MockInvocationFrame`].
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
+        match self.try_build() {
+            Ok(frame) => frame,
+            Err(refused) => panic!("{}", frame_refusal_message(refused)),
+        }
+    }
+
+    /// Open the frame, or report the rule production refused it under.
+    ///
+    /// A refusal opens no frame and owes no finish, so the handler is left
+    /// usable and the caller may carry on -- which is what lets a test
+    /// assert on a cap rather than die at it.
+    pub fn try_build(
+        self,
+    ) -> Result<&'a mut Box<MockInvocationFrame>, SyscallErrorCode> {
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
-        let frame = Box::new(MockInvocationFrame::new(
+        let frame = Box::new(MockInvocationFrame::try_new(
             self.root_handler,
             &serialized_invocation,
             self.invoke_flags,
             self.context_pushcount.clone(),
             self.root_frame_closed,
-        ));
+        )?);
         *self.to_emplace = Some(frame);
-        self.to_emplace.as_mut().unwrap()
+        Ok(self.to_emplace.as_mut().unwrap())
     }
 }
 
@@ -140,7 +154,7 @@ pub struct MockInvocationFrame {
 /// Name the rule that refused a frame, rather than leaving a caller with a
 /// bare code. These are production's own refusals: a contract's `Invoke` is
 /// turned away for the same reasons, and sees the same codes.
-fn frame_refusal_message(code: SyscallErrorCode) -> String {
+pub(crate) fn frame_refusal_message(code: SyscallErrorCode) -> String {
     let rule = match code {
         c if c == SyscallErrorCode::kSyscallErrorCodeReentrance => {
             "that address already has a frame open on this transaction's \
@@ -160,13 +174,19 @@ fn frame_refusal_message(code: SyscallErrorCode) -> String {
 }
 
 impl MockInvocationFrame {
-    fn new(
+    /// Open the frame, or report the rule production refused it under.
+    ///
+    /// Only an admission refusal is an `Err`: the caller asked for something
+    /// a contract cannot have either, which a test may well be asserting on.
+    /// An FFI-level failure is this harness misusing the API, and still
+    /// panics unrecoverably.
+    fn try_new(
         root_handler: *mut c_void,
         serialized_invocation: &[u8],
         invoke_flags: i32,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
-    ) -> Self {
+    ) -> Result<Self, SyscallErrorCode> {
         let ffi_invocation = groundhog_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
             len: serialized_invocation.len().try_into().unwrap(),
@@ -197,18 +217,17 @@ impl MockInvocationFrame {
         }
         let refused = SyscallErrorCode(res.syscall_error_code);
         if refused != SyscallErrorCode::kSyscallErrorCodeNone {
-            eprintln!("{}", frame_refusal_message(refused));
-            panic_any(crate::invoke_error::unrecoverable_error());
+            return Err(refused);
         }
 
-        Self {
+        Ok(Self {
             root_handler,
             child_frame: None,
             state: MockInvocationFrameState::Started,
             context_pushcount,
             root_frame_closed,
             fault_panic: None,
-        }
+        })
     }
 
     /// True if this frame's child frame exists and is still open at the FFI

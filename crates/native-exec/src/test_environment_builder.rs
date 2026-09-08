@@ -115,14 +115,11 @@ impl TestEnvironmentBuilder {
 
     /// Invocation frames one transaction may have open at once.
     ///
-    /// A test that drives past this cap does not see what a guest would.
-    /// The harness opens child frames itself, and any frame the executor
-    /// refuses becomes an unrecoverable harness panic rather than the
-    /// invoke error a contract would observe -- the same way breaking the
-    /// reentrance rule surfaces (see
-    /// [`FrameHandle::child_call`](crate::frame_builder::FrameHandle::child_call)).
-    /// Lowering this cap is for the configuration a contract runs under,
-    /// not for asserting on what it does at the cap.
+    /// To drive a test past this cap, open the frame with
+    /// [`try_run`](crate::frame_builder::FrameBuilder::try_run): a refused
+    /// frame comes back as the rule that refused it, leaving the parent
+    /// usable. Plain `run` panics on one, so it stays the right choice for
+    /// a frame the test expects to open.
     pub fn with_max_cross_invoke_depth(
         mut self,
         max_cross_invoke_depth: u32,
@@ -141,6 +138,15 @@ impl TestEnvironmentBuilder {
         self.network_config = self
             .network_config
             .with_max_new_contracts_per_tx(max_new_contracts_per_tx);
+        self
+    }
+
+    /// The longest bytestring a storage item may hold, checked where one is
+    /// written rather than read.
+    pub fn with_max_bytestring_len(mut self, max_bytestring_len: u32) -> Self {
+        self.network_config = self
+            .network_config
+            .with_max_bytestring_len(max_bytestring_len);
         self
     }
 
@@ -277,6 +283,81 @@ mod tests {
             )
         })
         .assert_success();
+    }
+
+    // The cap the builder sets is now one a test can assert on: production
+    // refuses the frame, try_run reports which rule, and the parent frame
+    // stays usable -- where this used to take the test binary with it.
+    #[test]
+    fn the_cross_invoke_depth_cap_is_assertable() {
+        use crate::frame_builder::FrameAction;
+        use groundhog_xdr::syscall_error::SyscallErrorCode;
+
+        // One frame open at a time: the root admits, a child does not.
+        let env = TestEnvironment::builder()
+            .no_cost()
+            .with_max_cross_invoke_depth(1)
+            .build();
+
+        env.transact_manual(|tx| {
+            let mut root = tx
+                .call(&ContractAddress::named("depth_root"))
+                .run_continuable(|frame| {
+                    let refused = frame
+                        .child_call(&ContractAddress::named("depth_child"))
+                        .try_run(|| {});
+                    assert_eq!(
+                        refused.unwrap_err(),
+                        SyscallErrorCode::kSyscallErrorCodeInvokeDepthExceeded,
+                    );
+                    FrameAction::Close
+                });
+            // The refusal opened no frame and owed no finish, so the root
+            // closes normally on top of it.
+            root.finish().assert_success();
+            tx.try_commit_transaction();
+        });
+    }
+
+    // The same, for the rule a test is likelier to hit by accident.
+    #[test]
+    fn a_reentrant_frame_is_reported_not_fatal() {
+        use crate::frame_builder::FrameAction;
+        use groundhog_xdr::syscall_error::SyscallErrorCode;
+
+        let env = TestEnvironment::builder().no_cost().build();
+        let addr = ContractAddress::named("reentrant");
+
+        env.transact_manual(|tx| {
+            let mut root = tx.call(&addr).run_continuable(|frame| {
+                let refused = frame.child_call(&addr).try_run(|| {});
+                assert_eq!(
+                    refused.unwrap_err(),
+                    SyscallErrorCode::kSyscallErrorCodeReentrance,
+                );
+                FrameAction::Close
+            });
+            root.finish().assert_success();
+            tx.try_commit_transaction();
+        });
+    }
+
+    #[test]
+    fn the_max_bytestring_len_parameter_is_settable() {
+        let env = TestEnvironment::builder()
+            .no_cost()
+            .with_max_bytestring_len(64)
+            .build();
+
+        assert_eq!(
+            find_config_param(
+                &env.get_network_config(),
+                ConfigParamID::kConfigParamMaxBytestringLen,
+            ),
+            Some(&ConfigParam::kConfigParamMaxBytestringLen {
+                max_bytestring_len: 64
+            }),
+        );
     }
 
     #[test]
