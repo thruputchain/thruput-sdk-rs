@@ -1,6 +1,6 @@
 use crate::frame_result::FrameResult;
 use crate::mock_transaction_handler::{
-    MockInvocationFrame, MockInvocationFrameConfig, frame_refusal_message,
+    MockInvocationFrame, MockInvocationFrameConfig, refusal_is_unrecoverable,
 };
 use groundhog_xdr::syscall_error::SyscallErrorCode;
 use std::panic::UnwindSafe;
@@ -68,9 +68,8 @@ impl<'a> FrameBuilder<'a> {
         self,
         f: impl FnOnce() -> T + UnwindSafe,
     ) -> FrameResult {
-        self.try_run(f).unwrap_or_else(|refused| {
-            panic!("{}", frame_refusal_message(refused))
-        })
+        self.try_run(f)
+            .unwrap_or_else(|refused| refusal_is_unrecoverable(refused))
     }
 
     /// Execute the frame as [`run`](Self::run) does, but report a frame
@@ -125,9 +124,8 @@ impl<'a> FrameBuilder<'a> {
         self,
         f: impl FnOnce(&mut FrameHandle) -> FrameAction + UnwindSafe,
     ) -> ContinuableFrame<'a> {
-        self.try_run_continuable(f).unwrap_or_else(|refused| {
-            panic!("{}", frame_refusal_message(refused))
-        })
+        self.try_run_continuable(f)
+            .unwrap_or_else(|refused| refusal_is_unrecoverable(refused))
     }
 
     /// Open a continuable frame as
