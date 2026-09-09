@@ -120,8 +120,16 @@ jobs:
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            sudo apt-get update && sudo apt-get install -y ripgrep
+            # `apt-get update` exits non-zero if ANY configured source fails,
+            # and the runner image carries third-party repos (Chrome, MS,
+            # git-lfs) we neither need nor control — one of them breaking took
+            # ripgrep down with it and failed every build job. apt says as
+            # much when it happens ("They have been ignored, or old ones used
+            # instead"), so ignore its status and let the install decide.
+            sudo apt-get update || true
+            sudo apt-get install -y ripgrep
           fi
+          # The real gate: if ripgrep did not install, fail here.
           rg --version
 
       - name: Run CI
@@ -182,8 +190,16 @@ jobs:
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            sudo apt-get update && sudo apt-get install -y ripgrep
+            # `apt-get update` exits non-zero if ANY configured source fails,
+            # and the runner image carries third-party repos (Chrome, MS,
+            # git-lfs) we neither need nor control — one of them breaking took
+            # ripgrep down with it and failed every build job. apt says as
+            # much when it happens ("They have been ignored, or old ones used
+            # instead"), so ignore its status and let the install decide.
+            sudo apt-get update || true
+            sudo apt-get install -y ripgrep
           fi
+          # The real gate: if ripgrep did not install, fail here.
           rg --version
 
       - name: Build metrics inputs
