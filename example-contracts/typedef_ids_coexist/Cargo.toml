@@ -1,6 +1,6 @@
 [package]
-name = "typedef_collision_reachable"
-description = "Negative spec fixture: implements MarketV1 while linking if_v2, so the SharedConfig conflict is reachable and spec rewrite must fail"
+name = "typedef_ids_coexist"
+description = "Spec fixture: implements MarketV1 while linking if_v2, so two crates same-named SharedConfig types are both in the pool and ids keep them apart"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -20,11 +20,10 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. The directory deliberately lacks a `-rv32` suffix so the
-# wrapper glob in scripts/dev.sh never builds it expecting success; the
-# negative check builds it by name. Same shape as dup_entrypoint_neg.
+# The rv32 artifact. Built by the normal rv32 loop: this fixture is expected
+# to build and to produce a spec, which is the whole point of it.
 [[bin]]
-name = "typedef_collision_reachable"
+name = "typedef_ids_coexist"
 path = "src/main.rs"
 required-features = ["entrypoints"]
 
@@ -34,4 +33,4 @@ typedef_shaking_if_v1 = { path = "../typedef_shaking_if_v1" }
 typedef_shaking_if_v2 = { path = "../typedef_shaking_if_v2" }
 
 [dev-dependencies]
-typedef_collision_reachable = { path = ".", features = ["dev"] }
+typedef_ids_coexist = { path = ".", features = ["dev"] }

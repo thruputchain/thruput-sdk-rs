@@ -26,7 +26,7 @@ LOWERED="${TARGET_DIR}/groundhog"
 # IS the rv32 enablement.
 #
 # The `disabled` marker is what keeps the negative fixtures
-# (missing_contract_macro, typedef_collision_reachable, iface_conflict_impl,
+# (missing_contract_macro, typedef_id_collision, iface_conflict_impl,
 # dup_entrypoint_neg) and bigint-bench-contract out of this loop: they carry
 # bins too, but must never be built here expecting success. The checks that
 # own them build them by name.
@@ -251,28 +251,34 @@ eg_build_rv32_all() {
     check_rv32_duplicate_entrypoint_detected
 }
 
-# Negative spec fixture: typedef_collision_reachable implements MarketV1
-# (anchoring it, so v1's SharedConfig is reachable from the retained spec)
-# while also linking typedef_shaking_if_v2, whose unimplemented candidate
-# contributes a differently-shaped SharedConfig def. The ELF links; the spec
+# Negative spec fixture: typedef_id_collision points two declarations in one
+# module at one spec id (`Decoy` takes `Colliding`'s via `name = "..."`) with
+# different shapes, and keeps both reachable. The ELF links; the spec
 # canonicalization the CLI runs during lowering must FAIL with a typedef
-# conflict — pinning that the reachable-conflict error survived the
-# unreachable-conflict relaxation. The crate carries a `disabled` marker so
-# the rv32 build loop never builds it expecting success.
+# conflict.
+#
+# Qualifying type names stopped same-simple-name types from colliding — see
+# typedef_ids_coexist, which used to fail here and must now build — so this
+# pins the half that must NOT relax: a genuine disagreement, two shapes
+# claiming one id, is still ambiguous and must still be refused. The crate
+# carries a `disabled` marker so the rv32 build loop never builds it expecting
+# success.
 check_rv32_typedef_conflict_detected() {
     info "CHECK-RV32-SPEC-CONFLICT-DETECTED"
 
     local out
     if out=$( (
         cd "${SDK_DIR}/example-contracts" &&
-        groundhog build -p typedef_collision_reachable
+        groundhog build -p typedef_id_collision
     ) 2>&1); then
-        fail "Expected the rv32 build of typedef_collision_reachable to fail with a typedef conflict, but it succeeded"
+        fail "Expected the rv32 build of typedef_id_collision to fail with a typedef conflict, but it succeeded"
         return 1
     fi
-    echo "$out" | rg -F --quiet \
-        "conflicting contract type definitions for SharedConfig" || {
-        fail "Expected a SharedConfig typedef conflict from typedef_collision_reachable, got: $out"
+    # The message names the id, whose crate and version segments move with
+    # every release, so match the part that identifies the conflict.
+    echo "$out" | rg --quiet \
+        "conflicting contract type definitions for .*::Colliding" || {
+        fail "Expected a Colliding typedef conflict from typedef_id_collision, got: $out"
         return 1
     }
 }
@@ -512,7 +518,7 @@ check_rv32_contract_spec_artifacts() {
     # typedef shaking (both directions covered by a single fixture).
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
-    local erc20_json signer_callee_json signed_op_wallet_json
+    local erc20_json signer_callee_json signed_op_wallet_json coexist_json
     local phantom_method_json prerelease_json trait_sourced_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
@@ -528,6 +534,7 @@ check_rv32_contract_spec_artifacts() {
     phantom_method_json="${groundhog_dir}/phantom_method_impl.spec.json"
     prerelease_json="${groundhog_dir}/prerelease_version.spec.json"
     trait_sourced_json="${groundhog_dir}/trait_sourced_method_spec.spec.json"
+    coexist_json="${groundhog_dir}/typedef_ids_coexist.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -650,6 +657,14 @@ check_rv32_contract_spec_artifacts() {
     # shaken, so the disagreement must not fail the build (pre-fix this build
     # died with ConflictingInterfaceEmits) and neither Token nor PingEvent may
     # reach the final spec.
+    # Two crates, one simple name, both defs in the pool: v1's is reachable
+    # (the contract implements MarketV1) and v2's is not. Ids are what keep
+    # them apart — before them this contract could not be built at all, and
+    # the reference would have been ambiguous between the two shapes.
+    assert_file_contains_id "$coexist_json" SharedConfig &&
+    assert_file_contains "$coexist_json" 'typedef_shaking_if_v1@' &&
+    assert_file_lacks "$coexist_json" 'typedef_shaking_if_v2@' &&
+
     assert_file_contains "$rv32_iface_conflict_json" '"name":"ConflictCaller"' &&
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"Token"' &&
     assert_file_lacks_id "$rv32_iface_conflict_json" PingEvent &&

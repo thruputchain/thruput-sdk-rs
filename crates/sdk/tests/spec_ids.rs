@@ -259,3 +259,34 @@ fn an_events_signature_is_not_the_id_and_does_not_move_with_it() {
         <evt::Moved as ContractEventSpec>::EVENT_DEF.name,
     );
 }
+
+// --- The one way left to forge an id ------------------------------------------
+
+#[contract_type]
+pub struct Colliding {
+    pub limit: u32,
+}
+
+/// Claims `Colliding`'s id: same crate, same module, and `name` supplies the
+/// same final segment.
+#[contract_type(name = "Colliding")]
+pub struct Decoy {
+    pub flag: u64,
+}
+
+#[test]
+fn two_declarations_in_one_module_can_claim_one_id() {
+    // The path segments are derived, so the final segment is the only part an
+    // author picks — and pointing two declarations at one name is the only way
+    // left to make two defs answer to a single id. It is not rejected at the
+    // macro (each declaration is locally fine, and a macro cannot see its
+    // sibling); it is caught downstream, where two shapes under one id are
+    // ambiguous. `spec-tool`'s `different_shapes_under_one_id_are_still_rejected`
+    // covers that, and the `typedef_id_collision` fixture covers it end to end.
+    //
+    // This pins the premise those rest on: that these two really do collide.
+    assert_eq!(
+        <Colliding as ContractTypeName>::NAME,
+        <Decoy as ContractTypeName>::NAME,
+    );
+}

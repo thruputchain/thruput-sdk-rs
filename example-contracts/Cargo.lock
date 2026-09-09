@@ -1359,11 +1359,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "typedef_collision_reachable"
+name = "typedef_id_collision"
 version = "0.4.0"
 dependencies = [
  "sdk",
- "typedef_collision_reachable",
+ "typedef_id_collision",
+]
+
+[[package]]
+name = "typedef_ids_coexist"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "typedef_ids_coexist",
  "typedef_shaking_if_v1",
  "typedef_shaking_if_v2",
 ]
