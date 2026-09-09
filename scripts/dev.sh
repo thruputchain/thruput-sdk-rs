@@ -437,6 +437,35 @@ assert_file_lacks() {
     fi
 }
 
+assert_file_matches() {
+    local path
+    path="$1"; shift
+    local pattern
+    pattern="$1"; shift
+
+    rg --quiet "$pattern" "$path" || {
+        fail "Expected $path to match $pattern"
+        return 1
+    }
+}
+
+# A user-defined type is named in the spec by its id — `CRATE@MAJOR::module::
+# path::Name` — so these assert on the declared name at the end of an id
+# rather than on a whole one: the crate and version segments move with every
+# release and are not what any of these checks are about.
+#
+# The leading `::` is load-bearing in both directions: it stops `Payload` from
+# matching `AdoptedPayload`, and it is why the `lacks` form still bites — a
+# bare `"name":"OrphanPayload"` needle would match nothing now and pass
+# whether or not the type was shaken.
+assert_file_contains_type() {
+    assert_file_contains "$1" "::$2\""
+}
+
+assert_file_lacks_type() {
+    assert_file_lacks "$1" "::$2\""
+}
+
 # Spec content must not reach the deployed .rv32a memory image. Raw fragments
 # live in the ELF's groundhogspecraw* section (where the CLI reads them); the
 # lowerer must not copy them into the image, and rv32 has no embedded final spec
@@ -503,7 +532,7 @@ check_rv32_contract_spec_artifacts() {
     assert_file_contains "$free_fn_json" '"version":"0.4.0"' &&
 
     assert_file_contains "$imported_json" '"name":"ImportedErrorCallee"' &&
-    assert_file_contains "$imported_json" '"ImportedError"' &&
+    assert_file_contains_type "$imported_json" ImportedError &&
 
     assert_file_contains "$multi_json" '"name":"ExplicitNamedInterface"' &&
     assert_file_contains "$multi_json" '"name":"VersionedCallee"' &&
@@ -511,9 +540,9 @@ check_rv32_contract_spec_artifacts() {
 
     assert_file_contains "$spec_named_json" '"type_defs":[' &&
     assert_file_contains "$spec_named_json" '"name":"SpecNamedTypesContract"' &&
-    assert_file_contains "$spec_named_json" '"Payload"' &&
-    assert_file_contains "$spec_named_json" '"Choice"' &&
-    assert_file_contains "$spec_named_json" '"Envelope"' &&
+    assert_file_contains_type "$spec_named_json" Payload &&
+    assert_file_contains_type "$spec_named_json" Choice &&
+    assert_file_contains_type "$spec_named_json" Envelope &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
     assert_file_contains "$spec_named_json" '"kind":"vec","element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
@@ -534,7 +563,7 @@ check_rv32_contract_spec_artifacts() {
     assert_file_contains "$phantom_method_json" '"name":"ping"' &&
     assert_file_lacks "$phantom_method_json" '"name":"steal"' &&
     assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
-    assert_file_lacks "$phantom_method_json" '"name":"LootConfig"' &&
+    assert_file_lacks_type "$phantom_method_json" LootConfig &&
 
     # Method specs are sourced from the `#[contract]` trait, never from the
     # impl's own signatures. trait_sourced_method_spec's impl renames every
@@ -585,18 +614,18 @@ check_rv32_contract_spec_artifacts() {
     # `Signed<T>` args/returns spec as signed_token nodes carrying the
     # preimage type (they consume no calldata bytes), never as u32 handles;
     # `Signed<Opaque>` is an erased (null) preimage.
-    assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
-    assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
+    assert_file_matches "$signer_callee_json" '"name":"auth","type":\{"kind":"signed_token","preimage":\{"kind":"named","name":"[^"]*::TransferAuth"\}\}' &&
+    assert_file_contains_type "$signer_callee_json" TransferAuth &&
     assert_file_contains "$signed_op_wallet_json" '"kind":"signed_token","preimage":null' &&
 
     # Cross-crate event shaking: event_shaking_subset implements only the
     # `Adopted` trait from event_shaking_if; `Orphan` is never implemented.
     assert_file_contains "$rv32_event_shaking_json" '"name":"Adopted"' &&
     assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedEvent"' &&
-    assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedPayload"' &&
+    assert_file_contains_type "$rv32_event_shaking_json" AdoptedPayload &&
     assert_file_lacks "$rv32_event_shaking_json" '"name":"Orphan"' &&
     assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanEvent"' &&
-    assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanPayload"' &&
+    assert_file_lacks_type "$rv32_event_shaking_json" OrphanPayload &&
 
     # Typedef-collision shaking: the caller links two "versions" of a market
     # interface crate (typedef_shaking_if_v1/v2) purely to call them,
@@ -608,7 +637,7 @@ check_rv32_contract_spec_artifacts() {
     # pipeline canonicalizes with the pinned CLI's embedded spec-tool, not
     # the workspace one.
     assert_file_contains "$rv32_typedef_shaking_json" '"name":"Caller"' &&
-    assert_file_lacks "$rv32_typedef_shaking_json" '"name":"SharedConfig"' &&
+    assert_file_lacks_type "$rv32_typedef_shaking_json" SharedConfig &&
     assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV1"' &&
     assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV2"' &&
 
