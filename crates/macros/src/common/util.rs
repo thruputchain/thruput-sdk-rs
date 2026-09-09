@@ -151,3 +151,29 @@ pub fn validate_ident_string(
     }
     Ok(())
 }
+
+/// Validate a user-supplied `name = "..."` on a spec type.
+///
+/// The name becomes the final segment of the type's spec id
+/// (`CRATE@MAJOR::module::path::Name`), so it must be one segment. A value
+/// carrying `::` would splice extra segments into the id and could forge
+/// another type's — `name = "inner::Meta"` in module `m` claims the id of a
+/// real `m::inner::Meta` — which is the collision the qualified id exists to
+/// prevent. Requiring an identifier also keeps the name usable as a declared
+/// type name in generated bindings.
+pub fn validate_spec_type_name(
+    span: proc_macro2::Span,
+    name: &str,
+) -> Result<(), Error> {
+    if syn::parse_str::<syn::Ident>(name).is_err() {
+        return Err(Error::new(
+            span,
+            format!(
+                "name = {name:?} must be a single identifier: it becomes the \
+                 final segment of this type's spec id, and a name carrying \
+                 `::` would claim another type's id"
+            ),
+        ));
+    }
+    Ok(())
+}

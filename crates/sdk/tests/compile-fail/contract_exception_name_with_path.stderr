@@ -1,0 +1,5 @@
+error: name = "inner::MyError" must be a single identifier: it becomes the final segment of this type's spec id, and a name carrying `::` would claim another type's id
+ --> tests/compile-fail/contract_exception_name_with_path.rs:3:34
+  |
+3 | #[sdk::contract_exception(name = "inner::MyError")]
+  |                                  ^^^^^^^^^^^^^^^^
