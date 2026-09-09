@@ -268,7 +268,7 @@ check_rv32_typedef_conflict_detected() {
 
     local out
     if out=$( (
-        cd "${SDK_DIR}/negative-contracts/typedef_id_collision" &&
+        cd "${SDK_DIR}/negative-contracts" &&
         groundhog build -p typedef_id_collision
     ) 2>&1); then
         fail "Expected the rv32 build of typedef_id_collision to fail with a typedef conflict, but it succeeded"
