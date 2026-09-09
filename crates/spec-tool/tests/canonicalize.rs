@@ -2214,19 +2214,21 @@ fn signed_token_in_method_argument_is_still_allowed() {
 }
 
 // ---------------------------------------------------------------------------
-// Qualified type ids and display-name reduction.
+// Qualified type ids.
 //
-// A type names itself in the raw fragments by its fully qualified id
-// (`CRATE@MAJOR::module::path::Name`), which is unique by construction. The
-// finalized spec carries the short display name instead, because that is what
-// generated bindings declare, so canonicalization reduces each id to its final
-// segment and rewrites every reference to follow its own type.
+// A type names itself by its fully qualified id
+// (`CRATE@MAJOR::module::path::Name`), which is unique by construction, and
+// the finalized spec keeps that id rather than shortening it. Two crates (or
+// two modules of one crate, or two major versions of one crate) may each
+// define a `Meta`, and neither author can be asked to rename for the other's
+// sake; carrying the id means the spec can say which is which, and a client
+// reading two deployed contracts can tell whether their `Meta`s are the same
+// type.
 //
-// Two ids sharing a final segment are disambiguated by numbering rather than
-// rejected: two crates (or two modules) may each define a `Meta`, and neither
-// author can be asked to rename for the other's sake. Reduction is keyed and
-// ordered by id, so which type keeps the bare name does not depend on the
-// order fragments happened to be linked in.
+// Shortening to the bare name that generated bindings declare — and numbering
+// the losers when two ids share a final segment — belongs to each codegen,
+// which is the only layer that knows what its target language needs. Nothing
+// here reduces names.
 // ---------------------------------------------------------------------------
 
 /// A struct type def whose spec name is `id` and whose fields are
@@ -2332,7 +2334,7 @@ fn iface_returning(return_type: ContractType) -> Vec<SpecFragment> {
 }
 
 #[test]
-fn display_name_is_the_final_segment_of_the_id() {
+fn a_qualified_id_survives_canonicalization_intact() {
     let mut fragments = iface_returning(named("mycrate@1::mymod::Meta"));
     fragments.push(SpecFragment::SpecTypeDef {
         type_def: id_struct(
@@ -2343,11 +2345,11 @@ fn display_name_is_the_final_segment_of_the_id() {
 
     let spec = canon(&fragments).unwrap();
 
-    assert_eq!(type_def_names(&spec), vec!["Meta"]);
+    assert_eq!(type_def_names(&spec), vec!["mycrate@1::mymod::Meta"]);
 }
 
 #[test]
-fn ids_sharing_a_final_segment_are_disambiguated_not_rejected() {
+fn ids_sharing_a_final_segment_both_survive() {
     // Two crates each define a `Meta`, with different shapes. Both are
     // reachable, so both must appear in the spec.
     let mut fragments = iface_returning(named("wrap@1::Wrapper"));
@@ -2377,12 +2379,16 @@ fn ids_sharing_a_final_segment_are_disambiguated_not_rejected() {
 
     let spec = canon(&fragments).unwrap();
 
-    // Ordered and numbered by id, so the winner does not depend on link order.
-    assert_eq!(type_def_names(&spec), vec!["Meta", "Meta2", "Wrapper"]);
+    // Both are kept, each under its own id. Nothing is renamed, so nothing
+    // depends on the order the fragments happened to be linked in.
+    assert_eq!(
+        type_def_names(&spec),
+        vec!["acrate@1::Meta", "bcrate@1::Meta", "wrap@1::Wrapper"]
+    );
 }
 
 #[test]
-fn each_reference_follows_its_own_type_through_reduction() {
+fn each_reference_keeps_pointing_at_its_own_type() {
     let mut fragments = iface_returning(named("wrap@1::Wrapper"));
     fragments.extend([
         SpecFragment::SpecTypeDef {
@@ -2410,11 +2416,11 @@ fn each_reference_follows_its_own_type_through_reduction() {
 
     let spec = canon(&fragments).unwrap();
 
-    // The whole point: two fields that referenced distinct ids must still
-    // refer to distinct types after the names are shortened.
+    // The whole point: two fields whose Rust types share an ident refer to
+    // different spec types, and stay distinguishable in the finalized spec.
     assert_eq!(
-        field_refs(&spec, "Wrapper"),
-        vec![("a", "Meta"), ("b", "Meta2")]
+        field_refs(&spec, "wrap@1::Wrapper"),
+        vec![("a", "acrate@1::Meta"), ("b", "bcrate@1::Meta")]
     );
 }
 
@@ -2433,7 +2439,7 @@ fn identical_defs_under_one_id_still_dedup() {
 
     let spec = canon(&fragments).unwrap();
 
-    assert_eq!(type_def_names(&spec), vec!["Meta"]);
+    assert_eq!(type_def_names(&spec), vec!["mycrate@1::Meta"]);
 }
 
 #[test]
@@ -2469,9 +2475,10 @@ fn different_shapes_under_one_id_are_still_rejected() {
 }
 
 #[test]
-fn an_event_and_a_type_sharing_a_final_segment_are_disambiguated() {
-    // Bindings declare a type per event, so an event name and a type name
-    // share one display namespace even though their ids do not.
+fn an_event_and_a_type_sharing_a_final_segment_both_survive() {
+    // Bindings declare a type per event, so an event and a type sharing a
+    // final segment collide in a target language's namespace — but that is
+    // the codegen's collision to resolve, and both keep their own id here.
     let mut fragments = vec![
         iface_with_emits("Named", &["evt@1::Transfer"]),
         anchor("Named"),
@@ -2503,8 +2510,6 @@ fn an_event_and_a_type_sharing_a_final_segment_are_disambiguated() {
 
     let event_names: Vec<&str> =
         spec.events.iter().map(|e| spec_str(&e.name)).collect();
-    // Both survive with distinct display names; which one is numbered follows
-    // the id ordering, not the fragment ordering.
-    assert_eq!(type_def_names(&spec), vec!["Transfer"]);
-    assert_eq!(event_names, vec!["Transfer2"]);
+    assert_eq!(type_def_names(&spec), vec!["ty@1::Transfer"]);
+    assert_eq!(event_names, vec!["evt@1::Transfer"]);
 }

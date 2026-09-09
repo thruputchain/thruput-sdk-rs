@@ -5,9 +5,9 @@
 //! A bare ident cannot tell two user-defined types apart: two crates, or two
 //! modules of one crate, can each define a `Meta`, and a spec that names both
 //! `Meta` either merges them or fails to build. The id is derived where the
-//! type is declared (`module_path!()` plus the declaring crate's name and
-//! major version), so it is unique by construction and travels cross-crate as
-//! an associated const.
+//! type is declared, from `module_path!()` and the declaring crate's major
+//! version, so it is unique by construction and travels cross-crate as an
+//! associated const.
 //!
 //! The major version follows the same rule as interface versions
 //! (`groundhog_contract_util::semver::major_version_from_string`): the
@@ -26,10 +26,16 @@ use sdk::*;
 /// The id prefix every type declared in this test crate must carry, derived
 /// the same way the macro derives it rather than hardcoded, so a version bump
 /// does not churn these tests.
+///
+/// The crate segment comes from `module_path!()` and the version from the
+/// package being compiled. In a library crate those are the same crate; in an
+/// integration test the module path is rooted at the test binary
+/// (`contract_type_ids`) while the version is `sdk`'s, which is why this is
+/// built rather than spelled out.
 fn crate_at_major() -> String {
     format!(
         "{}@{}",
-        env!("CARGO_PKG_NAME"),
+        module_path!(),
         major_version_from_string(env!("CARGO_PKG_VERSION"))
     )
 }
@@ -74,7 +80,7 @@ pub struct Wrapper {
 fn id_is_crate_major_module_path_and_name() {
     assert_eq!(
         <Meta as ContractTypeName>::NAME,
-        format!("{}::contract_type_ids::Meta", crate_at_major()),
+        format!("{}::Meta", crate_at_major()),
     );
 }
 
@@ -82,14 +88,11 @@ fn id_is_crate_major_module_path_and_name() {
 fn id_carries_the_module_path_within_the_crate() {
     assert_eq!(
         <inner::Meta as ContractTypeName>::NAME,
-        format!("{}::contract_type_ids::inner::Meta", crate_at_major()),
+        format!("{}::inner::Meta", crate_at_major()),
     );
     assert_eq!(
         <inner::deeper::Meta as ContractTypeName>::NAME,
-        format!(
-            "{}::contract_type_ids::inner::deeper::Meta",
-            crate_at_major()
-        ),
+        format!("{}::inner::deeper::Meta", crate_at_major()),
     );
 }
 
@@ -129,7 +132,7 @@ fn every_id_is_rooted_at_the_declaring_crate_and_major() {
 fn custom_name_replaces_the_final_segment_only() {
     assert_eq!(
         <Payload as ContractTypeName>::NAME,
-        format!("{}::contract_type_ids::SpecPayload", crate_at_major()),
+        format!("{}::SpecPayload", crate_at_major()),
     );
 }
 

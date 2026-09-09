@@ -37,18 +37,54 @@ fn check_enum_discriminants(
 
 /// Shared helper: generate `impl ContractTypeName for #ident`.
 /// Used by both `#[contract_type]` and `#[contract_exception]`.
+///
+/// The id is `CRATE@MAJOR::module::path::Name`. `name = "..."` replaces the
+/// final segment; the path segments are not the author's to choose.
+///
+/// The module path is only known where the type is declared and a macro cannot
+/// see it, so `module_path!()` is emitted for the compiler to expand in place.
+/// The version is read here instead: a proc macro reads the environment of the
+/// rustc process compiling the crate the macro is *invoked* in, and this
+/// attribute is invoked on the type's own declaration, so that is the
+/// declaring crate. (The same is not true of `#[contract]` on a trait impl,
+/// which is why interface versions need an override there.)
 fn contract_type_name_impl(
     krate: &syn::Path,
     ident: &syn::Ident,
     name: Option<&str>,
 ) -> proc_macro2::TokenStream {
-    let name_value = match name {
-        Some(custom) => quote! { #custom },
-        None => quote! { stringify!(#ident) },
-    };
+    let declared = name.map_or_else(|| ident.to_string(), str::to_string);
+    // The major version, by the same rule interface versions use: the leftmost
+    // non-zero component, so semver-compatible releases share an id and only a
+    // breaking release changes it.
+    let major = groundhog_contract_util::semver::major_version_from_string(
+        &common::contract::interface_vers_default(),
+    );
     quote! {
         impl #krate::__contract_spec::ContractTypeName for #ident {
-            const NAME: &'static str = #name_value;
+            const NAME: &'static str = {
+                const MAJOR: &str = #major;
+                const DECLARED: &str = #declared;
+                const LEN: usize = #krate::__contract_spec::qualified_id_len(
+                    ::core::module_path!(),
+                    MAJOR,
+                    DECLARED,
+                );
+                const BYTES: [u8; LEN] =
+                    #krate::__contract_spec::qualified_id_bytes::<LEN>(
+                        ::core::module_path!(),
+                        MAJOR,
+                        DECLARED,
+                    );
+                match ::core::str::from_utf8(&BYTES) {
+                    ::core::result::Result::Ok(id) => id,
+                    // Every input is UTF-8 and the id is spliced on ASCII
+                    // boundaries, so this is unreachable.
+                    ::core::result::Result::Err(_) => {
+                        ::core::panic!("contract type id is not valid UTF-8")
+                    }
+                }
+            };
         }
     }
 }
