@@ -1171,10 +1171,28 @@ fn base_interface_fragments() -> Vec<SpecFragment> {
     ]
 }
 
+/// A distinct signature per event name.
+///
+/// A real event's signature is `sha256(MAJOR :: CRATE :: Ident)`, so two
+/// differently-named events have different ones. Canonicalization now rejects
+/// two retained events that share a signature, so a fixture handing every
+/// event the same placeholder would read as a collision.
+fn signature_for(name: &str) -> [u8; 32] {
+    let mut sig = [0u8; 32];
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for (i, byte) in name.bytes().enumerate() {
+        h ^= u64::from(byte);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        sig[i % 32] ^= (h >> 24) as u8;
+    }
+    sig[31] ^= name.len() as u8;
+    sig
+}
+
 fn event_def(name: &str, payload_ty: ContractType) -> ContractEventDef {
     ContractEventDef {
         name: s(name),
-        signature: [0xAB; 32].into(),
+        signature: signature_for(name).into(),
         topics: vec![ContractField {
             name: s("from"),
             ty: ContractType::Address,
@@ -1458,7 +1476,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
 fn event(name: &str) -> ContractEventDef {
     ContractEventDef {
         name: s(name),
-        signature: [0u8; 32].into(),
+        signature: signature_for(name).into(),
         topics: vec![].try_into().unwrap(),
         fields: vec![].try_into().unwrap(),
     }
@@ -2512,4 +2530,92 @@ fn an_event_and_a_type_sharing_a_final_segment_both_survive() {
         spec.events.iter().map(|e| spec_str(&e.name)).collect();
     assert_eq!(type_def_names(&spec), vec!["ty@1::Transfer"]);
     assert_eq!(event_names, vec!["evt@1::Transfer"]);
+}
+
+/// An event's signature is topic 0 of every emission, and is hashed from
+/// (crate, MAJOR, ident) — less than the spec name distinguishes. Two events
+/// in different modules of one crate therefore get distinct ids and one
+/// signature, and the spec would be promising a distinction the wire cannot
+/// deliver. Canonicalization rejects it.
+#[test]
+fn retained_events_sharing_a_signature_are_rejected() {
+    let collide = |name: &str| ContractEventDef {
+        name: s(name),
+        signature: signature_for("Updated").into(),
+        topics: vec![].try_into().unwrap(),
+        fields: vec![].try_into().unwrap(),
+    };
+
+    let err = canonicalize_spec(&[
+        iface_with_emits(
+            "Named",
+            &["evt@1::ledger::Updated", "evt@1::vault::Updated"],
+        ),
+        anchor("Named"),
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::ledger::Updated"),
+        },
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::vault::Updated"),
+        },
+    ])
+    .unwrap_err();
+
+    let SpecToolError::ConflictingEventSignature(msg) = err else {
+        panic!("expected a signature conflict, got {err:?}");
+    };
+    assert!(msg.contains("evt@1::ledger::Updated"), "{msg}");
+    assert!(msg.contains("evt@1::vault::Updated"), "{msg}");
+}
+
+/// The check is over retained events only, like every other conflict here:
+/// two shaken candidates that collide are nobody's problem.
+#[test]
+fn shaken_events_sharing_a_signature_are_ignored() {
+    let collide = |name: &str| ContractEventDef {
+        name: s(name),
+        signature: signature_for("Updated").into(),
+        topics: vec![].try_into().unwrap(),
+        fields: vec![].try_into().unwrap(),
+    };
+
+    let spec = canonicalize_spec(&[
+        iface_with_emits("Named", &["evt@1::ledger::Updated"]),
+        anchor("Named"),
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::ledger::Updated"),
+        },
+        // Never emitted by an anchored interface, so it is shaken before the
+        // signature check sees it.
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::vault::Updated"),
+        },
+    ])
+    .unwrap();
+
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["evt@1::ledger::Updated"]);
+}
+
+/// Distinct signatures are the ordinary case and must keep working: two
+/// events from different crates share an ident but not a signature, because
+/// the crate name is in the preimage.
+#[test]
+fn retained_events_with_distinct_signatures_are_kept() {
+    let spec = canonicalize_spec(&[
+        iface_with_emits("Named", &["a@1::Updated", "b@1::Updated"]),
+        anchor("Named"),
+        SpecFragment::SpecEvent {
+            event_def: event("a@1::Updated"),
+        },
+        SpecFragment::SpecEvent {
+            event_def: event("b@1::Updated"),
+        },
+    ])
+    .unwrap();
+
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["a@1::Updated", "b@1::Updated"]);
 }

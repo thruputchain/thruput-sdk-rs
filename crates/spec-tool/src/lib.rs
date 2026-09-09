@@ -61,6 +61,10 @@ pub enum SpecToolError {
     ConflictingMethod(String),
     /// Multiple conflicting event definitions exist for the same event name.
     ConflictingEventDef(String),
+    /// Two retained events share a signature. The signature is topic 0 of
+    /// every emitted event, so a consumer cannot tell them apart on the wire
+    /// even though the spec names them separately.
+    ConflictingEventSignature(String),
     /// Multiple interface fragments declare different `emits` for the same interface.
     ConflictingInterfaceEmits(String),
     /// An interface's `emits` references an event with no definition fragment.
@@ -132,6 +136,9 @@ impl core::fmt::Display for SpecToolError {
             }
             Self::ConflictingEventDef(msg) => {
                 write!(f, "conflicting event definitions for {msg}")
+            }
+            Self::ConflictingEventSignature(msg) => {
+                write!(f, "events share an event signature: {msg}")
             }
             Self::ConflictingInterfaceEmits(msg) => {
                 write!(f, "conflicting emits metadata for interface {msg}")
@@ -515,6 +522,35 @@ fn canonicalize_spec_inner(
             Ok(defs.into_iter().next().unwrap())
         })
         .collect::<Result<Vec<_>, _>>()?;
+
+    // Two retained events must not share a signature. The signature is topic 0
+    // of every emitted event, so it is the only thing a consumer has to tell
+    // events apart on the wire — and it is derived from (crate, MAJOR, ident),
+    // which is less than the spec name distinguishes. Two events in different
+    // modules of one crate therefore have distinct names and one signature:
+    // the spec would promise a distinction the wire cannot deliver.
+    //
+    // Checked over retained events only, like every other conflict here: two
+    // shaken candidates that disagree are nobody's problem.
+    {
+        let mut by_sig: BTreeMap<&[u8], &ContractSpecString> = BTreeMap::new();
+        for event in &events {
+            let sig: &[u8] = event.signature.as_ref();
+            if let Some(first) = by_sig.insert(sig, &event.name) {
+                return Err(SpecToolError::ConflictingEventSignature(
+                    format!(
+                        "{} and {} both hash to {}; they differ only in a module \
+                     path, which the signature does not carry — rename one",
+                        spec_str_lossy(first),
+                        spec_str_lossy(&event.name),
+                        sig.iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<String>(),
+                    ),
+                ));
+            }
+        }
+    }
 
     let type_defs = resolve_reachable_type_defs(
         &interfaces,

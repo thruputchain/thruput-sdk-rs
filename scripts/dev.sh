@@ -247,6 +247,7 @@ eg_build_rv32_all() {
     check_rv32_contract_spec_artifacts &&
     check_rv32_typedef_conflict_detected &&
     check_rv32_iface_conflict_detected &&
+    check_rv32_event_signature_conflict_detected &&
     check_rv32_missing_entrypoints_detected &&
     check_rv32_duplicate_entrypoint_detected
 }
@@ -279,6 +280,34 @@ check_rv32_typedef_conflict_detected() {
     echo "$out" | rg --quiet \
         "conflicting contract type definitions for .*::Colliding" || {
         fail "Expected a Colliding typedef conflict from typedef_id_collision, got: $out"
+        return 1
+    }
+}
+
+# Negative spec fixture: event_signature_collision declares one event ident in
+# two of its own modules and emits both. The ELF links; the spec
+# canonicalization must FAIL, because an event's signature — topic 0, and all a
+# consumer has to tell events apart on the wire — is hashed from
+# (crate, MAJOR, ident) and so does not carry the module the id does.
+#
+# This is the one case where the spec can name two things apart that the wire
+# cannot. Before ids it failed for the wrong reason (both events were named
+# `Updated`, so the defs conflicted and the wire never came into it); ids made
+# the spec accept them, so the collision is now checked on its own terms.
+check_rv32_event_signature_conflict_detected() {
+    info "CHECK-RV32-EVENT-SIGNATURE-CONFLICT-DETECTED"
+
+    local out
+    if out=$( (
+        cd "${SDK_DIR}/negative-contracts" &&
+        groundhog build -p event_signature_collision
+    ) 2>&1); then
+        fail "Expected the rv32 build of event_signature_collision to fail with an event signature conflict, but it succeeded"
+        return 1
+    fi
+    echo "$out" | rg --quiet \
+        "events share an event signature: .*::ledger::Updated" || {
+        fail "Expected an Updated event signature conflict from event_signature_collision, got: $out"
         return 1
     }
 }
