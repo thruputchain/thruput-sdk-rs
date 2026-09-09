@@ -1,19 +1,15 @@
 [package]
 name = "typedef_id_collision"
 description = "Negative spec fixture: two defs claim one spec id, so canonicalization must still fail"
-version = "0.4.0"
-authors = ["Groundhog Team"]
-license = "Apache-2.0"
-publish = ["groundhog"]
-repository = "https://github.com/groundhogchain/sdk_rs"
-homepage = "https://github.com/groundhogchain/sdk_rs"
-keywords = ["groundhog"]
-categories = ["blockchain"]
-edition = "2024"
-
-# Stand-alone workspace root, like dup_entrypoint_neg: this fixture exists to
-# FAIL, so it belongs to no workspace whose build must succeed.
-[workspace]
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
 
 [features]
 entrypoints = []
@@ -31,7 +27,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.33.0" }
+sdk = { workspace = true }
 
 [dev-dependencies]
 typedef_id_collision = { path = ".", features = ["dev"] }
