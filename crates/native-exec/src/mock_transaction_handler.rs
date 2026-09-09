@@ -157,11 +157,8 @@ fn frame_refusal_message(code: SyscallErrorCode) -> String {
         _ => "production refused the invocation",
     };
     format!(
-        "mock invocation frame refused: {rule} ({code})\n\
-         the harness opens its frames directly, so there is nothing to hand \
-         this back to and the test dies here. A contract that needs to \
-         handle the condition calls through the Invoke syscall \
-         (sdk::call::try_call_raw_with), which reports it as an error."
+        "mock invocation frame refused: {rule} ({code}); a contract handles \
+         this through Invoke (sdk::call::try_call_raw_with)"
     )
 }
 
@@ -1410,9 +1407,8 @@ mod tests {
         let msg = frame_refusal_message(SyscallErrorCode(9999));
         assert!(msg.contains("9999"), "{msg}");
 
-        // Every message points at the path that can actually handle the
-        // condition, since this one cannot.
-        assert!(msg.contains("Invoke syscall"), "{msg}");
+        // Every message points at the path that can handle the condition.
+        assert!(msg.contains("try_call_raw_with"), "{msg}");
     }
 
     // The diagnostic only reaches the developer if the panic carrying it
