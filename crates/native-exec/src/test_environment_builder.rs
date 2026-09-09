@@ -115,11 +115,11 @@ impl TestEnvironmentBuilder {
 
     /// Invocation frames one transaction may have open at once.
     ///
-    /// To drive a test past this cap, open the frame with
-    /// [`try_run`](crate::frame_builder::FrameBuilder::try_run): a refused
-    /// frame comes back as the rule that refused it, leaving the parent
-    /// usable. Plain `run` panics on one, so it stays the right choice for
-    /// a frame the test expects to open.
+    /// The harness opens its frames directly, so one the executor refuses
+    /// is an unrecoverable panic rather than the error a contract would
+    /// observe. To assert on the cap, have the frame call through the
+    /// Invoke syscall (`sdk::call::try_call_raw_with`), which reports it
+    /// as `RawCallError::DepthExceeded`.
     pub fn with_max_cross_invoke_depth(
         mut self,
         max_cross_invoke_depth: u32,
@@ -284,63 +284,6 @@ mod tests {
             )
         })
         .assert_success();
-    }
-
-    // The cap the builder sets is now one a test can assert on: production
-    // refuses the frame, try_run reports which rule, and the parent frame
-    // stays usable -- where this used to take the test binary with it.
-    #[test]
-    fn the_cross_invoke_depth_cap_is_assertable() {
-        use crate::frame_builder::FrameAction;
-        use groundhog_xdr::syscall_error::SyscallErrorCode;
-
-        // One frame open at a time: the root admits, a child does not.
-        let env = TestEnvironment::builder()
-            .no_cost()
-            .with_max_cross_invoke_depth(1)
-            .build();
-
-        env.transact_manual(|tx| {
-            let mut root = tx
-                .call(&ContractAddress::named("depth_root"))
-                .run_continuable(|frame| {
-                    let refused = frame
-                        .child_call(&ContractAddress::named("depth_child"))
-                        .try_run(|| {});
-                    assert_eq!(
-                        refused.unwrap_err(),
-                        SyscallErrorCode::kSyscallErrorCodeInvokeDepthExceeded,
-                    );
-                    FrameAction::Close
-                });
-            // The refusal opened no frame and owed no finish, so the root
-            // closes normally on top of it.
-            root.finish().assert_success();
-            tx.try_commit_transaction();
-        });
-    }
-
-    // The same, for the rule a test is likelier to hit by accident.
-    #[test]
-    fn a_reentrant_frame_is_reported_not_fatal() {
-        use crate::frame_builder::FrameAction;
-        use groundhog_xdr::syscall_error::SyscallErrorCode;
-
-        let env = TestEnvironment::builder().no_cost().build();
-        let addr = ContractAddress::named("reentrant");
-
-        env.transact_manual(|tx| {
-            let mut root = tx.call(&addr).run_continuable(|frame| {
-                let refused = frame.child_call(&addr).try_run(|| {});
-                assert_eq!(
-                    refused.unwrap_err(),
-                    SyscallErrorCode::kSyscallErrorCodeReentrance,
-                );
-                FrameAction::Close
-            });
-            root.finish().assert_success();
-            tx.try_commit_transaction();
-        });
     }
 
     #[test]

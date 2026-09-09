@@ -48,9 +48,6 @@ pub struct MockInvocationFrameConfig<'a> {
     // when we build the frame, the new frame will be emplaced into this value
     to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
     root_frame_closed: Option<Rc<Cell<bool>>>,
-    // Set for a root frame: the transaction state only an admitted frame
-    // moves to Running.
-    transaction_state: Option<&'a mut MockTransactionState>,
 }
 
 impl<'a> MockInvocationFrameConfig<'a> {
@@ -65,7 +62,6 @@ impl<'a> MockInvocationFrameConfig<'a> {
         to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
-        transaction_state: Option<&'a mut MockTransactionState>,
     ) -> Self {
         Self {
             context_pushcount,
@@ -79,7 +75,6 @@ impl<'a> MockInvocationFrameConfig<'a> {
             invoke_flags: 0,
             to_emplace,
             root_frame_closed,
-            transaction_state,
         }
     }
 
@@ -106,34 +101,17 @@ impl<'a> MockInvocationFrameConfig<'a> {
     /// Open the frame at the FFI level, returning the
     /// [`MockInvocationFrame`].
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
-        match self.try_build() {
-            Ok(frame) => frame,
-            Err(refused) => refusal_is_unrecoverable(refused),
-        }
-    }
-
-    /// Open the frame, or report the rule production refused it under.
-    ///
-    /// A refusal opens no frame and owes no finish, so the handler is left
-    /// usable and the caller may carry on -- which is what lets a test
-    /// assert on a cap rather than die at it.
-    pub fn try_build(
-        self,
-    ) -> Result<&'a mut Box<MockInvocationFrame>, SyscallErrorCode> {
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
-        let frame = Box::new(MockInvocationFrame::try_new(
+        let frame = Box::new(MockInvocationFrame::new(
             self.root_handler,
             &serialized_invocation,
             self.invoke_flags,
             self.context_pushcount.clone(),
             self.root_frame_closed,
-        )?);
+        ));
         *self.to_emplace = Some(frame);
-        if let Some(state) = self.transaction_state {
-            *state = MockTransactionState::Running;
-        }
-        Ok(self.to_emplace.as_mut().unwrap())
+        self.to_emplace.as_mut().unwrap()
     }
 }
 
@@ -178,32 +156,23 @@ fn frame_refusal_message(code: SyscallErrorCode) -> String {
         }
         _ => "production refused the invocation",
     };
-    format!("mock invocation frame refused: {rule} ({code})")
-}
-
-/// Report a refusal that reached an entry point which cannot return it, and
-/// unwind as unrecoverable: a plain panic here would be caught by an
-/// enclosing frame and recorded as a fault in its own body. The `try_`
-/// variants hand the refusal back instead.
-pub(crate) fn refusal_is_unrecoverable(code: SyscallErrorCode) -> ! {
-    eprintln!("{}", frame_refusal_message(code));
-    panic_any(crate::invoke_error::unrecoverable_error())
+    format!(
+        "mock invocation frame refused: {rule} ({code})\n\
+         the harness opens its frames directly, so there is nothing to hand \
+         this back to and the test dies here. A contract that needs to \
+         handle the condition calls through the Invoke syscall \
+         (sdk::call::try_call_raw_with), which reports it as an error."
+    )
 }
 
 impl MockInvocationFrame {
-    /// Open the frame, or report the rule production refused it under.
-    ///
-    /// Only an admission refusal is an `Err`: the caller asked for something
-    /// a contract cannot have either, which a test may well be asserting on.
-    /// An FFI-level failure is this harness misusing the API, and still
-    /// panics unrecoverably.
-    fn try_new(
+    fn new(
         root_handler: *mut c_void,
         serialized_invocation: &[u8],
         invoke_flags: i32,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
-    ) -> Result<Self, SyscallErrorCode> {
+    ) -> Self {
         let ffi_invocation = groundhog_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
             len: serialized_invocation.len().try_into().unwrap(),
@@ -234,17 +203,18 @@ impl MockInvocationFrame {
         }
         let refused = SyscallErrorCode(res.syscall_error_code);
         if refused != SyscallErrorCode::kSyscallErrorCodeNone {
-            return Err(refused);
+            eprintln!("{}", frame_refusal_message(refused));
+            panic_any(crate::invoke_error::unrecoverable_error());
         }
 
-        Ok(Self {
+        Self {
             root_handler,
             child_frame: None,
             state: MockInvocationFrameState::Started,
             context_pushcount,
             root_frame_closed,
             fault_panic: None,
-        })
+        }
     }
 
     /// True if this frame's child frame exists and is still open at the FFI
@@ -285,7 +255,6 @@ impl MockInvocationFrame {
             contract_address,
             &mut self.child_frame,
             self.context_pushcount.clone(),
-            None,
             None,
         );
         config
@@ -741,13 +710,13 @@ impl MockTransactionHandler {
             MockTransactionState::NotStarted,
             "cannot open root frame: transaction already started"
         );
+        self.state = MockTransactionState::Running;
         let config = MockInvocationFrameConfig::new(
             self.handler,
             contract_address,
             &mut self.root_frame,
             self.context_pushcount.clone(),
             Some(self.root_frame_closed.clone()),
-            Some(&mut self.state),
         );
         config
     }
@@ -1440,47 +1409,18 @@ mod tests {
         // An unnamed code still reports itself rather than going silent.
         let msg = frame_refusal_message(SyscallErrorCode(9999));
         assert!(msg.contains("9999"), "{msg}");
+
+        // Every message points at the path that can actually handle the
+        // condition, since this one cannot.
+        assert!(msg.contains("Invoke syscall"), "{msg}");
     }
 
-    // A refused root frame starts nothing. Marking the transaction running
-    // on the way in would strand it: no frame ever opened, so the close
-    // that both `abort_transaction` and `try_commit_transaction` insist on
-    // could never happen.
+    // The diagnostic only reaches the developer if the panic carrying it
+    // gets out. An enclosing frame's catch site records any other payload
+    // as a deterministic fault in its own body, which would close the
+    // parent as failed and leave the refusal unreported.
     #[test]
-    fn a_refused_root_frame_leaves_the_transaction_startable() {
-        let env = TestEnvironment::new(None);
-        let mut handler = MockTransactionHandler::new(env);
-
-        let refused = handler
-            .open_root_frame(root_addr())
-            // DelegateCall is specified but unimplemented, so production
-            // refuses the frame outright.
-            .with_invoke_flags(
-                groundhog_xdr::invoke_flag::InvokeFlag::DelegateCall.0,
-            )
-            .try_build()
-            .err();
-        assert_eq!(
-            refused,
-            Some(SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput)
-        );
-        assert!(!handler.is_running());
-
-        // The root the test meant to open still opens, and the transaction
-        // still finishes.
-        handler
-            .open_root_frame(root_addr())
-            .with_invoke_flags(0)
-            .build()
-            .execute(|_| FrameAction::Close);
-        handler.try_commit_transaction();
-    }
-
-    // A refusal reaching `build` (or `run`) is not a fault in the enclosing
-    // frame's body: a plain panic would be caught at that frame's catch
-    // site, close it as a deterministic failure, and swallow the refusal.
-    #[test]
-    fn a_refused_frame_under_build_propagates_instead_of_faulting_parent() {
+    fn a_refused_frame_propagates_instead_of_faulting_its_parent() {
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
         let frame = handler

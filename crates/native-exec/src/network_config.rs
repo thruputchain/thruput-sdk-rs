@@ -135,11 +135,11 @@ impl NetworkConfigBuilder {
 
     /// Invocation frames one transaction may have open at once.
     ///
-    /// To drive a test past this cap, open the frame with
-    /// [`try_run`](crate::frame_builder::FrameBuilder::try_run): a refused
-    /// frame comes back as the rule that refused it, leaving the parent
-    /// usable. Plain `run` panics on one, so it stays the right choice for
-    /// a frame the test expects to open.
+    /// The harness opens its frames directly, so one the executor refuses
+    /// is an unrecoverable panic rather than the error a contract would
+    /// observe. To assert on the cap, have the frame call through the
+    /// Invoke syscall (`sdk::call::try_call_raw_with`), which reports it
+    /// as `RawCallError::DepthExceeded`.
     pub fn with_max_cross_invoke_depth(
         self,
         max_cross_invoke_depth: u32,
