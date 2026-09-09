@@ -75,6 +75,15 @@ fn emit_event_spec(
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
 
+    // The same id every spec-named item carries. An interface's `emits(...)`
+    // entry reads this def's `name`, so the reference follows the event here
+    // rather than repeating its ident. The `signature` below is untouched: it
+    // is the on-wire topic-0 discriminator, hashed from the crate, major
+    // version and ident, and moving it would break every deployed indexer.
+    let id = crate::common::spec_id::spec_id_tokens(
+        &crate::common::contract::sdk_crate_path(),
+        type_name,
+    );
     let def_ident = format_ident!("__groundhog_spec_event_def_{ident}");
     let anchor_fn_ident =
         format_ident!("__groundhog_spec_event_anchor_fn_{ident}");
@@ -130,7 +139,7 @@ fn emit_event_spec(
         #[doc(hidden)]
         pub const #def_ident: ::sdk::__contract_spec::ContractEventDefView<'static> =
             ::sdk::__contract_spec::ContractEventDefView {
-                name: #type_name,
+                name: #id,
                 signature: [#(#sig_array),*],
                 topics: &[#(#topic_views),*],
                 fields: &[#(#payload_views),*],

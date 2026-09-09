@@ -1,13 +1,17 @@
-//! Spec type identity: a `#[contract_type]` type names itself in the spec by
-//! a fully qualified id — `CRATE@MAJOR::module::path::Name` — not by its bare
-//! ident.
+//! Spec identity: every user-defined thing the spec names — a
+//! `#[contract_type]`, a `#[contract_exception]`, a `#[derive(Event)]` — names
+//! itself by a fully qualified id, `CRATE@MAJOR::module::path::Name`, not by
+//! its bare ident.
 //!
-//! A bare ident cannot tell two user-defined types apart: two crates, or two
-//! modules of one crate, can each define a `Meta`, and a spec that names both
-//! `Meta` either merges them or fails to build. The id is derived where the
-//! type is declared, from `module_path!()` and the declaring crate's major
-//! version, so it is unique by construction and travels cross-crate as an
-//! associated const.
+//! A bare ident cannot tell two of them apart: two crates, or two modules of
+//! one crate, can each declare a `Meta`, and a spec that names both `Meta`
+//! either merges them or fails to build. The id is derived where the item is
+//! declared, from `module_path!()` and the declaring crate's major version, so
+//! it is unique by construction and travels cross-crate as an associated
+//! const.
+//!
+//! All three go through one code path (`common::spec_id::spec_id_tokens`), so
+//! a type and an event declared side by side cannot drift apart.
 //!
 //! The major version follows the same rule as interface versions
 //! (`groundhog_contract_util::semver::major_version_from_string`): the
@@ -19,7 +23,8 @@
 
 use groundhog_contract_util::semver::major_version_from_string;
 use sdk::__contract_spec::{
-    ContractTypeDefView, ContractTypeName, ContractTypeSpec, ContractTypeView,
+    ContractEventSpec, ContractTypeDefView, ContractTypeName,
+    ContractTypeSpec, ContractTypeView,
 };
 use sdk::*;
 
@@ -29,9 +34,9 @@ use sdk::*;
 ///
 /// The crate segment comes from `module_path!()` and the version from the
 /// package being compiled. In a library crate those are the same crate; in an
-/// integration test the module path is rooted at the test binary
-/// (`contract_type_ids`) while the version is `sdk`'s, which is why this is
-/// built rather than spelled out.
+/// integration test the module path is rooted at the test binary (`spec_ids`)
+/// while the version is `sdk`'s, which is why this is built rather than
+/// spelled out.
 fn crate_at_major() -> String {
     format!(
         "{}@{}",
@@ -171,4 +176,86 @@ fn a_field_reference_resolves_to_the_referenced_types_own_id() {
     assert_eq!(named("meta"), <Meta as ContractTypeName>::NAME);
     assert_eq!(named("inner_meta"), <inner::Meta as ContractTypeName>::NAME);
     assert_ne!(named("meta"), named("inner_meta"));
+}
+
+// --- Events -----------------------------------------------------------------
+//
+// An event is a user-defined name in the spec exactly as a type is, and
+// collides exactly as a type would, so it carries the same id. An interface's
+// `emits(...)` entry reads the event's own `EVENT_DEF.name`, so the reference
+// follows the event rather than repeating its ident.
+
+#[derive(Event)]
+pub struct Moved {
+    #[topic]
+    pub who: ContractAddress,
+    pub amount: u64,
+}
+
+mod evt {
+    use sdk::*;
+
+    /// Same ident as the root `Moved`, different module, different payload.
+    #[derive(Event)]
+    pub struct Moved {
+        #[topic]
+        pub who: ContractAddress,
+        pub label: u32,
+    }
+}
+
+#[test]
+fn an_event_names_itself_by_its_id() {
+    assert_eq!(
+        <Moved as ContractEventSpec>::EVENT_DEF.name,
+        format!("{}::Moved", crate_at_major()),
+    );
+    assert_eq!(
+        <evt::Moved as ContractEventSpec>::EVENT_DEF.name,
+        format!("{}::evt::Moved", crate_at_major()),
+    );
+}
+
+#[test]
+fn events_sharing_an_ident_in_different_modules_get_distinct_ids() {
+    assert_ne!(
+        <Moved as ContractEventSpec>::EVENT_DEF.name,
+        <evt::Moved as ContractEventSpec>::EVENT_DEF.name,
+    );
+}
+
+#[test]
+fn an_event_and_a_type_declared_alike_agree_on_the_id_shape() {
+    // The point of the shared code path: both are rooted the same way and end
+    // in their own declared name.
+    let type_id = <Meta as ContractTypeName>::NAME;
+    let event_id = <Moved as ContractEventSpec>::EVENT_DEF.name;
+    let prefix = format!("{}::", crate_at_major());
+    assert!(type_id.starts_with(&prefix), "{type_id}");
+    assert!(event_id.starts_with(&prefix), "{event_id}");
+    assert!(type_id.ends_with("::Meta"), "{type_id}");
+    assert!(event_id.ends_with("::Moved"), "{event_id}");
+}
+
+#[test]
+fn an_events_signature_is_not_the_id_and_does_not_move_with_it() {
+    // The signature is topic 0 on every emitted event — on-wire, and read by
+    // deployed indexers — so qualifying the spec name deliberately leaves it
+    // alone. It is hashed from (crate, major version, ident).
+    //
+    // A consequence worth seeing rather than discovering: because the ident is
+    // all it carries of the type, two events with the same ident in one crate
+    // share a signature even though their ids now distinguish them. Giving the
+    // signature the module too would be an on-wire break, so it is deliberately
+    // not part of this change.
+    assert_eq!(
+        Moved::SIGNATURE,
+        evt::Moved::SIGNATURE,
+        "signatures are ident-derived; this pins that qualifying ids did not \
+         move them",
+    );
+    assert_ne!(
+        <Moved as ContractEventSpec>::EVENT_DEF.name,
+        <evt::Moved as ContractEventSpec>::EVENT_DEF.name,
+    );
 }
