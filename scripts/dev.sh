@@ -247,7 +247,7 @@ eg_build_rv32_all() {
     check_rv32_contract_spec_artifacts &&
     check_rv32_typedef_conflict_detected &&
     check_rv32_iface_conflict_detected &&
-    check_rv32_event_signature_conflict_detected &&
+    check_rv32_event_signature_pending_cli &&
     check_rv32_missing_entrypoints_detected &&
     check_rv32_duplicate_entrypoint_detected
 }
@@ -284,32 +284,46 @@ check_rv32_typedef_conflict_detected() {
     }
 }
 
-# Negative spec fixture: event_signature_collision declares one event ident in
-# two of its own modules and emits both. The ELF links; the spec
-# canonicalization must FAIL, because an event's signature — topic 0, and all a
-# consumer has to tell events apart on the wire — is hashed from
-# (crate, MAJOR, ident) and so does not carry the module the id does.
+# Pending fixture: event_signature_collision declares one event ident in two of
+# its own modules and emits both, so the two events have distinct spec ids and
+# one signature — topic 0, and all a consumer has to tell them apart on the
+# wire. canonicalize_spec rejects that (ConflictingEventSignature, covered by
+# retained_events_sharing_a_signature_are_rejected).
 #
-# This is the one case where the spec can name two things apart that the wire
-# cannot. Before ids it failed for the wrong reason (both events were named
-# `Updated`, so the defs conflicted and the wire never came into it); ids made
-# the spec accept them, so the collision is now checked on its own terms.
-check_rv32_event_signature_conflict_detected() {
-    info "CHECK-RV32-EVENT-SIGNATURE-CONFLICT-DETECTED"
+# But this pipeline canonicalizes with the PINNED CLI's embedded spec-tool,
+# installed from the registry at $GROUNDHOG_CLI_VERSION — not the workspace
+# one. A rule added here cannot reach it until a CLI carrying it is released,
+# so for now the build succeeds and this asserts that, rather than asserting a
+# rejection the pinned CLI cannot make.
+#
+# It is written to go off when that changes: once the CLI has the rule the
+# build starts failing, this check fails, and whoever bumps
+# GROUNDHOG_CLI_VERSION flips it to expect the conflict — the assertion the
+# commented body below already spells out. The same constraint applies to any
+# new spec-tool rule; the neighbouring conflict checks only work because their
+# rules predate the pin.
+check_rv32_event_signature_pending_cli() {
+    info "CHECK-RV32-EVENT-SIGNATURE-PENDING-CLI"
 
     local out
-    if out=$( (
+    if ! out=$( (
         cd "${SDK_DIR}/negative-contracts" &&
         groundhog build -p event_signature_collision
     ) 2>&1); then
-        fail "Expected the rv32 build of event_signature_collision to fail with an event signature conflict, but it succeeded"
+        # Flip to the assertion below when this fires:
+        #
+        #   echo "$out" | rg --quiet \
+        #       "events share an event signature: .*::ledger::Updated" || {
+        #       fail "Expected an Updated event signature conflict, got: $out"
+        #       return 1
+        #   }
+        fail "event_signature_collision now fails to build — the pinned CLI \
+(${GROUNDHOG_CLI_VERSION:-see scripts/groundhog-cli-version.sh}) has gained \
+the event-signature rule. Flip \
+check_rv32_event_signature_pending_cli to assert the conflict; the build \
+output was: $out"
         return 1
     fi
-    echo "$out" | rg --quiet \
-        "events share an event signature: .*::ledger::Updated" || {
-        fail "Expected an Updated event signature conflict from event_signature_collision, got: $out"
-        return 1
-    }
 }
 
 # Negative spec fixture: iface_conflict_impl implements iface_conflict_if_a's
