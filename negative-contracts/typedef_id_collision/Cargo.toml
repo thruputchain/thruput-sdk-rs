@@ -1,0 +1,37 @@
+[package]
+name = "typedef_id_collision"
+description = "Negative spec fixture: two defs claim one spec id, so canonicalization must still fail"
+version = "0.4.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"
+publish = ["groundhog"]
+repository = "https://github.com/groundhogchain/sdk_rs"
+homepage = "https://github.com/groundhogchain/sdk_rs"
+keywords = ["groundhog"]
+categories = ["blockchain"]
+edition = "2024"
+
+# Stand-alone workspace root, like dup_entrypoint_neg: this fixture exists to
+# FAIL, so it belongs to no workspace whose build must succeed.
+[workspace]
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact, built by name from check_rv32_typedef_conflict_detected.
+[[bin]]
+name = "typedef_id_collision"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.33.0" }
+
+[dev-dependencies]
+typedef_id_collision = { path = ".", features = ["dev"] }

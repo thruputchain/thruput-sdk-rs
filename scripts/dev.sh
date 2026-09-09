@@ -26,8 +26,8 @@ LOWERED="${TARGET_DIR}/groundhog"
 # IS the rv32 enablement.
 #
 # The `disabled` marker is what keeps the negative fixtures
-# (missing_contract_macro, typedef_id_collision, iface_conflict_impl,
-# dup_entrypoint_neg) and bigint-bench-contract out of this loop: they carry
+# (missing_contract_macro, iface_conflict_impl, dup_entrypoint_neg) and
+# bigint-bench-contract out of this loop: they carry
 # bins too, but must never be built here expecting success. The checks that
 # own them build them by name.
 #
@@ -261,14 +261,14 @@ eg_build_rv32_all() {
 # typedef_ids_coexist, which used to fail here and must now build — so this
 # pins the half that must NOT relax: a genuine disagreement, two shapes
 # claiming one id, is still ambiguous and must still be refused. The crate
-# carries a `disabled` marker so the rv32 build loop never builds it expecting
-# success.
+# lives in negative-contracts/, a separate config chain from
+# example-contracts/, which is for contracts that build and run.
 check_rv32_typedef_conflict_detected() {
     info "CHECK-RV32-SPEC-CONFLICT-DETECTED"
 
     local out
     if out=$( (
-        cd "${SDK_DIR}/example-contracts" &&
+        cd "${SDK_DIR}/negative-contracts/typedef_id_collision" &&
         groundhog build -p typedef_id_collision
     ) 2>&1); then
         fail "Expected the rv32 build of typedef_id_collision to fail with a typedef conflict, but it succeeded"
@@ -519,6 +519,7 @@ check_rv32_contract_spec_artifacts() {
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
     local erc20_json signer_callee_json signed_op_wallet_json coexist_json
+    local name_reuse_json
     local phantom_method_json prerelease_json trait_sourced_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
@@ -535,6 +536,7 @@ check_rv32_contract_spec_artifacts() {
     prerelease_json="${groundhog_dir}/prerelease_version.spec.json"
     trait_sourced_json="${groundhog_dir}/trait_sourced_method_spec.spec.json"
     coexist_json="${groundhog_dir}/typedef_ids_coexist.spec.json"
+    name_reuse_json="${groundhog_dir}/spec_name_reuse.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -657,6 +659,22 @@ check_rv32_contract_spec_artifacts() {
     # shaken, so the disagreement must not fail the build (pre-fix this build
     # died with ConflictingInterfaceEmits) and neither Token nor PingEvent may
     # reach the final spec.
+    # Every collision qualified ids resolve, in one contract that builds. Each
+    # pair below shares a bare ident — all the spec used to record — so each
+    # was merged into one entry or rejected as a ConflictingTypeDef naming a
+    # type the author never wrote, and this contract could not have worked
+    # around it: two of the three pairs are its dependencies' names.
+    #
+    # Asserted per crate so both halves of a pair must be present: matching
+    # `::Error"` alone would pass with only one of them.
+    assert_file_matches "$name_reuse_json" 'dup_name_if_a@[^"]*::Error"' &&
+    assert_file_matches "$name_reuse_json" 'dup_name_if_b@[^"]*::Error"' &&
+    assert_file_matches "$name_reuse_json" 'dup_name_if_a@[^"]*::Updated"' &&
+    assert_file_matches "$name_reuse_json" 'dup_name_if_b@[^"]*::Updated"' &&
+    # Two modules of the contract's own crate reusing one ident.
+    assert_file_contains "$name_reuse_json" '::ledger::Config"' &&
+    assert_file_contains "$name_reuse_json" '::vault::Config"' &&
+
     # Two crates, one simple name, both defs in the pool: v1's is reachable
     # (the contract implements MarketV1) and v2's is not. Ids are what keep
     # them apart — before them this contract could not be built at all, and

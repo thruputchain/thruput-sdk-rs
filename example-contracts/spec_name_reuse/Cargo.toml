@@ -1,6 +1,6 @@
 [package]
-name = "typedef_id_collision"
-description = "Negative spec fixture: two defs claim one spec id, so canonicalization must still fail"
+name = "spec_name_reuse"
+description = "Shows the collisions qualified spec ids resolve: two crates' same-named Error and Updated, plus two of this crate's own modules reusing one type ident"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -13,22 +13,22 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["sdk/dev", "dup_name_if_a/dev", "dup_name_if_b/dev"]
 
 [lib]
 crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. The crate carries a `disabled` marker so the rv32 build
-# loop never builds it expecting success; the negative check builds it by name.
 [[bin]]
-name = "typedef_id_collision"
+name = "spec_name_reuse"
 path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }
+dup_name_if_a = { path = "../dup_name_if_a" }
+dup_name_if_b = { path = "../dup_name_if_b" }
 
 [dev-dependencies]
-typedef_id_collision = { path = ".", features = ["dev"] }
+spec_name_reuse = { path = ".", features = ["dev"] }
