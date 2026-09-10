@@ -32,7 +32,8 @@ use groundhog_xdr::types::NetworkHash;
 /// parameters keep their stock values (see
 /// [`stock_network_config`](crate::network_config::stock_network_config)).
 /// A builder with no configuration overrides at all creates its database
-/// exactly as the plain constructors do.
+/// exactly as the plain constructors do. A parameter setter needs a hogd
+/// build that knows the parameter; see [`NetworkConfigBuilder`].
 #[must_use = "a TestEnvironmentBuilder does nothing until `build` is called"]
 pub struct TestEnvironmentBuilder {
     cost_model: Option<StorageCostModel>,
@@ -141,12 +142,85 @@ impl TestEnvironmentBuilder {
         self
     }
 
-    /// The longest bytestring a storage item may hold, checked where one is
-    /// written rather than read.
+    /// Bytes one bytestring storage item may hold.
     pub fn with_max_bytestring_len(mut self, max_bytestring_len: u32) -> Self {
         self.network_config = self
             .network_config
             .with_max_bytestring_len(max_bytestring_len);
+        self
+    }
+
+    /// Bytes one attached contract's code blob (`ContractBlob.data`) may
+    /// hold, checked before any attached contract is verified or executed.
+    pub fn with_max_contract_size_bytes(
+        mut self,
+        max_contract_size_bytes: u32,
+    ) -> Self {
+        self.network_config = self
+            .network_config
+            .with_max_contract_size_bytes(max_contract_size_bytes);
+        self
+    }
+
+    /// Storage savepoints one transaction may have open at once: one per
+    /// `TryInvoke` frame still executing, plus the one the root commit
+    /// takes.
+    pub fn with_max_savepoint_depth(
+        mut self,
+        max_savepoint_depth: u32,
+    ) -> Self {
+        self.network_config = self
+            .network_config
+            .with_max_savepoint_depth(max_savepoint_depth);
+        self
+    }
+
+    /// Bytes one incremental SHA-256 buffer may absorb between resets, the
+    /// per-buffer companion of
+    /// [`with_max_sha256_buffers`](Self::with_max_sha256_buffers).
+    pub fn with_max_sha256_buffer_bytes(
+        mut self,
+        max_sha256_buffer_bytes: u32,
+    ) -> Self {
+        self.network_config = self
+            .network_config
+            .with_max_sha256_buffer_bytes(max_sha256_buffer_bytes);
+        self
+    }
+
+    /// Levels of `AuthTokenNode` nesting an auth token may carry, counted
+    /// from its root.
+    pub fn with_max_auth_token_depth(
+        mut self,
+        max_auth_token_depth: u32,
+    ) -> Self {
+        self.network_config = self
+            .network_config
+            .with_max_auth_token_depth(max_auth_token_depth);
+        self
+    }
+
+    /// Bytes of code (`code_size` in the artifact header) an RV32 artifact
+    /// may carry to be attached as a contract.
+    pub fn with_max_rv32_code_bytes(
+        mut self,
+        max_rv32_code_bytes: u32,
+    ) -> Self {
+        self.network_config = self
+            .network_config
+            .with_max_rv32_code_bytes(max_rv32_code_bytes);
+        self
+    }
+
+    /// Bytes of guest data memory (`memory_bytes` in the artifact header)
+    /// an RV32 artifact may declare to be attached as a contract.
+    pub fn with_max_rv32_memory_bytes(
+        mut self,
+        max_rv32_memory_bytes: u32,
+    ) -> Self {
+        self.network_config = self
+            .network_config
+            .with_max_rv32_memory_bytes(max_rv32_memory_bytes);
         self
     }
 
