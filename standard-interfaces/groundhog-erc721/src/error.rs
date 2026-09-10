@@ -32,4 +32,12 @@ pub enum ERC721Error {
     /// operator.
     #[cfg_attr(feature = "dev", error("Caller may not approve this token"))]
     InvalidApprover = 5,
+
+    /// `token_uri` for a token whose metadata is on chain, so there is no
+    /// URI; `token_metadata` has the fields.
+    #[cfg_attr(
+        feature = "dev",
+        error("Token metadata is on chain, not at a URI")
+    )]
+    NoTokenUri = 6,
 }

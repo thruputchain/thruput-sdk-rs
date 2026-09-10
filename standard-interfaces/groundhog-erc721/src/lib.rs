@@ -10,7 +10,8 @@
 //! opaque bytes, the same shape as an address or a role, so a collection
 //! may number its tokens, hash their content, or mint under any other
 //! scheme. Minting and burning are their own events rather than transfers
-//! from or to the zero address, and the
+//! from or to the zero address. Metadata may live at a URI, as `tokenURI`
+//! has it, or on chain as [`TokenMetadata`] spells out. The
 //! zero address is an ordinary destination; its one role is standing for
 //! "no approval" in [`ERC721::get_approved`] and [`ERC721::approve`], as
 //! `address(0)` does in Solidity.
@@ -63,6 +64,43 @@ pub type Name = heapless::String<100>;
 pub type Symbol = heapless::String<10>;
 /// A token's metadata URI.
 pub type TokenUri = heapless::String<256>;
+
+/// A token's display name, when its metadata is on chain.
+pub type MetadataName = heapless::String<100>;
+/// A token's description, when its metadata is on chain.
+pub type MetadataDescription = heapless::String<1024>;
+/// A token's image, when its metadata is on chain: a URI, `data:` URIs
+/// included.
+pub type MetadataImage = heapless::String<512>;
+
+/// Token metadata stored on chain: the fields of the ERC721 metadata JSON
+/// schema, as values rather than a document at a URI.
+#[sdk::contract_type]
+#[cfg_attr(feature = "dev", derive(Debug, PartialEq, Eq))]
+pub struct OnchainMetadata {
+    pub name: MetadataName,
+    pub description: MetadataDescription,
+    pub image: MetadataImage,
+}
+
+/// Where a token's metadata lives.
+///
+/// Ethereum keeps metadata off chain behind `tokenURI` because storage is
+/// scarce there. Groundhog's is not, so a collection may store the fields
+/// themselves. [`ERC721Metadata::token_metadata`] returns either form;
+/// [`ERC721Metadata::token_uri`] keeps the ERC721 shape for the off-chain
+/// one.
+#[sdk::contract_type]
+#[cfg_attr(feature = "dev", derive(Debug, PartialEq, Eq))]
+// A contract type is XDR-encoded and `no_std`, so the on-chain variant
+// cannot be boxed; the enum is built, encoded, and dropped within one call.
+#[allow(clippy::large_enum_variant)]
+pub enum TokenMetadata {
+    /// A document at this URI, as ERC721's `tokenURI` has it.
+    Uri(TokenUri) = 1,
+    /// The fields themselves, in the contract's storage.
+    Onchain(OnchainMetadata) = 2,
+}
 
 /// The address [`ERC721::get_approved`] returns for a token with no
 /// approval, and that [`ERC721::approve`] takes to clear one. It is an
@@ -165,7 +203,14 @@ pub trait ERC721 {
 }
 
 /// The optional metadata extension: a name and symbol for the collection
-/// and a URI per token.
+/// and, per token, metadata at a URI or on chain.
+///
+/// # Error contract
+///
+/// - [`ERC721Error::NonexistentToken`] — a query naming a token id that has
+///   no owner.
+/// - [`ERC721Error::NoTokenUri`] — [`token_uri`](Self::token_uri) for a
+///   token whose metadata is on chain.
 #[contract(client = ERC721MetadataClient, throws = ERC721Error)]
 pub trait ERC721Metadata {
     /// The collection's name.
@@ -174,9 +219,15 @@ pub trait ERC721Metadata {
     /// The collection's symbol.
     fn symbol(&self) -> Symbol;
 
-    /// The metadata URI for `token_id`. Throws
-    /// [`ERC721Error::NonexistentToken`].
+    /// The metadata URI for `token_id`, for a token whose metadata is off
+    /// chain. Throws [`ERC721Error::NonexistentToken`], and
+    /// [`ERC721Error::NoTokenUri`] when the metadata is on chain;
+    /// [`token_metadata`](Self::token_metadata) answers for either.
     fn token_uri(&self, token_id: &TokenId) -> TokenUri;
+
+    /// The metadata for `token_id`, wherever it lives. Throws
+    /// [`ERC721Error::NonexistentToken`].
+    fn token_metadata(&self, token_id: &TokenId) -> TokenMetadata;
 }
 
 /// The hook a contract implements to take custody of tokens through

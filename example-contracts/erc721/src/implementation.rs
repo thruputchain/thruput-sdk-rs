@@ -10,12 +10,19 @@
 //!   sending another, produces two deltas, not a conflict.
 //! - `operator_approvals` are set or deleted, never read-modify-written.
 //!
+//! Every slot is written under an exclusive lock. Two transactions in one
+//! block execute against the same prior state, so two transfers of one
+//! token to the same recipient would agree on the new owner and, with
+//! plain writes, both commit, moving the balances twice. Exclusive writes
+//! let one of them land and fail the other at commit.
+//!
+//! Metadata is per token, chosen at mint: a URI, or the fields on chain.
+//!
 //! Minting is restricted to the administrator named at `initialize`, as in
 //! the `erc20` example; burning is open to anyone the token's owner has
 //! authorized, as in OpenZeppelin's `ERC721Burnable`.
 
 use crate::interface::*;
-use core::fmt::Write as _;
 use sdk::call::CallError;
 use sdk::storage::{Deletable, Map, NNInt, Value};
 use sdk::*;
@@ -29,6 +36,7 @@ pub struct NftContract {
     token_approvals: Map<TokenId, Value<ContractAddress>>,
     operator_approvals:
         Map<ContractAddress, Map<ContractAddress, Value<bool>>>,
+    metadata: Map<TokenId, Value<TokenMetadata>>,
 }
 
 /// Errors of this contract's own administrative surface, beyond the
@@ -49,8 +57,6 @@ pub struct Config {
     pub administrator: ContractAddress,
     pub name: Name,
     pub symbol: Symbol,
-    /// Prefix of every token's URI; the token id in hex follows it.
-    pub base_uri: TokenUri,
 }
 
 impl NftContract {
@@ -118,10 +124,10 @@ impl NftContract {
         );
         ensure(owner == *from, ERC721Error::IncorrectOwner);
 
-        self.token_approvals.at_mut(token_id).delete();
+        self.token_approvals.at_mut_exclusive(token_id).delete();
         self.balances.at_mut(from).inc(-1);
         self.balances.at_mut(to).inc(1);
-        self.owners.at_mut(token_id).set(to);
+        self.owners.at_mut_exclusive(token_id).set(to);
 
         log_transfer_event(from, to, token_id);
     }
@@ -200,9 +206,9 @@ impl ERC721 for NftContract {
         );
 
         if to == CONTRACT_ADDR_ZERO {
-            self.token_approvals.at_mut(token_id).delete();
+            self.token_approvals.at_mut_exclusive(token_id).delete();
         } else {
-            self.token_approvals.at_mut(token_id).set(to);
+            self.token_approvals.at_mut_exclusive(token_id).set(to);
         }
 
         log_approval_event(&owner, to, token_id);
@@ -216,7 +222,7 @@ impl ERC721 for NftContract {
         let owner = get_caller();
 
         let mut approvals = self.operator_approvals.at_mut(&owner);
-        let mut slot = approvals.at_mut(operator);
+        let mut slot = approvals.at_mut_exclusive(operator);
         if approved {
             slot.set(&true);
         } else {
@@ -251,12 +257,15 @@ impl ERC721Metadata for NftContract {
     }
 
     fn token_uri(&self, token_id: &TokenId) -> TokenUri {
-        self._require_owned(token_id);
+        match self.token_metadata(token_id) {
+            TokenMetadata::Uri(uri) => uri,
+            TokenMetadata::Onchain(_) => throw(ERC721Error::NoTokenUri),
+        }
+    }
 
-        let mut uri = self.config.get().base_uri;
-        write!(uri, "{}", hex_encode(token_id))
-            .unwrap_or_else(|_| throw(LibraryExn::StorageSerialization));
-        uri
+    fn token_metadata(&self, token_id: &TokenId) -> TokenMetadata {
+        self._require_owned(token_id);
+        self.metadata.at(token_id).get()
     }
 }
 
@@ -276,24 +285,28 @@ impl NftContract {
         administrator: &ContractAddress,
         name: Name,
         symbol: Symbol,
-        base_uri: TokenUri,
     ) {
         if self.config.try_get().none_if_missing().is_some() {
             throw(NftError::AlreadyInitialized);
         }
-        self.config.set(&Config {
+        self.config.set_exclusive(&Config {
             administrator: *administrator,
             name,
             symbol,
-            base_uri,
         });
     }
 
-    /// Create `token_id` owned by `to` and emit a [`MintEvent`].
-    /// Throws [`NftError::MustBeAdministrator`]
-    /// unless the caller is the administrator, and
-    /// [`NftError::TokenAlreadyMinted`] if the id exists.
-    pub fn mint(&mut self, to: &ContractAddress, token_id: &TokenId) {
+    /// Create `token_id` owned by `to`, with `metadata` at a URI or on
+    /// chain, and emit a [`MintEvent`]. Throws
+    /// [`NftError::MustBeAdministrator`] unless the caller is the
+    /// administrator, and [`NftError::TokenAlreadyMinted`] if the id
+    /// exists.
+    pub fn mint(
+        &mut self,
+        to: &ContractAddress,
+        token_id: &TokenId,
+        metadata: TokenMetadata,
+    ) {
         ensure(
             get_caller() == self._administrator(),
             NftError::MustBeAdministrator,
@@ -304,7 +317,8 @@ impl NftContract {
         );
 
         self.balances.at_mut(to).inc(1);
-        self.owners.at_mut(token_id).set(to);
+        self.owners.at_mut_exclusive(token_id).set(to);
+        self.metadata.at_mut_exclusive(token_id).set(&metadata);
 
         log_mint_event(to, token_id);
     }
@@ -321,9 +335,10 @@ impl NftContract {
             ERC721Error::InsufficientApproval,
         );
 
-        self.token_approvals.at_mut(token_id).delete();
+        self.token_approvals.at_mut_exclusive(token_id).delete();
         self.balances.at_mut(&owner).inc(-1);
-        self.owners.at_mut(token_id).delete();
+        self.owners.at_mut_exclusive(token_id).delete();
+        self.metadata.at_mut_exclusive(token_id).delete();
 
         log_burn_event(&owner, token_id);
     }

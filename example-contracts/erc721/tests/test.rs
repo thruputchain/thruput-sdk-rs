@@ -8,8 +8,8 @@ use groundhog_erc165_if::{ERC165Client, try_probe_interface};
 use groundhog_erc721_if::{
     ApprovalEvent, ApprovalForAllEvent, BurnEvent, CONTRACT_ADDR_ZERO,
     ERC721Client, ERC721Entrypoints, ERC721Error, ERC721MetadataClient,
-    ERC721MetadataEntrypoints, ERC721ReceiverEntrypoints, MintEvent, TokenId,
-    TransferData, TransferEvent,
+    ERC721MetadataEntrypoints, ERC721ReceiverEntrypoints, MintEvent,
+    OnchainMetadata, TokenId, TokenMetadata, TransferData, TransferEvent,
 };
 use sdk::call::CallError;
 use sdk::*;
@@ -34,6 +34,20 @@ fn id(n: u8) -> TokenId {
     TokenId::new(bytes)
 }
 
+/// Off-chain metadata for token `n`, at the collection's base URI.
+fn uri_metadata(n: u8) -> TokenMetadata {
+    TokenMetadata::Uri(format!("{BASE_URI}{n}").as_str().try_into().unwrap())
+}
+
+/// Metadata stored on chain.
+fn onchain_metadata() -> TokenMetadata {
+    TokenMetadata::Onchain(OnchainMetadata {
+        name: "Punk with every bit set".try_into().unwrap(),
+        description: "Its id is thirty-two 0xff bytes.".try_into().unwrap(),
+        image: "data:image/svg+xml,<svg/>".try_into().unwrap(),
+    })
+}
+
 /// Deploy the token, initialize it as `ADMIN`, and mint ids 1 and 2 to
 /// `ALICE`.
 fn deploy_token(env: &TestEnvironmentHandle) -> ContractAddress {
@@ -48,10 +62,9 @@ fn deploy_token(env: &TestEnvironmentHandle) -> ContractAddress {
                 &ADMIN,
                 NAME.try_into().unwrap(),
                 SYMBOL.try_into().unwrap(),
-                BASE_URI.try_into().unwrap(),
             );
-            admin.mint(&ALICE, &id(1));
-            admin.mint(&ALICE, &id(2));
+            admin.mint(&ALICE, &id(1), uri_metadata(1));
+            admin.mint(&ALICE, &id(2), uri_metadata(2));
             addr
         })
     });
@@ -158,7 +171,6 @@ fn mint_sets_owner_balance_metadata_and_events() {
                 &ADMIN,
                 NAME.try_into().unwrap(),
                 SYMBOL.try_into().unwrap(),
-                BASE_URI.try_into().unwrap(),
             );
             assert_eq!(
                 admin
@@ -166,17 +178,19 @@ fn mint_sets_owner_balance_metadata_and_events() {
                         &ADMIN,
                         NAME.try_into().unwrap(),
                         SYMBOL.try_into().unwrap(),
-                        BASE_URI.try_into().unwrap(),
                     )
                     .unwrap_err()
                     .try_as(),
                 Some(NftError::AlreadyInitialized),
             );
 
-            admin.mint(&ALICE, &id(1));
-            admin.mint(&BOB, &big);
+            admin.mint(&ALICE, &id(1), uri_metadata(1));
+            admin.mint(&BOB, &big, onchain_metadata());
             assert_eq!(
-                admin.try_mint(&BOB, &id(1)).unwrap_err().try_as(),
+                admin
+                    .try_mint(&BOB, &id(1), uri_metadata(1))
+                    .unwrap_err()
+                    .try_as(),
                 Some(NftError::TokenAlreadyMinted),
             );
 
@@ -191,15 +205,17 @@ fn mint_sets_owner_balance_metadata_and_events() {
             let meta = ERC721MetadataClient::new(&addr);
             assert_eq!(meta.name().as_str(), NAME);
             assert_eq!(meta.symbol().as_str(), SYMBOL);
-            // The URI is the base followed by the id in hex.
+            // Metadata comes back as minted; only the off-chain kind has
+            // a URI to give.
             assert_eq!(
                 meta.token_uri(&id(1)).as_str(),
-                "https://example.com/nft/\
-                 0000000000000000000000000000000000000000000000000000000000000001"
+                "https://example.com/nft/1"
             );
+            assert_eq!(meta.token_metadata(&id(1)), uri_metadata(1));
+            assert_eq!(meta.token_metadata(&big), onchain_metadata());
             assert_eq!(
-                meta.token_uri(&big).as_str(),
-                format!("{BASE_URI}{}", hex_encode(&big))
+                meta.try_token_uri(&big).unwrap_err().try_as(),
+                Some(ERC721Error::NoTokenUri)
             );
 
             // Everything about an unminted id is `NonexistentToken`.
@@ -212,6 +228,7 @@ fn mint_sets_owner_balance_metadata_and_events() {
             missing(token.try_owner_of(&id(9)).map(drop));
             missing(token.try_get_approved(&id(9)).map(drop));
             missing(meta.try_token_uri(&id(9)).map(drop));
+            missing(meta.try_token_metadata(&id(9)).map(drop));
             missing(token.try_transfer_from(&ALICE, &BOB, &id(9)));
             addr
         })
@@ -227,7 +244,7 @@ fn mint_sets_owner_balance_metadata_and_events() {
         tx.call(&ALICE).run(move || {
             assert_eq!(
                 NftAdminClient::new(&addr)
-                    .try_mint(&ALICE, &id(3))
+                    .try_mint(&ALICE, &id(3), uri_metadata(3))
                     .unwrap_err()
                     .try_as(),
                 Some(NftError::MustBeAdministrator),
@@ -490,6 +507,13 @@ fn burn_needs_authorization_and_removes_the_token() {
                 token.try_owner_of(&id(1)).unwrap_err().try_as(),
                 Some(ERC721Error::NonexistentToken),
             );
+            assert_eq!(
+                ERC721MetadataClient::new(&addr)
+                    .try_token_metadata(&id(1))
+                    .unwrap_err()
+                    .try_as(),
+                Some(ERC721Error::NonexistentToken),
+            );
             assert_eq!(token.balance_of(&ALICE), 1);
         })
     });
@@ -509,8 +533,39 @@ fn burn_needs_authorization_and_removes_the_token() {
     env.advance_block();
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
-            NftAdminClient::new(&addr).mint(&BOB, &id(1));
+            NftAdminClient::new(&addr).mint(&BOB, &id(1), uri_metadata(1));
             assert_eq!(ERC721Client::new(&addr).owner_of(&id(1)), BOB);
+        })
+    });
+    result.assert_success();
+}
+
+/// Two transactions in one block both execute against the previous
+/// block's state, in which Alice owns the token: each would record Bob as
+/// the owner and move one balance. The exclusive lock on the owner slot
+/// lets the first commit and fails the second, so the balances move once.
+#[test]
+fn two_transfers_of_one_token_in_a_block_commit_once() {
+    let env = TestEnvironment::no_cost();
+    let addr = deploy_token(&env);
+
+    let transfer = || {
+        env.transact(|tx| {
+            tx.call(&ALICE).run(move || {
+                ERC721Client::new(&addr).transfer_from(&ALICE, &BOB, &id(1));
+            })
+        })
+    };
+    transfer().assert_success();
+    transfer().assert_commit_failed_nondeterministically();
+    env.advance_block();
+
+    let result = env.transact(|tx| {
+        tx.call(&ALICE).run(move || {
+            let token = ERC721Client::new(&addr);
+            assert_eq!(token.owner_of(&id(1)), BOB);
+            assert_eq!(token.balance_of(&ALICE), 1);
+            assert_eq!(token.balance_of(&BOB), 1);
         })
     });
     result.assert_success();
