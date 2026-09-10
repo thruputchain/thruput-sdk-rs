@@ -39,7 +39,6 @@ CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS = "{{ .cargo_registry_global_credenti
 CARGO_REGISTRIES_GROUNDHOG_TOKEN = "{{ .cargo_registry_token }}"
 CARGO_REGISTRIES_GROUNDHOG_INDEX = "{{ .cargo_registry_index }}"
 CARGO_REGISTRIES_GROUNDHOG_SOURCE = "{{ .cargo_registry_source }}"
-HOGD_FFI_PASSWORD = "{{ .hogd_ffi_password }}"
 SKIP_SDK_TESTS = "1"
 
 [jobs.host]

@@ -52,7 +52,6 @@ jobs:
               SKIP_SDK_TESTS=1 SKIP_EXAMPLES=1
     runs-on: namespace-profile-hogd-linux-2604
     env:
-      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
       # Every matrix entry sets SKIP_SDK_TESTS=1: SDK unit tests run in the
       # separate `sdk-tests` job (sdk_tests.yml).
       # Share one FFI download cache across every groundhog-sys build instance
@@ -140,7 +139,6 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: namespace-profile-hogd-linux-2604
     env:
-      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
       GROUNDHOG_CLI_ROOT: ${{ github.workspace }}/.groundhog-cli
 

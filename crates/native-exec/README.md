@@ -8,7 +8,7 @@ obtains the library in one of three ways, selected by environment variables.
 
 **On supported platforms** (x86_64 Linux, aarch64 Linux, aarch64 macOS), the
 build script **automatically downloads** prebuilt libraries from
-`groundhog.dev`. No environment variables, extra features, or hogd checkout
+a public S3 bucket. No environment variables, extra features, or hogd checkout
 are required.
 
 **On unsupported platforms**, you must use the build-from-source or custom
@@ -24,7 +24,7 @@ cargo build
 ```
 
 This will automatically:
-- Download the prebuilt tarball from `groundhog.dev` using `curl`
+- Download the prebuilt tarball from public S3 using `curl`
 - Verify the SHA256 checksum
 - Assert the archive contains exactly the expected files, then extract and
   link the library
@@ -35,8 +35,7 @@ This will automatically:
 - Linux ARM64: `libtest_ffi-linux-arm64.tar.gz`
 - macOS ARM64: `libtest_ffi-macos-arm64.tar.gz`
 
-If the download host requires authentication, set `HOGD_FFI_PASSWORD` (and
-optionally `HOGD_FFI_USER`); the credentials are passed to `curl`.
+Downloads are public and require no authentication or AWS credentials.
 
 ### 2. Build from Source (Override)
 
@@ -95,8 +94,6 @@ This will:
   if unset)
 - `HOGD_DOWNLOAD_CACHE_DIR`: Override the prebuilt download cache location
   (default: under `OUT_DIR`)
-- `HOGD_FFI_USER` / `HOGD_FFI_PASSWORD`: Credentials for the prebuilt
-  download host
 - `NATIVE_EXEC_ALWAYS_CONFIGURE`: Force CMake reconfiguration when building
   from source
 
@@ -110,7 +107,7 @@ Uses the `TEST_FFI_VERSION` constant in `crates/hogd-sys/build.rs` to
 determine which release to download. The prebuilt tarball includes both the
 library and a pre-generated `bindings.rs`, so no hogd checkout is needed.
 
-Current version: **0.26.0** (tag: `test-ffi-v0.26.0`)
+Current version: **0.32.0** (tag: `test-ffi-v0.32.0`)
 
 ### Source / Custom-lib-dir Path
 
@@ -149,7 +146,7 @@ This is intentional to prevent silent failures and ensure reproducible builds.
 ## Prebuilt Releases
 
 Prebuilt libraries are published to:
-`https://groundhog.dev/builds/test-ffi/test-ffi-v{VERSION}/`
+`https://groundhog-public-release-artifacts-017820684264.s3.us-west-2.amazonaws.com/test-ffi/test-ffi-v{VERSION}/`
 
 Each release includes, per platform:
 - `libtest_ffi-<platform>.tar.gz` (+ `.sha256`)
