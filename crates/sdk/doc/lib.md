@@ -412,7 +412,7 @@ Other useful modules and types:
 impl of that trait exports an implementation. Callers depend on the interface
 crate and get the same generated client either way. That is how the standard
 interfaces in `standard-interfaces/` (`groundhog-erc20`,
-`groundhog-erc20-metadata`, `groundhog-signed-op`) are consumed.
+`groundhog-erc20-metadata`, `groundhog-erc721`, `groundhog-signed-op`) are consumed.
 
 Every `#[contract]` trait also carries an [`InterfaceId`] as
 `Trait::INTERFACE_ID`, derived from its name and major version, and every

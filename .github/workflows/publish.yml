@@ -70,6 +70,7 @@ env:
     groundhog-signed-op
     groundhog-erc20-permit-if
     groundhog-erc165-if
+    groundhog-erc721-if
     groundhog-access-control-if
     groundhog-access-control
   # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
@@ -144,6 +145,7 @@ jobs:
             groundhog-erc20-permit-if
             groundhog-signed-op-if
             groundhog-erc165-if
+            groundhog-erc721-if
             groundhog-access-control-if
             erc20-test
           # groundhog-domain-separator's backends are additive, so most combinations
@@ -330,6 +332,18 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
+      - name: Tag groundhog-erc721-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc721-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc721-if
+          tag-prefix: 'groundhog-erc721-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
       - name: Tag groundhog-access-control
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control
@@ -406,6 +420,17 @@ jobs:
           packages: groundhog-erc165-if
           git-tag: ${{ steps.tag-erc165-if.outputs.tag }}
           tag-prefix: 'groundhog-erc165-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+
+      - name: Publish groundhog-erc721-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-erc721-if
+          git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
+          tag-prefix: 'groundhog-erc721-if-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
@@ -551,6 +576,18 @@ jobs:
           toolchain: nightly-2026-07-01
           force: 'true'
           expected-tag: ${{ steps.tag-erc165-if.outputs.tag }}
+
+      - name: Publish groundhog-erc721-if docs
+        if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-doc
+        with:
+          packages: groundhog-erc721-if
+          version: ${{ steps.tag-erc721-if.outputs.version }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          toolchain: nightly-2026-07-01
+          force: 'true'
+          expected-tag: ${{ steps.tag-erc721-if.outputs.tag }}
 
       - name: Publish groundhog-access-control-if docs
         if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}

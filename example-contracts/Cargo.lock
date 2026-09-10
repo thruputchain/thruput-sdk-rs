@@ -364,6 +364,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc721"
+version = "0.4.0"
+dependencies = [
+ "counter",
+ "erc721",
+ "erc721_receiver",
+ "groundhog-erc165-if",
+ "groundhog-erc721-if",
+ "sdk",
+]
+
+[[package]]
+name = "erc721_receiver"
+version = "0.4.0"
+dependencies = [
+ "erc721_receiver",
+ "groundhog-erc721-if",
+ "sdk",
+]
+
+[[package]]
 name = "escape-bytes"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -518,6 +539,15 @@ name = "groundhog-erc20-permit-if"
 version = "0.1.27"
 dependencies = [
  "groundhog-erc20-if",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
+name = "groundhog-erc721-if"
+version = "0.1.27"
+dependencies = [
+ "heapless",
  "sdk",
  "thiserror",
 ]

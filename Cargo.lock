@@ -456,6 +456,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-erc721-if"
+version = "0.1.27"
+dependencies = [
+ "groundhog-erc721-if",
+ "heapless",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-event"
 version = "0.34.0"
 dependencies = [
