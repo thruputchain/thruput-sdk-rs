@@ -296,7 +296,7 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Which build strategy the build script should use.
 enum BuildMethod {
-    /// Download prebuilt binaries from `groundhog.dev`.
+    /// Download prebuilt binaries from public S3.
     Prebuilt,
     /// User pointed us at a directory containing the library.
     CustomLib(String),
@@ -684,52 +684,6 @@ fn use_prebuilt_lib(
     Ok(())
 }
 
-/// The curl config line carrying credentials, or `None` when unauthenticated.
-///
-/// Warns about why the download is unauthenticated (password not set, or
-/// set with an empty user), so callers need no further diagnostics.
-///
-/// Credentials go to curl via `--config -` on stdin, never on the command
-/// line: argv is world-readable through `ps` while the download runs.
-fn curl_auth_config(user: &str) -> Option<String> {
-    let Ok(pass) = env::var("HOGD_FFI_PASSWORD") else {
-        println!(
-            "cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication."
-        );
-        return None;
-    };
-    if user.is_empty() {
-        println!(
-            "cargo:warning=HOGD_FFI_PASSWORD is set but HOGD_FFI_USER is empty; downloading without authentication."
-        );
-        return None;
-    }
-    println!(
-        "cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables."
-    );
-    Some(format!(
-        "user = \"{}:{}\"\n",
-        curl_config_quote(user),
-        curl_config_quote(&pass)
-    ))
-}
-
-/// Escape a value for use inside a double-quoted curl config string.
-fn curl_config_quote(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            _ => out.push(c),
-        }
-    }
-    out
-}
-
 /// Download a file with retry and exponential backoff.
 ///
 /// Downloads to a `.tmp` file first and atomically renames on success, so
@@ -738,37 +692,18 @@ fn download_with_retry(
     url: &str,
     dest: &Path,
     max_retries: u32,
-    user: &str,
 ) -> Result<(), String> {
     let tmp = dest.with_extension("tmp");
     if tmp.exists() {
         let _ = fs::remove_file(&tmp);
     }
 
-    // curl_auth_config warns about why the download is unauthenticated.
-    let auth_config = curl_auth_config(user);
-
     let mut wait_secs = 5;
     for attempt in 0..=max_retries {
         let mut cmd = Command::new("curl");
         cmd.arg("--fail").arg("-L").arg("-o").arg(&tmp).arg(url);
 
-        let status = match &auth_config {
-            None => cmd.status(),
-            Some(config) => {
-                cmd.arg("--config").arg("-");
-                cmd.stdin(std::process::Stdio::piped());
-                cmd.spawn().and_then(|mut child| {
-                    use std::io::Write as _;
-                    // Taken (not borrowed) so the pipe closes once written;
-                    // curl reads config until EOF before starting.
-                    if let Some(mut stdin) = child.stdin.take() {
-                        stdin.write_all(config.as_bytes())?;
-                    }
-                    child.wait()
-                })
-            }
-        };
+        let status = cmd.status();
 
         match status {
             Ok(s) if s.success() && tmp.exists() => {
@@ -808,7 +743,6 @@ fn download_with_retry(
 fn ensure_cached_download(
     url: &str,
     dest: &Path,
-    user: &str,
     label: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let sum_path = dest.with_extension("sum");
@@ -832,7 +766,7 @@ fn ensure_cached_download(
 
     println!("cargo:warning=Downloading {label} from: {url}");
 
-    download_with_retry(url, dest, 3, user)
+    download_with_retry(url, dest, 3)
         .map_err(|e| format!("{label} download failed: {e}"))?;
 
     fs::write(&sum_path, url)
@@ -883,7 +817,7 @@ fn verify_checksum(
     Ok(())
 }
 
-/// Download and extract the prebuilt library from `groundhog.dev`.
+/// Download and extract the prebuilt library from public S3.
 fn download_and_extract(
     out_dir: &Path,
     target_arch: &str,
@@ -905,27 +839,21 @@ fn download_and_extract(
     };
 
     let download_url = format!(
-        "https://groundhog.dev/builds/test-ffi/test-ffi-v{version}/{archive_name}",
+        "https://groundhog-public-release-artifacts-017820684264.s3.us-west-2.amazonaws.com/test-ffi/test-ffi-v{version}/{archive_name}",
     );
 
     let cache_dir = download_cache_dir();
     fs::create_dir_all(&cache_dir)?;
     let archive_path = cache_dir.join(archive_name);
 
-    let user =
-        env::var("HOGD_FFI_USER").unwrap_or_else(|_| "marmot".to_string());
-
-    println!("cargo:rerun-if-env-changed=HOGD_FFI_USER");
-    println!("cargo:rerun-if-env-changed=HOGD_FFI_PASSWORD");
-
-    ensure_cached_download(&download_url, &archive_path, &user, "Archive")?;
+    ensure_cached_download(&download_url, &archive_path, "Archive")?;
 
     // Download checksum. A failed or absent checksum is a hard error: an
     // unverifiable archive is indistinguishable from a tampered one. Cached
     // builds are unaffected — a cache hit on both files skips both downloads.
     let checksum_url = format!("{download_url}.sha256");
     let checksum_path = cache_dir.join(format!("{archive_name}.sha256"));
-    ensure_cached_download(&checksum_url, &checksum_path, &user, "Checksum")
+    ensure_cached_download(&checksum_url, &checksum_path, "Checksum")
         .map_err(|e| format!("refusing to use an unverified archive: {e}"))?;
 
     let archive_bytes = fs::read(&archive_path)?;
