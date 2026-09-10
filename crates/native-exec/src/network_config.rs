@@ -91,6 +91,13 @@ pub fn find_config_param(
 /// Most tests never name this type: the same `with_*` setters are on
 /// [`TestEnvironmentBuilder`](crate::test_environment_builder::TestEnvironmentBuilder),
 /// which builds the configuration and the environment together.
+///
+/// A setter is only usable against a hogd build that knows its parameter.
+/// The stock configuration states what that build's genesis states, and
+/// [`build`](Self::build) refuses to leave a gap below a newer parameter,
+/// so the ones protocol 0.35 introduced
+/// ([`with_max_contract_size_bytes`](Self::with_max_contract_size_bytes)
+/// and later) need a hogd built from that protocol or newer.
 #[derive(Clone, Debug, Default)]
 #[must_use = "a NetworkConfigBuilder does nothing until `build` is called"]
 pub struct NetworkConfigBuilder {
@@ -159,6 +166,72 @@ impl NetworkConfigBuilder {
     ) -> Self {
         self.with_config_param(ConfigParam::kConfigParamMaxNewContractsPerTx {
             max_new_contracts_per_tx,
+        })
+    }
+
+    /// Bytes one bytestring storage item may hold.
+    pub fn with_max_bytestring_len(self, max_bytestring_len: u32) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxBytestringLen {
+            max_bytestring_len,
+        })
+    }
+
+    /// Bytes one attached contract's code blob (`ContractBlob.data`) may
+    /// hold, checked before any attached contract is verified or executed.
+    pub fn with_max_contract_size_bytes(
+        self,
+        max_contract_size_bytes: u32,
+    ) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxContractSizeBytes {
+            max_contract_size_bytes,
+        })
+    }
+
+    /// Storage savepoints one transaction may have open at once: one per
+    /// `TryInvoke` frame still executing, plus the one the root commit
+    /// takes.
+    pub fn with_max_savepoint_depth(self, max_savepoint_depth: u32) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxSavepointDepth {
+            max_savepoint_depth,
+        })
+    }
+
+    /// Bytes one incremental SHA-256 buffer may absorb between resets, the
+    /// per-buffer companion of
+    /// [`with_max_sha256_buffers`](Self::with_max_sha256_buffers).
+    pub fn with_max_sha256_buffer_bytes(
+        self,
+        max_sha256_buffer_bytes: u32,
+    ) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxSHA256BufferBytes {
+            max_sha256_buffer_bytes,
+        })
+    }
+
+    /// Levels of `AuthTokenNode` nesting an auth token may carry, counted
+    /// from its root.
+    pub fn with_max_auth_token_depth(self, max_auth_token_depth: u32) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxAuthTokenDepth {
+            max_auth_token_depth,
+        })
+    }
+
+    /// Bytes of code (`code_size` in the artifact header) an RV32 artifact
+    /// may carry to be attached as a contract.
+    pub fn with_max_rv32_code_bytes(self, max_rv32_code_bytes: u32) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxRv32CodeBytes {
+            max_rv32_code_bytes,
+        })
+    }
+
+    /// Bytes of guest data memory (`memory_bytes` in the artifact header)
+    /// an RV32 artifact may declare to be attached as a contract.
+    pub fn with_max_rv32_memory_bytes(
+        self,
+        max_rv32_memory_bytes: u32,
+    ) -> Self {
+        self.with_config_param(ConfigParam::kConfigParamMaxRv32MemoryBytes {
+            max_rv32_memory_bytes,
         })
     }
 
@@ -314,6 +387,62 @@ mod tests {
                 },
                 ConfigParam::kConfigParamMaxCrossInvokeDepth {
                     max_cross_invoke_depth: 3
+                },
+            ],
+        );
+    }
+
+    #[test]
+    fn every_typed_setter_states_its_own_parameter() {
+        // Applied in id order from an empty base, so each setter extends
+        // the prefix by exactly one; the result names every parameter this
+        // release knows, in the order the protocol numbers them.
+        let built = NetworkConfigBuilder::new()
+            .with_base(config_of(vec![]))
+            .with_max_sha256_buffers(1)
+            .with_max_cross_invoke_depth(2)
+            .with_max_new_contracts_per_tx(3)
+            .with_max_bytestring_len(4)
+            .with_max_contract_size_bytes(5)
+            .with_max_savepoint_depth(6)
+            .with_max_sha256_buffer_bytes(7)
+            .with_max_auth_token_depth(8)
+            .with_max_rv32_code_bytes(9)
+            .with_max_rv32_memory_bytes(10)
+            .build();
+
+        assert_eq!(
+            config_params(&built),
+            [
+                ConfigParam::kConfigParamMaxSHA256Buffers {
+                    max_sha256_buffers: 1
+                },
+                ConfigParam::kConfigParamMaxCrossInvokeDepth {
+                    max_cross_invoke_depth: 2
+                },
+                ConfigParam::kConfigParamMaxNewContractsPerTx {
+                    max_new_contracts_per_tx: 3
+                },
+                ConfigParam::kConfigParamMaxBytestringLen {
+                    max_bytestring_len: 4
+                },
+                ConfigParam::kConfigParamMaxContractSizeBytes {
+                    max_contract_size_bytes: 5
+                },
+                ConfigParam::kConfigParamMaxSavepointDepth {
+                    max_savepoint_depth: 6
+                },
+                ConfigParam::kConfigParamMaxSHA256BufferBytes {
+                    max_sha256_buffer_bytes: 7
+                },
+                ConfigParam::kConfigParamMaxAuthTokenDepth {
+                    max_auth_token_depth: 8
+                },
+                ConfigParam::kConfigParamMaxRv32CodeBytes {
+                    max_rv32_code_bytes: 9
+                },
+                ConfigParam::kConfigParamMaxRv32MemoryBytes {
+                    max_rv32_memory_bytes: 10
                 },
             ],
         );
