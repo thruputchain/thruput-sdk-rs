@@ -41,13 +41,18 @@ fn check_enum_discriminants(
 /// `name = "..."` replaces the final segment of the id; the path segments are
 /// not the author's to choose. The id itself comes from
 /// [`common::spec_id::spec_id_tokens`], which every spec-named item shares.
+///
+/// `version` is the item's declared identity version, or `None` for the
+/// crate's. `#[contract_exception(version = "...")]` pins one to hold its
+/// selector still across releases, and the id has to be pinned with it.
 fn contract_type_name_impl(
     krate: &syn::Path,
     ident: &syn::Ident,
     name: Option<&str>,
+    version: Option<&str>,
 ) -> proc_macro2::TokenStream {
     let declared = name.map_or_else(|| ident.to_string(), str::to_string);
-    let id = common::spec_id::spec_id_tokens(krate, &declared);
+    let id = common::spec_id::spec_id_tokens(krate, &declared, version);
     quote! {
         impl #krate::__contract_spec::ContractTypeName for #ident {
             const NAME: &'static str = #id;

@@ -177,6 +177,8 @@ fn expand_contract_type_name(
         &crate::common::contract::sdk_crate_path(),
         ident,
         args.name.as_ref().map(|name| name.as_str()),
+        // `#[contract_type]` declares no version of its own; the crate's it is.
+        None,
     )
 }
 

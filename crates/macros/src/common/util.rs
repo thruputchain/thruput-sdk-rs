@@ -165,7 +165,16 @@ pub fn validate_spec_type_name(
     span: proc_macro2::Span,
     name: &str,
 ) -> Result<(), Error> {
-    if syn::parse_str::<syn::Ident>(name).is_err() {
+    // Parsing alone is not enough: it discards whitespace and comments, so
+    // `" Meta "` and `"Meta /*::*/"` both parse as the ident `Meta` while the
+    // id is spliced from the RAW string — embedding the spaces, or the `::`
+    // this check exists to reject. Require the two to agree, which they do
+    // exactly when the string is nothing but the identifier (raw idents
+    // included: `Ident`'s Display keeps the `r#`).
+    let parsed = syn::parse_str::<syn::Ident>(name)
+        .ok()
+        .filter(|ident| *ident == name);
+    if parsed.is_none() {
         return Err(Error::new(
             span,
             format!(
@@ -176,4 +185,34 @@ pub fn validate_spec_type_name(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use proc_macro2::Span;
+
+    use super::validate_spec_type_name;
+
+    fn accepts(name: &str) -> bool {
+        validate_spec_type_name(Span::call_site(), name).is_ok()
+    }
+
+    /// The id is spliced from the raw string, so the check has to be about the
+    /// string, not about what it parses to. Parsing alone accepts all three
+    /// rejected cases below — the whitespace and the comment are discarded,
+    /// and the comment smuggles in the `::` this exists to stop.
+    #[test]
+    fn only_a_bare_identifier_is_accepted() {
+        assert!(accepts("Meta"));
+        assert!(accepts("Meta2"));
+        assert!(accepts("r#type"), "raw idents parse and round-trip");
+
+        assert!(!accepts(" Meta "));
+        assert!(!accepts("Meta /*::*/"));
+        assert!(!accepts("Meta//x\n"));
+        assert!(!accepts("inner::Meta"));
+        assert!(!accepts("Meta@2"));
+        assert!(!accepts(""));
+        assert!(!accepts("2Meta"));
+    }
 }

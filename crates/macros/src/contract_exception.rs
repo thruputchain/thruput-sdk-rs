@@ -69,6 +69,9 @@ fn expand_contract_type_name(
         &crate::common::contract::sdk_crate_path(),
         ident,
         args.name.as_ref().map(|name| name.as_str()),
+        // The same version the selector is derived from, so the two identities
+        // cannot drift: a pinned exception keeps both across a crate release.
+        args.version.as_ref().map(|version| version.as_str()),
     )
 }
 

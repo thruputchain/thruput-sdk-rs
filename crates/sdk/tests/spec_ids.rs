@@ -290,3 +290,35 @@ fn two_declarations_in_one_module_can_claim_one_id() {
         <Decoy as ContractTypeName>::NAME,
     );
 }
+
+// --- A declared identity version pins the id too --------------------------
+
+/// `#[contract_exception(version = "...")]` pins the version the selector is
+/// derived from, so a released crate can keep its selector still. The id has
+/// to be pinned with it, or the two identities of one type drift apart: the
+/// selector holding at the declared version while the id tracks the crate's.
+#[contract_exception(version = "2.0.0")]
+pub enum PinnedError {
+    Denied = 1,
+}
+
+#[contract_exception]
+pub enum UnpinnedError {
+    Denied = 1,
+}
+
+#[test]
+fn a_declared_version_pins_the_ids_major_segment() {
+    assert_eq!(
+        <PinnedError as ContractTypeName>::NAME,
+        format!("{}@2::PinnedError", module_path!()),
+    );
+}
+
+#[test]
+fn without_a_declared_version_the_id_takes_the_crates() {
+    assert_eq!(
+        <UnpinnedError as ContractTypeName>::NAME,
+        format!("{}::UnpinnedError", crate_at_major()),
+    );
+}

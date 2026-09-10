@@ -16,8 +16,13 @@
 //! named `Updated` in the spec, so canonicalization rejected them as
 //! conflicting definitions and the wire collision never got the chance to
 //! matter. Ids made the spec accept them, so the wire collision is now
-//! checked on its own terms. dev.sh's
-//! `check_rv32_event_signature_conflict_detected` asserts that.
+//! checked on its own terms.
+//!
+//! dev.sh cannot assert that yet: the rv32 pipeline canonicalizes with the
+//! pinned CLI's embedded spec-tool, which does not carry the rule until a CLI
+//! release does. `check_rv32_event_signature_pending_cli` asserts the build
+//! still succeeds and fails the moment it stops — that is the signal to flip
+//! it to assert the conflict.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 

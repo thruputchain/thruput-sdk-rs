@@ -83,6 +83,9 @@ fn emit_event_spec(
     let id = crate::common::spec_id::spec_id_tokens(
         &crate::common::contract::sdk_crate_path(),
         type_name,
+        // `#[derive(Event)]` declares no version of its own, and its signature
+        // is hashed from the crate's, so the id follows the same.
+        None,
     );
     let def_ident = format_ident!("__groundhog_spec_event_def_{ident}");
     let anchor_fn_ident =
