@@ -156,7 +156,10 @@ fn frame_refusal_message(code: SyscallErrorCode) -> String {
         }
         _ => "production refused the invocation",
     };
-    format!("mock invocation frame refused: {rule} ({code})")
+    format!(
+        "mock invocation frame refused: {rule} ({code}); a contract handles \
+         this through Invoke (sdk::call::try_call_raw_with)"
+    )
 }
 
 impl MockInvocationFrame {
@@ -1403,5 +1406,40 @@ mod tests {
         // An unnamed code still reports itself rather than going silent.
         let msg = frame_refusal_message(SyscallErrorCode(9999));
         assert!(msg.contains("9999"), "{msg}");
+
+        // Every message points at the path that can handle the condition.
+        assert!(msg.contains("try_call_raw_with"), "{msg}");
+    }
+
+    // The diagnostic only reaches the developer if the panic carrying it
+    // gets out. An enclosing frame's catch site records any other payload
+    // as a deterministic fault in its own body, which would close the
+    // parent as failed and leave the refusal unreported.
+    #[test]
+    fn a_refused_frame_propagates_instead_of_faulting_its_parent() {
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                frame.execute(|frame| {
+                    // Reentrance: the root's address already has a frame
+                    // open on this stack.
+                    frame
+                        .open_child_frame(root_addr())
+                        .with_invoke_flags(0)
+                        .build();
+                    FrameAction::Close
+                });
+            }));
+
+        assert_unrecoverable_payload(caught.expect_err(
+            "a refused frame must propagate as unrecoverable, not close \
+             the parent frame as a contract fault",
+        ));
     }
 }

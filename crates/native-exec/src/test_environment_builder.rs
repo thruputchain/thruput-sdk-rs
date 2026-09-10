@@ -116,14 +116,11 @@ impl TestEnvironmentBuilder {
 
     /// Invocation frames one transaction may have open at once.
     ///
-    /// A test that drives past this cap does not see what a guest would.
-    /// The harness opens child frames itself, and any frame the executor
-    /// refuses becomes an unrecoverable harness panic rather than the
-    /// invoke error a contract would observe -- the same way breaking the
-    /// reentrance rule surfaces (see
-    /// [`FrameHandle::child_call`](crate::frame_builder::FrameHandle::child_call)).
-    /// Lowering this cap is for the configuration a contract runs under,
-    /// not for asserting on what it does at the cap.
+    /// The harness opens its frames directly, so one the executor refuses
+    /// is an unrecoverable panic rather than the error a contract would
+    /// observe. To assert on the cap, have the frame call through the
+    /// Invoke syscall (`sdk::call::try_call_raw_with`), which reports it
+    /// as `RawCallError::DepthExceeded`.
     pub fn with_max_cross_invoke_depth(
         mut self,
         max_cross_invoke_depth: u32,
@@ -255,8 +252,9 @@ mod tests {
     };
     use crate::test_helpers::Named;
     use groundhog_xdr::network_config::ConfigParamID;
-    use groundhog_xdr::syscalls::raw_SHA256Update;
-    use groundhog_xdr::types::ContractAddress;
+    use groundhog_xdr::storage_item::StorageDeltaFlags;
+    use groundhog_xdr::syscalls::{raw_BytestringSet, raw_SHA256Update};
+    use groundhog_xdr::types::{ContractAddress, StorageKeyContractData};
 
     fn max_sha256_buffers(config: &NetworkConfig) -> u32 {
         match find_config_param(
@@ -358,6 +356,62 @@ mod tests {
                     assert!(raw_SHA256Update(cap, &[], true).is_err());
                 },
             )
+        })
+        .assert_success();
+    }
+
+    #[test]
+    fn the_max_bytestring_len_parameter_is_settable() {
+        let env = TestEnvironment::builder()
+            .no_cost()
+            .with_max_bytestring_len(64)
+            .build();
+
+        assert_eq!(
+            find_config_param(
+                &env.get_network_config(),
+                ConfigParamID::kConfigParamMaxBytestringLen,
+            ),
+            Some(&ConfigParam::kConfigParamMaxBytestringLen {
+                max_bytestring_len: 64
+            }),
+        );
+    }
+
+    // As with the SHA-256 cap: the parameter the builder sets is the one
+    // the write is measured against. It is checked where the bytestring is
+    // written, so that is where the boundary shows.
+    #[test]
+    fn the_bytestring_cap_the_builder_sets_is_the_one_the_vm_enforces() {
+        let env = TestEnvironment::builder()
+            .no_cost()
+            .with_max_bytestring_len(64)
+            .build();
+        let key = StorageKeyContractData::new([0x77; 32]);
+
+        env.transact(|tx| {
+            tx.call(&ContractAddress::named("bytestring_cap"))
+                .run(move || {
+                    assert!(
+                        raw_BytestringSet(
+                            &key,
+                            &[0u8; 64],
+                            StorageDeltaFlags::None.0,
+                        )
+                        .is_ok(),
+                        "a bytestring at the cap must still be admitted",
+                    );
+                    assert!(
+                        raw_BytestringSet(
+                            &key,
+                            &[0u8; 65],
+                            StorageDeltaFlags::None.0,
+                        )
+                        .unwrap_err()
+                        .is_invalid_input(),
+                        "one byte over must not be",
+                    );
+                })
         })
         .assert_success();
     }

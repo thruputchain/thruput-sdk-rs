@@ -120,7 +120,12 @@ jobs:
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            sudo apt-get update && sudo apt-get install -y ripgrep
+            # A broken third-party list in the runner image (google-chrome
+            # has served a mismatched index) must not fail the whole update:
+            # ripgrep comes from an Ubuntu index, and `rg --version` below is
+            # the real guard.
+            sudo apt-get update || true
+            sudo apt-get install -y ripgrep
           fi
           rg --version
 
@@ -182,7 +187,12 @@ jobs:
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            sudo apt-get update && sudo apt-get install -y ripgrep
+            # A broken third-party list in the runner image (google-chrome
+            # has served a mismatched index) must not fail the whole update:
+            # ripgrep comes from an Ubuntu index, and `rg --version` below is
+            # the real guard.
+            sudo apt-get update || true
+            sudo apt-get install -y ripgrep
           fi
           rg --version
 

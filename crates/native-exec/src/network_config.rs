@@ -142,14 +142,11 @@ impl NetworkConfigBuilder {
 
     /// Invocation frames one transaction may have open at once.
     ///
-    /// A test that drives past this cap does not see what a guest would.
-    /// The harness opens child frames itself, and any frame the executor
-    /// refuses becomes an unrecoverable harness panic rather than the
-    /// invoke error a contract would observe -- the same way breaking the
-    /// reentrance rule surfaces (see
-    /// [`FrameHandle::child_call`](crate::frame_builder::FrameHandle::child_call)).
-    /// Lowering this cap is for the configuration a contract runs under,
-    /// not for asserting on what it does at the cap.
+    /// The harness opens its frames directly, so one the executor refuses
+    /// is an unrecoverable panic rather than the error a contract would
+    /// observe. To assert on the cap, have the frame call through the
+    /// Invoke syscall (`sdk::call::try_call_raw_with`), which reports it
+    /// as `RawCallError::DepthExceeded`.
     pub fn with_max_cross_invoke_depth(
         self,
         max_cross_invoke_depth: u32,
