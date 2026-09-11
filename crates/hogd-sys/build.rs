@@ -590,7 +590,7 @@ fn fetch_hogd_rust_deps(
             ])
             .env(
                 "CARGO_REGISTRIES_GROUNDHOG_INDEX",
-                "sparse+https://groundhog.dev/crates/api/v1/crates/",
+                "sparse+https://thruput.network/crates/api/v1/crates/",
             )
             .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
             .output()?;

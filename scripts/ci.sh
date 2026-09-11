@@ -13,7 +13,7 @@ set -e
 # arrive via environment config. Keep in sync with .cargo/config.toml
 # [registries]. Auth comes from CARGO_REGISTRIES_GROUNDHOG_TOKEN +
 # CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS in ci.yml.
-export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://groundhog.dev/crates/api/v1/crates/"
+export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://thruput.network/crates/api/v1/crates/"
 
 # CI sets GROUNDHOG_CLI_ROOT to a Namespace-cached directory so the compiled
 # binary survives across runs; the version check below then makes re-installs
