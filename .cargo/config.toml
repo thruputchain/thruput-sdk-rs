@@ -8,7 +8,7 @@ rustflags = [ "--deny", "warnings", "-C", "link-arg=-lSystem", "-C", "link-arg=-
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-Wl,-rpath,$ORIGIN" ]
 
 [registries]
-groundhog = { index = "sparse+https://thruput.network/crates/api/v1/crates/" }
+groundhog = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }
 
 [source]
-groundhog = { registry = "sparse+https://thruput.network/crates/api/v1/crates/" }
+groundhog = { registry = "sparse+https://crates.thruput.network/api/v1/crates/" }

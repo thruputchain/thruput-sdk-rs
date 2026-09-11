@@ -27,7 +27,7 @@ this repository's `.cargo/config.toml` does not apply unless you happen to be
 standing in the checkout. Set the index and token globally instead:
 
 ```shell
-export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://thruput.network/crates/api/v1/crates/"
+export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
 export CARGO_REGISTRIES_GROUNDHOG_TOKEN=...
 ```
 
