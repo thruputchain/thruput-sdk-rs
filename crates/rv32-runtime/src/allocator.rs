@@ -4,18 +4,19 @@
 //! `__heap_end` is pinned to `__memory_size`, the true end
 //! of guest memory (intentionally smaller than the linker script's relaxed
 //! DATA region): the stack is parked at the bottom of memory (stack-first
-//! layout), so the heap is the topmost region. The 64 KiB guest memory cap
-//! means a bump allocator
-//! is the right choice: contracts allocate small, transient values during a
-//! single invocation, and the VM resets memory between invocations anyway.
+//! layout), so the heap is the topmost region. The small guest memory
+//! (64 KiB unless the contract declares more) means a bump allocator is the
+//! right choice: contracts allocate small, transient values during a single
+//! invocation, and the VM resets memory between invocations anyway.
 
 use core::alloc::{GlobalAlloc, Layout};
 
-/// Upper bound on the heap extent, mirroring `__memory_size` in
+/// Upper bound on the heap extent, mirroring the default `__memory_size` in
 /// `link/groundhog-rv32.ld`. Used *only* to give `__heap_base` a provenance
 /// footprint; the functional bound is `__heap_end`, read from the linker at
-/// runtime. Drift against the linker script is therefore not a safety issue:
-/// too small merely narrows provenance, too large over-covers.
+/// runtime. Drift against the linker script, including a contract that
+/// declares a larger memory, is therefore not a safety issue: too small
+/// merely narrows provenance, too large over-covers.
 const GUEST_MEMORY_SIZE: usize = 64 * 1024;
 
 // `__heap_base` is declared as an array rather than a bare `u8` so pointers
