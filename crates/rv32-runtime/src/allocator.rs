@@ -11,13 +11,14 @@
 
 use core::alloc::{GlobalAlloc, Layout};
 
-/// Upper bound on the heap extent, mirroring the default `__memory_size` in
-/// `link/groundhog-rv32.ld`. Used *only* to give `__heap_base` a provenance
-/// footprint; the functional bound is `__heap_end`, read from the linker at
-/// runtime. Drift against the linker script, including a contract that
-/// declares a larger memory, is therefore not a safety issue: too small
-/// merely narrows provenance, too large over-covers.
-const GUEST_MEMORY_SIZE: usize = 64 * 1024;
+/// Provenance footprint of the heap: `__heap_base` is typed as an array this
+/// large so that every pointer the allocator derives from an address inside
+/// the heap lies within a declared object, whatever `__memory_size` a
+/// contract sets. It is the largest object size Rust admits, so no guest
+/// memory a 32-bit VM can provision outgrows it. The functional bound is
+/// `__heap_end`, read from the linker at runtime; an extern declaration
+/// reserves no storage, so the size costs nothing.
+const HEAP_FOOTPRINT_BYTES: usize = usize::MAX >> 1;
 
 // `__heap_base` is declared as an array rather than a bare `u8` so pointers
 // derived from it carry provenance over the region the allocator hands out.
@@ -25,7 +26,7 @@ const GUEST_MEMORY_SIZE: usize = 64 * 1024;
 // its address is ever wanted, never a byte at that address. Both are
 // declarations and reserve no storage.
 unsafe extern "C" {
-    static __heap_base: [u8; GUEST_MEMORY_SIZE];
+    static __heap_base: [u8; HEAP_FOOTPRINT_BYTES];
     static __heap_end: u8;
 }
 
