@@ -78,17 +78,29 @@ ENTRY(_start)
 PROVIDE(__stack_size = 30K);
 
 /* True guest data-memory size. The VM provisions exactly this much
- * (memory_bytes in the artifact header). MUST stay in lockstep with
- * MAX_MEMORY_BYTES in groundhog-rpc crates/rv32/artifact/src/format.rs
- * and hogd/hogexec/runtime/rv32/artifact.h. */
-__memory_size = 64K;
+ * (memory_bytes in the artifact header). 64K is the protocol default: what
+ * a chain admits unless its configuration raises max_rv32_memory_bytes,
+ * and what the lowerer stamps unless told otherwise.
+ *
+ * Per-contract override: `groundhog build` passes the contract's
+ * `[package.metadata.groundhog] initial_memory_bytes` as a --defsym on the
+ * final link and stamps the same value into the artifact header, so the
+ * heap bound below and the memory the VM provisions agree. A hand-driven
+ * build passes the same --defsym as for __stack_size:
+ *
+ *   "-C", "link-arg=--defsym=__memory_size=0x20000",
+ *
+ * PROVIDE yields to such an external definition. Only a chain whose
+ * max_rv32_memory_bytes admits the value accepts the resulting artifact.
+ */
+PROVIDE(__memory_size = 64K);
 
 /* Relaxed sanity bounds only — deliberately never-binding. The real
- * 64 KiB code/memory limits are enforced by the CLI lowerer / artifact
- * writer, which produces proper error messages instead of a cryptic
- * "section '.text' will not fit in region 'CODE'". Keep these <= 1M so
- * all direct `jal` calls stay in range and relocation errors remain
- * impossible. */
+ * code/memory limits are the deploying chain's, checked where the contract
+ * is attached; the CLI lowerer reports data past __memory_size with a
+ * proper error message instead of a cryptic "section '.text' will not fit
+ * in region 'CODE'". Keep these <= 1M so all direct `jal` calls stay in
+ * range and relocation errors remain impossible. */
 MEMORY
 {
   CODE (rx) : ORIGIN = 0, LENGTH = 1M
