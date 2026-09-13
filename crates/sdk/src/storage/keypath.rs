@@ -112,7 +112,7 @@ impl Keypath {
                 });
             // Safety: `encode_into` initialized exactly `written` bytes.
             let len_bytes: &[u8] =
-                unsafe { xdrs::mu::assume_init_ref(&len_buf[..written]) };
+                unsafe { len_buf[..written].assume_init_ref() };
             child.hasher.update(&len_bytes);
             child.hasher.update(&bytes);
         });
