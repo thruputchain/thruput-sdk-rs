@@ -96,6 +96,16 @@ impl<S: StorageType> Vector<S> {
     }
 
     /// Mutably borrow element at `index` (bounds-checked).
+    ///
+    /// For a `Deletable` element type the returned slot is itself
+    /// [`Deletable`], and deleting it removes only that element's storage:
+    /// `len` is unchanged, `index` stays in bounds, and the slot reads back
+    /// as missing. Elements do not shift down and the hole is not reused by
+    /// a later push. After any element delete, read with `try_get` +
+    /// [`none_if_missing`](crate::exn::NoneIfMissing::none_if_missing) —
+    /// `get` aborts on a hole — and treat [`len`](Self::len) as a high-water
+    /// mark rather than a count of live elements. To reset the vector
+    /// entirely, delete the `Vector` itself, which clears `len` too.
     pub fn at_mut(&mut self, index: u32) -> SlotMut<'_, Self, S> {
         self.bounds_check(index);
         let keypath = self.make_elem_keypath(index);
@@ -190,6 +200,16 @@ impl<S: StorageType + Deletable> Vector<S> {
         let mut elem = S::from(self.make_elem_keypath(new_len));
         elem.delete_internal(StorageDeltaFlags::ExclusiveLock);
         self.len.set_exclusive(&new_len);
+    }
+
+    /// Delete the storage of the element at `index` (bounds-checked).
+    ///
+    /// Shorthand for `at_mut(index).delete()`. This leaves a hole rather than
+    /// removing the element: `len` is untouched and `index` stays in bounds.
+    /// See [`at_mut`](Self::at_mut) for the full sparse-vector semantics, and
+    /// [`pop`](Self::pop) to actually shrink the vector.
+    pub fn delete_at(&mut self, index: u32) {
+        self.at_mut(index).delete();
     }
 }
 

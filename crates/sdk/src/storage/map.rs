@@ -1,7 +1,7 @@
+use super::deletable::Deletable;
 use super::keypath::Keypath;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
-use super::deletable::Deletable;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
