@@ -8,9 +8,11 @@
 
 use sdk::PanicRecord;
 use sdk::call::{RawCallError, try_call_raw_with};
+use sdk::contract::ContractEntrypointID;
 use sdk::exn::FaultInfo;
 use sdk::invoke_config::InvokeFlagSet;
 use sdk::*;
+use std::sync::{Arc, Mutex};
 
 /// Call `target` from inside a frame already running at `caller`.
 fn call_from_frame_at(
@@ -84,4 +86,86 @@ fn reentrance_is_not_equal_to_fault() {
             location: None,
         })),
     );
+}
+
+/// Run root -> middle -> leaf, returning what refused the middle contract's
+/// call to the leaf, or `None` if it went through. That call opens the third
+/// frame of the transaction, so a `max_cross_invoke_depth` below three
+/// refuses it.
+fn third_frame_refusal(
+    env: &TestEnvironmentHandle,
+) -> Option<RawCallError<()>> {
+    let entry = ContractEntrypointID::from([0u8; 8]);
+    let leaf = ContractAddress::named("call_rejection_depth_leaf");
+    let middle = ContractAddress::named("call_rejection_depth_middle");
+
+    // Deployed, so the depth bound is the only thing that can refuse the
+    // call: under a cap that admits it, the leaf runs.
+    env.register_mock(|c| c.register_method(entry, || {}))
+        .deploy_contract_to(&leaf);
+
+    let refusal: Arc<Mutex<Option<RawCallError<()>>>> =
+        Arc::new(Mutex::new(None));
+    let refusal_for_body = Arc::clone(&refusal);
+    env.register_mock(|c| {
+        c.register_method(entry, move || {
+            *refusal_for_body.lock().unwrap() =
+                try_call_raw_with::<_, (), ()>(
+                    &leaf,
+                    entry,
+                    u64::MAX,
+                    &(),
+                    InvokeFlagSet::default(),
+                    |_| (),
+                )
+                .err();
+        })
+    })
+    .deploy_contract_to(&middle);
+
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("call_rejection_depth_root"))
+            .run(move || {
+                // A second frame is within every cap tested here.
+                try_call_raw_with::<_, (), ()>(
+                    &middle,
+                    entry,
+                    u64::MAX,
+                    &(),
+                    InvokeFlagSet::default(),
+                    |_| (),
+                )
+                .expect("the second frame must be admitted");
+            })
+    })
+    .assert_success();
+
+    refusal.lock().unwrap().take()
+}
+
+/// The cross-invoke depth bound is a chain setting, so a test can pin it
+/// rather than discover it: `TestEnvironment::builder` states a
+/// `max_cross_invoke_depth` of its own, and `Invoke` refuses the hop that
+/// would exceed exactly that.
+#[test]
+fn depth_exceeded_is_reported_at_the_configured_cap() {
+    let env = TestEnvironment::builder()
+        .no_cost()
+        .with_max_cross_invoke_depth(2)
+        .build();
+
+    let err = third_frame_refusal(&env)
+        .expect("a third frame must exceed a cap of two");
+
+    assert_eq!(err, RawCallError::DepthExceeded);
+    assert!(err.is_rejected_before_call());
+}
+
+/// The other half of the claim: the cap is what refused it, not the shape of
+/// the call. The same three frames are fine under the stock configuration.
+#[test]
+fn the_stock_cap_admits_the_same_third_frame() {
+    let env = TestEnvironment::no_cost();
+
+    assert_eq!(third_frame_refusal(&env), None);
 }

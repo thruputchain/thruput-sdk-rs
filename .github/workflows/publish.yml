@@ -8,26 +8,25 @@
 #      and the `erc20-*-test` crates
 #
 # Every step tolerates re-runs: tags are recreated at HEAD and only pushed
-# when new, `cargo publish` skips versions the registry already has, and doc
-# uploads use force — so a run that fails partway is resumed by dispatching
-# it again (on the tagged commit; running on a later commit without a version
+# when new, and `cargo publish` skips versions the registry already has — so a
+# run that fails partway is resumed by dispatching it again (on the tagged commit; running on a later commit without a version
 # bump fails at the tag push, deliberately). The standard-interface crates
 # version independently of the workspace, each under its own
 # `<crate>-v<version>` tag; when a release doesn't bump a crate — its tag
 # sits on an older commit AND its version is already published, verified
-# against the registry — its publish and docs steps are skipped. A tag on
+# against the registry — its publish step is skipped. A tag on
 # another commit whose version is NOT published fails the run rather than
 # publishing content that doesn't match the tag.
 #
-# Dispatch with dry_run for all of the verification and none of the tagging,
-# publishing, or docs.
+# Dispatch with dry_run for all of the verification and none of the tagging
+# or publishing.
 name: Release SDK and standard interfaces
 
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run only (no tag/publish/docs)'
+        description: 'Dry run only (no tag/publish)'
         required: false
         type: boolean
         default: false
@@ -70,6 +69,7 @@ env:
     groundhog-signed-op
     groundhog-erc20-permit-if
     groundhog-erc165-if
+    groundhog-erc721-if
     groundhog-access-control-if
     groundhog-access-control
   # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
@@ -144,6 +144,7 @@ jobs:
             groundhog-erc20-permit-if
             groundhog-signed-op-if
             groundhog-erc165-if
+            groundhog-erc721-if
             groundhog-access-control-if
             erc20-test
           # groundhog-domain-separator's backends are additive, so most combinations
@@ -230,7 +231,7 @@ jobs:
       # legitimately pre-exists at an older commit whenever a release doesn't
       # bump the crate. skip-if-published verifies against the registry that
       # such a version is really already published — released=false then
-      # skips the crate's publish and docs steps below — and fails the run
+      # skips the crate's publish step below — and fails the run
       # when it is NOT published (a previous run died between tag push and
       # publish; publishing HEAD would ship content that doesn't match the
       # tag — re-run from the tagged commit, or delete the stale tag).
@@ -330,6 +331,18 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
+      - name: Tag groundhog-erc721-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc721-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc721-if
+          tag-prefix: 'groundhog-erc721-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
       - name: Tag groundhog-access-control
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control
@@ -361,6 +374,7 @@ jobs:
           # action's host doc-validation must skip them (covered by the per-target
           # verify in the dry-run step).
           arch-only-packages: groundhog-rv32-runtime
+          publish-delay-seconds: '20'
 
       - name: Publish groundhog-erc20-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
@@ -376,6 +390,7 @@ jobs:
           # and tries to link the rv32-only spec-carrier bin on the host.
           # (Same for the other interface crates below.)
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       - name: Publish groundhog-erc20-metadata-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
@@ -387,6 +402,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       - name: Publish groundhog-erc20-pausable-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
@@ -398,6 +414,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       - name: Publish groundhog-erc165-if
         if: ${{ inputs.dry_run == false && steps.tag-erc165-if.outputs.released == 'true' }}
@@ -409,6 +426,19 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
+
+      - name: Publish groundhog-erc721-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-erc721-if
+          git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
+          tag-prefix: 'groundhog-erc721-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '20'
 
       - name: Publish groundhog-access-control-if
         if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
@@ -420,6 +450,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       - name: Publish groundhog-signed-op-if
         if: ${{ inputs.dry_run == false && steps.tag-signed-op-if.outputs.released == 'true' }}
@@ -431,6 +462,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       # After groundhog-signed-op-if: the component exact-pins it, and this
       # publish resolves deps against the live registry.
@@ -444,6 +476,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       # After groundhog-erc20-if: this crate exact-pins it, and this publish
       # resolves deps against the live registry.
@@ -457,6 +490,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       # After groundhog-access-control-if: the component exact-pins it, and
       # this publish resolves deps against the live registry.
@@ -470,6 +504,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
+          publish-delay-seconds: '20'
 
       - name: Publish interface-dependent crates
         if: ${{ inputs.dry_run == false }}
@@ -480,110 +515,4 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-
-      # Build and upload rustdoc to groundhog.dev/docs, after the crates publish.
-      # HEAD is the freshly-tagged commit, so expected-tag validates cleanly.
-      # arch-only crates can't build docs on the host, so they're skipped (same
-      # as the publish step above).
-      - name: Publish docs
-        if: ${{ inputs.dry_run == false }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
-          arch-only-packages: groundhog-rv32-runtime
-          version: ${{ steps.publish-tag.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.publish-tag.outputs.tag }}
-
-      # Interface docs only rebuild for crates released at this commit (the
-      # tag steps' `released` output), so an already-published version's docs
-      # are never regenerated from newer source. The doc builds enable --all-features
-      # (incl. `entrypoints`), which is fine on the host: rustdoc doesn't
-      # link, and cargo skips the spec-carrier bin since it shares the lib's
-      # name.
-      - name: Publish groundhog-erc20-if docs
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: groundhog-erc20-if
-          version: ${{ steps.tag-erc20-if.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.tag-erc20-if.outputs.tag }}
-
-      - name: Publish groundhog-erc20-metadata-if docs
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: groundhog-erc20-metadata-if
-          version: ${{ steps.tag-erc20-metadata-if.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
-
-      - name: Publish groundhog-erc20-pausable-if docs
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: groundhog-erc20-pausable-if
-          version: ${{ steps.tag-erc20-pausable-if.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
-
-      - name: Publish groundhog-erc165-if docs
-        if: ${{ inputs.dry_run == false && steps.tag-erc165-if.outputs.released == 'true' }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: groundhog-erc165-if
-          version: ${{ steps.tag-erc165-if.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.tag-erc165-if.outputs.tag }}
-
-      - name: Publish groundhog-access-control-if docs
-        if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: groundhog-access-control-if
-          version: ${{ steps.tag-access-control-if.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.tag-access-control-if.outputs.tag }}
-
-      - name: Publish groundhog-access-control docs
-        if: ${{ inputs.dry_run == false && steps.tag-access-control.outputs.released == 'true' }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: groundhog-access-control
-          version: ${{ steps.tag-access-control.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.tag-access-control.outputs.tag }}
-
-      - name: Publish groundhog-erc20-permit-if docs
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-permit-if.outputs.released == 'true' }}
-        uses: ./actions/cargo-doc
-        with:
-          packages: groundhog-erc20-permit-if
-          version: ${{ steps.tag-erc20-permit-if.outputs.version }}
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-07-01
-          force: 'true'
-          expected-tag: ${{ steps.tag-erc20-permit-if.outputs.tag }}
+          publish-delay-seconds: '20'

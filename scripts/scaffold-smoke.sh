@@ -24,7 +24,7 @@ if [ "${SKIP_CLI_INSTALL:-0}" != 1 ]; then
     # not project-scoped), so the registry index must arrive via
     # environment config. Keep in sync with .cargo/config.toml
     # [registries].
-    export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://groundhog.dev/crates/api/v1/crates/"
+    export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
     cargo install groundhog-cli --registry groundhog --locked
 fi
 groundhog --version

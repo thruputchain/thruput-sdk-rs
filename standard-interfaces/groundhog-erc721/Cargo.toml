@@ -1,0 +1,40 @@
+[package]
+name = "groundhog-erc721-if"
+version = "0.1.31"
+edition.workspace = true
+publish.workspace = true
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "ERC721 non-fungible token standard interface for Groundhog smart contracts"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+[features]
+# Selects the rv32 spec-carrier bin target (below), built with
+# `-F entrypoints` like every other contract's spec build. A plain
+# `cargo build`/`test` skips the entry-point-less bin without it.
+entrypoints = []
+dev = ["sdk/dev", "dep:thiserror"]
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.34.4" }
+thiserror = { workspace = true, optional = true }
+heapless = { workspace = true }
+
+[dev-dependencies]
+groundhog-erc721-if = { path = ".", features = ["dev"] }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.34.4", features = ["std"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# rv32 spec carrier: builds the ERC721 interfaces on their own for spec
+# extraction. `required-features` keeps a plain `cargo build`/`test` from
+# building this rv32-only, entry-point-less binary.
+[[bin]]
+name = "groundhog-erc721-if"
+path = "src/main.rs"
+required-features = ["entrypoints"]

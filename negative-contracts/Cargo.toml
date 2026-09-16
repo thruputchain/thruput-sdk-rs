@@ -24,4 +24,4 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.34.0" }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.34.4" }
