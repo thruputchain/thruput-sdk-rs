@@ -49,19 +49,19 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.34.3" }
-groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.34.3", default-features = false }
+sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.34.4" }
+groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.34.4", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.30" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.31" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.34.3" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.34.3" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.34.3" }
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.34.3" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.34.4" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.34.4" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "groundhog", version = "=0.34.4" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", version = "=0.34.4" }
 
 # External groundhog dependencies
-groundhog-xdr = { registry = "groundhog", version = "=0.35.2", features = ["xdrs", "syscalls"] }
-groundhog-syscall = { registry = "groundhog", version = "=0.35.2" }
+groundhog-xdr = { registry = "groundhog", version = "=0.36.0", features = ["xdrs", "syscalls"] }
+groundhog-syscall = { registry = "groundhog", version = "=0.36.0" }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }
