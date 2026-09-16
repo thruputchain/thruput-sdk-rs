@@ -1,6 +1,7 @@
 use super::keypath::Keypath;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
+use super::deletable::Deletable;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
@@ -76,6 +77,22 @@ impl<K, V> Map<K, V> {
         keypath.set_exclusive();
         let slot = V::from(keypath);
         SlotMut::new(self, slot)
+    }
+
+    pub fn delete_at(&mut self, entry_key: &K)
+    where
+        K: WriteXDR,
+        V: StorageType + Deletable,
+    {
+        self.at_mut(entry_key).delete();
+    }
+
+    pub fn delete_at_exclusive(&mut self, entry_key: &K)
+    where
+        K: WriteXDR,
+        V: StorageType + Deletable,
+    {
+        self.at_mut(entry_key).delete_exclusive();
     }
 
     /// Mutably borrow N elements at once. Panics if any keys are equal.

@@ -1,4 +1,6 @@
 use super::node::StorageType;
+use super::deletable::Deletable;
+use groundhog_xdr::storage_item::StorageDeltaFlags;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
@@ -60,5 +62,11 @@ impl<Owner, S: StorageType> Deref for SlotMut<'_, Owner, S> {
 impl<Owner, S: StorageType> DerefMut for SlotMut<'_, Owner, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.slot
+    }
+}
+
+impl<'a, Owner, S: StorageType + Deletable> Deletable for SlotMut<'a, Owner, S> {
+    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+        self.slot.delete_internal(flags);
     }
 }
