@@ -1,5 +1,6 @@
 use crate::invoke_error::PanicRecord;
 use groundhog_event::{EmittedEvent, Event, TypedEvent};
+use groundhog_exn::{Exn, split_abort_wire};
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
@@ -196,18 +197,21 @@ impl FrameResult {
 
     // -- Typed abort assertion --
 
-    /// Assert the frame aborted and decode the abort buffer as a typed error.
+    /// Assert the frame aborted with a thrown `E` and pass the decoded
+    /// exception to `check`.
+    ///
+    /// A thrown contract exception's abort buffer is
+    /// `[CXS(selector)][payload]`, so this splits off the selector, checks it
+    /// is `E::SELECTOR`, and decodes the payload — the same prefix read the
+    /// SDK's `RawException::try_as` does. Panics if the frame did not abort,
+    /// the buffer is not a contract exception, the selector belongs to a
+    /// different exception type, or the payload does not decode as `E`.
     #[track_caller]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
-        E: xdrs::ReadXDROwned,
+        E: Exn + xdrs::ReadXDROwned,
     {
-        self.assert_abort();
-        let buf = self.abort_buffer();
-        let decoded: E = xdrs::cxs::decode(buf).unwrap_or_else(|e| {
-            panic!("failed to decode abort buffer: {}", e)
-        });
-        check(&decoded);
+        check(&self.assert_abort_as::<E>());
     }
 
     /// Assert the frame succeeded and decode the return buffer, returning
@@ -223,16 +227,35 @@ impl FrameResult {
         })
     }
 
-    /// Assert the frame aborted and decode the abort buffer, returning
-    /// the decoded error. The returning twin of `assert_abort_with`.
+    /// Assert the frame aborted with a thrown `E` and return it. The
+    /// returning twin of `assert_abort_with`; see there for what is checked.
     #[track_caller]
     pub fn assert_abort_as<E>(&self) -> E
     where
-        E: xdrs::ReadXDROwned,
+        E: Exn + xdrs::ReadXDROwned,
     {
         self.assert_abort();
-        xdrs::cxs::decode(self.abort_buffer())
-            .unwrap_or_else(|e| panic!("failed to decode abort buffer: {}", e))
+        let wire = self.abort_buffer();
+        let (selector, payload) = split_abort_wire(wire).unwrap_or_else(|e| {
+            panic!("abort buffer is not a contract exception ({e}): {wire:?}")
+        });
+        assert_eq!(
+            selector,
+            E::SELECTOR,
+            "expected exception {} (selector {:#x}), got selector {:#x} \
+             with payload {:?}",
+            core::any::type_name::<E>(),
+            E::SELECTOR,
+            selector,
+            payload
+        );
+        let mut reader = xdrs::cxs::buf_reader::BufReader::new(payload);
+        xdrs::ReadXDR::read_xdr(&mut reader).unwrap_or_else(|e| {
+            panic!(
+                "failed to decode abort payload as {}: {e}",
+                core::any::type_name::<E>()
+            )
+        })
     }
 
     // -- Raw access --

@@ -46,6 +46,7 @@ env:
   # precedes `groundhog-domain-separator`, whose tests use it.
   PRIMARY_PACKAGES: >-
     groundhog-event
+    groundhog-exn
     groundhog-storage-cost
     groundhog-contract-util
     groundhog-contract-spec
@@ -129,6 +130,7 @@ jobs:
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
+            groundhog-exn
             groundhog-contract-util
             groundhog-contract-spec
             groundhog-sys
@@ -198,6 +200,7 @@ jobs:
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event
+            groundhog-exn
             groundhog-contract-util
             groundhog-contract-spec
             groundhog-sys

@@ -6,6 +6,7 @@ use groundhog_xdr::transaction::InvocationFrameOutput;
 use groundhog_xdr::types::ContractAddress;
 
 use groundhog_event::{Event, TopicSrc};
+use groundhog_exn::Exn;
 
 /// The default contract address used by most tests.
 const TEST_ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
@@ -1242,18 +1243,61 @@ fn test_assert_return_as_panics_on_garbage() {
     let _: u64 = result.assert_return_as();
 }
 
+/// A contract exception as the SDK's `throw` puts it on the wire:
+/// `[CXS(selector)][payload]`.
+#[derive(Debug, PartialEq, xdrs::WriteXDR, xdrs::ReadXDR)]
+struct TestExn(u32);
+
+impl Exn for TestExn {
+    const SELECTOR: u64 = 0x1234_5678_9ABC_DEF0;
+}
+
+fn abort_with_wire(selector: u64, payload: &[u8]) -> TransactResult {
+    let mut wire = xdrs::cxs::encode(&selector).unwrap();
+    wire.extend_from_slice(payload);
+    let env = TestEnvironment::new(None);
+    env.transact(|tx| {
+        tx.call(&TEST_ADDR).run(move || -> () {
+            groundhog_xdr::syscalls::raw_Return(&wire, true, &[]);
+        })
+    })
+}
+
 #[test]
-fn test_assert_abort_as_decodes_error() {
+fn test_assert_abort_as_decodes_thrown_exception() {
+    let payload = xdrs::cxs::encode(&77u32).unwrap();
+    let result = abort_with_wire(TestExn::SELECTOR, &payload);
+    result.assert_abort();
+    assert_eq!(result.assert_abort_as::<TestExn>(), TestExn(77));
+    result.assert_abort_with(|e: &TestExn| assert_eq!(e, &TestExn(77)));
+}
+
+#[test]
+#[should_panic(expected = "expected exception")]
+fn test_assert_abort_as_rejects_other_selector() {
+    // Same payload bytes; only the selector differs.
+    let payload = xdrs::cxs::encode(&77u32).unwrap();
+    let result = abort_with_wire(TestExn::SELECTOR + 1, &payload);
+    let _: TestExn = result.assert_abort_as();
+}
+
+#[test]
+#[should_panic(expected = "not a contract exception")]
+fn test_assert_abort_as_rejects_non_exception_abort() {
     let env = TestEnvironment::new(None);
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| -> () {
-            let encoded = xdrs::cxs::encode(&77u32).unwrap();
-            groundhog_xdr::syscalls::raw_Return(&encoded, true, &[]);
+            groundhog_xdr::syscalls::raw_Return(&[], true, &[]);
         })
     });
-    result.assert_abort();
-    let e: u32 = result.assert_abort_as();
-    assert_eq!(e, 77);
+    let _: TestExn = result.assert_abort_as();
+}
+
+#[test]
+#[should_panic(expected = "failed to decode abort payload")]
+fn test_assert_abort_as_rejects_undecodable_payload() {
+    let result = abort_with_wire(TestExn::SELECTOR, &[]);
+    let _: TestExn = result.assert_abort_as();
 }
 
 /// Non-unit type whose XDR encoding is zero bytes.

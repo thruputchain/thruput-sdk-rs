@@ -26,6 +26,7 @@ on:
         required: false
         default: >-
           groundhog-event
+          groundhog-exn
           groundhog-storage-cost
           groundhog-contract-util
           groundhog-contract-spec

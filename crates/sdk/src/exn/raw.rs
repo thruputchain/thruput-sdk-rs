@@ -64,13 +64,13 @@ pub struct RawExceptionRef<'s> {
 pub(super) fn parse_abort_prefix(
     bytes: &[u8],
 ) -> Result<(u64, usize), LibraryExn> {
-    let mut reader = cxs::buf_reader::BufReader::new(bytes);
-    let selector: u64 = ReadXDR::read_xdr(&mut reader).map_err(|e| {
-        LibraryExn::Calling(CallingError::DecodingException(
-            FaultString::from_display(e),
-        ))
-    })?;
-    Ok((selector, bytes.len() - reader.remaining_slice().len()))
+    let (selector, payload) =
+        groundhog_exn::split_abort_wire(bytes).map_err(|e| {
+            LibraryExn::Calling(CallingError::DecodingException(
+                FaultString::from_display(e),
+            ))
+        })?;
+    Ok((selector, bytes.len() - payload.len()))
 }
 
 impl<'s> RawExceptionRef<'s> {

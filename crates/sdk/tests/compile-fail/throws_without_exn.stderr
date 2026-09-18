@@ -16,7 +16,7 @@ help: the following other types implement trait `Exn`
    | #[groundhog_macros::exn(version = "1.0.0")]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `LibraryExn`
    |
-  ::: src/exn/mod.rs
+  ::: $WORKSPACE/crates/exn/src/lib.rs
    |
    | impl<T: Exn> Exn for &T {
    | ^^^^^^^^^^^^^^^^^^^^^^^ `&T`

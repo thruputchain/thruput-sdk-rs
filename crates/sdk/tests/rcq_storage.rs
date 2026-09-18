@@ -139,12 +139,3 @@ fn run(
 ) -> TransactResult {
     env.transact(|tx| tx.call(&ADDR).run(f))
 }
-
-#[allow(dead_code)]
-fn tx_result_try_as<E: Exn + xdr::ReadXDROwned>(
-    txr: &TransactResult,
-) -> Option<E> {
-    let caught =
-        RawException::from_abort_buf(txr.frame().abort_buffer()).unwrap();
-    caught.try_as::<E>()
-}

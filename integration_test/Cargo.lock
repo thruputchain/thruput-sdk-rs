@@ -372,6 +372,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-exn"
+version = "0.34.0"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-macros"
 version = "0.34.0"
 dependencies = [
@@ -389,6 +396,7 @@ name = "groundhog-native-exec"
 version = "0.34.0"
 dependencies = [
  "groundhog-event",
+ "groundhog-exn",
  "groundhog-storage-cost",
  "groundhog-sys",
  "groundhog-trace",
@@ -777,6 +785,7 @@ version = "0.34.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-event",
+ "groundhog-exn",
  "groundhog-macros",
  "groundhog-native-exec",
  "groundhog-rv32-runtime",
