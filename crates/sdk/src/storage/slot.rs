@@ -67,7 +67,7 @@ impl<Owner, S: StorageType> DerefMut for SlotMut<'_, Owner, S> {
 
 impl<'a, Owner, S> Deletable for SlotMut<'a, Owner, S>
 where
-    S: StorageType + Deletable
+    S: StorageType + Deletable,
 {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
         self.slot.delete_internal(flags);
