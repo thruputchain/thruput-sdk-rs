@@ -79,20 +79,13 @@ impl<K, V> Map<K, V> {
         SlotMut::new(self, slot)
     }
 
+    #[inline(always)]
     pub fn delete_at(&mut self, entry_key: &K)
     where
         K: WriteXDR,
         V: StorageType + Deletable,
     {
         self.at_mut(entry_key).delete();
-    }
-
-    pub fn delete_at_exclusive(&mut self, entry_key: &K)
-    where
-        K: WriteXDR,
-        V: StorageType + Deletable,
-    {
-        self.at_mut(entry_key).delete_exclusive();
     }
 
     /// Mutably borrow N elements at once. Panics if any keys are equal.

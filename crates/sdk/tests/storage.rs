@@ -711,24 +711,6 @@ contract_test!(test_map_delete_at_absent_is_a_noop {
     assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
 });
 
-contract_test!(test_map_delete_at_exclusive {
-    let mut map: Map<u32, Value<i32>> = Keypath::default().into();
-
-    map.at_mut(&1u32).set(&10);
-    map.delete_at_exclusive(&1u32);
-    assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
-
-    // Exclusivity is additive: a slot reached through `at_mut_exclusive`
-    // deletes under an exclusive lock whichever method is used.
-    map.at_mut(&2u32).set(&20);
-    map.at_mut_exclusive(&2u32).delete();
-    assert_eq!(map.at(&2u32).try_get().none_if_missing(), None);
-
-    map.at_mut(&3u32).set(&30);
-    map.at_mut_exclusive(&3u32).delete_exclusive();
-    assert_eq!(map.at(&3u32).try_get().none_if_missing(), None);
-});
-
 contract_test!(test_map_slot_delete_nnint {
     // Deleting an NNInt entry clears `set` and the accumulated `add`: the
     // slot reads back as missing, and a later `strict_inc` starts from 0

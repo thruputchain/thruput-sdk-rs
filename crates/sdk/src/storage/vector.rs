@@ -208,6 +208,7 @@ impl<S: StorageType + Deletable> Vector<S> {
     /// removing the element: `len` is untouched and `index` stays in bounds.
     /// See [`at_mut`](Self::at_mut) for the full sparse-vector semantics, and
     /// [`pop`](Self::pop) to actually shrink the vector.
+    #[inline(always)]
     pub fn delete_at(&mut self, index: u32) {
         self.at_mut(index).delete();
     }
