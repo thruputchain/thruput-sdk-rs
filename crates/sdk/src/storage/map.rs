@@ -1,3 +1,4 @@
+use super::deletable::Deletable;
 use super::keypath::Keypath;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
@@ -76,6 +77,15 @@ impl<K, V> Map<K, V> {
         keypath.set_exclusive();
         let slot = V::from(keypath);
         SlotMut::new(self, slot)
+    }
+
+    #[inline(always)]
+    pub fn delete_at(&mut self, entry_key: &K)
+    where
+        K: WriteXDR,
+        V: StorageType + Deletable,
+    {
+        self.at_mut(entry_key).delete();
     }
 
     /// Mutably borrow N elements at once. Panics if any keys are equal.
