@@ -1,5 +1,6 @@
 use crate::frame_result::FrameResult;
 use groundhog_event::{EmittedEvent, Event, TypedEvent};
+use groundhog_exn::Exn;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::exec_result::ExecResult;
 use groundhog_xdr::types::ContractAddress;
@@ -74,16 +75,6 @@ impl TransactResult {
         self.frame.assert_return_with(check);
     }
 
-    /// Assert the root frame aborted and decode its abort buffer as `E`,
-    /// passing it to `check`. Frame-only check.
-    #[track_caller]
-    pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
-    where
-        E: xdrs::ReadXDROwned,
-    {
-        self.frame.assert_abort_with(check);
-    }
-
     /// Assert the root frame returned successfully and decode its return
     /// buffer, returning the decoded value. Frame-only check, like
     /// `assert_return_with`.
@@ -95,13 +86,13 @@ impl TransactResult {
         self.frame.assert_return_as()
     }
 
-    /// Assert the root frame aborted and decode its abort buffer, returning
-    /// the decoded error. Frame-only check (commit status not checked), like
-    /// `assert_abort_with`.
+    /// Assert the root frame aborted with a thrown `E` and return it; see
+    /// [`FrameResult::assert_abort_as`]. Frame-only check (commit status not
+    /// checked).
     #[track_caller]
     pub fn assert_abort_as<E>(&self) -> E
     where
-        E: xdrs::ReadXDROwned,
+        E: Exn + xdrs::ReadXDROwned,
     {
         self.frame.assert_abort_as()
     }

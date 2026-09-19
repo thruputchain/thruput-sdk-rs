@@ -129,7 +129,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "groundhog-xdr",
  "sha2",
@@ -149,15 +149,22 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
 ]
 
 [[package]]
+name = "groundhog-exn"
+version = "0.35.0"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
 name = "groundhog-macros"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "darling",
  "groundhog-contract-util",
@@ -170,9 +177,10 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "groundhog-event",
+ "groundhog-exn",
  "groundhog-storage-cost",
  "groundhog-sys",
  "groundhog-trace",
@@ -185,7 +193,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-rv32-runtime"
-version = "0.34.4"
+version = "0.35.0"
 
 [[package]]
 name = "groundhog-serde_arrays"
@@ -208,7 +216,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -216,7 +224,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "fslock",
  "sha2",
@@ -244,7 +252,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-u256"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "groundhog-contract-spec",
  "xdrs",
@@ -449,10 +457,11 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.34.4"
+version = "0.35.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-event",
+ "groundhog-exn",
  "groundhog-macros",
  "groundhog-native-exec",
  "groundhog-rv32-runtime",

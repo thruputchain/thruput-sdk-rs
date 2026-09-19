@@ -258,7 +258,7 @@ fn generate_client_fn(
             with_call_tracking!(#call_info, {
                 ::sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
                     &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| exn.re_throw(),
+                    |exn| ::sdk::ReThrow::re_throw(exn),
                 )
                 .or_re_throw()
             })

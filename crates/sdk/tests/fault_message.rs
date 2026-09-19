@@ -276,7 +276,7 @@ fn fault_propagating_through_a_middle_contract_is_not_misattributed() {
     // Propagates instead of catching: `or_re_throw` on a `Fault` panics, so
     // the middle contract's own frame faults too.
     deploy_mock(&env, &middle_addr, move || {
-        try_call_raw_with(
+        try_call_raw_with::<_, _, sdk::exn::RawException>(
             &inner_addr,
             ContractEntrypointID::from(ENTRY),
             u64::MAX,
@@ -326,7 +326,7 @@ fn a_rethrown_fault_records_the_placeholder_not_the_inner_text() {
     let callee = callee_addr;
     let result = env.transact(|tx| {
         tx.call(&root_addr).run(move || -> () {
-            try_call_raw_with(
+            try_call_raw_with::<_, _, sdk::exn::RawException>(
                 &callee,
                 ContractEntrypointID::from(ENTRY),
                 u64::MAX,

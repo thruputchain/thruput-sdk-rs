@@ -71,7 +71,11 @@ fn try_call_raw_with_decodes_returns_larger_than_500_bytes() {
         tx.call(&PARENT_ADDR).run(|| {
             // Call twice: the second call exercises scratch-buffer reuse.
             for _ in 0..2 {
-                let result: Vec<u8> = sdk::call::try_call_raw_with(
+                let result: Vec<u8> = sdk::call::try_call_raw_with::<
+                    _,
+                    _,
+                    sdk::exn::RawException,
+                >(
                     &CHILD_ADDR,
                     entrypoint(),
                     u64::MAX,
@@ -100,7 +104,11 @@ fn try_call_raw_with_preserves_abort_payloads_larger_than_500_bytes() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw_with::<(), Vec<u8>, _>(
+            let err = sdk::call::try_call_raw_with::<
+                (),
+                Vec<u8>,
+                sdk::exn::RawException,
+            >(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
