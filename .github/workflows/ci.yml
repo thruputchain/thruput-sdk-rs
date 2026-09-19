@@ -14,6 +14,47 @@ env:
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
 jobs:
+  # Dependency policy gate. Deliberately minimal: the workspace does not
+  # include integration_test/contracts, so this job needs no submodules and
+  # therefore no SSH deploy keys — it is the one job in this file that runs
+  # without them. RUSTUP_TOOLCHAIN overrides rust-toolchain.toml so the job
+  # does not pull nightly + the riscv32 target + rust-src just to read
+  # Cargo.toml and Cargo.lock.
+  dependency-policy:
+    name: Dependency policy (${{ matrix.check }})
+    runs-on: namespace-profile-hogd-linux-2604
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - advisories
+          - licenses
+          - bans
+          - sources
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Check dependency policy
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        env:
+          # 1.85.0 is the Rust already baked into the cargo-deny-action image
+          # (FROM rust:1.85.0-alpine3.20 at the SHA pinned above). Setting it
+          # stops rustup from honouring rust-toolchain.toml and pulling nightly
+          # + the riscv32 target + rust-src inside the container just to run
+          # `cargo metadata`.
+          #
+          # Keep in lockstep with the action SHA: bumping the action can
+          # change its bundled Rust. There is no headroom below this — the
+          # root workspace needs >= 1.84 for resolver 3 and >= 1.85 for its
+          # edition 2024 members.
+          RUSTUP_TOOLCHAIN: "1.85.0"
+        with:
+          arguments: --all-features --locked
+          command: check ${{ matrix.check }}
+
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: build (${{ matrix.name }})
@@ -67,7 +108,7 @@ jobs:
       # Loaded before checkout so the recursive submodule fetch (which uses
       # SSH remotes) can authenticate. Only the entry that initializes
       # submodules needs it.
-      - uses: webfactory/ssh-agent@v0.10.0
+      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         if: matrix.submodules
         with:
           ssh-private-key: |
@@ -91,7 +132,7 @@ jobs:
             ${{ secrets.SDK_TO_SCP_KEY }}
 
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Initialize submodules
         if: matrix.submodules
@@ -103,10 +144,10 @@ jobs:
       # I/O-wait, not compute). Building target/ on the runner's local disk and
       # eating a cold compile is faster than an I/O-starved "incremental" build.
       # We still cache the dependency *sources* (read-mostly, few large files)
-      # so we don't re-fetch every crate from groundhog.dev, plus the one-shot
+      # so we don't re-fetch every crate from the registry, plus the one-shot
       # FFI download and the compiled groundhog CLI.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
         with:
           path: |
             ~/.cargo/registry
@@ -145,7 +186,7 @@ jobs:
     steps:
       # Needed both for the submodule fetch and for metrics.sh's push to
       # metrics_history (SDK_TO_METRICS_HISTORY).
-      - uses: webfactory/ssh-agent@v0.10.0
+      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: |
             ${{ secrets.HOGD_ACCESS_KEY }}
@@ -168,13 +209,13 @@ jobs:
             ${{ secrets.SDK_TO_SCP_KEY }}
 
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Initialize submodules
         run: git submodule update --init --recursive
 
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
         with:
           path: |
             ~/.cargo/registry

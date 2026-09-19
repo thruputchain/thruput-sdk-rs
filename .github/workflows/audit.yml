@@ -1,0 +1,87 @@
+name: Security Audit
+
+# Push-triggered CI only sees advisories when someone pushes. This job is what
+# catches a new RustSec advisory filed against an already-frozen Cargo.lock:
+# nothing in the repo changes, but our exposure does.
+#
+# Uses cargo-deny (SHA-pinned, same action as ci.yml) rather than installing
+# cargo-audit at runtime: same RustSec advisory database, no unpinned
+# `cargo install` step in a scheduled job, no version drift between runs.
+
+on:
+  schedule:
+    - cron: '30 8 * * *'
+  workflow_dispatch: {}
+
+env:
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
+jobs:
+  audit:
+    name: Advisory scan
+    runs-on: namespace-profile-hogd-linux-2604
+    permissions:
+      contents: read
+      # Needed by the notify step below to file the tracking issue.
+      issues: write
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Advisory scan
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        env:
+          # See ci.yml: cargo-deny compiles nothing, so skip the repo toolchain.
+          RUSTUP_TOOLCHAIN: "1.85.0"
+        with:
+          arguments: --all-features --locked
+          command: check advisories
+
+      # A failed scheduled run only emails the workflow file's last committer,
+      # which is nobody's inbox in practice. File a tracking issue instead, and
+      # comment on the open one rather than opening a fresh issue every day a
+      # standing advisory goes unfixed. Uses the REST API directly: no extra
+      # action to pin, no assumption about which CLIs the runner image ships.
+      - name: File tracking issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_TITLE: "Dependency advisory scan failing on main"
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+
+          repo  = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          title = os.environ["ISSUE_TITLE"]
+          run_url = "{}/{}/actions/runs/{}".format(
+              os.environ["GITHUB_SERVER_URL"], repo, os.environ["GITHUB_RUN_ID"])
+          body = (
+              "The daily `cargo deny check advisories` run failed: " + run_url + "\n\n"
+              "A new advisory may have been filed against a dependency already "
+              "pinned in `Cargo.lock`. Reproduce locally with:\n\n"
+              "    cargo deny --all-features --locked check advisories\n"
+          )
+
+          def call(path, data=None):
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/{}/{}".format(repo, path),
+                  data=None if data is None else json.dumps(data).encode(),
+                  headers={"Authorization": "Bearer " + token,
+                           "Accept": "application/vnd.github+json",
+                           "Content-Type": "application/json"},
+                  method="GET" if data is None else "POST")
+              with urllib.request.urlopen(req) as r:
+                  return json.load(r)
+
+          existing = next((i["number"] for i in call("issues?state=open&per_page=100")
+                           if i["title"] == title), None)
+          if existing:
+              print("Commenting on existing issue #{}".format(existing))
+              call("issues/{}/comments".format(existing), {"body": body})
+          else:
+              print("Opening new issue")
+              call("issues", {"title": title, "body": body})
+          PYEOF

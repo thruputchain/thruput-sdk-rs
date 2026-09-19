@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       # NB: deliberately NOT caching ./target (no `cache: rust`). The Namespace
       # cross-invocation cache is a network/overlay-backed mount; cargo's
@@ -34,7 +34,7 @@ jobs:
       # *sources* (read-mostly, few large files) plus the one-shot FFI download.
       # Mirrors ci.yml.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
         with:
           path: |
             ~/.cargo/registry
