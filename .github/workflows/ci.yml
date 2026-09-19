@@ -116,7 +116,11 @@ jobs:
       - name: zizmor
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --no-progress .github/workflows/ .github/actions/
+        run: |
+          set -euo pipefail
+          inputs=(.github/workflows/)
+          if [ -d .github/actions ]; then inputs+=(.github/actions/); fi
+          zizmor --no-progress "${inputs[@]}"
 
       # Advisory only. The pedantic persona adds process-hygiene audits
       # (concurrency-limits, undocumented-permissions, anonymous-definition)
@@ -126,7 +130,11 @@ jobs:
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --no-progress --persona=pedantic .github/workflows/ .github/actions/
+        run: |
+          set -euo pipefail
+          inputs=(.github/workflows/)
+          if [ -d .github/actions ]; then inputs+=(.github/actions/); fi
+          zizmor --no-progress --persona=pedantic "${inputs[@]}"
 
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
