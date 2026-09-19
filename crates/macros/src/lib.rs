@@ -309,8 +309,8 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
 /// a successful return instead, or identify it by something inert (the
 /// minter's address, an id) and let the caller re-obtain it.
 ///
-/// Two things catch it. This macro's derives block the direct route —
-/// `Signed` implements neither `Clone` nor `PartialEq`, both derived here —
+/// Two things catch it. This macro's `PartialEq` derive (required by `Exn`)
+/// blocks the direct route — `Signed` does not implement `PartialEq` —
 /// so reaching the situation at all takes hand-written impls (or `#[exn]`).
 /// Beyond that, spec canonicalization walks each `throws(...)` payload when
 /// the contract is built and rejects any that reaches a signed token,

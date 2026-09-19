@@ -10,7 +10,7 @@ use thiserror::Error;
 
 /// Plumbing errors resulting from making a contract call:
 #[derive(
-    Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
+    Debug, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
 )]
 #[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[repr(i32)]
@@ -65,7 +65,7 @@ impl crate::re_throw::ReThrow for CallingError {
 
 /// Plumbing errors resulting from handling a contract call:
 #[derive(
-    Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
+    Debug, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
 )]
 #[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[repr(i32)]
@@ -94,7 +94,7 @@ pub enum HandlingError {
 
 /// Plumbing errors resulting from working with auth tokens:
 #[derive(
-    Debug, Clone, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
+    Debug, PartialEq, ReadXDR, WriteXDR, ContractTypeSpec, ConstXDRSize,
 )]
 #[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[repr(i32)]
