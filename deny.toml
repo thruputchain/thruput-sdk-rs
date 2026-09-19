@@ -1,0 +1,55 @@
+# cargo-deny configuration: advisory, license, source, and duplicate-version
+# policy.
+# https://embarkstudios.github.io/cargo-deny/
+#
+# Advisories are checked both per-PR (ci.yml) and daily (audit.yml). Gating at
+# PR time is what blocks a change that *introduces* a vulnerable dependency;
+# the daily run is what catches a new advisory filed against an already-frozen
+# Cargo.lock, which a push-triggered job never sees. Both are needed.
+#
+# Every exception added to this file gets a comment naming the dependency
+# that needs it and why.
+
+[graph]
+all-features = true
+
+[advisories]
+ignore = []
+
+[licenses]
+# Internal crates (publish = false) carry no license field: the workspace's
+# test fixtures and helpers, e.g. version-mismatch-helper. They ship to nobody.
+private = { ignore = true }
+allow = [
+    "Apache-2.0",
+    "MIT",
+    # bindgen
+    "BSD-3-Clause",
+    # ryu (dual-licensed Apache-2.0 OR BSL-1.0)
+    "BSL-1.0",
+    # libloading
+    "ISC",
+    # unicode-ident is (MIT OR Apache-2.0) AND Unicode-3.0
+    "Unicode-3.0",
+    # byteorder, memchr (both dual-licensed Unlicense OR MIT)
+    "Unlicense",
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Internal path dependencies carry no version requirement; every crate here is
+# publish = false, so path wildcards are safe. Registry wildcards stay denied.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = [
+    # crates.io
+    "https://github.com/rust-lang/crates.io-index",
+    # private groundhog registry (kellnr); matches .cargo/config.toml.
+    # The legacy groundhog.dev registry is deliberately NOT listed: it is
+    # being retired, and nothing may re-enter the graph through it.
+    "sparse+https://crates.thruput.network/api/v1/crates/",
+]
