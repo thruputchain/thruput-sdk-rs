@@ -9,7 +9,7 @@ help: the trait `Exn` is not implemented for `NotAnExn`
    |
  6 | pub struct NotAnExn {
    | ^^^^^^^^^^^^^^^^^^^
-   = note: annotate `NotAnExn` with `#[contract_exception]` (or `#[exn]` if you handle your own derives) — `throws = ...` in `#[contract(...)]` requires it
+   = note: annotate `NotAnExn` with `#[contract_exception]` (or `#[exn]` if you handle your own derives); `throws = ...` in `#[contract(...)]` requires it
 help: the following other types implement trait `Exn`
   --> src/exn/library.rs
    |

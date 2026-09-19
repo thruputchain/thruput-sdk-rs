@@ -197,15 +197,11 @@ impl FrameResult {
 
     // -- Typed abort assertion --
 
-    /// Assert the frame aborted with a thrown `E` and pass the decoded
-    /// exception to `check`.
+    /// Assert the frame aborted with a thrown `E` and pass it to `check`.
     ///
-    /// A thrown contract exception's abort buffer is
-    /// `[CXS(selector)][payload]`, so this splits off the selector, checks it
-    /// is `E::SELECTOR`, and decodes the payload — the same prefix read the
-    /// SDK's `RawException::try_as` does. Panics if the frame did not abort,
-    /// the buffer is not a contract exception, the selector belongs to a
-    /// different exception type, or the payload does not decode as `E`.
+    /// Decodes the `[CXS(selector)][payload]` abort wire format. Panics on a
+    /// non-abort frame, a non-exception buffer, a selector other than
+    /// `E::SELECTOR`, or a payload that does not decode as `E`.
     #[track_caller]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where

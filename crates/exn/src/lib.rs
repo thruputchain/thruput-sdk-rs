@@ -1,7 +1,7 @@
 //! The contract-exception trait and the abort wire format.
 //!
 //! Split out of the SDK (like `groundhog-event`) so host-side tooling that
-//! sits below the SDK — the native mock executor's typed abort assertions —
+//! sits below the SDK (the native mock executor's typed abort assertions)
 //! can name an exception type's selector and split an abort buffer without
 //! depending on the SDK itself.
 
@@ -23,7 +23,7 @@ use xdrs::{ReadError, ReadXDR, WriteXDR, cxs};
     message = "`{Self}` is not a contract exception",
     label = "not a contract exception",
     note = "annotate `{Self}` with `#[contract_exception]` (or `#[exn]` if \
-            you handle your own derives) — `throws = ...` in \
+            you handle your own derives); `throws = ...` in \
             `#[contract(...)]` requires it"
 )]
 pub trait Exn: Debug + PartialEq + WriteXDR {
@@ -37,7 +37,7 @@ impl<T: Exn> Exn for &T {
     const SELECTOR: u64 = T::SELECTOR;
 }
 
-/// Exn impl for Infallible — this type can never be instantiated,
+/// Exn impl for Infallible: this type can never be instantiated,
 /// so its selector is 0 (a reserved/unused value).
 impl Exn for core::convert::Infallible {
     const SELECTOR: u64 = 0;
