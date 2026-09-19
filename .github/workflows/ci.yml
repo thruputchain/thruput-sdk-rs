@@ -118,10 +118,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: zizmor --no-progress .github/workflows/ .github/actions/
 
-      # Advisory only. The pedantic persona adds stale-action-refs and
-      # ref-version-mismatch, which flag SHA pins that no longer point at a tag
-      # and version comments that disagree with the pinned SHA. Not a reason to
-      # block a PR, so failures are reported and ignored.
+      # Advisory only. The pedantic persona adds process-hygiene audits
+      # (concurrency-limits, undocumented-permissions, anonymous-definition)
+      # plus stale-action-refs, which flags a SHA pin that no longer points at
+      # any tag. Useful signal, not a reason to block a PR.
       - name: zizmor (pedantic, advisory)
         continue-on-error: true
         env:
@@ -220,7 +220,7 @@ jobs:
       # so we don't re-fetch every crate from the registry, plus the one-shot
       # FFI download and the compiled groundhog CLI.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry
@@ -288,7 +288,7 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry

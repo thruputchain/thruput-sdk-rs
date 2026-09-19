@@ -67,7 +67,7 @@ jobs:
       # artifact). Cache only the dependency sources and the ccache compiler
       # cache, so every run does a real from-source build that stays fast.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry
