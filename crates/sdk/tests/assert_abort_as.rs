@@ -62,3 +62,55 @@ fn or_throw_on_option() {
     });
     assert_eq!(result.assert_abort_as::<ThrownError>(), ThrownError::Nope);
 }
+
+/// A payload that is everything `Exn` needs and nothing more: no `Clone`.
+/// `#[contract_exception]` must not derive `Clone` on the carrying type,
+/// or this stops compiling.
+#[contract_type]
+#[derive(Debug, PartialEq)]
+pub struct NonClonePayload {
+    pub code: u32,
+    pub detail: u64,
+}
+
+#[contract_exception]
+pub enum EnumCarryingNonClone {
+    Detailed(NonClonePayload) = 1,
+}
+
+#[contract_exception]
+pub struct StructCarryingNonClone {
+    pub payload: NonClonePayload,
+}
+
+#[test]
+fn enum_exception_with_non_clone_payload_round_trips() {
+    let result = throwing(|| {
+        throw(EnumCarryingNonClone::Detailed(NonClonePayload {
+            code: 3,
+            detail: 0xDEAD_BEEF,
+        }))
+    });
+    assert_eq!(
+        result.assert_abort_as::<EnumCarryingNonClone>(),
+        EnumCarryingNonClone::Detailed(NonClonePayload {
+            code: 3,
+            detail: 0xDEAD_BEEF,
+        })
+    );
+}
+
+#[test]
+fn struct_exception_with_non_clone_payload_round_trips() {
+    let result = throwing(|| {
+        throw(StructCarryingNonClone {
+            payload: NonClonePayload { code: 9, detail: 1 },
+        })
+    });
+    assert_eq!(
+        result.assert_abort_as::<StructCarryingNonClone>(),
+        StructCarryingNonClone {
+            payload: NonClonePayload { code: 9, detail: 1 },
+        }
+    );
+}
