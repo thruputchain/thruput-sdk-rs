@@ -8,3 +8,9 @@
 # Artifact of the release workflow; this will not be necessary
 # once groundhogchain/actions is a public repository
 actions/
+
+# Python bytecode cache. Not produced by CI (which runs scripts
+# directly), but appears as soon as anything imports a helper from
+# .github/scripts/ -- e.g. a test. Machine- and version-specific.
+__pycache__/
+*.py[co]

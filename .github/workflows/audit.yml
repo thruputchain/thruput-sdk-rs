@@ -36,49 +36,9 @@ jobs:
           arguments: --all-features --locked
           command: check advisories
 
-      # A failed scheduled run only emails the workflow file's last committer,
-      # which is nobody's inbox in practice. File a tracking issue instead, and
-      # comment on the open one rather than opening a fresh issue every day a
-      # standing advisory goes unfixed. Uses the REST API directly: no extra
-      # action to pin, no assumption about which CLIs the runner image ships.
       - name: File tracking issue on failure
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_TITLE: "Dependency advisory scan failing on main"
-        run: |
-          python3 - <<'PYEOF'
-          import json, os, urllib.request
-
-          repo  = os.environ["GITHUB_REPOSITORY"]
-          token = os.environ["GH_TOKEN"]
-          title = os.environ["ISSUE_TITLE"]
-          run_url = "{}/{}/actions/runs/{}".format(
-              os.environ["GITHUB_SERVER_URL"], repo, os.environ["GITHUB_RUN_ID"])
-          body = (
-              "The daily `cargo deny check advisories` run failed: " + run_url + "\n\n"
-              "A new advisory may have been filed against a dependency already "
-              "pinned in `Cargo.lock`. Reproduce locally with:\n\n"
-              "    cargo deny --all-features --locked check advisories\n"
-          )
-
-          def call(path, data=None):
-              req = urllib.request.Request(
-                  "https://api.github.com/repos/{}/{}".format(repo, path),
-                  data=None if data is None else json.dumps(data).encode(),
-                  headers={"Authorization": "Bearer " + token,
-                           "Accept": "application/vnd.github+json",
-                           "Content-Type": "application/json"},
-                  method="GET" if data is None else "POST")
-              with urllib.request.urlopen(req) as r:
-                  return json.load(r)
-
-          existing = next((i["number"] for i in call("issues?state=open&per_page=100")
-                           if i["title"] == title), None)
-          if existing:
-              print("Commenting on existing issue #{}".format(existing))
-              call("issues/{}/comments".format(existing), {"body": body})
-          else:
-              print("Opening new issue")
-              call("issues", {"title": title, "body": body})
-          PYEOF
+        run: python3 .github/scripts/file_advisory_issue.py
