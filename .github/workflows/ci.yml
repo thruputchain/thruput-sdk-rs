@@ -68,13 +68,44 @@ jobs:
       - name: Install shellcheck and pyflakes
         run: |
           set -euo pipefail
-          if ! command -v shellcheck >/dev/null 2>&1; then
+
+          bin="$HOME/.local/bin"
+          mkdir -p "$bin"
+
+          # Probe for the pyflakes *module*, not a console script: Ubuntu's
+          # python3-pyflakes installs no pyflakes/pyflakes3 executable, so a
+          # `command -v` probe reinstalls an already-present package and then
+          # fails the verification below.
+          have_pyflakes() { python3 -c 'import pyflakes' >/dev/null 2>&1; }
+
+          missing=()
+          command -v shellcheck >/dev/null 2>&1 || missing+=(shellcheck)
+          have_pyflakes || missing+=(python3-pyflakes)
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "installing: ${missing[*]}"
             # A broken third-party list in the runner image must not fail the
-            # whole update; the version checks below are the real guard.
+            # whole update; the checks below are the real guard.
             sudo apt-get update || true
-            sudo apt-get install -y shellcheck python3-pyflakes
+            sudo apt-get install -y "${missing[@]}"
           fi
+
+          # Fail loudly rather than let actionlint quietly drop an analysis.
+          command -v shellcheck >/dev/null 2>&1 \
+            || { echo "::error::shellcheck unavailable after install"; exit 1; }
+          have_pyflakes \
+            || { echo "::error::pyflakes module unavailable after install"; exit 1; }
+
+          # actionlint's -pyflakes takes an executable, so provide one when the
+          # distro ships only the module. GITHUB_PATH applies to later steps.
+          if ! command -v pyflakes >/dev/null 2>&1; then
+            printf '#!/bin/sh\nexec python3 -m pyflakes "$@"\n' > "$bin/pyflakes"
+            chmod +x "$bin/pyflakes"
+            echo "$bin" >> "$GITHUB_PATH"
+          fi
+
           shellcheck --version | head -2
+          python3 -m pyflakes --version
 
       - name: Install actionlint and zizmor
         run: |
@@ -100,16 +131,30 @@ jobs:
 
       # Covers correctness (schema, expression types, cron syntax). Runs
       # shellcheck and pyflakes over inline code.
+      # actionlint's pyflakes integration only covers steps declaring
+      # `shell: python`; a helper script invoked from a bash `run:` block is
+      # invisible to it. Lint those directly. pyflakes reports syntax errors
+      # as well as undefined names, so this covers both.
+      - name: Lint workflow helper scripts
+        run: |
+          set -euo pipefail
+          # Module form: no dependence on a console script existing.
+          if compgen -G '.github/scripts/*.py' >/dev/null; then
+            python3 -m pyflakes .github/scripts/*.py
+            echo "helper scripts clean"
+          else
+            echo "no helper scripts to lint"
+          fi
+
       - name: actionlint
         run: |
           set -euo pipefail
-          pyflakes_bin="$(command -v pyflakes || command -v pyflakes3 || true)"
-          if [ -n "$pyflakes_bin" ]; then
-            actionlint -color -pyflakes "$pyflakes_bin"
-          else
-            echo "::warning::pyflakes not found; inline Python will not be checked"
-            actionlint -color
-          fi
+          # No `|| true`: if this does not resolve, the assignment fails under
+          # `set -e` and the job stops. Passing an empty -pyflakes would
+          # disable Python analysis silently, which is the bug this avoids.
+          # The install step guarantees a `pyflakes` executable, real or shim.
+          pyflakes_bin="$(command -v pyflakes)"
+          actionlint -color -pyflakes "$pyflakes_bin"
 
       # Blocking. GH_TOKEN lets zizmor run impostor-commit and
       # known-vulnerable-actions.
