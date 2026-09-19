@@ -1,6 +1,6 @@
 use crate::invoke_error::PanicRecord;
 use groundhog_event::{EmittedEvent, Event, TypedEvent};
-use groundhog_exn::{Exn, split_abort_wire};
+use groundhog_exn::{Exn, RawExceptionRef};
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
@@ -195,19 +195,6 @@ impl FrameResult {
         check(&decoded);
     }
 
-    // -- Typed abort assertion --
-
-    /// Assert the frame aborted with a thrown `E` and pass it to `check`.
-    /// Panics unless the frame aborted with a `[CXS(E::SELECTOR)][payload]`
-    /// buffer whose payload decodes as `E`.
-    #[track_caller]
-    pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
-    where
-        E: Exn + xdrs::ReadXDROwned,
-    {
-        check(&self.assert_abort_as::<E>());
-    }
-
     /// Assert the frame succeeded and decode the return buffer, returning
     /// the decoded value. The returning twin of `assert_return_with`.
     #[track_caller]
@@ -221,35 +208,32 @@ impl FrameResult {
         })
     }
 
-    /// Assert the frame aborted with a thrown `E` and return it. The
-    /// returning twin of `assert_abort_with`; see there for what is checked.
+    // -- Typed abort assertion --
+
+    /// Assert the frame aborted with a thrown `E` and return it. Panics
+    /// unless the frame aborted with a `[CXS(E::SELECTOR)][payload]` buffer
+    /// whose payload decodes as `E`.
     #[track_caller]
     pub fn assert_abort_as<E>(&self) -> E
     where
         E: Exn + xdrs::ReadXDROwned,
     {
         self.assert_abort();
-        let wire = self.abort_buffer();
-        let (selector, payload) = split_abort_wire(wire).unwrap_or_else(|e| {
-            panic!("abort buffer is not a contract exception ({e}): {wire:?}")
+        let buf = self.abort_buffer();
+        let exn = RawExceptionRef::parse(buf).unwrap_or_else(|e| {
+            panic!("abort buffer is not a contract exception ({e}): {buf:?}")
         });
-        assert_eq!(
-            selector,
-            E::SELECTOR,
-            "expected exception {} (selector {:#x}), got selector {:#x} \
-             with payload {:?}",
-            core::any::type_name::<E>(),
-            E::SELECTOR,
-            selector,
-            payload
-        );
-        let mut reader = xdrs::cxs::buf_reader::BufReader::new(payload);
-        xdrs::ReadXDR::read_xdr(&mut reader).unwrap_or_else(|e| {
-            panic!(
-                "failed to decode abort payload as {}: {e}",
-                core::any::type_name::<E>()
-            )
-        })
+        let name = core::any::type_name::<E>();
+        match exn.try_decode::<E>() {
+            Some(Ok(e)) => e,
+            Some(Err(e)) => {
+                panic!("failed to decode abort payload as {name}: {e}")
+            }
+            None => panic!(
+                "expected exception {name} (selector {:#x}), got {exn:?}",
+                E::SELECTOR
+            ),
+        }
     }
 
     // -- Raw access --

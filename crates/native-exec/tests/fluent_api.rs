@@ -1269,7 +1269,6 @@ fn test_assert_abort_as_decodes_thrown_exception() {
     let result = abort_with_wire(TestExn::SELECTOR, &payload);
     result.assert_abort();
     assert_eq!(result.assert_abort_as::<TestExn>(), TestExn(77));
-    result.assert_abort_with(|e: &TestExn| assert_eq!(e, &TestExn(77)));
 }
 
 #[test]

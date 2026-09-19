@@ -27,7 +27,7 @@ mod fault;
 mod library;
 mod wrapper;
 
-pub use groundhog_exn::Exn;
+pub use groundhog_exn::{Exn, RawExceptionRef};
 
 mod match_exn;
 pub use match_exn::*;

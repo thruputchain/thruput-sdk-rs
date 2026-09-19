@@ -77,7 +77,7 @@ fn outgoing_calldata_larger_than_500_bytes_encodes() {
                     u64::MAX,
                     &args,
                     0,
-                    |exn| exn.to_owned(),
+                    |exn| sdk::exn::RawException::from(exn),
                 )
                 .expect("call failed");
                 assert_eq!(received_len, expected_calldata_len);
