@@ -18,7 +18,7 @@ use crate::{AuthHandleBuf, sys};
 /// scratch: [`RawExceptionRef::payload`] is a plain slice, valid exactly for
 /// the closure. Decode it into owned typed errors (zero-copy),
 /// re-throw it (zero-copy, via [`ReThrow`](crate::ReThrow)), or
-/// copy it into an owned [`RawException`](crate::exn::RawException) — whatever `X` the closure
+/// [`RawExceptionRef::to_owned`] it (one copy) — whatever `X` the closure
 /// returns is what escapes.
 ///
 /// Any SDK op performed inside `on_exn` (a nested call, hashing, emitting an

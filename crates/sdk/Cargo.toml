@@ -60,6 +60,7 @@ version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 [features]
 # Enable allocation features
 alloc = [
+    "groundhog-exn/alloc",
     "groundhog-u256/alloc",
     "groundhog-xdr/alloc",
     "xdrs/alloc",

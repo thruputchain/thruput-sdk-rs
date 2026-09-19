@@ -27,13 +27,12 @@ mod fault;
 mod library;
 mod wrapper;
 
-pub use groundhog_exn::{Exn, RawExceptionRef};
+pub use groundhog_exn::{Exn, RawException, RawExceptionRef};
 
 mod match_exn;
 pub use match_exn::*;
 
 mod raw;
-pub use raw::*;
 
 pub use fault::*;
 pub use library::*;

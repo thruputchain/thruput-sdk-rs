@@ -70,7 +70,7 @@ fn failed_return_encode_reports_encoding_success_not_exception() {
                 u64::MAX,
                 &(),
                 0,
-                |exn| sdk::exn::RawException::from(exn),
+                |exn| exn.to_owned(),
             )
             .expect_err("child must abort: its return value fails to encode");
 

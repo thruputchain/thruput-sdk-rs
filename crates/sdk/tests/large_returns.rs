@@ -77,7 +77,7 @@ fn try_call_raw_with_decodes_returns_larger_than_500_bytes() {
                     u64::MAX,
                     &(),
                     0,
-                    |exn| sdk::exn::RawException::from(exn),
+                    |exn| exn.to_owned(),
                 )
                 .expect("call failed");
                 assert_eq!(result, vec![0xCD_u8; 600]);
@@ -106,7 +106,7 @@ fn try_call_raw_with_preserves_abort_payloads_larger_than_500_bytes() {
                 u64::MAX,
                 &(),
                 0,
-                |exn| sdk::exn::RawException::from(exn),
+                |exn| exn.to_owned(),
             )
             .expect_err("child must abort");
             match err {

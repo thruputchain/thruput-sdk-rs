@@ -282,7 +282,7 @@ fn fault_propagating_through_a_middle_contract_is_not_misattributed() {
             u64::MAX,
             &(),
             InvokeFlagSet::default(),
-            |e| sdk::exn::RawException::from(e),
+            |e| e.to_owned(),
         )
         .or_re_throw()
     });
@@ -332,7 +332,7 @@ fn a_rethrown_fault_records_the_placeholder_not_the_inner_text() {
                 u64::MAX,
                 &(),
                 InvokeFlagSet::default(),
-                |e| sdk::exn::RawException::from(e),
+                |e| e.to_owned(),
             )
             .or_re_throw()
         })

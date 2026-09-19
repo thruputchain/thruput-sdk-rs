@@ -287,7 +287,7 @@ fn generate_client_fn(
                 // type this interface happens to declare.
                 ::sdk::call::try_call_raw_with::<_, #return_type, ::sdk::exn::RawException>(
                     &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| ::sdk::exn::RawException::from(exn),
+                    |exn| exn.to_owned(),
                 )
             })
         }
