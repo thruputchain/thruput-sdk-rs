@@ -70,6 +70,28 @@ impl<'s> RawExceptionRef<'s> {
         })
     }
 
+    /// Reassemble from parts an earlier [`parse`](Self::parse) produced, for
+    /// an owner of a copied wire buffer that kept `selector` and
+    /// `payload_start` alongside it. The SDK's owned `RawException` is the
+    /// intended caller; the offset is only checked in debug builds.
+    #[doc(hidden)]
+    pub fn from_parts(
+        selector: u64,
+        wire: &'s [u8],
+        payload_start: usize,
+    ) -> Self {
+        debug_assert!(
+            payload_start <= wire.len(),
+            "payload_start {payload_start} past wire end {}",
+            wire.len()
+        );
+        Self {
+            selector,
+            wire,
+            payload_start,
+        }
+    }
+
     pub fn selector(&self) -> u64 {
         self.selector
     }
@@ -81,6 +103,11 @@ impl<'s> RawExceptionRef<'s> {
 
     pub fn payload(&self) -> &'s [u8] {
         &self.wire[self.payload_start..]
+    }
+
+    /// Where [`payload`](Self::payload) starts within [`wire`](Self::wire).
+    pub fn payload_start(&self) -> usize {
+        self.payload_start
     }
 
     /// Detach into an owned exception (one copy). Which owned type is up to
@@ -190,6 +217,7 @@ mod tests {
         assert_eq!(exn.selector(), 0xABCD);
         assert_eq!(exn.payload(), b"payload-bytes");
         assert_eq!(exn.wire(), &wire[..]);
+        assert_eq!(exn.payload_start(), wire.len() - b"payload-bytes".len());
     }
 
     #[test]

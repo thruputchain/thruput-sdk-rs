@@ -95,16 +95,22 @@ fn fmt_exn(
 /// [`selector`](Self::selector) / [`payload`](Self::payload) for raw
 /// inspection.
 pub struct RawException {
-    /// Full abort wire bytes: `[CXS(selector)][payload]`, kept verbatim so
-    /// `re_throw` preserves multi-hop fidelity. Parsed once on the way in,
-    /// so re-parsing it for a ref cannot fail.
+    selector: u64,
+    /// Full abort wire bytes: `[CXS(selector)][payload]` — kept verbatim so
+    /// `re_throw` preserves multi-hop fidelity.
     wire: crate::call::Buf,
+    payload_start: usize,
 }
 
 impl RawException {
     /// Copy `exn`'s wire bytes out of the caller's borrow into owned
-    /// storage. Called by the `From<RawExceptionRef>` impl.
+    /// storage, carrying over its already-parsed `selector`/`payload_start`
+    /// so the two stay consistent by construction.
+    ///
+    /// Called by the `From<RawExceptionRef>` impl.
     fn own_wire(exn: &RawExceptionRef<'_>) -> Self {
+        let selector = exn.selector();
+        let payload_start = exn.payload_start();
         let wire = exn.wire();
         #[cfg(feature = "alloc")]
         let wire = wire.to_vec();
@@ -121,26 +127,33 @@ impl RawException {
             }
             buf
         };
-        Self { wire }
+        Self {
+            selector,
+            wire,
+            payload_start,
+        }
     }
 
     #[inline]
     pub fn selector(&self) -> u64 {
-        self.as_ref_exn().selector()
+        self.selector
     }
 
     /// The exception payload (everything after the selector prefix).
     #[inline]
     pub fn payload(&self) -> &[u8] {
-        self.as_ref_exn().payload()
+        &self.wire.as_slice()[self.payload_start..]
     }
 
-    /// Borrow this owned exception as a transient ref, so `try_as` and
-    /// `MatchExn` share their one implementation with [`RawExceptionRef`]
-    /// instead of duplicating it. Re-reads the selector prefix (one varint).
+    /// Borrow this owned exception as a transient ref, so `try_as`/`re_throw`
+    /// share their one implementation with [`RawExceptionRef`] instead of
+    /// duplicating it.
     pub(crate) fn as_ref_exn(&self) -> RawExceptionRef<'_> {
-        RawExceptionRef::parse(self.wire.as_slice())
-            .unwrap_or_else(|_| unreachable!("wire was parsed when owned"))
+        RawExceptionRef::from_parts(
+            self.selector,
+            self.wire.as_slice(),
+            self.payload_start,
+        )
     }
 
     pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
@@ -169,8 +182,13 @@ impl RawException {
     pub fn new(selector: u64, payload: &[u8]) -> Self {
         let mut wire = crate::internal::encode_xdr(&selector)
             .expect("u64 CXS-encode cannot fail under alloc");
+        let payload_start = wire.len();
         wire.extend_from_slice(payload);
-        Self { wire }
+        Self {
+            selector,
+            wire,
+            payload_start,
+        }
     }
 
     /// Parse an abort wire buffer (`[CXS(selector)][payload]`) into an owned
@@ -188,13 +206,13 @@ impl RawException {
 
 impl PartialEq for RawException {
     fn eq(&self, other: &Self) -> bool {
-        self.wire.as_slice() == other.wire.as_slice()
+        self.selector == other.selector && self.payload() == other.payload()
     }
 }
 
 impl core::fmt::Debug for RawException {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        fmt_exn(f, "RawException", self.selector(), self.payload())
+        fmt_exn(f, "RawException", self.selector, self.payload())
     }
 }
 
