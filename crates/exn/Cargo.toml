@@ -9,15 +9,10 @@ keywords.workspace = true
 categories.workspace = true
 license.workspace = true
 authors.workspace = true
-description = "Exception trait and raw exception types for Groundhog smart contracts"
+description = "Exception trait and abort wire format for Groundhog smart contracts"
 
 [lib]
 crate-type = ["rlib"]
 
-[features]
-# Owned exceptions copy into a heap `Vec` instead of a fixed inline buffer.
-alloc = ["xdrs/alloc"]
-
 [dependencies]
-groundhog-xdr = { workspace = true }
 xdrs = { workspace = true }

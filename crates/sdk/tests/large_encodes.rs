@@ -71,7 +71,11 @@ fn outgoing_calldata_larger_than_500_bytes_encodes() {
             // Call twice: the second call exercises scratch reuse after
             // the buffer served both encode and receive duty.
             for _ in 0..2 {
-                let received_len: u64 = sdk::call::try_call_raw_with(
+                let received_len: u64 = sdk::call::try_call_raw_with::<
+                    _,
+                    _,
+                    sdk::exn::RawException,
+                >(
                     &CHILD_ADDR,
                     entrypoint(),
                     u64::MAX,
