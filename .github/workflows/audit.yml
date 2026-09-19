@@ -13,11 +13,6 @@ on:
     - cron: '30 8 * * *'
   workflow_dispatch: {}
 
-env:
-  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
-
 jobs:
   audit:
     name: Advisory scan
@@ -33,8 +28,10 @@ jobs:
       - name: Advisory scan
         uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         env:
-          # See ci.yml: cargo-deny compiles nothing, so skip the repo toolchain.
-          RUSTUP_TOOLCHAIN: "1.85.0"
+          RUSTUP_TOOLCHAIN: "1.85.0" # skip the unneeded repo toolchain
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+          CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
         with:
           arguments: --all-features --locked
           command: check advisories
