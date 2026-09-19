@@ -1,9 +1,6 @@
-//! The contract-exception trait and the abort wire format.
-//!
-//! Split out of the SDK (like `groundhog-event`) so host-side tooling that
-//! sits below the SDK (the native mock executor's typed abort assertions)
-//! can name an exception type's selector and split an abort buffer without
-//! depending on the SDK itself.
+//! Exception trait and abort wire format, split out of the SDK (like
+//! `groundhog-event`) so host-side tooling below the SDK can read selectors
+//! and abort buffers.
 
 #![no_std]
 

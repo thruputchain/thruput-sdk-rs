@@ -198,10 +198,8 @@ impl FrameResult {
     // -- Typed abort assertion --
 
     /// Assert the frame aborted with a thrown `E` and pass it to `check`.
-    ///
-    /// Decodes the `[CXS(selector)][payload]` abort wire format. Panics on a
-    /// non-abort frame, a non-exception buffer, a selector other than
-    /// `E::SELECTOR`, or a payload that does not decode as `E`.
+    /// Panics unless the frame aborted with a `[CXS(E::SELECTOR)][payload]`
+    /// buffer whose payload decodes as `E`.
     #[track_caller]
     pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
     where
