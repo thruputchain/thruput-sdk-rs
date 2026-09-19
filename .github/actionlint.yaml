@@ -1,0 +1,12 @@
+# actionlint configuration.
+# https://github.com/rhysd/actionlint/blob/main/docs/config.md
+#
+# Namespace Cloud runner labels (plus the `hog1` self-hosted box). actionlint
+# only knows GitHub-hosted labels, so every custom label has to be declared
+# here or it reports runner-label errors on every job.
+self-hosted-runner:
+  labels:
+    - namespace-profile-hogd-linux-2604
+    - namespace-profile-hogd-linux-arm64
+    - namespace-profile-hogd-arm64-macos
+    - hog1

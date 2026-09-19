@@ -1,0 +1,24 @@
+# zizmor configuration. https://docs.zizmor.sh/configuration/
+#
+# `unpinned-uses` default: hash-pinning policy for every action
+
+rules:
+  # Checkout steps that do not set `persist-credentials: false`.
+  artipacked:
+    ignore:
+      - publish.yml
+
+  # Jobs running with default (write) permissions.
+  excessive-permissions:
+    ignore:
+      - ci.yml
+      - hogd_build_from_source.yml
+      - miri.yml
+      - native_exec_tests.yml
+      - scaffold_smoke.yml
+      - sdk_tests.yml
+
+  # Style: prefers '$/...' over './...' for same-repo composite actions.
+  self-repository:
+    ignore:
+      - publish.yml
