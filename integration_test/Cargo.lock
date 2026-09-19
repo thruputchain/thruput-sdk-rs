@@ -375,6 +375,7 @@ dependencies = [
 name = "groundhog-exn"
 version = "0.35.0"
 dependencies = [
+ "groundhog-xdr",
  "xdrs",
 ]
 
