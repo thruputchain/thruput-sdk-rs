@@ -79,7 +79,7 @@ fn expand_enum(
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
-        #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
+        #[derive(Debug, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
         #[xdrs(crate = "::sdk::__xdrs")]
         #[repr(i32)]
         #item
@@ -103,7 +103,7 @@ fn expand_struct(
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
-        #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
+        #[derive(Debug, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
         #[xdrs(crate = "::sdk::__xdrs")]
         #item
 

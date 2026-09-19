@@ -20,7 +20,7 @@ use thiserror::Error;
 /// `debugging`, so an abort payload differed between a host test and the
 /// shipped artifact. `FaultString` now keeps its message host-side and
 /// encodes to nothing. Keep new variants payload-stable the same way.
-#[derive(Debug, Clone, PartialEq, ReadXDR, WriteXDR, ConstXDRSize)]
+#[derive(Debug, PartialEq, ReadXDR, WriteXDR, ConstXDRSize)]
 #[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[derive(ContractTypeSpec)]
 #[groundhog_macros::exn(version = "1.0.0")]
