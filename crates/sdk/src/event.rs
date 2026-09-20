@@ -8,8 +8,10 @@ pub use groundhog_event::{EmittedEvent, Event, Topic, TopicSrc, TypedEvent};
 
 /// Trait for types that can be converted into an event topic.
 ///
-/// Integers use 32-byte big-endian encoding, zero-extended for unsigned values
-/// and sign-extended for signed values. Booleans encode as 0 or 1.
+/// `u32`, `u64`, `u128` and `U256` use zero-extended, 32-byte big-endian encoding.
+/// `i32`, `i64`, `i128` and `I256` use sign-extended, 32-byte big-endian encoding.
+/// `bool` uses the same representation for 0 or 1. Other primitive integer types
+/// are not supported as topics.
 /// Byte arrays of length 32, addresses and hashes borrow their bytes directly.
 /// Strings and byte slices are always XDR-encoded and SHA-256 hashed.
 #[diagnostic::on_unimplemented(
@@ -112,7 +114,7 @@ impl<T: IntoTopic + ?Sized> IntoTopic for &T {
 /// events typically reserve topic 0 for the event signature, leaving up to two
 /// additional user-declared `#[topic]` fields.
 ///
-/// Topic fields use their [`IntoTopic`] representation: integers and booleans
+/// Topic fields use their [`IntoTopic`] representation: supported scalar types
 /// are encoded directly, while strings and byte slices are hashed.
 pub fn log_event<E: Event>(event: &E) {
     let n = E::num_topics();
