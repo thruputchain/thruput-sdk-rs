@@ -1,5 +1,8 @@
 # `#[derive(Event)]` Macro Design Spec
 
+This document records the original macro design. The `IntoTopic` encoding guidance
+below is updated for direct scalar topics; the other generated-code sketches are historical.
+
 ## Overview
 
 A derive macro that eliminates boilerplate for contract event types. Given a struct with `#[topic]` annotations, it generates the `Event` trait impl, a `WriteXDR` impl (payload-only), and a compile-time event signature constant.
@@ -68,7 +71,7 @@ impl<'a> WriteXDR for TransferEvent<'a> {
 
 ## `IntoTopic` Trait
 
-### Definition (in `groundhog-event`)
+### Definition (in `sdk::event`)
 
 ```rust
 pub trait IntoTopic {
@@ -76,9 +79,10 @@ pub trait IntoTopic {
 }
 ```
 
-Returns `TopicSrc` directly, so implementations can choose between zero-copy (`Shared`) and hashed (`Owned`).
+Returns `TopicSrc` directly: `Shared` borrows existing topic bytes, while `Owned`
+holds a constructed 32-byte value, either directly encoded or hashed.
 
-### Identity impl (in `groundhog-event`)
+### Identity impl (in `sdk::event`)
 
 ```rust
 impl IntoTopic for [u8; 32] {
@@ -88,22 +92,50 @@ impl IntoTopic for [u8; 32] {
 }
 ```
 
-This covers `ContractAddress` and `Topic` since both are `[u8; 32]`. For borrowed fields like `&'a ContractAddress`, Rust's auto-deref handles the call to `into_topic()` on the inner `[u8; 32]`.
+`Topic` is an alias for `[u8; 32]`. `ContractAddress` and `SHA256Hash` have explicit
+implementations that delegate to their underlying 32-byte arrays. References
+delegate through `impl<T: IntoTopic + ?Sized> IntoTopic for &T`.
 
-### Hash-based impls (in `sdk` crate)
+### Direct scalar impls (in `sdk` crate)
 
-For types that aren't already 32 bytes, XDR-encode then SHA-256 hash:
+Supported scalar topics use a fixed 32-byte big-endian representation:
+
+| Types | Encoding |
+|---|---|
+| `u32`, `u64`, `u128`, `U256` | Unsigned value, zero-extended on the left |
+| `i32`, `i64`, `i128`, `I256` | Two's-complement value, sign-extended on the left |
+| `bool` | Zero-extended `0` or `1` |
+
+Other primitive integer types, including `u8`, `u16`, `i8` and `i16`, do not
+implement `IntoTopic`. Topic encoding is not the scalar's XDR serialization.
+For example, `42u64` is 31 zero bytes followed by `0x2a`; `-2i64` is 31 `0xff`
+bytes followed by `0xfe`.
 
 ```rust
 impl IntoTopic for u128 {
     fn into_topic(&self) -> TopicSrc<'_> {
-        let encoded = encode_xdr(self);
-        TopicSrc::Owned(crypto::sha256(encoded.as_ref()))
+        let value: U256 = (*self).into();
+        TopicSrc::Owned(value.to_be_bytes())
     }
 }
 ```
 
-These live in the `sdk` crate because `crypto::sha256` is a VM syscall. A helper function `fn hash_to_topic<T: WriteXDR>(val: &T) -> Topic` can reduce repetition across impls.
+### Hash-based impls (in `sdk` crate)
+
+`str` and `[u8]` slices are always XDR-encoded and SHA-256 hashed, even when an
+individual value is shorter than 32 bytes. This keeps the representation consistent
+for each type rather than switching between direct bytes and hashes by value length.
+
+```rust
+impl IntoTopic for str {
+    fn into_topic(&self) -> TopicSrc<'_> {
+        TopicSrc::Owned(hash_to_topic(&self))
+    }
+}
+```
+
+These implementations live in `sdk` because `crypto::sha256` is a VM syscall.
+The `hash_to_topic` helper retains explicit serialization-and-hashing behavior.
 
 Users can implement `IntoTopic` for their own types.
 
@@ -133,12 +165,13 @@ Parallel to `error_selector` but returns the full 32-byte hash instead of trunca
 
 | Component | Crate | Rationale |
 |---|---|---|
-| `IntoTopic` trait | `groundhog-event` | Alongside `Event`, `Topic`, `TopicSrc`; no dependencies needed |
-| `IntoTopic` impl for `[u8; 32]` | `groundhog-event` | Identity conversion, no hashing needed |
+| `IntoTopic` trait | `sdk::event` | Owns implementations for primitive types alongside hashing support |
+| `IntoTopic` impl for `[u8; 32]` | `sdk::event` | Identity conversion, no hashing needed |
+| `IntoTopic` scalar impls | `sdk::event` | Reuse `U256`/`I256` widening and big-endian encoding |
 | `IntoTopic` hash-based impls | `sdk` | Need `sdk::crypto::sha256` (VM syscall) |
 | `event_signature` function | `contract-util` | Compile-time hashing, parallel to `error_selector` |
 | `#[derive(Event)]` macro | `groundhog-macros` | Alongside existing `#[exn]`, `#[derive(Storage)]` |
-| Re-export of `IntoTopic` | `sdk::event` | User-facing convenience |
+| Re-export of `IntoTopic` | `sdk` root | User-facing convenience |
 
 ## What the Macro Does NOT Generate
 
