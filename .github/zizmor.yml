@@ -1,6 +1,6 @@
 # zizmor configuration. https://docs.zizmor.sh/configuration/
 #
-# `unpinned-uses` default: hash-pinning policy for every action
+# `unpinned-uses` default: hash-pinning for every referenced action
 
 rules:
   # Checkout steps that do not set `persist-credentials: false`.
@@ -18,8 +18,18 @@ rules:
       - scaffold_smoke.yml
       - sdk_tests.yml
 
-  # Style: prefers '$/...' over './...' for same-repo composite actions.
+  # Style: prefers '$/...' over './...' for same-repo composite actions,
+  # but that offends actionlint.
   self-repository:
     ignore:
       - publish.yml
       - yank.yml
+
+  # These checks must read referenced repos, and groundhogchain/actions is
+  # private.
+  impostor-commit:
+    disable: true
+  stale-action-refs:
+    disable: true
+  ref-version-mismatch:
+    disable: true
