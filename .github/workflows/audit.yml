@@ -23,6 +23,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout
+        id: checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Advisory scan
@@ -37,7 +38,7 @@ jobs:
           command: check advisories
 
       - name: File tracking issue on failure
-        if: failure()
+        if: failure() && steps.checkout.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_TITLE: "Dependency advisory scan failing on main"
