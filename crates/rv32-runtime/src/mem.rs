@@ -25,6 +25,8 @@
 //! symbols absent); recursion itself was ruled out by disassembly when
 //! this landed and no_builtins keeps it that way.
 
+use core::mem::MaybeUninit;
+
 // ---------------------------------------------------------------------------
 // Pure copy/fill cores — target-independent so the overlap/seam logic can be
 // unit-tested on the host (cf. dispatch.rs). `#[inline(always)]` so each rv32
@@ -41,16 +43,18 @@
 #[inline(always)]
 unsafe fn copy_forward(dst: *mut u8, src: *const u8, n: usize) {
     unsafe {
-        let mut d = dst;
-        let mut s = src;
-        let word_end = dst.add(n & !3);
+        // Copies must preserve uninitialized bytes, including struct padding.
+        let mut d = dst.cast::<MaybeUninit<u8>>();
+        let mut s = src.cast::<MaybeUninit<u8>>();
+        let word_end = d.add(n & !3);
         while d < word_end {
-            d.cast::<u32>()
-                .write_unaligned(s.cast::<u32>().read_unaligned());
+            d.cast::<MaybeUninit<u32>>().write_unaligned(
+                s.cast::<MaybeUninit<u32>>().read_unaligned(),
+            );
             d = d.add(4);
             s = s.add(4);
         }
-        let end = dst.add(n);
+        let end = dst.cast::<MaybeUninit<u8>>().add(n);
         while d < end {
             *d = *s;
             d = d.add(1);
@@ -66,14 +70,17 @@ unsafe fn copy_forward(dst: *mut u8, src: *const u8, n: usize) {
 #[inline(always)]
 unsafe fn copy_backward(dst: *mut u8, src: *const u8, n: usize) {
     unsafe {
+        let dst = dst.cast::<MaybeUninit<u8>>();
+        let src = src.cast::<MaybeUninit<u8>>();
         let mut d = dst.add(n);
         let mut s = src.add(n);
         let word_stop = dst.add(n & 3);
         while d > word_stop {
             d = d.sub(4);
             s = s.sub(4);
-            d.cast::<u32>()
-                .write_unaligned(s.cast::<u32>().read_unaligned());
+            d.cast::<MaybeUninit<u32>>().write_unaligned(
+                s.cast::<MaybeUninit<u32>>().read_unaligned(),
+            );
         }
         while d > dst {
             d = d.sub(1);
@@ -171,6 +178,60 @@ mod tests {
     /// Every test runs across all seam lengths 0..=9 (covers: empty,
     /// byte-only, exact word, word+tail, multi-word).
     const LENS: core::ops::RangeInclusive<usize> = 0..=9;
+
+    // Run under Miri: ordinary execution cannot detect uninitialized reads.
+    #[test]
+    fn copy_partially_initialized_disjoint() {
+        for copy in [copy_forward, copy_backward] {
+            for n in LENS {
+                let mut src = [MaybeUninit::<u8>::uninit(); 9];
+                for i in (1..n).step_by(2) {
+                    src[i].write(i as u8);
+                }
+                let mut dst = [MaybeUninit::new(0xCCu8); 11];
+                unsafe {
+                    copy(
+                        dst.as_mut_ptr().add(1).cast(),
+                        src.as_ptr().cast(),
+                        n,
+                    );
+                    for i in (1..n).step_by(2) {
+                        assert_eq!(dst[i + 1].assume_init(), i as u8);
+                    }
+                    assert_eq!(dst[0].assume_init(), 0xCC);
+                    for byte in &dst[n + 1..] {
+                        assert_eq!(byte.assume_init(), 0xCC);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn move_partially_initialized_overlaps() {
+        for src in 0..=4 {
+            for dst in 0..=4 {
+                for n in LENS {
+                    let mut buf = [MaybeUninit::<u8>::uninit(); 13];
+                    for i in (1..buf.len()).step_by(2) {
+                        buf[i].write(i as u8);
+                    }
+                    let ptr = buf.as_mut_ptr().cast::<u8>();
+                    unsafe {
+                        move_any(ptr.add(dst), ptr.add(src), n);
+                        for i in 0..n {
+                            if (src + i) % 2 == 1 {
+                                assert_eq!(
+                                    buf[dst + i].assume_init(),
+                                    (src + i) as u8
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn copy_forward_disjoint() {
