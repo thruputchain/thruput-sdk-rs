@@ -38,8 +38,12 @@ fn check_enum_discriminants(
 /// Shared helper: generate `impl ContractTypeName for #ident`.
 /// Used by both `#[contract_type]` and `#[contract_exception]`.
 ///
-/// `name = "..."` replaces the final segment of the id; the path segments are
-/// not the author's to choose. The id itself comes from
+/// `name = "..."` replaces the final segment of the id, substituted verbatim:
+/// a value carrying `::` spells its own segments, and nothing rejects it. The
+/// crate name and major version still prefix every id and come from the
+/// declaring crate, so a name cannot reach another crate's id — the most it
+/// can do is collide with another type in its own, which is the author's
+/// conflict to resolve. The id itself comes from
 /// [`common::spec_id::spec_id_tokens`], which every spec-named item shares.
 ///
 /// `version` is the item's declared identity version, or `None` for the

@@ -1,5 +1,0 @@
-error: name = "inner::Meta" must be a single identifier: it becomes the final segment of this type's spec id, and a name carrying `::` would claim another type's id
- --> tests/compile-fail/contract_type_name_with_path.rs:6:29
-  |
-6 | #[sdk::contract_type(name = "inner::Meta")]
-  |                             ^^^^^^^^^^^^^

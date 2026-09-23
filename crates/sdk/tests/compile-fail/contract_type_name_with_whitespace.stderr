@@ -1,5 +1,0 @@
-error: name = " Meta " must be a single identifier: it becomes the final segment of this type's spec id, and a name carrying `::` would claim another type's id
- --> tests/compile-fail/contract_type_name_with_whitespace.rs:5:29
-  |
-5 | #[sdk::contract_type(name = " Meta ")]
-  |                             ^^^^^^^^

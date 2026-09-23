@@ -74,6 +74,19 @@ pub struct Payload {
     pub count: u32,
 }
 
+/// A name is substituted verbatim, `::` and all — nothing rejects one that
+/// spells extra segments.
+///
+/// It cannot forge an id outside this crate: the crate name and major version
+/// prefix every id, and both come from the declaring crate. So the most an
+/// author can do is collide with another of their own types, in a crate they
+/// control, which is their conflict to resolve — canonicalization still
+/// refuses two shapes under one id.
+#[contract_type(name = "spelled::Out")]
+pub struct SpelledOut {
+    pub v: u32,
+}
+
 /// A type that references another user-defined type in a field.
 #[contract_type]
 pub struct Wrapper {
@@ -138,6 +151,14 @@ fn custom_name_replaces_the_final_segment_only() {
     assert_eq!(
         <Payload as ContractTypeName>::NAME,
         format!("{}::SpecPayload", crate_at_major()),
+    );
+}
+
+#[test]
+fn a_custom_name_carrying_a_path_is_taken_verbatim() {
+    assert_eq!(
+        <SpelledOut as ContractTypeName>::NAME,
+        format!("{}::spelled::Out", crate_at_major()),
     );
 }
 
