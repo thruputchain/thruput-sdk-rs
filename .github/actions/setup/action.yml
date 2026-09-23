@@ -10,7 +10,13 @@ runs:
       run: clang --version
       shell: bash
     - name: Add Cargo to PATH
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      # The github-env audit exists for GITHUB_PATH writes whose *content* an
+      # attacker can influence, under a dangerous trigger such as
+      # pull_request_target or workflow_run. Neither applies: the value is the
+      # literal "$HOME/.cargo/bin", and no workflow in this repo uses a
+      # dangerous trigger. zizmor flags it anyway because a composite action
+      # is audited in isolation.
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH # zizmor: ignore[github-env]
       shell: bash
     - name: path check
       run: echo $PATH

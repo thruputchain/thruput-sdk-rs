@@ -644,3 +644,414 @@ contract_test!(positional_fields_use_absolute_declaration_index {
     assert_eq!(s.b.key(), Value::<u64>::from(root.child(&1u32)).key());
     assert_eq!(s.a.key(), Value::<u64>::from(root.child(&5u32)).key());
 });
+
+// ===========================================================================
+// `Deletable for SlotMut`: deleting storage through a borrowed slot.
+//
+// `SlotMut` forwards `delete_internal` to the slot it wraps, so a borrowed
+// entry deletes exactly like an owned handle to the same keypath — and a
+// `SlotMut` now satisfies a `T: Deletable` bound, which is what makes
+// `Map::delete_at`, `Vector::pop` over borrowed elements, and generic
+// delete helpers possible.
+// ===========================================================================
+
+/// A `Deletable` node type for exercising recursive deletes through a slot.
+#[derive(Storage, Deletable)]
+struct DeletablePair {
+    first: Value<u32>,
+    second: Value<u64>,
+}
+
+contract_test!(test_map_slot_delete_leaves_siblings {
+    let mut map: Map<u32, Value<i32>> = Keypath::default().into();
+
+    map.at_mut(&1u32).set(&10);
+    map.at_mut(&2u32).set(&20);
+
+    // Delete through the borrowed slot.
+    map.at_mut(&1u32).delete();
+
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
+    // Only the addressed entry is affected.
+    assert_eq!(map.at(&2u32).try_get().none_if_missing(), Some(20));
+
+    // The slot is reusable: a deleted entry is indistinguishable from one
+    // that was never written, and writing it again just works.
+    map.at_mut(&1u32).set(&11);
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), Some(11));
+});
+
+contract_test!(test_map_delete_at {
+    let mut map: Map<u32, Value<i32>> = Keypath::default().into();
+
+    map.at_mut(&1u32).set(&10);
+    map.at_mut(&2u32).set(&20);
+
+    map.delete_at(&1u32);
+
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
+    assert_eq!(map.at(&2u32).try_get().none_if_missing(), Some(20));
+});
+
+contract_test!(test_map_delete_at_absent_is_a_noop {
+    // Deleting a never-written entry is not an error (same contract as
+    // `delete_shared` on an unstored key), and it leaves the map alone.
+    let mut map: Map<u32, Value<i32>> = Keypath::default().into();
+    map.at_mut(&1u32).set(&10);
+
+    map.delete_at(&99u32);
+    map.at_mut(&99u32).delete();
+
+    assert_eq!(map.at(&99u32).try_get().none_if_missing(), None);
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), Some(10));
+
+    // And deleting twice is likewise fine.
+    map.delete_at(&1u32);
+    map.delete_at(&1u32);
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
+});
+
+contract_test!(test_map_slot_delete_nnint {
+    // Deleting an NNInt entry clears `set` and the accumulated `add`: the
+    // slot reads back as missing, and a later `strict_inc` starts from 0
+    // rather than resuming the pre-delete total.
+    let mut map: Map<u32, NNInt> = Keypath::default().into();
+
+    map.at_mut(&1u32).set(100);
+    map.at_mut(&1u32).strict_inc(5);
+    assert_eq!(map.at(&1u32).get(), 105);
+
+    map.delete_at(&1u32);
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
+
+    map.at_mut(&1u32).strict_inc(7);
+    assert_eq!(map.at(&1u32).get(), 7);
+});
+
+contract_test!(test_map_slot_delete_is_recursive_through_node {
+    // `Node<T>` delegates to `T`'s derived `Deletable`, so deleting the
+    // entry slot clears every field of the struct behind it.
+    let mut map: Map<u32, Node<DeletablePair>> = Keypath::default().into();
+
+    {
+        let mut entry = map.at_mut(&1u32);
+        entry.first.set(&7);
+        entry.second.set(&11);
+    }
+    assert_eq!(map.at(&1u32).first.try_get().none_if_missing(), Some(7));
+
+    map.delete_at(&1u32);
+
+    assert_eq!(map.at(&1u32).first.try_get().none_if_missing(), None);
+    assert_eq!(map.at(&1u32).second.try_get().none_if_missing(), None);
+});
+
+contract_test!(test_map_slot_delete_is_recursive_through_vector {
+    // A `Vector` entry deletes its elements and its len slot, so the entry
+    // reads back as an empty vector.
+    let mut map: Map<u32, Vector<Value<u64>>> = Keypath::default().into();
+
+    {
+        let mut v = map.at_mut(&1u32);
+        v.push_empty_slot().set(&7);
+        v.push_empty_slot().set(&8);
+    }
+    {
+        let mut v = map.at_mut(&2u32);
+        v.push_empty_slot().set(&9);
+    }
+    assert_eq!(map.at(&1u32).len(), 2);
+
+    map.delete_at(&1u32);
+
+    assert_eq!(map.at(&1u32).len(), 0);
+    assert!(map.at(&1u32).is_empty());
+    // The sibling entry's vector is untouched.
+    assert_eq!(map.at(&2u32).len(), 1);
+    assert_eq!(map.at(&2u32).at(0).get(), 9);
+});
+
+contract_test!(test_slot_mut_satisfies_deletable_bound {
+    // The point of the impl: a borrowed slot can be handed to code that is
+    // generic over `Deletable`. Without `impl Deletable for SlotMut` these
+    // calls would not resolve.
+    fn erase<D: Deletable>(d: &mut D) {
+        d.delete();
+    }
+    fn erase_exclusive<D: Deletable>(d: &mut D) {
+        d.delete_exclusive();
+    }
+
+    let mut map: Map<u32, Value<i32>> = Keypath::default().into();
+    map.at_mut(&1u32).set(&10);
+    map.at_mut(&2u32).set(&20);
+
+    erase(&mut map.at_mut(&1u32));
+    erase_exclusive(&mut map.at_mut(&2u32));
+
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
+    assert_eq!(map.at(&2u32).try_get().none_if_missing(), None);
+
+    // Also through a `Vector` element slot.
+    let mut vec: Vector<Value<u32>> = Keypath::default().child("vec").into();
+    vec.push_empty_slot().set(&1);
+    erase(&mut vec.at_mut(0));
+    assert_eq!(vec.at(0).try_get().none_if_missing(), None);
+});
+
+contract_test!(test_map_slot_delete_addresses_the_same_key_as_an_owned_handle {
+    // A slot delete must hit exactly the key the map derives for that entry
+    // — not, say, the map root.
+    let root = Keypath::default();
+    let mut map: Map<u32, Value<i32>> = root.clone().into();
+    map.at_mut(&1u32).set(&10);
+
+    // Independently derive the entry's keypath and confirm it sees the write.
+    let mut owned: Value<i32> = root.child(&1u32).into();
+    assert_eq!(owned.try_get().none_if_missing(), Some(10));
+
+    map.at_mut(&1u32).delete();
+    assert_eq!(owned.try_get().none_if_missing(), None);
+
+    // ...and the converse: deleting the owned handle clears the map entry.
+    map.at_mut(&1u32).set(&20);
+    owned.delete();
+    assert_eq!(map.at(&1u32).try_get().none_if_missing(), None);
+});
+
+// ---------------------------------------------------------------------------
+// Vector elements: deleting through a slot punches a hole.
+//
+// `Vector` tracks a `len` and nothing else — there is no per-element
+// occupancy bit and no way to shift elements down. Deleting element `i`
+// therefore removes only that element's storage: `len` is unchanged, `i`
+// stays in bounds, and the slot reads back as missing. `len` is a
+// high-water mark, not a count of live elements. These tests pin that
+// behavior down, including the sharp edges.
+// ---------------------------------------------------------------------------
+
+contract_test!(test_vector_element_delete_punches_a_hole {
+    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
+
+    vec.at_mut(1).delete();
+
+    // len does NOT shrink, and the index stays in bounds.
+    assert_eq!(vec.len(), 3);
+    assert!(!vec.is_empty());
+
+    // Neighbours do not shift down.
+    assert_eq!(vec.at(0).try_get().none_if_missing(), Some(10));
+    assert_eq!(vec.at(1).try_get().none_if_missing(), None);
+    assert_eq!(vec.at(2).try_get().none_if_missing(), Some(30));
+
+    // The hole is refillable in place.
+    vec.at_mut(1).set(&21);
+    assert_eq!(vec.at(1).try_get().none_if_missing(), Some(21));
+    assert_eq!(vec.len(), 3);
+});
+
+#[test]
+fn test_vector_get_on_a_hole_aborts() {
+    // `at(i)` is only bounds-checked; it does not check occupancy. Reading a
+    // deleted in-bounds element with `get()` aborts as storage-missing, so
+    // callers that delete elements must read with `try_get`.
+    let env = sdk::TestEnvironment::no_cost();
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_vector_get_on_a_hole_aborts",
+    );
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let mut vec: Vector<Value<u32>> = Keypath::default().into();
+            vec.push_empty_slot().set(&10);
+            vec.push_empty_slot().set(&20);
+
+            vec.at_mut(0).delete();
+
+            // The error is storage-missing, not out-of-bounds.
+            let err = vec.at(0).try_get().unwrap_err();
+            assert!(err.is_storage_missing());
+
+            // ...and `get()` aborts with it.
+            let _ = vec.at(0).get();
+        })
+    });
+    assert!(!result.is_success());
+}
+
+contract_test!(test_vector_iter_over_holes {
+    // `iter()` walks 0..len and so yields the holes too. A consumer that
+    // calls `get()` would abort; `try_get().none_if_missing()` is the
+    // hole-tolerant read.
+    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
+
+    vec.at_mut(1).delete();
+
+    let seen: Vec<Option<u32>> =
+        vec.iter().map(|v| v.try_get().none_if_missing()).collect();
+    assert_eq!(seen, [Some(10), None, Some(30)]);
+
+    // The iterator length still reflects len, not the live-element count.
+    assert_eq!(vec.iter().count(), 3);
+    assert_eq!(vec.iter().len(), 3);
+
+    let live: Vec<u32> =
+        vec.iter().filter_map(|v| v.try_get().none_if_missing()).collect();
+    assert_eq!(live, [10, 30]);
+});
+
+contract_test!(test_vector_iter_mut_delete_all_keeps_len {
+    // Deleting every element through `iter_mut()` empties the storage but
+    // leaves `len` intact — the vector is all holes, not empty. Use
+    // `Vector::delete` to clear len as well.
+    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+
+    for mut elem in vec.iter_mut() {
+        elem.delete();
+    }
+
+    assert_eq!(vec.len(), 2);
+    assert!(!vec.is_empty());
+    assert_eq!(vec.at(0).try_get().none_if_missing(), None);
+    assert_eq!(vec.at(1).try_get().none_if_missing(), None);
+
+    // `delete()` is the way to actually reset the vector.
+    vec.delete();
+    assert_eq!(vec.len(), 0);
+    assert!(vec.is_empty());
+});
+
+contract_test!(test_vector_pop_tolerates_holes {
+    // `pop` deletes the last element's storage and decrements len. Deleting
+    // storage that is already gone is a no-op, so popping over holes works
+    // and len still lands on 0.
+    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
+
+    // Punch a hole at the tail, then pop it.
+    vec.at_mut(2).delete();
+    vec.pop();
+    assert_eq!(vec.len(), 2);
+    assert_eq!(vec.at(1).try_get().none_if_missing(), Some(20));
+
+    // Punch one in the middle and pop past it.
+    vec.at_mut(1).delete();
+    vec.pop();
+    vec.pop();
+    assert_eq!(vec.len(), 0);
+});
+
+contract_test!(test_vector_delete_tolerates_holes {
+    // `Vector::delete` walks 0..len deleting each element; holes are
+    // no-ops, and the len slot is deleted too.
+    let root = Keypath::default();
+    let mut vec: Vector<Value<u32>> = root.clone().into();
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
+
+    vec.at_mut(1).delete();
+    vec.delete();
+
+    assert_eq!(vec.len(), 0);
+
+    // Element storage is gone, checked through independently-derived
+    // keypaths (vector layout: len = child(0), values map = child(1)).
+    let values_kp = root.child(&1u32);
+    for i in 0..3u32 {
+        let elem: Value<u32> = values_kp.child(&i).into();
+        assert_eq!(elem.try_get().none_if_missing(), None);
+    }
+});
+
+contract_test!(test_vector_push_after_hole_appends_at_len {
+    // A hole does not become a free slot: `push` still appends at `len`,
+    // so the hole persists and len keeps growing.
+    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+
+    vec.at_mut(0).delete();
+    vec.push_with(|slot| slot.set(&30));
+
+    assert_eq!(vec.len(), 3);
+    assert_eq!(vec.at(0).try_get().none_if_missing(), None);
+    assert_eq!(vec.at(1).try_get().none_if_missing(), Some(20));
+    assert_eq!(vec.at(2).try_get().none_if_missing(), Some(30));
+});
+
+contract_test!(test_vector_nnint_hole_resurrects_at_zero {
+    // The sharp edge worth knowing about: for `Vector<NNInt>` a hole is
+    // NOT durably absent. `strict_inc` treats a missing location as 0, so
+    // incrementing a deleted element silently recreates it — a deleted
+    // element and a zero element are indistinguishable to a writer.
+    let mut vec: Vector<NNInt> = Keypath::default().into();
+    vec.push_empty_slot().set(100);
+    vec.push_empty_slot().set(200);
+
+    vec.at_mut(0).delete();
+    assert_eq!(vec.at(0).try_get().none_if_missing(), None);
+
+    vec.at_mut(0).strict_inc(5);
+    assert_eq!(vec.at(0).try_get().none_if_missing(), Some(5));
+    assert_eq!(vec.at(1).get(), 200);
+});
+
+#[test]
+fn test_vector_element_delete_is_still_bounds_checked() {
+    // `at_mut` bounds-checks before handing out the slot, so an
+    // out-of-bounds delete aborts rather than clearing an unrelated key.
+    let env = sdk::TestEnvironment::no_cost();
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_vector_element_delete_is_still_bounds_checked",
+    );
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let mut vec: Vector<Value<u32>> = Keypath::default().into();
+            vec.push_empty_slot().set(&10);
+            vec.at_mut(5).delete();
+        })
+    });
+    assert!(!result.is_success());
+}
+
+contract_test!(test_vector_delete_at_matches_slot_delete {
+    // `delete_at` is shorthand for `at_mut(i).delete()`: same hole, same
+    // untouched len.
+    let mut vec: Vector<Value<u32>> = Keypath::default().into();
+    vec.push_empty_slot().set(&10);
+    vec.push_empty_slot().set(&20);
+    vec.push_empty_slot().set(&30);
+
+    vec.delete_at(1);
+
+    assert_eq!(vec.len(), 3);
+    assert_eq!(vec.at(0).try_get().none_if_missing(), Some(10));
+    assert_eq!(vec.at(1).try_get().none_if_missing(), None);
+    assert_eq!(vec.at(2).try_get().none_if_missing(), Some(30));
+});
+
+#[test]
+fn test_vector_delete_at_is_bounds_checked() {
+    let env = sdk::TestEnvironment::no_cost();
+    let addr = <sdk::ContractAddress as sdk::Named>::named(
+        "test_vector_delete_at_is_bounds_checked",
+    );
+    let result = env.transact(|tx| {
+        tx.call(&addr).run(|| {
+            let mut vec: Vector<Value<u32>> = Keypath::default().into();
+            vec.push_empty_slot().set(&10);
+            vec.delete_at(5);
+        })
+    });
+    assert!(!result.is_success());
+}

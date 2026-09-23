@@ -542,10 +542,10 @@ fn test_typed_event_rejects_mismatched_discriminant() {
 // Multi-lifetime event: both lifetimes unify to the decode buffer lifetime
 
 //-------------------------------------------------------------------------
-// Non-32-byte topic types (hashed via IntoTopic impls)
+// Variable-length topics are hashed; scalar topics are encoded directly.
 
 #[derive(Event)]
-struct HashedTopicEvent<'a> {
+struct MixedTopicEvent<'a> {
     #[topic]
     category: &'a str,
     #[topic]
@@ -554,12 +554,12 @@ struct HashedTopicEvent<'a> {
 }
 
 #[test]
-fn test_hashed_topic_event() {
+fn test_mixed_topic_event() {
     let env = TestEnvironment::no_cost();
 
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| {
-            log_event(&HashedTopicEvent {
+            log_event(&MixedTopicEvent {
                 category: "transfer",
                 amount: 1000,
                 memo: b"test",
@@ -569,25 +569,56 @@ fn test_hashed_topic_event() {
 
     result.assert_success();
 
-    // Compute expected topic hashes outside the VM using sha2 directly.
-    // hash_to_topic does: XDR-encode → SHA-256
+    // The string remains hashed even though this particular value is short.
     use sha2::{Digest, Sha256};
     let expected_category: [u8; 32] = {
         let xdr = sdk::internal::encode_xdr(&"transfer").unwrap();
         Sha256::digest(xdr.as_slice()).into()
     };
-    let expected_amount: [u8; 32] = {
-        let xdr = sdk::internal::encode_xdr(&1000u128).unwrap();
-        Sha256::digest(xdr.as_slice()).into()
-    };
+    let mut expected_amount = [0u8; 32];
+    expected_amount[30..].copy_from_slice(&[0x03, 0xe8]); // 1000, big-endian.
 
-    result.assert_event::<HashedTopicEvent>(0, |e| {
+    result.assert_event::<MixedTopicEvent>(0, |e| {
         assert_eq!(e.num_topics(), 3);
-        assert_eq!(e.topic(0).unwrap(), HashedTopicEvent::SIGNATURE);
+        assert_eq!(e.topic(0).unwrap(), MixedTopicEvent::SIGNATURE);
         assert_eq!(e.topic(1).unwrap(), expected_category.as_ref());
         assert_eq!(e.topic(2).unwrap(), expected_amount.as_ref());
         assert_eq!(e.payload().memo, b"test");
     });
+}
+
+#[test]
+fn scalar_topics_use_padded_big_endian_bytes() {
+    let mut positive = [0u8; 32];
+    positive[28..].copy_from_slice(&[1, 2, 3, 4]);
+    for topic in [
+        0x0102_0304u32.into_topic(),
+        0x0102_0304u64.into_topic(),
+        0x0102_0304u128.into_topic(),
+        0x0102_0304i32.into_topic(),
+        0x0102_0304i64.into_topic(),
+        0x0102_0304i128.into_topic(),
+    ] {
+        assert_eq!(Topic::from(topic), positive);
+    }
+
+    let mut negative = [0xffu8; 32];
+    negative[31] = 0xfe;
+    for topic in [
+        (-2i32).into_topic(),
+        (-2i64).into_topic(),
+        (-2i128).into_topic(),
+    ] {
+        assert_eq!(Topic::from(topic), negative);
+    }
+
+    let mut unsigned_max = [0u8; 32];
+    unsigned_max[16..].fill(0xff);
+    assert_eq!(Topic::from(u128::MAX.into_topic()), unsigned_max);
+    assert_eq!(Topic::from(false.into_topic()), [0u8; 32]);
+    let mut one = [0u8; 32];
+    one[31] = 1;
+    assert_eq!(Topic::from(true.into_topic()), one);
 }
 
 #[derive(Event)]

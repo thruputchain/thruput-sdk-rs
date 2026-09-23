@@ -51,7 +51,7 @@ fn consume_aborts_on_leftover_child_handles() {
 
 #[test]
 fn assume_tokens_mismatch_throws_cross_call_decode_error() {
-    use sdk::exn::{CallingError, LibraryExn, RawException};
+    use sdk::exn::{CallingError, LibraryExn};
     use sdk::signer::{AssumeTokens, Opaque};
 
     let env = TestEnvironment::no_cost();
@@ -64,13 +64,7 @@ fn assume_tokens_mismatch_throws_cross_call_decode_error() {
             let (_,): (Signed<u64>,) = AssumeTokens::assume_tokens(tokens);
         })
     });
-    result.assert_abort();
-
-    let caught =
-        RawException::from_abort_buf(result.frame().abort_buffer()).unwrap();
-    let exn = caught
-        .try_as::<LibraryExn>()
-        .expect("abort payload decodes as LibraryExn");
+    let exn: LibraryExn = result.assert_abort_as();
     assert!(
         matches!(exn, LibraryExn::Calling(CallingError::DecodingSuccess(_))),
         "expected Calling(DecodingSuccess), got {exn:?}"

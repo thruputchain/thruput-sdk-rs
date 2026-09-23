@@ -32,7 +32,7 @@ fn undefined_method_throws_unknown_method() {
             // The defined method still works.
             assert_eq!(DefinedClient::new(&addr).defined(), 1);
 
-            let err = sdk::call::try_call_raw_with::<(), (), _>(
+            let err = sdk::call::try_call_raw_with::<(), (), sdk::exn::RawException>(
                 &addr,
                 absent(),
                 u64::MAX,

@@ -1,5 +1,6 @@
 use crate::invoke_error::PanicRecord;
 use groundhog_event::{EmittedEvent, Event, TypedEvent};
+use groundhog_exn::{Exn, RawExceptionRef};
 use groundhog_trace::InvocationFrameTrace;
 use groundhog_xdr::event::TxEmittedEvent;
 use groundhog_xdr::transaction::InvocationFrameOutput;
@@ -194,22 +195,6 @@ impl FrameResult {
         check(&decoded);
     }
 
-    // -- Typed abort assertion --
-
-    /// Assert the frame aborted and decode the abort buffer as a typed error.
-    #[track_caller]
-    pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
-    where
-        E: xdrs::ReadXDROwned,
-    {
-        self.assert_abort();
-        let buf = self.abort_buffer();
-        let decoded: E = xdrs::cxs::decode(buf).unwrap_or_else(|e| {
-            panic!("failed to decode abort buffer: {}", e)
-        });
-        check(&decoded);
-    }
-
     /// Assert the frame succeeded and decode the return buffer, returning
     /// the decoded value. The returning twin of `assert_return_with`.
     #[track_caller]
@@ -223,16 +208,32 @@ impl FrameResult {
         })
     }
 
-    /// Assert the frame aborted and decode the abort buffer, returning
-    /// the decoded error. The returning twin of `assert_abort_with`.
+    // -- Typed abort assertion --
+
+    /// Assert the frame aborted with a thrown `E` and return it. Panics
+    /// unless the frame aborted with a `[CXS(E::SELECTOR)][payload]` buffer
+    /// whose payload decodes as `E`.
     #[track_caller]
     pub fn assert_abort_as<E>(&self) -> E
     where
-        E: xdrs::ReadXDROwned,
+        E: Exn + xdrs::ReadXDROwned,
     {
         self.assert_abort();
-        xdrs::cxs::decode(self.abort_buffer())
-            .unwrap_or_else(|e| panic!("failed to decode abort buffer: {}", e))
+        let buf = self.abort_buffer();
+        let exn = RawExceptionRef::parse(buf).unwrap_or_else(|e| {
+            panic!("abort buffer is not a contract exception ({e}): {buf:?}")
+        });
+        let name = core::any::type_name::<E>();
+        match exn.try_decode::<E>() {
+            Some(Ok(e)) => e,
+            Some(Err(e)) => {
+                panic!("failed to decode abort payload as {name}: {e}")
+            }
+            None => panic!(
+                "expected exception {name} (selector {:#x}), got {exn:?}",
+                E::SELECTOR
+            ),
+        }
     }
 
     // -- Raw access --

@@ -14,6 +14,173 @@ env:
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
 jobs:
+  dependency-policy:
+    name: Dependency policy (${{ matrix.check }})
+    runs-on: namespace-profile-hogd-linux-2604
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - advisories
+          - licenses
+          - bans
+          - sources
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Check dependency policy
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        env:
+          # 1.85.0 is the Rust already baked into the pinned cargo-deny-action
+          # image (FROM rust:1.85.0-alpine3.20). Setting it stops rustup from
+          # honouring rust-toolchain.toml and pulling other things just to run
+          # `cargo metadata`.
+          RUSTUP_TOOLCHAIN: "1.85.0"
+        with:
+          arguments: --all-features --locked
+          command: check ${{ matrix.check }}
+
+  # Lints the workflow files themselves. actionlint covers correctness
+  # (schema, expression types, cron syntax) and runs shellcheck over `run:`
+  # blocks plus pyflakes over inline Python. zizmor covers security posture.
+  workflow-lint:
+    name: Workflow lint
+    runs-on: namespace-profile-hogd-linux-2604
+    permissions:
+      contents: read
+    env:
+      CARGO_REGISTRIES_GROUNDHOG_TOKEN: "" # we don't need registry access here
+      ACTIONLINT_VERSION: "1.7.12"
+      ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+      ZIZMOR_VERSION: "1.30.1"
+      # zizmor publishes no checksum file; this is the hash of the v1.30.1
+      # linux-gnu tarball as first fetched. It pins us against later
+      # tampering with that asset, but is trust-on-first-use, not provenance.
+      ZIZMOR_SHA256: "e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a"
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      # actionlint shells out to these
+      - name: Install shellcheck and pyflakes
+        run: |
+          set -euo pipefail
+
+          bin="$HOME/.local/bin"
+          mkdir -p "$bin"
+
+          # Probe for the pyflakes *module*, not a console script: Ubuntu's
+          # python3-pyflakes installs no pyflakes/pyflakes3 executable, so a
+          # `command -v` probe reinstalls an already-present package and then
+          # fails the verification below.
+          have_pyflakes() { python3 -c 'import pyflakes' >/dev/null 2>&1; }
+
+          missing=()
+          command -v shellcheck >/dev/null 2>&1 || missing+=(shellcheck)
+          have_pyflakes || missing+=(python3-pyflakes)
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "installing: ${missing[*]}"
+            # A broken third-party list in the runner image must not fail the
+            # whole update; the checks below are the real guard.
+            sudo apt-get update || true
+            sudo apt-get install -y "${missing[@]}"
+          fi
+
+          # Fail loudly rather than let actionlint quietly drop an analysis.
+          command -v shellcheck >/dev/null 2>&1 \
+            || { echo "::error::shellcheck unavailable after install"; exit 1; }
+          have_pyflakes \
+            || { echo "::error::pyflakes module unavailable after install"; exit 1; }
+
+          # actionlint's -pyflakes takes an executable, so provide one when the
+          # distro ships only the module. GITHUB_PATH applies to later steps.
+          if ! command -v pyflakes >/dev/null 2>&1; then
+            printf '#!/bin/sh\nexec python3 -m pyflakes "$@"\n' > "$bin/pyflakes"
+            chmod +x "$bin/pyflakes"
+            echo "$bin" >> "$GITHUB_PATH"
+          fi
+
+          shellcheck --version | head -2
+          python3 -m pyflakes --version
+
+      - name: Install actionlint and zizmor
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          bin="$HOME/.local/bin"
+          mkdir -p "$bin"
+
+          curl -fsSL -o "$tmp/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $tmp/actionlint.tar.gz" | sha256sum -c -
+          tar -xzf "$tmp/actionlint.tar.gz" -C "$tmp" actionlint
+
+          curl -fsSL -o "$tmp/zizmor.tar.gz" \
+            "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSION}/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZIZMOR_SHA256}  $tmp/zizmor.tar.gz" | sha256sum -c -
+          tar -xzf "$tmp/zizmor.tar.gz" -C "$tmp" zizmor
+
+          install -m755 "$tmp/actionlint" "$tmp/zizmor" "$bin/"
+          echo "$bin" >> "$GITHUB_PATH"
+          "$bin/actionlint" --version
+          "$bin/zizmor" --version
+
+      # Covers correctness (schema, expression types, cron syntax). Runs
+      # shellcheck and pyflakes over inline code.
+      # actionlint's pyflakes integration only covers steps declaring
+      # `shell: python`; a helper script invoked from a bash `run:` block is
+      # invisible to it. Lint those directly. pyflakes reports syntax errors
+      # as well as undefined names, so this covers both.
+      - name: Lint workflow helper scripts
+        run: |
+          set -euo pipefail
+          # Module form: no dependence on a console script existing.
+          if compgen -G '.github/scripts/*.py' >/dev/null; then
+            python3 -m pyflakes .github/scripts/*.py
+            echo "helper scripts clean"
+          else
+            echo "no helper scripts to lint"
+          fi
+
+      - name: actionlint
+        run: |
+          set -euo pipefail
+          # No `|| true`: if this does not resolve, the assignment fails under
+          # `set -e` and the job stops. Passing an empty -pyflakes would
+          # disable Python analysis silently, which is the bug this avoids.
+          # The install step guarantees a `pyflakes` executable, real or shim.
+          pyflakes_bin="$(command -v pyflakes)"
+          actionlint -color -pyflakes "$pyflakes_bin"
+
+      # Blocking. GH_TOKEN lets zizmor run impostor-commit and
+      # known-vulnerable-actions.
+      - name: zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          inputs=(.github/workflows/)
+          if [ -d .github/actions ]; then inputs+=(.github/actions/); fi
+          zizmor --no-progress "${inputs[@]}"
+
+      # Advisory only. The pedantic persona adds process-hygiene audits
+      # (concurrency-limits, undocumented-permissions, anonymous-definition)
+      # plus stale-action-refs, which flags a SHA pin that no longer points at
+      # any tag. Useful signal, not a reason to block a PR.
+      - name: zizmor (pedantic, advisory)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          inputs=(.github/workflows/)
+          if [ -d .github/actions ]; then inputs+=(.github/actions/); fi
+          zizmor --no-progress --persona=pedantic "${inputs[@]}"
+
   build:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: build (${{ matrix.name }})
@@ -67,7 +234,7 @@ jobs:
       # Loaded before checkout so the recursive submodule fetch (which uses
       # SSH remotes) can authenticate. Only the entry that initializes
       # submodules needs it.
-      - uses: webfactory/ssh-agent@v0.10.0
+      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         if: matrix.submodules
         with:
           ssh-private-key: |
@@ -91,7 +258,7 @@ jobs:
             ${{ secrets.SDK_TO_SCP_KEY }}
 
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Initialize submodules
         if: matrix.submodules
@@ -103,10 +270,10 @@ jobs:
       # I/O-wait, not compute). Building target/ on the runner's local disk and
       # eating a cold compile is faster than an I/O-starved "incremental" build.
       # We still cache the dependency *sources* (read-mostly, few large files)
-      # so we don't re-fetch every crate from groundhog.dev, plus the one-shot
+      # so we don't re-fetch every crate from the registry, plus the one-shot
       # FFI download and the compiled groundhog CLI.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry
@@ -145,7 +312,7 @@ jobs:
     steps:
       # Needed both for the submodule fetch and for metrics.sh's push to
       # metrics_history (SDK_TO_METRICS_HISTORY).
-      - uses: webfactory/ssh-agent@v0.10.0
+      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: |
             ${{ secrets.HOGD_ACCESS_KEY }}
@@ -168,13 +335,13 @@ jobs:
             ${{ secrets.SDK_TO_SCP_KEY }}
 
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Initialize submodules
         run: git submodule update --init --recursive
 
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry

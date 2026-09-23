@@ -1,6 +1,6 @@
 [package]
 name = "groundhog-access-control-if"
-version = "0.1.31"
+version = "0.1.34"
 edition.workspace = true
 publish.workspace = true
 authors = ["Groundhog Team"]
@@ -12,11 +12,11 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 dev = ["sdk/dev", "dep:thiserror"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.34.4" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.36.1" }
 thiserror = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.34.4", features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.36.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

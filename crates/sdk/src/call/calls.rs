@@ -17,7 +17,7 @@ use crate::{AuthHandleBuf, sys};
 /// `on_exn` runs while the abort bytes are still borrowed from the call
 /// scratch: [`RawExceptionRef::payload`] is a plain slice, valid exactly for
 /// the closure. Decode it into owned typed errors (zero-copy),
-/// [`RawExceptionRef::re_throw`] it (zero-copy), or
+/// re-throw it (zero-copy, via [`ReThrow`](crate::ReThrow)), or
 /// [`RawExceptionRef::to_owned`] it (one copy) — whatever `X` the closure
 /// returns is what escapes.
 ///

@@ -26,9 +26,11 @@
 //!
 //! [`SCRATCH_MAX`]: crate::internal::SCRATCH_MAX
 
-use crate::call::contract_call_decode_exn_prefix;
-use crate::exn::{CallingError, Exn, FaultString, LibraryExn};
+use crate::exn::Exn;
+#[cfg(feature = "alloc")]
+use crate::exn::{CallingError, FaultString, LibraryExn};
 use crate::xdr::*;
+use groundhog_exn::RawExceptionRef;
 
 /// The protocol caps a child frame's return/abort payload at
 /// `kMaxReturnBufferLen`; the no-alloc call scratch (and `RawException`'s
@@ -41,135 +43,29 @@ const _: () = assert!(
         <= crate::internal::SCRATCH_MAX
 );
 
-/// A raw exception received from a contract call, borrowed from the call
-/// scratch. Only exists inside the `on_exn` dispatch closure of
-/// [`try_call_raw_with`](crate::call::try_call_raw_with) — the borrow ends
-/// with the closure, so it can never be observed stale. To keep it past the
-/// call, [`to_owned`](Self::to_owned) copies it into an owned
-/// [`RawException`].
-///
-/// `Copy`: all three fields are, and [`MatchExn`](crate::exn::MatchExn) hands
-/// out reborrows of it. Covariance in `'s` makes a copy usable at any shorter
-/// lifetime.
-#[derive(Clone, Copy)]
-pub struct RawExceptionRef<'s> {
-    selector: u64,
-    /// Full verbatim abort wire bytes: `[CXS(selector)][payload]`.
-    wire: &'s [u8],
-    payload_start: usize,
-}
-
-/// Parse `[CXS(selector)][payload bytes...]`, returning the selector and the
-/// payload's start offset.
-pub(super) fn parse_abort_prefix(
-    bytes: &[u8],
-) -> Result<(u64, usize), LibraryExn> {
-    let mut reader = cxs::buf_reader::BufReader::new(bytes);
-    let selector: u64 = ReadXDR::read_xdr(&mut reader).map_err(|e| {
-        LibraryExn::Calling(CallingError::DecodingException(
-            FaultString::from_display(e),
-        ))
-    })?;
-    Ok((selector, bytes.len() - reader.remaining_slice().len()))
-}
-
-impl<'s> RawExceptionRef<'s> {
-    pub(crate) fn parse(wire: &'s [u8]) -> Result<Self, LibraryExn> {
-        let (selector, payload_start) = parse_abort_prefix(wire)?;
-        Ok(Self {
-            selector,
-            wire,
-            payload_start,
-        })
-    }
-
-    pub fn selector(&self) -> u64 {
-        self.selector
-    }
-
-    pub fn payload(&self) -> &'s [u8] {
-        &self.wire[self.payload_start..]
-    }
-
-    /// Decode as `T` if the selector matches, `None` otherwise.
-    ///
-    /// `None` covers two different situations — a selector belonging to some
-    /// other type, and this type's selector over a payload that will not
-    /// decode. Use [`try_decode`](Self::try_decode) when they need telling
-    /// apart.
-    ///
-    /// `T` must contain no [`Signed`](crate::signer::Signed): abort frames
-    /// carry no auth-token handles, so one would decode to the
-    /// uninitialized `u32::MAX` sentinel — a value shaped like an auth
-    /// token that faults on use. Nothing is checked here; spec
-    /// canonicalization rejects such a payload when the contract is built.
-    pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
-        // Defined in terms of `try_decode` so the two cannot drift on which
-        // payloads they accept.
-        self.try_decode().and_then(|decoded| decoded.ok())
-    }
-
-    /// [`try_as`](Self::try_as) with the decode failure kept separate from
-    /// the selector mismatch:
-    ///
-    /// - `None` — the selector belongs to some other exception type.
-    /// - `Some(Ok(t))` — the selector matched and the payload decoded.
-    /// - `Some(Err(e))` — the selector matched, but the payload does not
-    ///   decode as `T`.
-    ///
-    /// The third case is not only a forged or truncated payload. An
-    /// exception's selector is `sha256(major_version :: crate :: type)` and
-    /// says nothing about the payload's layout, so a callee that adds an
-    /// enum variant — a semver-compatible change that leaves the selector
-    /// untouched — throws something an older caller cannot decode. Since
-    /// [`try_as`] reports that as `None`, indistinguishable from an
-    /// unrelated error type, a caller that must not confuse the two should
-    /// reach for this instead.
-    ///
-    /// Note that decoding reads a *prefix*: a payload carrying extra
-    /// trailing bytes decodes as the shorter shape and is reported as
-    /// `Some(Ok(..))`. Appending a field is therefore accepted silently
-    /// rather than surfacing here.
-    ///
-    /// [`try_as`]: Self::try_as
-    pub fn try_decode<T: Exn + ReadXDROwned>(
-        &self,
-    ) -> Option<Result<T, ReadError>> {
-        if self.selector == T::SELECTOR {
-            Some(contract_call_decode_exn_prefix(self.payload()))
-        } else {
-            None
-        }
-    }
-
-    /// Re-throw to our caller: abort with the original wire bytes, verbatim.
-    /// Zero-copy — this is what plain (non-`try_`) generated methods do.
+/// Re-throw to our caller: abort with the original wire bytes, verbatim.
+/// Zero-copy; this is what plain (non-`try_`) generated methods do.
+impl crate::re_throw::ReThrow for RawExceptionRef<'_> {
     #[inline]
     #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
-    pub fn re_throw(&self) -> ! {
+    fn re_throw(self) -> ! {
         #[cfg(all(not(target_arch = "riscv32"), feature = "std"))]
-        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", self);
+        crate::contract_op::abort_breadcrumb("Re-throwing", "Location", &self);
 
-        crate::contract_op::contract_abort(self.wire)
-    }
-
-    /// Detach into an owned [`RawException`] (one copy). Any number may
-    /// be live at once; without `alloc` each value carries its own fixed
-    /// SCRATCH_MAX-capacity buffer.
-    pub fn to_owned(&self) -> RawException {
-        RawException::own_wire(self)
+        crate::contract_op::contract_abort(self.wire())
     }
 }
 
-impl core::fmt::Debug for RawExceptionRef<'_> {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        fmt_exn(f, "RawExceptionRef", self.selector, self.payload())
+/// What [`RawExceptionRef::to_owned`] produces: one copy. Any number may
+/// be live at once; without `alloc` each value carries its own fixed
+/// SCRATCH_MAX-capacity buffer.
+impl From<RawExceptionRef<'_>> for RawException {
+    fn from(exn: RawExceptionRef<'_>) -> Self {
+        RawException::own_wire(&exn)
     }
 }
 
-/// Shared `Debug` body for [`RawExceptionRef`] and [`RawException`]: same
-/// shape and fields, differing only in the type name and how the payload
-/// bytes are reached.
+/// `Debug` body for [`RawException`], mirroring [`RawExceptionRef`]'s.
 fn fmt_exn(
     f: &mut core::fmt::Formatter,
     name: &str,
@@ -211,11 +107,11 @@ impl RawException {
     /// storage, carrying over its already-parsed `selector`/`payload_start`
     /// so the two stay consistent by construction.
     ///
-    /// Called by [`RawExceptionRef::to_owned`].
-    pub(crate) fn own_wire(exn: &RawExceptionRef<'_>) -> Self {
-        let selector = exn.selector;
-        let payload_start = exn.payload_start;
-        let wire = exn.wire;
+    /// Called by the `From<RawExceptionRef>` impl.
+    fn own_wire(exn: &RawExceptionRef<'_>) -> Self {
+        let selector = exn.selector();
+        let payload_start = exn.payload_start();
+        let wire = exn.wire();
         #[cfg(feature = "alloc")]
         let wire = wire.to_vec();
         #[cfg(not(feature = "alloc"))]
@@ -253,11 +149,11 @@ impl RawException {
     /// share their one implementation with [`RawExceptionRef`] instead of
     /// duplicating it.
     pub(crate) fn as_ref_exn(&self) -> RawExceptionRef<'_> {
-        RawExceptionRef {
-            selector: self.selector,
-            wire: self.wire.as_slice(),
-            payload_start: self.payload_start,
-        }
+        RawExceptionRef::from_parts(
+            self.selector,
+            self.wire.as_slice(),
+            self.payload_start,
+        )
     }
 
     pub fn try_as<T: Exn + ReadXDROwned>(&self) -> Option<T> {
@@ -299,7 +195,12 @@ impl RawException {
     /// exception. Host tests and mock plumbing.
     #[cfg(feature = "alloc")]
     pub fn from_abort_buf(bytes: &[u8]) -> Result<Self, LibraryExn> {
-        Ok(RawExceptionRef::parse(bytes)?.to_owned())
+        let exn = RawExceptionRef::parse(bytes).map_err(|e| {
+            LibraryExn::Calling(CallingError::DecodingException(
+                FaultString::from_display(e),
+            ))
+        })?;
+        Ok(exn.to_owned())
     }
 }
 

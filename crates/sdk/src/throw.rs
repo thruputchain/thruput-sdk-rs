@@ -14,6 +14,16 @@ impl<T, Err> OrThrow<T> for Result<T, Err> {
     }
 }
 
+impl<T> OrThrow<T> for Option<T> {
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
+    fn or_throw<E: crate::Exn>(self, exn: E) -> T {
+        match self {
+            Some(v) => v,
+            None => throw(exn),
+        }
+    }
+}
+
 #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn throw<E>(exn: E) -> !
 where

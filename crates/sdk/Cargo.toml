@@ -24,6 +24,7 @@ doctest = true
 groundhog-macros = { workspace = true }
 groundhog-xdr = { workspace = true }
 groundhog-event = { workspace = true }
+groundhog-exn = { workspace = true }
 groundhog-contract-spec = { workspace = true }
 groundhog-u256 = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }

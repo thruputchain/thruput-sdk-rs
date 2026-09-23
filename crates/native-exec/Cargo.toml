@@ -21,6 +21,7 @@ source-build = ["groundhog-sys/source-build"]
 
 [dependencies]
 groundhog-event = { workspace = true }
+groundhog-exn = { workspace = true }
 groundhog-xdr = { workspace = true, features = ["std", "xdrs", "syscalls_mock"]}
 xdr-common = { workspace = true, features = ["alloc"]}
 hogexec-internal = { workspace = true, features = ["std"] }

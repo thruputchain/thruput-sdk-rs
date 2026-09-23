@@ -8,9 +8,12 @@ pub use groundhog_event::{EmittedEvent, Event, Topic, TopicSrc, TypedEvent};
 
 /// Trait for types that can be converted into an event topic.
 ///
-/// Types that are already 32 bytes (like `ContractAddress`) implement
-/// this as a zero-copy borrow. Other types are XDR-encoded and SHA-256
-/// hashed to produce a 32-byte topic.
+/// `u32`, `u64`, `u128` and `U256` use zero-extended, 32-byte big-endian encoding.
+/// `i32`, `i64`, `i128` and `I256` use sign-extended, 32-byte big-endian encoding.
+/// `bool` uses the same representation for 0 or 1. Other primitive integer types
+/// are not supported as topics.
+/// Byte arrays of length 32, addresses and hashes borrow their bytes directly.
+/// Strings and byte slices are always XDR-encoded and SHA-256 hashed.
 #[diagnostic::on_unimplemented(
     message = "`{Self}` cannot be an event topic",
     // No list of accepted types: the impls are explicit, so rustc prints them
@@ -42,22 +45,22 @@ pub fn hash_to_topic<T: crate::WriteXDR>(val: &T) -> Topic {
     })
 }
 
-// --- IntoTopic impls for common types ---
-// These XDR-encode the value and SHA-256 hash it to produce a 32-byte topic.
-
-macro_rules! impl_into_topic_via_hash {
-    ($($ty:ty),*) => {
+// Widen before encoding to reuse U256/I256's zero/sign extension and byte order.
+macro_rules! impl_into_topic_direct {
+    ($wide:ty; $($ty:ty),*) => {
         $(
             impl IntoTopic for $ty {
                 fn into_topic(&self) -> TopicSrc<'_> {
-                    TopicSrc::Owned(hash_to_topic(self))
+                    let value: $wide = (*self).into();
+                    TopicSrc::Owned(value.to_be_bytes())
                 }
             }
         )*
     };
 }
 
-impl_into_topic_via_hash!(u128, i128, u64, i64, u32, i32, bool);
+impl_into_topic_direct!(crate::U256; u128, u64, u32, bool);
+impl_into_topic_direct!(crate::I256; i128, i64, i32);
 
 impl IntoTopic for str {
     fn into_topic(&self) -> TopicSrc<'_> {
@@ -111,8 +114,8 @@ impl<T: IntoTopic + ?Sized> IntoTopic for &T {
 /// events typically reserve topic 0 for the event signature, leaving up to two
 /// additional user-declared `#[topic]` fields.
 ///
-/// Topic values that are not already 32 bytes wide are XDR-encoded and hashed
-/// before being emitted.
+/// Topic fields use their [`IntoTopic`] representation: supported scalar types
+/// are encoded directly, while strings and byte slices are hashed.
 pub fn log_event<E: Event>(event: &E) {
     let n = E::num_topics();
 

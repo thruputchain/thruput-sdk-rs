@@ -1,0 +1,45 @@
+name: Security Audit
+
+# Push-triggered CI only sees advisories when someone pushes. This job is what
+# catches a new RustSec advisory filed against an already-frozen Cargo.lock:
+# nothing in the repo changes, but our exposure does.
+#
+# Uses cargo-deny (SHA-pinned, same action as ci.yml) rather than installing
+# cargo-audit at runtime: same RustSec advisory database, no unpinned
+# `cargo install` step in a scheduled job, no version drift between runs.
+
+on:
+  schedule:
+    - cron: '30 8 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  audit:
+    name: Advisory scan
+    runs-on: namespace-profile-hogd-linux-2604
+    permissions:
+      contents: read
+      # Needed by the notify step below to file the tracking issue.
+      issues: write
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Advisory scan
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        env:
+          RUSTUP_TOOLCHAIN: "1.85.0" # skip the unneeded repo toolchain
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+          CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+        with:
+          arguments: --all-features --locked
+          command: check advisories
+
+      - name: File tracking issue on failure
+        if: failure() && steps.checkout.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_TITLE: "Dependency advisory scan failing on main"
+        run: python3 .github/scripts/file_advisory_issue.py

@@ -9,14 +9,14 @@ help: the trait `Exn` is not implemented for `NotAnExn`
    |
  6 | pub struct NotAnExn {
    | ^^^^^^^^^^^^^^^^^^^
-   = note: annotate `NotAnExn` with `#[contract_exception]` (or `#[exn]` if you handle your own derives) — `throws = ...` in `#[contract(...)]` requires it
+   = note: annotate `NotAnExn` with `#[contract_exception]` (or `#[exn]` if you handle your own derives); `throws = ...` in `#[contract(...)]` requires it
 help: the following other types implement trait `Exn`
   --> src/exn/library.rs
    |
    | #[groundhog_macros::exn(version = "1.0.0")]
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `LibraryExn`
    |
-  ::: src/exn/mod.rs
+  ::: $WORKSPACE/crates/exn/src/lib.rs
    |
    | impl<T: Exn> Exn for &T {
    | ^^^^^^^^^^^^^^^^^^^^^^^ `&T`

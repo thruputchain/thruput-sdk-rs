@@ -64,7 +64,11 @@ fn failed_return_encode_reports_encoding_success_not_exception() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw_with::<(), (), _>(
+            let err = sdk::call::try_call_raw_with::<
+                (),
+                (),
+                sdk::exn::RawException,
+            >(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
