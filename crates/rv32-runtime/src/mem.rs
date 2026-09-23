@@ -41,11 +41,15 @@ use core::mem::MaybeUninit;
 /// syscall with unspecified overlap semantics) must first stop `move_any`
 /// from delegating overlaps here.
 #[inline(always)]
-unsafe fn copy_forward(dst: *mut u8, src: *const u8, n: usize) {
+unsafe fn copy_forward(
+    dst: *mut MaybeUninit<u8>,
+    src: *const MaybeUninit<u8>,
+    n: usize,
+) {
     unsafe {
         // Copies must preserve uninitialized bytes, including struct padding.
-        let mut d = dst.cast::<MaybeUninit<u8>>();
-        let mut s = src.cast::<MaybeUninit<u8>>();
+        let mut d = dst;
+        let mut s = src;
         let word_end = d.add(n & !3);
         while d < word_end {
             d.cast::<MaybeUninit<u32>>().write_unaligned(
@@ -54,7 +58,7 @@ unsafe fn copy_forward(dst: *mut u8, src: *const u8, n: usize) {
             d = d.add(4);
             s = s.add(4);
         }
-        let end = dst.cast::<MaybeUninit<u8>>().add(n);
+        let end = dst.add(n);
         while d < end {
             *d = *s;
             d = d.add(1);
@@ -68,10 +72,12 @@ unsafe fn copy_forward(dst: *mut u8, src: *const u8, n: usize) {
 /// form costs a 6-insn word loop — LLVM recomputes dst+i and src+i every
 /// iteration instead of decrementing the pointers.
 #[inline(always)]
-unsafe fn copy_backward(dst: *mut u8, src: *const u8, n: usize) {
+unsafe fn copy_backward(
+    dst: *mut MaybeUninit<u8>,
+    src: *const MaybeUninit<u8>,
+    n: usize,
+) {
     unsafe {
-        let dst = dst.cast::<MaybeUninit<u8>>();
-        let src = src.cast::<MaybeUninit<u8>>();
         let mut d = dst.add(n);
         let mut s = src.add(n);
         let word_stop = dst.add(n & 3);
@@ -92,7 +98,11 @@ unsafe fn copy_backward(dst: *mut u8, src: *const u8, n: usize) {
 
 /// Overlap-safe copy: direction dispatch shared by `memmove` and the tests.
 #[inline(always)]
-unsafe fn move_any(dst: *mut u8, src: *const u8, n: usize) {
+unsafe fn move_any(
+    dst: *mut MaybeUninit<u8>,
+    src: *const MaybeUninit<u8>,
+    n: usize,
+) {
     unsafe {
         if (dst as usize) <= (src as usize) {
             // Covers dst == src and every forward-safe overlap (ascending
@@ -142,7 +152,7 @@ unsafe extern "C" fn memcpy(
     src: *const core::ffi::c_void,
     n: usize,
 ) -> *mut core::ffi::c_void {
-    unsafe { copy_forward(dst.cast::<u8>(), src.cast::<u8>(), n) };
+    unsafe { copy_forward(dst.cast(), src.cast(), n) };
     dst
 }
 
@@ -155,7 +165,7 @@ unsafe extern "C" fn memmove(
     src: *const core::ffi::c_void,
     n: usize,
 ) -> *mut core::ffi::c_void {
-    unsafe { move_any(dst.cast::<u8>(), src.cast::<u8>(), n) };
+    unsafe { move_any(dst.cast(), src.cast(), n) };
     dst
 }
 
@@ -190,11 +200,7 @@ mod tests {
                 }
                 let mut dst = [MaybeUninit::new(0xCCu8); 11];
                 unsafe {
-                    copy(
-                        dst.as_mut_ptr().add(1).cast(),
-                        src.as_ptr().cast(),
-                        n,
-                    );
+                    copy(dst.as_mut_ptr().add(1), src.as_ptr(), n);
                     for i in (1..n).step_by(2) {
                         assert_eq!(dst[i + 1].assume_init(), i as u8);
                     }
@@ -216,7 +222,7 @@ mod tests {
                     for i in (1..buf.len()).step_by(2) {
                         buf[i].write(i as u8);
                     }
-                    let ptr = buf.as_mut_ptr().cast::<u8>();
+                    let ptr = buf.as_mut_ptr();
                     unsafe {
                         move_any(ptr.add(dst), ptr.add(src), n);
                         for i in 0..n {
@@ -238,7 +244,9 @@ mod tests {
         for n in LENS {
             let src: Vec<u8> = (10..19).collect();
             let mut dst = vec![0u8; 9];
-            unsafe { copy_forward(dst.as_mut_ptr(), src.as_ptr(), n) };
+            unsafe {
+                copy_forward(dst.as_mut_ptr().cast(), src.as_ptr().cast(), n)
+            };
             assert_eq!(&dst[..n], &src[..n], "n={n}");
             assert!(dst[n..].iter().all(|&b| b == 0), "n={n} wrote past end");
         }
@@ -249,7 +257,9 @@ mod tests {
         for n in LENS {
             let src: Vec<u8> = (10..19).collect();
             let mut dst = vec![0u8; 9];
-            unsafe { copy_backward(dst.as_mut_ptr(), src.as_ptr(), n) };
+            unsafe {
+                copy_backward(dst.as_mut_ptr().cast(), src.as_ptr().cast(), n)
+            };
             assert_eq!(&dst[..n], &src[..n], "n={n}");
             assert!(dst[n..].iter().all(|&b| b == 0), "n={n} wrote past end");
         }
@@ -262,7 +272,7 @@ mod tests {
             for n in LENS {
                 let mut buf: Vec<u8> = (0..(n + k) as u8).collect();
                 let want: Vec<u8> = buf[k..k + n].to_vec();
-                let ptr = buf.as_mut_ptr();
+                let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
                 unsafe { move_any(ptr, ptr.add(k), n) };
                 assert_eq!(&buf[..n], &want[..], "k={k} n={n}");
             }
@@ -276,7 +286,7 @@ mod tests {
             for n in LENS {
                 let mut buf: Vec<u8> = (0..(n + k) as u8).collect();
                 let want: Vec<u8> = buf[..n].to_vec();
-                let ptr = buf.as_mut_ptr();
+                let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
                 unsafe { move_any(ptr.add(k), ptr, n) };
                 assert_eq!(&buf[k..k + n], &want[..], "k={k} n={n}");
             }
@@ -288,7 +298,7 @@ mod tests {
         for n in LENS {
             let mut buf: Vec<u8> = (0..9).collect();
             let want = buf.clone();
-            let ptr = buf.as_mut_ptr();
+            let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
             unsafe { move_any(ptr, ptr, n) };
             assert_eq!(buf, want, "n={n}");
         }
