@@ -17,6 +17,10 @@ env:
   CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
+# No job here uses GITHUB_TOKEN; read is all they need.
+permissions:
+  contents: read
+
 jobs:
   scaffold-smoke:
     runs-on: namespace-profile-hogd-linux-2604
