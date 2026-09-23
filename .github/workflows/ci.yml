@@ -33,7 +33,13 @@ jobs:
       contents: read
     uses: groundhogchain/actions/.github/workflows/workflow-lint.yml@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51
 
+  # Gated on dependency-policy: cargo-deny inspects the graph without
+  # compiling it, so these run only once the dependencies are known
+  # good. Otherwise every dependency's build scripts and proc-macros
+  # execute here, with these jobs' secrets in scope, while the check
+  # that might object is still running.
   build:
+    needs: dependency-policy
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: build (${{ matrix.name }})
     strategy:
@@ -155,6 +161,7 @@ jobs:
   # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize
   # metrics read the rv32 release ELFs and target/groundhog).
   metrics:
+    needs: dependency-policy
     if: github.ref == 'refs/heads/main'
     runs-on: namespace-profile-hogd-linux-2604
     env:
