@@ -1,5 +1,6 @@
 use groundhog_contract_spec::{
-    ContractExceptionType, ContractType, ContractTypeDef, SpecFragmentView,
+    ContractExceptionType, ContractType, ContractTypeDef, ContractTypeName,
+    SpecFragmentView,
 };
 use std::io::{self, Write};
 use xdrs::txs;
@@ -17,6 +18,9 @@ pub struct DescribableType {
     pub major_version: &'static str,
     pub selector: u64,
     pub fragments: &'static [SpecFragmentView<'static>],
+    /// The id of the root type among `fragments`, taken from the type's own
+    /// [`ContractTypeName`] rather than spelled out, so it is whatever that
+    /// type calls itself and cannot skew from the def in `fragments`.
     pub root: &'static str,
 }
 
@@ -55,7 +59,7 @@ pub const REGISTRY: &[DescribableType] = &[
         major_version: "1",
         selector: <sdk::exn::LibraryExn as sdk::exn::Exn>::SELECTOR,
         fragments: LIBRARY_EXN_FRAGMENTS,
-        root: "LibraryExn",
+        root: <sdk::exn::LibraryExn as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20Error",
@@ -63,7 +67,7 @@ pub const REGISTRY: &[DescribableType] = &[
         major_version: "0.1",
         selector: <groundhog_erc20_if::ERC20Error as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_ERROR_FRAGMENTS,
-        root: "ERC20Error",
+        root: <groundhog_erc20_if::ERC20Error as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20PausableError",
@@ -72,7 +76,7 @@ pub const REGISTRY: &[DescribableType] = &[
         selector: <groundhog_erc20_pausable_if::ERC20PausableError
             as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PAUSABLE_ERROR_FRAGMENTS,
-        root: "ERC20PausableError",
+        root: <groundhog_erc20_pausable_if::ERC20PausableError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "AccessControlError",
@@ -81,7 +85,7 @@ pub const REGISTRY: &[DescribableType] = &[
         selector: <groundhog_access_control_if::AccessControlError
             as sdk::exn::Exn>::SELECTOR,
         fragments: ACCESS_CONTROL_ERROR_FRAGMENTS,
-        root: "AccessControlError",
+        root: <groundhog_access_control_if::AccessControlError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "SignedOpError",
@@ -90,7 +94,7 @@ pub const REGISTRY: &[DescribableType] = &[
         selector:
             <groundhog_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
         fragments: SIGNED_OP_ERROR_FRAGMENTS,
-        root: "SignedOpError",
+        root: <groundhog_signed_op_if::SignedOpError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20PermitError",
@@ -99,7 +103,7 @@ pub const REGISTRY: &[DescribableType] = &[
         selector:
             <groundhog_erc20_permit_if::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PERMIT_ERROR_FRAGMENTS,
-        root: "ERC20PermitError",
+        root: <groundhog_erc20_permit_if::ERC20PermitError as ContractTypeName>::NAME,
     },
 ];
 

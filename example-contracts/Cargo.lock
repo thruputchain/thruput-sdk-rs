@@ -234,6 +234,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dup_name_if_a"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
+name = "dup_name_if_b"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1292,6 +1306,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "spec_name_reuse"
+version = "0.4.0"
+dependencies = [
+ "dup_name_if_a",
+ "dup_name_if_b",
+ "sdk",
+ "spec_name_reuse",
+]
+
+[[package]]
 name = "spec_named_types"
 version = "0.4.0"
 dependencies = [
@@ -1398,11 +1422,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "typedef_collision_reachable"
+name = "typedef_ids_coexist"
 version = "0.4.0"
 dependencies = [
  "sdk",
- "typedef_collision_reachable",
+ "typedef_ids_coexist",
  "typedef_shaking_if_v1",
  "typedef_shaking_if_v2",
 ]

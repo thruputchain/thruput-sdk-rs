@@ -169,6 +169,8 @@ fn expand_contract_type_name(
         &crate::common::contract::sdk_crate_path(),
         ident,
         args.name.as_deref(),
+        // `#[contract_type]` declares no version of its own; the crate's it is.
+        None,
     )
 }
 

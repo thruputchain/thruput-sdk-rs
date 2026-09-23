@@ -1,0 +1,27 @@
+[workspace]
+resolver = "3"
+members = [
+    "typedef_id_collision",
+    "event_signature_collision",
+]
+
+# Contract fixtures that must FAIL, kept out of example-contracts because that
+# workspace is for contracts that build and run. Each fixture here builds on
+# the host — what must fail is a later stage (spec canonicalization, the rv32
+# link), so the check that owns a fixture builds it by name and asserts the
+# error. A fixture whose HOST build must fail cannot be a member here; make it
+# a standalone workspace root instead, as example-contracts/dup_entrypoint_neg
+# is.
+[workspace.package]
+version = "0.4.0"
+authors = ["Groundhog Team"]
+license = "Apache-2.0"
+publish = ["groundhog"]
+repository = "https://github.com/groundhogchain/sdk_rs"
+homepage = "https://github.com/groundhogchain/sdk_rs"
+keywords = ["groundhog"]
+categories = ["blockchain"]
+edition = "2024"
+
+[workspace.dependencies]
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.36.1" }

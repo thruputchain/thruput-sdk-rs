@@ -5,8 +5,9 @@ description: Use when bumping crate versions, releasing, or updating dependency 
 
 # Bump Version
 
-Bump the workspace and update all pinned dependency references across the six
-workspaces and their six lockfiles.
+Bump the workspace and update all pinned dependency references across every
+workspace in the repo and its lockfile. The tool discovers those by walking the
+tree, so a workspace added later is picked up without touching any list.
 
 ## This is automated — use the tool
 
@@ -19,6 +20,28 @@ cargo run -p version-check -- bump patch              # patch-bump the SDK
 cargo run -p version-check -- bump breaking           # semver-incompatible SDK bump
 cargo run -p version-check -- bump --protocol 0.21.0  # move protocol-rs
 ```
+
+## Repairing a workspace a release passed by
+
+`bump` refuses to run on a repository that already disagrees with itself, so it
+is no help when the disagreement is what you are trying to fix. That is what
+`sync` is for:
+
+```bash
+cargo run -p version-check -- sync
+```
+
+It repoints every in-repo pin at the version its package already declares and
+regenerates the lockfiles, moving no version line. A requirement that is still
+satisfied is left alone, so the deliberately-caret `sdk` pins under
+`standard-interfaces/` keep naming the start of their series.
+
+Reach for it after merging the default branch into a long-lived branch that
+**adds a workspace**. A release sweeps every workspace it can see, but a
+directory that exists only on your branch was never in the release's checkout,
+so its pin and lockfile stay on the old version. Git reports no conflict --
+the file is new on one side only -- and the first sign of trouble is
+`version-check` failing in CI.
 
 It requires no uncommitted changes to tracked files (untracked files are fine),
 verifies the repo is self-consistent *before* touching anything, rewrites every
@@ -121,7 +144,9 @@ reported like any other rather than waiting to surface at build time.
 
 ### 5. Lockfiles
 
-Six workspaces, six lockfiles. `cargo update --workspace` against each:
+One lockfile per workspace. The tool finds them by walking the tree, so trust
+the count `version-check` prints over the list below, which has drifted before.
+`cargo update --workspace` against each:
 
 ```bash
 cargo update --workspace                                                          # root

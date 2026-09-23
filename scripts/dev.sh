@@ -26,8 +26,8 @@ LOWERED="${TARGET_DIR}/groundhog"
 # IS the rv32 enablement.
 #
 # The `disabled` marker is what keeps the negative fixtures
-# (missing_contract_macro, typedef_collision_reachable, iface_conflict_impl,
-# dup_entrypoint_neg) and bigint-bench-contract out of this loop: they carry
+# (missing_contract_macro, iface_conflict_impl, dup_entrypoint_neg) and
+# bigint-bench-contract out of this loop: they carry
 # bins too, but must never be built here expecting success. The checks that
 # own them build them by name.
 #
@@ -247,34 +247,83 @@ eg_build_rv32_all() {
     check_rv32_contract_spec_artifacts &&
     check_rv32_typedef_conflict_detected &&
     check_rv32_iface_conflict_detected &&
+    check_rv32_event_signature_pending_cli &&
     check_rv32_missing_entrypoints_detected &&
     check_rv32_duplicate_entrypoint_detected
 }
 
-# Negative spec fixture: typedef_collision_reachable implements MarketV1
-# (anchoring it, so v1's SharedConfig is reachable from the retained spec)
-# while also linking typedef_shaking_if_v2, whose unimplemented candidate
-# contributes a differently-shaped SharedConfig def. The ELF links; the spec
+# Negative spec fixture: typedef_id_collision points two declarations in one
+# module at one spec id (`Decoy` takes `Colliding`'s via `name = "..."`) with
+# different shapes, and keeps both reachable. The ELF links; the spec
 # canonicalization the CLI runs during lowering must FAIL with a typedef
-# conflict — pinning that the reachable-conflict error survived the
-# unreachable-conflict relaxation. The crate carries a `disabled` marker so
-# the rv32 build loop never builds it expecting success.
+# conflict.
+#
+# Qualifying type names stopped same-simple-name types from colliding — see
+# typedef_ids_coexist, which used to fail here and must now build — so this
+# pins the half that must NOT relax: a genuine disagreement, two shapes
+# claiming one id, is still ambiguous and must still be refused. The crate
+# lives in negative-contracts/, a separate config chain from
+# example-contracts/, which is for contracts that build and run.
 check_rv32_typedef_conflict_detected() {
     info "CHECK-RV32-SPEC-CONFLICT-DETECTED"
 
     local out
     if out=$( (
-        cd "${SDK_DIR}/example-contracts" &&
-        groundhog build -p typedef_collision_reachable
+        cd "${SDK_DIR}/negative-contracts" &&
+        groundhog build -p typedef_id_collision
     ) 2>&1); then
-        fail "Expected the rv32 build of typedef_collision_reachable to fail with a typedef conflict, but it succeeded"
+        fail "Expected the rv32 build of typedef_id_collision to fail with a typedef conflict, but it succeeded"
         return 1
     fi
-    echo "$out" | rg -F --quiet \
-        "conflicting contract type definitions for SharedConfig" || {
-        fail "Expected a SharedConfig typedef conflict from typedef_collision_reachable, got: $out"
+    # The message names the id, whose crate and version segments move with
+    # every release, so match the part that identifies the conflict.
+    echo "$out" | rg --quiet \
+        "conflicting contract type definitions for .*::Colliding" || {
+        fail "Expected a Colliding typedef conflict from typedef_id_collision, got: $out"
         return 1
     }
+}
+
+# Pending fixture: event_signature_collision declares one event ident in two of
+# its own modules and emits both, so the two events have distinct spec ids and
+# one signature — topic 0, and all a consumer has to tell them apart on the
+# wire. canonicalize_spec rejects that (ConflictingEventSignature, covered by
+# retained_events_sharing_a_signature_are_rejected).
+#
+# But this pipeline canonicalizes with the PINNED CLI's embedded spec-tool,
+# installed from the registry at $GROUNDHOG_CLI_VERSION — not the workspace
+# one. A rule added here cannot reach it until a CLI carrying it is released,
+# so for now the build succeeds and this asserts that, rather than asserting a
+# rejection the pinned CLI cannot make.
+#
+# It is written to go off when that changes: once the CLI has the rule the
+# build starts failing, this check fails, and whoever bumps
+# GROUNDHOG_CLI_VERSION flips it to expect the conflict — the assertion the
+# commented body below already spells out. The same constraint applies to any
+# new spec-tool rule; the neighbouring conflict checks only work because their
+# rules predate the pin.
+check_rv32_event_signature_pending_cli() {
+    info "CHECK-RV32-EVENT-SIGNATURE-PENDING-CLI"
+
+    local out
+    if ! out=$( (
+        cd "${SDK_DIR}/negative-contracts" &&
+        groundhog build -p event_signature_collision
+    ) 2>&1); then
+        # Flip to the assertion below when this fires:
+        #
+        #   echo "$out" | rg --quiet \
+        #       "events share an event signature: .*::ledger::Updated" || {
+        #       fail "Expected an Updated event signature conflict, got: $out"
+        #       return 1
+        #   }
+        fail "event_signature_collision now fails to build — the pinned CLI \
+(${GROUNDHOG_CLI_VERSION:-see scripts/groundhog-cli-version.sh}) has gained \
+the event-signature rule. Flip \
+check_rv32_event_signature_pending_cli to assert the conflict; the build \
+output was: $out"
+        return 1
+    fi
 }
 
 # Negative spec fixture: iface_conflict_impl implements iface_conflict_if_a's
@@ -437,6 +486,37 @@ assert_file_lacks() {
     fi
 }
 
+assert_file_matches() {
+    local path
+    path="$1"; shift
+    local pattern
+    pattern="$1"; shift
+
+    rg --quiet "$pattern" "$path" || {
+        fail "Expected $path to match $pattern"
+        return 1
+    }
+}
+
+# Every user-defined thing the spec names — a type, an exception, an event —
+# is named by its id (`CRATE@MAJOR::module::path::Name`), so these assert on
+# the declared name at the end of an id rather than on a whole one: the crate
+# and version segments move with every release and are not what any of these
+# checks are about. Interface, method and argument names are NOT ids; assert
+# on those with the plain helpers.
+#
+# The leading `::` is load-bearing in both directions: it stops `Payload` from
+# matching `AdoptedPayload`, and it is why the `lacks` form still bites — a
+# bare `"name":"OrphanPayload"` needle would match nothing now and pass
+# whether or not the type was shaken.
+assert_file_contains_id() {
+    assert_file_contains "$1" "::$2\""
+}
+
+assert_file_lacks_id() {
+    assert_file_lacks "$1" "::$2\""
+}
+
 # Spec content must not reach the deployed .rv32a memory image. Raw fragments
 # live in the ELF's groundhogspecraw* section (where the CLI reads them); the
 # lowerer must not copy them into the image, and rv32 has no embedded final spec
@@ -481,7 +561,8 @@ check_rv32_contract_spec_artifacts() {
     # typedef shaking (both directions covered by a single fixture).
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
-    local erc20_json signer_callee_json signed_op_wallet_json
+    local erc20_json signer_callee_json signed_op_wallet_json coexist_json
+    local name_reuse_json
     local phantom_method_json prerelease_json trait_sourced_json
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
@@ -497,13 +578,15 @@ check_rv32_contract_spec_artifacts() {
     phantom_method_json="${groundhog_dir}/phantom_method_impl.spec.json"
     prerelease_json="${groundhog_dir}/prerelease_version.spec.json"
     trait_sourced_json="${groundhog_dir}/trait_sourced_method_spec.spec.json"
+    coexist_json="${groundhog_dir}/typedef_ids_coexist.spec.json"
+    name_reuse_json="${groundhog_dir}/spec_name_reuse.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
     assert_file_contains "$free_fn_json" '"version":"0.4.0"' &&
 
     assert_file_contains "$imported_json" '"name":"ImportedErrorCallee"' &&
-    assert_file_contains "$imported_json" '"ImportedError"' &&
+    assert_file_contains_id "$imported_json" ImportedError &&
 
     assert_file_contains "$multi_json" '"name":"ExplicitNamedInterface"' &&
     assert_file_contains "$multi_json" '"name":"VersionedCallee"' &&
@@ -511,17 +594,17 @@ check_rv32_contract_spec_artifacts() {
 
     assert_file_contains "$spec_named_json" '"type_defs":[' &&
     assert_file_contains "$spec_named_json" '"name":"SpecNamedTypesContract"' &&
-    assert_file_contains "$spec_named_json" '"Payload"' &&
-    assert_file_contains "$spec_named_json" '"Choice"' &&
-    assert_file_contains "$spec_named_json" '"Envelope"' &&
+    assert_file_contains_id "$spec_named_json" Payload &&
+    assert_file_contains_id "$spec_named_json" Choice &&
+    assert_file_contains_id "$spec_named_json" Envelope &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob"' &&
     assert_file_contains "$spec_named_json" '"kind":"vec","element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
     assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
-    assert_file_contains "$spec_named_json" '"name":"PayloadEvent"' &&
-    assert_file_contains "$spec_named_json" '"name":"AuditEvent"' &&
-    assert_file_lacks "$spec_named_json" '"name":"GhostEvent"' &&
+    assert_file_contains_id "$spec_named_json" PayloadEvent &&
+    assert_file_contains_id "$spec_named_json" AuditEvent &&
+    assert_file_lacks_id "$spec_named_json" GhostEvent &&
     assert_file_lacks "$spec_named_json" '"name":"UnimplementedInterface"' &&
 
     # Phantom-method shaking: phantom_method_impl implements A's Ledger
@@ -534,7 +617,7 @@ check_rv32_contract_spec_artifacts() {
     assert_file_contains "$phantom_method_json" '"name":"ping"' &&
     assert_file_lacks "$phantom_method_json" '"name":"steal"' &&
     assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
-    assert_file_lacks "$phantom_method_json" '"name":"LootConfig"' &&
+    assert_file_lacks_id "$phantom_method_json" LootConfig &&
 
     # Method specs are sourced from the `#[contract]` trait, never from the
     # impl's own signatures. trait_sourced_method_spec's impl renames every
@@ -570,8 +653,8 @@ check_rv32_contract_spec_artifacts() {
     fi &&
 
     assert_file_contains "$erc20_json" '"events":[' &&
-    assert_file_contains "$erc20_json" '"name":"TransferEvent"' &&
-    assert_file_contains "$erc20_json" '"name":"ApprovalEvent"' &&
+    assert_file_contains_id "$erc20_json" TransferEvent &&
+    assert_file_contains_id "$erc20_json" ApprovalEvent &&
     assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
 
     # No swap assertions: the swap* contracts are gone. The event coverage they
@@ -585,18 +668,18 @@ check_rv32_contract_spec_artifacts() {
     # `Signed<T>` args/returns spec as signed_token nodes carrying the
     # preimage type (they consume no calldata bytes), never as u32 handles;
     # `Signed<Opaque>` is an erased (null) preimage.
-    assert_file_contains "$signer_callee_json" '"name":"auth","type":{"kind":"signed_token","preimage":{"kind":"named","name":"TransferAuth"}}' &&
-    assert_file_contains "$signer_callee_json" '"name":"TransferAuth"' &&
+    assert_file_matches "$signer_callee_json" '"name":"auth","type":\{"kind":"signed_token","preimage":\{"kind":"named","name":"[^"]*::TransferAuth"\}\}' &&
+    assert_file_contains_id "$signer_callee_json" TransferAuth &&
     assert_file_contains "$signed_op_wallet_json" '"kind":"signed_token","preimage":null' &&
 
     # Cross-crate event shaking: event_shaking_subset implements only the
     # `Adopted` trait from event_shaking_if; `Orphan` is never implemented.
     assert_file_contains "$rv32_event_shaking_json" '"name":"Adopted"' &&
-    assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedEvent"' &&
-    assert_file_contains "$rv32_event_shaking_json" '"name":"AdoptedPayload"' &&
+    assert_file_contains_id "$rv32_event_shaking_json" AdoptedEvent &&
+    assert_file_contains_id "$rv32_event_shaking_json" AdoptedPayload &&
     assert_file_lacks "$rv32_event_shaking_json" '"name":"Orphan"' &&
-    assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanEvent"' &&
-    assert_file_lacks "$rv32_event_shaking_json" '"name":"OrphanPayload"' &&
+    assert_file_lacks_id "$rv32_event_shaking_json" OrphanEvent &&
+    assert_file_lacks_id "$rv32_event_shaking_json" OrphanPayload &&
 
     # Typedef-collision shaking: the caller links two "versions" of a market
     # interface crate (typedef_shaking_if_v1/v2) purely to call them,
@@ -608,7 +691,7 @@ check_rv32_contract_spec_artifacts() {
     # pipeline canonicalizes with the pinned CLI's embedded spec-tool, not
     # the workspace one.
     assert_file_contains "$rv32_typedef_shaking_json" '"name":"Caller"' &&
-    assert_file_lacks "$rv32_typedef_shaking_json" '"name":"SharedConfig"' &&
+    assert_file_lacks_id "$rv32_typedef_shaking_json" SharedConfig &&
     assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV1"' &&
     assert_file_lacks "$rv32_typedef_shaking_json" '"name":"MarketV2"' &&
 
@@ -619,9 +702,33 @@ check_rv32_contract_spec_artifacts() {
     # shaken, so the disagreement must not fail the build (pre-fix this build
     # died with ConflictingInterfaceEmits) and neither Token nor PingEvent may
     # reach the final spec.
+    # Every collision qualified ids resolve, in one contract that builds. Each
+    # pair below shares a bare ident — all the spec used to record — so each
+    # was merged into one entry or rejected as a ConflictingTypeDef naming a
+    # type the author never wrote, and this contract could not have worked
+    # around it: two of the three pairs are its dependencies' names.
+    #
+    # Asserted per crate so both halves of a pair must be present: matching
+    # `::Error"` alone would pass with only one of them.
+    assert_file_matches "$name_reuse_json" 'dup_name_if_a@[^"]*::Error"' &&
+    assert_file_matches "$name_reuse_json" 'dup_name_if_b@[^"]*::Error"' &&
+    assert_file_matches "$name_reuse_json" 'dup_name_if_a@[^"]*::Updated"' &&
+    assert_file_matches "$name_reuse_json" 'dup_name_if_b@[^"]*::Updated"' &&
+    # Two modules of the contract's own crate reusing one ident.
+    assert_file_contains "$name_reuse_json" '::ledger::Config"' &&
+    assert_file_contains "$name_reuse_json" '::vault::Config"' &&
+
+    # Two crates, one simple name, both defs in the pool: v1's is reachable
+    # (the contract implements MarketV1) and v2's is not. Ids are what keep
+    # them apart — before them this contract could not be built at all, and
+    # the reference would have been ambiguous between the two shapes.
+    assert_file_contains_id "$coexist_json" SharedConfig &&
+    assert_file_contains "$coexist_json" 'typedef_shaking_if_v1@' &&
+    assert_file_lacks "$coexist_json" 'typedef_shaking_if_v2@' &&
+
     assert_file_contains "$rv32_iface_conflict_json" '"name":"ConflictCaller"' &&
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"Token"' &&
-    assert_file_lacks "$rv32_iface_conflict_json" '"name":"PingEvent"' &&
+    assert_file_lacks_id "$rv32_iface_conflict_json" PingEvent &&
 
     assert_rv32a_lacks_spec_content \
         "${groundhog_dir}/event_shaking_subset.rv32a" \

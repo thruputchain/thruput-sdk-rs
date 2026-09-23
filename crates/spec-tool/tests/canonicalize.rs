@@ -1171,10 +1171,28 @@ fn base_interface_fragments() -> Vec<SpecFragment> {
     ]
 }
 
+/// A distinct signature per event name.
+///
+/// A real event's signature is `sha256(MAJOR :: CRATE :: Ident)`, so two
+/// differently-named events have different ones. Canonicalization now rejects
+/// two retained events that share a signature, so a fixture handing every
+/// event the same placeholder would read as a collision.
+fn signature_for(name: &str) -> [u8; 32] {
+    let mut sig = [0u8; 32];
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for (i, byte) in name.bytes().enumerate() {
+        h ^= u64::from(byte);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        sig[i % 32] ^= (h >> 24) as u8;
+    }
+    sig[31] ^= name.len() as u8;
+    sig
+}
+
 fn event_def(name: &str, payload_ty: ContractType) -> ContractEventDef {
     ContractEventDef {
         name: s(name),
-        signature: [0xAB; 32].into(),
+        signature: signature_for(name).into(),
         topics: vec![ContractField {
             name: s("from"),
             ty: ContractType::Address,
@@ -1458,7 +1476,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
 fn event(name: &str) -> ContractEventDef {
     ContractEventDef {
         name: s(name),
-        signature: [0u8; 32].into(),
+        signature: signature_for(name).into(),
         topics: vec![].try_into().unwrap(),
         fields: vec![].try_into().unwrap(),
     }
@@ -2211,4 +2229,393 @@ fn signed_token_in_method_argument_is_still_allowed() {
     ]);
 
     assert!(spec.is_ok(), "signed token in method rejected: {spec:?}");
+}
+
+// ---------------------------------------------------------------------------
+// Qualified type ids.
+//
+// A type names itself by its fully qualified id
+// (`CRATE@MAJOR::module::path::Name`), which is unique by construction, and
+// the finalized spec keeps that id rather than shortening it. Two crates (or
+// two modules of one crate, or two major versions of one crate) may each
+// define a `Meta`, and neither author can be asked to rename for the other's
+// sake; carrying the id means the spec can say which is which, and a client
+// reading two deployed contracts can tell whether their `Meta`s are the same
+// type.
+//
+// Shortening to the bare name that generated bindings declare — and numbering
+// the losers when two ids share a final segment — belongs to each codegen,
+// which is the only layer that knows what its target language needs. Nothing
+// here reduces names.
+// ---------------------------------------------------------------------------
+
+/// A struct type def whose spec name is `id` and whose fields are
+/// `(name, type)` pairs.
+fn id_struct(id: &str, fields: &[(&str, ContractType)]) -> ContractTypeDef {
+    ContractTypeDef::TypeDefStruct {
+        struct_def: ContractStructDef {
+            name: s(id),
+            fields: fields
+                .iter()
+                .map(|(name, ty)| ContractField {
+                    name: s(name),
+                    ty: ty.clone(),
+                })
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        },
+    }
+}
+
+fn named(id: &str) -> ContractType {
+    ContractType::Named { named: s(id) }
+}
+
+/// The spec name each type def carries, in output order.
+fn type_def_names(spec: &ContractSpec) -> Vec<&str> {
+    spec.type_defs
+        .iter()
+        .map(|type_def| match type_def {
+            ContractTypeDef::TypeDefStruct { struct_def } => {
+                spec_str(&struct_def.name)
+            }
+            ContractTypeDef::TypeDefEnum { enum_def } => {
+                spec_str(&enum_def.name)
+            }
+            ContractTypeDef::TypeDefUnion { union_def } => {
+                spec_str(&union_def.name)
+            }
+            _ => panic!("unexpected variant"),
+        })
+        .collect()
+}
+
+/// The named type each field of struct `name` refers to, as `(field, target)`.
+fn field_refs<'a>(
+    spec: &'a ContractSpec,
+    name: &str,
+) -> Vec<(&'a str, &'a str)> {
+    spec.type_defs
+        .iter()
+        .find_map(|type_def| match type_def {
+            ContractTypeDef::TypeDefStruct { struct_def }
+                if spec_str(&struct_def.name) == name =>
+            {
+                Some(
+                    struct_def
+                        .fields
+                        .iter()
+                        .map(|f| {
+                            let target = match &f.ty {
+                                ContractType::Named { named } => {
+                                    spec_str(named)
+                                }
+                                other => {
+                                    panic!("{other:?} is not a named type")
+                                }
+                            };
+                            (spec_str(&f.name), target)
+                        })
+                        .collect(),
+                )
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("no struct named {name}"))
+}
+
+/// An interface whose single method returns `return_type`, so the types it
+/// reaches survive shaking.
+fn iface_returning(return_type: ContractType) -> Vec<SpecFragment> {
+    vec![
+        SpecFragment::SpecInterface {
+            interface_fragment: SpecInterfaceFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                throws: vec![].try_into().unwrap(),
+                emits: vec![].try_into().unwrap(),
+            },
+        },
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("get"),
+                    args: vec![].try_into().unwrap(),
+                    return_type,
+                },
+            },
+        },
+    ]
+}
+
+#[test]
+fn a_qualified_id_survives_canonicalization_intact() {
+    let mut fragments = iface_returning(named("mycrate@1::mymod::Meta"));
+    fragments.push(SpecFragment::SpecTypeDef {
+        type_def: id_struct(
+            "mycrate@1::mymod::Meta",
+            &[("count", ContractType::U32)],
+        ),
+    });
+
+    let spec = canon(&fragments).unwrap();
+
+    assert_eq!(type_def_names(&spec), vec!["mycrate@1::mymod::Meta"]);
+}
+
+#[test]
+fn ids_sharing_a_final_segment_both_survive() {
+    // Two crates each define a `Meta`, with different shapes. Both are
+    // reachable, so both must appear in the spec.
+    let mut fragments = iface_returning(named("wrap@1::Wrapper"));
+    fragments.extend([
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "acrate@1::Meta",
+                &[("count", ContractType::U32)],
+            ),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "bcrate@1::Meta",
+                &[("label", ContractType::String)],
+            ),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "wrap@1::Wrapper",
+                &[
+                    ("a", named("acrate@1::Meta")),
+                    ("b", named("bcrate@1::Meta")),
+                ],
+            ),
+        },
+    ]);
+
+    let spec = canon(&fragments).unwrap();
+
+    // Both are kept, each under its own id. Nothing is renamed, so nothing
+    // depends on the order the fragments happened to be linked in.
+    assert_eq!(
+        type_def_names(&spec),
+        vec!["acrate@1::Meta", "bcrate@1::Meta", "wrap@1::Wrapper"]
+    );
+}
+
+#[test]
+fn each_reference_keeps_pointing_at_its_own_type() {
+    let mut fragments = iface_returning(named("wrap@1::Wrapper"));
+    fragments.extend([
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "acrate@1::Meta",
+                &[("count", ContractType::U32)],
+            ),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "bcrate@1::Meta",
+                &[("label", ContractType::String)],
+            ),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "wrap@1::Wrapper",
+                &[
+                    ("a", named("acrate@1::Meta")),
+                    ("b", named("bcrate@1::Meta")),
+                ],
+            ),
+        },
+    ]);
+
+    let spec = canon(&fragments).unwrap();
+
+    // The whole point: two fields whose Rust types share an ident refer to
+    // different spec types, and stay distinguishable in the finalized spec.
+    assert_eq!(
+        field_refs(&spec, "wrap@1::Wrapper"),
+        vec![("a", "acrate@1::Meta"), ("b", "bcrate@1::Meta")]
+    );
+}
+
+#[test]
+fn identical_defs_under_one_id_still_dedup() {
+    // The ordinary case: one crate, linked once, emitting its type def from
+    // more than one translation unit.
+    let def = id_struct("mycrate@1::Meta", &[("count", ContractType::U32)]);
+    let mut fragments = iface_returning(named("mycrate@1::Meta"));
+    fragments.extend([
+        SpecFragment::SpecTypeDef {
+            type_def: def.clone(),
+        },
+        SpecFragment::SpecTypeDef { type_def: def },
+    ]);
+
+    let spec = canon(&fragments).unwrap();
+
+    assert_eq!(type_def_names(&spec), vec!["mycrate@1::Meta"]);
+}
+
+#[test]
+fn different_shapes_under_one_id_are_still_rejected() {
+    // Same crate, same major version, two different shapes: either a semver
+    // violation (we are stricter than semver here — a struct's fields are its
+    // wire format, so adding one is breaking) or a hand-written id claiming a
+    // type it does not own. Either way it is ambiguous and must not resolve
+    // silently.
+    let mut fragments = iface_returning(named("mycrate@1::Meta"));
+    fragments.extend([
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "mycrate@1::Meta",
+                &[("count", ContractType::U32)],
+            ),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "mycrate@1::Meta",
+                &[("count", ContractType::U64)],
+            ),
+        },
+    ]);
+
+    let err = canon(&fragments).unwrap_err();
+
+    // The id, not the shortened name: the id is what disagrees.
+    assert_eq!(
+        err,
+        SpecToolError::ConflictingTypeDef("mycrate@1::Meta".to_string())
+    );
+}
+
+#[test]
+fn an_event_and_a_type_sharing_a_final_segment_both_survive() {
+    // Bindings declare a type per event, so an event and a type sharing a
+    // final segment collide in a target language's namespace — but that is
+    // the codegen's collision to resolve, and both keep their own id here.
+    let mut fragments = vec![
+        iface_with_emits("Named", &["evt@1::Transfer"]),
+        anchor("Named"),
+        SpecFragment::SpecMethod {
+            method_fragment: SpecMethodFragment {
+                interface_name: s("Named"),
+                interface_version: s("0.1.0"),
+                method: ContractSpecMethod {
+                    name: s("get"),
+                    args: vec![].try_into().unwrap(),
+                    return_type: named("ty@1::Transfer"),
+                },
+            },
+        },
+    ];
+    fragments.extend([
+        SpecFragment::SpecTypeDef {
+            type_def: id_struct(
+                "ty@1::Transfer",
+                &[("count", ContractType::U32)],
+            ),
+        },
+        SpecFragment::SpecEvent {
+            event_def: event("evt@1::Transfer"),
+        },
+    ]);
+
+    let spec = canonicalize_spec(&fragments).unwrap();
+
+    let event_names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(type_def_names(&spec), vec!["ty@1::Transfer"]);
+    assert_eq!(event_names, vec!["evt@1::Transfer"]);
+}
+
+/// An event's signature is topic 0 of every emission, and is hashed from
+/// (crate, MAJOR, ident) — less than the spec name distinguishes. Two events
+/// in different modules of one crate therefore get distinct ids and one
+/// signature, and the spec would be promising a distinction the wire cannot
+/// deliver. Canonicalization rejects it.
+#[test]
+fn retained_events_sharing_a_signature_are_rejected() {
+    let collide = |name: &str| ContractEventDef {
+        name: s(name),
+        signature: signature_for("Updated").into(),
+        topics: vec![].try_into().unwrap(),
+        fields: vec![].try_into().unwrap(),
+    };
+
+    let err = canonicalize_spec(&[
+        iface_with_emits(
+            "Named",
+            &["evt@1::ledger::Updated", "evt@1::vault::Updated"],
+        ),
+        anchor("Named"),
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::ledger::Updated"),
+        },
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::vault::Updated"),
+        },
+    ])
+    .unwrap_err();
+
+    let SpecToolError::ConflictingEventSignature(msg) = err else {
+        panic!("expected a signature conflict, got {err:?}");
+    };
+    assert!(msg.contains("evt@1::ledger::Updated"), "{msg}");
+    assert!(msg.contains("evt@1::vault::Updated"), "{msg}");
+}
+
+/// The check is over retained events only, like every other conflict here:
+/// two shaken candidates that collide are nobody's problem.
+#[test]
+fn shaken_events_sharing_a_signature_are_ignored() {
+    let collide = |name: &str| ContractEventDef {
+        name: s(name),
+        signature: signature_for("Updated").into(),
+        topics: vec![].try_into().unwrap(),
+        fields: vec![].try_into().unwrap(),
+    };
+
+    let spec = canonicalize_spec(&[
+        iface_with_emits("Named", &["evt@1::ledger::Updated"]),
+        anchor("Named"),
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::ledger::Updated"),
+        },
+        // Never emitted by an anchored interface, so it is shaken before the
+        // signature check sees it.
+        SpecFragment::SpecEvent {
+            event_def: collide("evt@1::vault::Updated"),
+        },
+    ])
+    .unwrap();
+
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["evt@1::ledger::Updated"]);
+}
+
+/// Distinct signatures are the ordinary case and must keep working: two
+/// events from different crates share an ident but not a signature, because
+/// the crate name is in the preimage.
+#[test]
+fn retained_events_with_distinct_signatures_are_kept() {
+    let spec = canonicalize_spec(&[
+        iface_with_emits("Named", &["a@1::Updated", "b@1::Updated"]),
+        anchor("Named"),
+        SpecFragment::SpecEvent {
+            event_def: event("a@1::Updated"),
+        },
+        SpecFragment::SpecEvent {
+            event_def: event("b@1::Updated"),
+        },
+    ])
+    .unwrap();
+
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, vec!["a@1::Updated", "b@1::Updated"]);
 }
