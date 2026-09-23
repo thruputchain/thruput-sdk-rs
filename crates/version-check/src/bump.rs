@@ -80,6 +80,9 @@ pub struct Request {
     pub sdk_target: Option<Version>,
     /// New protocol-rs version. Implies an SDK bump and an interfaces bump.
     pub protocol: Option<Version>,
+    /// Realign in-repo pins with the versions their packages already declare,
+    /// moving no version line. Mutually exclusive with the fields above.
+    pub sync: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -280,6 +283,42 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
         let Some(raw) = edge.req_raw.as_deref() else {
             continue;
         };
+
+        // A sync rewrites exactly the requirements `in-repo-req` would reject:
+        // those no longer satisfied by the version their package declares. A
+        // requirement that still matches is left alone, which is what keeps the
+        // deliberately-caret `sdk` pins under standard-interfaces/ intact --
+        // they name the start of a compatible series, not the current version.
+        // An unparseable or multi-part requirement is left for a human, and the
+        // closing verify still reports it.
+        if req.sync {
+            let Some(local) = repo.locals.get(&edge.name) else {
+                continue;
+            };
+            let Some(current) = edge.req.as_ref() else {
+                continue;
+            };
+            if current.matches(&local.version) {
+                continue;
+            }
+            let new = retarget(raw, &local.version)?;
+            if new == raw {
+                continue;
+            }
+            plan.edits.push(Edit {
+                manifest: edge.manifest.clone(),
+                line: edge.line,
+                target: Target::DepRequirement {
+                    table_path: edge.table_path.clone(),
+                    key: edge.key.clone(),
+                },
+                old: raw.to_string(),
+                new,
+                what: "stale pin",
+            });
+            continue;
+        }
+
         let in_interfaces = in_interface_family(&edge.manifest);
         let family = repo
             .locals
@@ -334,14 +373,34 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
         });
     }
 
+    // A workspace whose members live in a submodule that is not checked out
+    // cannot be resolved at all, so `cargo update` against it dies on a missing
+    // member manifest rather than doing anything useful. The checks already
+    // skip what was never scanned; the lockfile pass has to skip it too.
     plan.workspace_roots = repo
         .manifests
         .iter()
         .filter(|m| m.is_workspace_root)
+        .filter(|m| !has_absent_member(repo, m))
         .map(|m| m.rel.clone())
         .collect();
 
     Ok(plan)
+}
+
+/// True when any of this workspace's members sits in a submodule that is not
+/// checked out. Member entries are relative to the workspace root's directory,
+/// and a glob such as `contracts/*` answers the same as a plain path would.
+fn has_absent_member(repo: &Repo, m: &crate::model::Manifest) -> bool {
+    let dir = m.rel.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
+    m.members.iter().any(|member| {
+        let rel = if dir.is_empty() {
+            member.clone()
+        } else {
+            format!("{dir}/{member}")
+        };
+        repo.is_unscanned(&rel)
+    })
 }
 
 /// Write every edit, grouped so each manifest is parsed and rewritten once.

@@ -410,3 +410,168 @@ sdk = { path = "../../crates/sdk", version = "0.17.0" }
         "unexpected error: {err}"
     );
 }
+
+// --- sync -----------------------------------------------------------------
+//
+// `sync` is the repair for a workspace a release could not reach: one that
+// exists only on a branch, so the release run on the default branch never saw
+// the directory. It moves no version line, and unlike `bump` it is meant to run
+// against a repository that already disagrees with itself.
+
+/// A sibling workspace pinning the SDK, written with `pin` as its requirement.
+fn sibling_workspace(dir: &Path, pin: &str) {
+    write(
+        dir,
+        "neg/Cargo.toml",
+        &format!(
+            r#"[workspace]
+members = ["fixture"]
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.dependencies]
+sdk = {{ path = "../crates/sdk", version = "{pin}" }}
+"#
+        ),
+    );
+    write(
+        dir,
+        "neg/fixture/Cargo.toml",
+        r#"[package]
+name = "neg-fixture"
+version.workspace = true
+
+[dependencies]
+sdk = { workspace = true }
+"#,
+    );
+}
+
+fn sync_plan(repo: &Repo) -> bump::Plan {
+    bump::plan(
+        repo,
+        &Request {
+            sync: true,
+            ..Request::default()
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn sync_repairs_a_pin_a_release_left_behind() {
+    let tmp = tempfile::tempdir().unwrap();
+    fixture(tmp.path());
+    // The release moved the SDK to 0.17.4; this workspace still names 0.17.0.
+    sibling_workspace(tmp.path(), "=0.17.0");
+    let repo = load(tmp.path());
+
+    // Exactly what CI reports -- and what `bump` refuses to act on, since it
+    // requires a consistent repository to begin with.
+    assert!(
+        checks::all(&repo).iter().any(|v| v.check == "in-repo-req"),
+        "fixture should start stale"
+    );
+
+    let plan = sync_plan(&repo);
+    // A sync moves no version line.
+    assert!(plan.workspace.is_none());
+    assert!(plan.interfaces.is_none());
+    assert!(plan.protocol.is_none());
+    assert_eq!(plan.edits.len(), 1);
+    assert_eq!(plan.edits[0].manifest, "neg/Cargo.toml");
+    assert_eq!(plan.edits[0].old, "=0.17.0");
+    assert_eq!(plan.edits[0].new, "=0.17.4");
+
+    bump::apply(&repo, &plan).unwrap();
+
+    let after = load(tmp.path());
+    assert_eq!(req_of(&after, "neg/Cargo.toml", "sdk"), "=0.17.4");
+    assert_clean(&after);
+}
+
+#[test]
+fn sync_leaves_a_consistent_repo_alone() {
+    let tmp = tempfile::tempdir().unwrap();
+    fixture(tmp.path());
+    sibling_workspace(tmp.path(), "=0.17.4");
+    let repo = load(tmp.path());
+
+    // The caret `sdk` pins under standard-interfaces/ name the start of a
+    // compatible series (0.17.0) rather than the current version (0.17.4).
+    // They are satisfied, so a sync must not "helpfully" retarget them.
+    assert_eq!(
+        req_of(&repo, "standard-interfaces/erc20-if/Cargo.toml", "sdk"),
+        "0.17.0"
+    );
+
+    let plan = sync_plan(&repo);
+    assert!(
+        plan.is_empty(),
+        "sync planned edits on a consistent repo: {:#?}",
+        plan.edits
+    );
+}
+
+#[test]
+fn sync_repairs_a_caret_pin_that_no_longer_matches() {
+    let tmp = tempfile::tempdir().unwrap();
+    fixture(tmp.path());
+    // A caret pin left a whole series behind: 0.16.x does not admit 0.17.4.
+    write(
+        tmp.path(),
+        "standard-interfaces/erc20-if/Cargo.toml",
+        r#"[package]
+name = "groundhog-erc20-if"
+version = "0.4.2"
+
+[dependencies]
+sdk = { path = "../../crates/sdk", version = "0.16.0" }
+"#,
+    );
+    let repo = load(tmp.path());
+
+    let plan = sync_plan(&repo);
+    assert_eq!(plan.edits.len(), 1);
+    // The operator is preserved, so the pin stays a caret range.
+    assert_eq!(plan.edits[0].new, "0.17.4");
+
+    bump::apply(&repo, &plan).unwrap();
+    assert_clean(&load(tmp.path()));
+}
+
+#[test]
+fn sync_skips_a_workspace_whose_members_are_not_checked_out() {
+    let tmp = tempfile::tempdir().unwrap();
+    fixture(tmp.path());
+    // An uninitialized submodule is an empty directory. The fixture's
+    // `.gitmodules` already declares this path.
+    fs::create_dir_all(tmp.path().join("integration_test/contracts")).unwrap();
+    write(
+        tmp.path(),
+        "integration_test/Cargo.toml",
+        r#"[workspace]
+members = ["contracts/authclaim_test"]
+
+[workspace.package]
+version = "0.1.0"
+
+[workspace.dependencies]
+sdk = { path = "../crates/sdk", version = "=0.17.4" }
+"#,
+    );
+    let repo = load(tmp.path());
+
+    // `cargo update` against this workspace would die on the missing member
+    // manifest, so it must not be handed to the lockfile pass at all.
+    let plan = sync_plan(&repo);
+    assert!(
+        !plan
+            .workspace_roots
+            .contains(&"integration_test/Cargo.toml".to_string()),
+        "unresolvable workspace was kept: {:?}",
+        plan.workspace_roots
+    );
+    assert!(plan.workspace_roots.contains(&"Cargo.toml".to_string()));
+}
