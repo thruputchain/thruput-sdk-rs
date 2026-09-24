@@ -401,20 +401,18 @@ fn canonicalize_spec_inner(
                     fragment.method.clone(),
                 ));
             }
-            SpecFragment::SpecTypeDef { type_def } => {
+            // As with events below: a `SpecTypeDef` is a candidate kept only
+            // if something reachable references it, while an
+            // `ExportedSpecTypeDef` forces its own inclusion.
+            SpecFragment::SpecTypeDef { type_def }
+            | SpecFragment::ExportedSpecTypeDef { type_def } => {
                 validate_type_def(type_def)?;
                 let symbol = type_def_symbol(type_def)?.clone();
                 spec_id_str(&symbol)?;
-                let defs = type_defs.entry(symbol).or_default();
-                if !defs.iter().any(|existing| existing == type_def) {
-                    defs.push(type_def.clone());
+                if matches!(fragment, SpecFragment::ExportedSpecTypeDef { .. })
+                {
+                    exported_roots.insert(symbol.clone());
                 }
-            }
-            SpecFragment::ExportedSpecTypeDef { type_def } => {
-                validate_type_def(type_def)?;
-                let symbol = type_def_symbol(type_def)?.clone();
-                spec_id_str(&symbol)?;
-                exported_roots.insert(symbol.clone());
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
                     defs.push(type_def.clone());
@@ -1262,17 +1260,16 @@ fn collect_union_case_named_types(
     Ok(())
 }
 
+/// As [`type_def_name`], where an unknown variant is an error rather than an
+/// absence.
 fn type_def_symbol(
     type_def: &ContractTypeDef,
 ) -> Result<&ContractSpecId, SpecToolError> {
-    match type_def {
-        ContractTypeDef::TypeDefStruct { struct_def } => Ok(&struct_def.name),
-        ContractTypeDef::TypeDefEnum { enum_def } => Ok(&enum_def.name),
-        ContractTypeDef::TypeDefUnion { union_def } => Ok(&union_def.name),
-        _ => Err(SpecToolError::UnsupportedVariant(
+    type_def_name(type_def).ok_or_else(|| {
+        SpecToolError::UnsupportedVariant(
             "unknown ContractTypeDef variant".to_string(),
-        )),
-    }
+        )
+    })
 }
 
 fn interface_key_string(name: &str, version: &str) -> String {

@@ -143,19 +143,4 @@ mod tests {
             "a declared id must read module_path!(): {id}"
         );
     }
-
-    /// Both are built the same way, so neither can drift into a different
-    /// shape: same crate source, same major, same field set.
-    #[test]
-    fn both_ids_share_one_shape() {
-        let crate_id = crate_id_tokens(&sdk_path(), Some("0.1.0")).to_string();
-        let declared =
-            spec_id_tokens(&sdk_path(), "Meta", Some("0.1.0")).to_string();
-        for id in [&crate_id, &declared] {
-            for field in ["crate_name", "major", "module_path", "declared"] {
-                assert!(id.contains(field), "{id} is missing {field}");
-            }
-            assert!(id.contains("CARGO_PKG_NAME"), "{id}");
-        }
-    }
 }

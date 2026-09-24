@@ -2376,6 +2376,98 @@ fn signed_token_in_method_argument_is_still_allowed() {
 // here reduces names.
 // ---------------------------------------------------------------------------
 
+/// A fully segmented id, for the tests that turn on identity rather than on
+/// a name. Unlike `id`, every segment varies, so a canonicalizer that ignored
+/// the crate, major or module would be caught.
+fn seg(
+    krate: &str,
+    major: &str,
+    module: &str,
+    declared: &str,
+) -> ContractSpecId {
+    ContractSpecId {
+        crate_name: s(krate),
+        major: s(major),
+        module_path: s(module),
+        declared: s(declared),
+    }
+}
+
+/// A reference to a segmented id.
+fn named_of(id: ContractSpecId) -> ContractType {
+    ContractType::Named { named: id }
+}
+
+/// A struct def carrying a segmented id.
+fn struct_of(
+    id: ContractSpecId,
+    fields: &[(&str, ContractType)],
+) -> ContractTypeDef {
+    ContractTypeDef::TypeDefStruct {
+        struct_def: ContractStructDef {
+            name: id,
+            fields: fields
+                .iter()
+                .map(|(name, ty)| ContractField {
+                    name: s(name),
+                    ty: ty.clone(),
+                })
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        },
+    }
+}
+
+/// Every type def's whole id, in output order.
+fn type_def_ids(spec: &ContractSpec) -> Vec<ContractSpecId> {
+    spec.type_defs
+        .iter()
+        .map(|type_def| match type_def {
+            ContractTypeDef::TypeDefStruct { struct_def } => {
+                struct_def.name.clone()
+            }
+            ContractTypeDef::TypeDefEnum { enum_def } => enum_def.name.clone(),
+            ContractTypeDef::TypeDefUnion { union_def } => {
+                union_def.name.clone()
+            }
+            _ => panic!("unexpected variant"),
+        })
+        .collect()
+}
+
+/// `(field name, whole id it references)` for the struct with this id.
+fn field_ref_ids(
+    spec: &ContractSpec,
+    id: &ContractSpecId,
+) -> Vec<(String, ContractSpecId)> {
+    spec.type_defs
+        .iter()
+        .find_map(|type_def| match type_def {
+            ContractTypeDef::TypeDefStruct { struct_def }
+                if &struct_def.name == id =>
+            {
+                Some(
+                    struct_def
+                        .fields
+                        .iter()
+                        .map(|f| {
+                            let target = match &f.ty {
+                                ContractType::Named { named } => named.clone(),
+                                other => {
+                                    panic!("{other:?} is not a named type")
+                                }
+                            };
+                            (spec_str(&f.name).to_string(), target)
+                        })
+                        .collect(),
+                )
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("no struct with id {id:?}"))
+}
+
 /// A struct type def whose spec name is `id` and whose fields are
 /// `(name, type)` pairs.
 fn id_struct(sym: &str, fields: &[(&str, ContractType)]) -> ContractTypeDef {
@@ -2419,41 +2511,6 @@ fn type_def_names(spec: &ContractSpec) -> Vec<&str> {
 }
 
 /// The named type each field of struct `name` refers to, as `(field, target)`.
-fn field_refs<'a>(
-    spec: &'a ContractSpec,
-    name: &str,
-) -> Vec<(&'a str, &'a str)> {
-    spec.type_defs
-        .iter()
-        .find_map(|type_def| match type_def {
-            ContractTypeDef::TypeDefStruct { struct_def }
-                if spec_str(&struct_def.name.declared) == name =>
-            {
-                Some(
-                    struct_def
-                        .fields
-                        .iter()
-                        .map(|f| {
-                            let target = match &f.ty {
-                                ContractType::Named { named } => {
-                                    spec_str(&named.declared)
-                                }
-                                other => {
-                                    panic!("{other:?} is not a named type")
-                                }
-                            };
-                            (spec_str(&f.name), target)
-                        })
-                        .collect(),
-                )
-            }
-            _ => None,
-        })
-        .unwrap_or_else(|| panic!("no struct named {name}"))
-}
-
-/// An interface whose single method returns `return_type`, so the types it
-/// reaches survive shaking.
 fn iface_returning(return_type: ContractType) -> Vec<SpecFragment> {
     vec![
         SpecFragment::SpecInterface {
@@ -2482,43 +2539,78 @@ fn iface_returning(return_type: ContractType) -> Vec<SpecFragment> {
 
 #[test]
 fn a_qualified_id_survives_canonicalization_intact() {
-    let mut fragments = iface_returning(named("mycrate@1::mymod::Meta"));
+    let meta = seg("mycrate", "1", "mycrate::mymod", "Meta");
+    let mut fragments = iface_returning(named_of(meta.clone()));
     fragments.push(SpecFragment::SpecTypeDef {
-        type_def: id_struct(
-            "mycrate@1::mymod::Meta",
-            &[("count", ContractType::U32)],
-        ),
+        type_def: struct_of(meta.clone(), &[("count", ContractType::U32)]),
     });
 
     let spec = canon(&fragments).unwrap();
 
-    assert_eq!(type_def_names(&spec), vec!["mycrate@1::mymod::Meta"]);
+    // Every segment, not just the declared name: canonicalization must not
+    // drop, rewrite or normalize any part of an id.
+    assert_eq!(type_def_ids(&spec), vec![meta]);
+}
+
+/// The four `Meta`s below differ on one identity axis each, so a
+/// canonicalizer that ignored any single field would collapse a pair of them
+/// and fail these tests. They are otherwise indistinguishable: same declared
+/// name, same shape where it does not matter.
+fn four_metas() -> [ContractSpecId; 4] {
+    [
+        seg("acrate", "1", "acrate", "Meta"),
+        // differs from the first by crate
+        seg("bcrate", "1", "bcrate", "Meta"),
+        // by major
+        seg("acrate", "2", "acrate", "Meta"),
+        // by module
+        seg("acrate", "1", "acrate::inner", "Meta"),
+    ]
+}
+
+/// Guards the fixture itself. If these four ever stop sharing a declared
+/// name, or stop being pairwise distinct, the tests built on them quietly
+/// stop testing identity and start testing names again.
+#[test]
+fn the_four_metas_differ_only_below_their_declared_name() {
+    let metas = four_metas();
+    for m in &metas {
+        assert_eq!(spec_str(&m.declared), "Meta", "{m:?}");
+    }
+    for (i, a) in metas.iter().enumerate() {
+        for b in &metas[i + 1..] {
+            assert_ne!(a, b, "fixture ids must be pairwise distinct");
+        }
+    }
 }
 
 #[test]
 fn ids_sharing_a_final_segment_both_survive() {
-    // Two crates each define a `Meta`, with different shapes. Both are
-    // reachable, so both must appear in the spec.
-    let mut fragments = iface_returning(named("wrap@1::Wrapper"));
+    let [a, b, a_v2, a_inner] = four_metas();
+    let wrapper = seg("wrap", "1", "wrap", "Wrapper");
+
+    let mut fragments = iface_returning(named_of(wrapper.clone()));
     fragments.extend([
         SpecFragment::SpecTypeDef {
-            type_def: id_struct(
-                "acrate@1::Meta",
-                &[("count", ContractType::U32)],
-            ),
+            type_def: struct_of(a.clone(), &[("count", ContractType::U32)]),
         },
         SpecFragment::SpecTypeDef {
-            type_def: id_struct(
-                "bcrate@1::Meta",
-                &[("label", ContractType::String)],
-            ),
+            type_def: struct_of(b.clone(), &[("label", ContractType::String)]),
         },
         SpecFragment::SpecTypeDef {
-            type_def: id_struct(
-                "wrap@1::Wrapper",
+            type_def: struct_of(a_v2.clone(), &[("n", ContractType::U64)]),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: struct_of(a_inner.clone(), &[("f", ContractType::Bool)]),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: struct_of(
+                wrapper.clone(),
                 &[
-                    ("a", named("acrate@1::Meta")),
-                    ("b", named("bcrate@1::Meta")),
+                    ("a", named_of(a.clone())),
+                    ("b", named_of(b.clone())),
+                    ("a_v2", named_of(a_v2.clone())),
+                    ("a_inner", named_of(a_inner.clone())),
                 ],
             ),
         },
@@ -2526,36 +2618,42 @@ fn ids_sharing_a_final_segment_both_survive() {
 
     let spec = canon(&fragments).unwrap();
 
-    // Both are kept, each under its own id. Nothing is renamed, so nothing
-    // depends on the order the fragments happened to be linked in.
-    assert_eq!(
-        type_def_names(&spec),
-        vec!["acrate@1::Meta", "bcrate@1::Meta", "wrap@1::Wrapper"]
-    );
+    // All four are kept under their own ids. Nothing is renamed or merged, so
+    // nothing depends on the order the fragments were linked in.
+    let mut got = type_def_ids(&spec);
+    let mut want = vec![a, b, a_v2, a_inner, wrapper];
+    got.sort();
+    want.sort();
+    assert_eq!(got, want);
 }
 
 #[test]
 fn each_reference_keeps_pointing_at_its_own_type() {
-    let mut fragments = iface_returning(named("wrap@1::Wrapper"));
+    let [a, b, a_v2, a_inner] = four_metas();
+    let wrapper = seg("wrap", "1", "wrap", "Wrapper");
+
+    let mut fragments = iface_returning(named_of(wrapper.clone()));
     fragments.extend([
         SpecFragment::SpecTypeDef {
-            type_def: id_struct(
-                "acrate@1::Meta",
-                &[("count", ContractType::U32)],
-            ),
+            type_def: struct_of(a.clone(), &[("count", ContractType::U32)]),
         },
         SpecFragment::SpecTypeDef {
-            type_def: id_struct(
-                "bcrate@1::Meta",
-                &[("label", ContractType::String)],
-            ),
+            type_def: struct_of(b.clone(), &[("label", ContractType::String)]),
         },
         SpecFragment::SpecTypeDef {
-            type_def: id_struct(
-                "wrap@1::Wrapper",
+            type_def: struct_of(a_v2.clone(), &[("n", ContractType::U64)]),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: struct_of(a_inner.clone(), &[("f", ContractType::Bool)]),
+        },
+        SpecFragment::SpecTypeDef {
+            type_def: struct_of(
+                wrapper.clone(),
                 &[
-                    ("a", named("acrate@1::Meta")),
-                    ("b", named("bcrate@1::Meta")),
+                    ("a", named_of(a.clone())),
+                    ("b", named_of(b.clone())),
+                    ("a_v2", named_of(a_v2.clone())),
+                    ("a_inner", named_of(a_inner.clone())),
                 ],
             ),
         },
@@ -2563,11 +2661,17 @@ fn each_reference_keeps_pointing_at_its_own_type() {
 
     let spec = canon(&fragments).unwrap();
 
-    // The whole point: two fields whose Rust types share an ident refer to
-    // different spec types, and stay distinguishable in the finalized spec.
+    // Four fields whose types share a declared name refer to four different
+    // spec types, told apart by crate, major and module in turn — and each
+    // reference still carries the whole id of the one it means.
     assert_eq!(
-        field_refs(&spec, "wrap@1::Wrapper"),
-        vec![("a", "acrate@1::Meta"), ("b", "bcrate@1::Meta")]
+        field_ref_ids(&spec, &wrapper),
+        vec![
+            ("a".to_string(), a),
+            ("b".to_string(), b),
+            ("a_v2".to_string(), a_v2),
+            ("a_inner".to_string(), a_inner),
+        ]
     );
 }
 
