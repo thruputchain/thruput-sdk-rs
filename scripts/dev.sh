@@ -485,18 +485,15 @@ assert_file_matches() {
 }
 
 # Every user-defined thing the spec names — a type, an exception, an event —
-# is named by its id (`CRATE@MAJOR::module::path::Name`), so these assert on
-# the declared name at the end of an id rather than on a whole one: the crate
-# and version segments move with every release and are not what any of these
-# checks are about. Interface, method and argument names are NOT ids; assert
-# on those with the plain helpers.
+# is named by a structured id (crate, major, module_path, declared), so these
+# assert on the declared name rather than on a whole id: the crate and version
+# fields move with every release and are not what any of these checks are
+# about. Interface, method and argument names are NOT ids; assert on those
+# with the plain helpers.
 #
-# The leading `::` is load-bearing in both directions: it stops `Payload` from
-# matching `AdoptedPayload`, and it is why the `lacks` form still bites — a
-# bare `"name":"OrphanPayload"` needle would match nothing now and pass
-# whether or not the type was shaken.
-# Spec ids are structured (crate, major, module_path, declared), so match on
-# the declared-name field rather than a joined `crate::path::Name` string.
+# The needle is the quoted `"declared":"Name"` field, so it is an exact match:
+# `Payload` cannot match `AdoptedPayload`, and the `lacks` form still bites
+# because the needle is exactly what a surviving id would contain.
 assert_file_contains_id() {
     assert_file_contains "$1" "\"declared\":\"$2\""
 }
