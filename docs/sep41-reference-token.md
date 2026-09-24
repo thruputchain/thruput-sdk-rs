@@ -109,5 +109,5 @@ ERC20_APPROVE_NATIVE=1 HOGD_FFI_LIB_DIR=/path/to/test-ffi \
 Run from `example-contracts/`; the FFI directory must include `bindings.rs`.
 No published native deployment is implied by these local tests.
 
-See [bridge implementation notes](sep41-bridge-handoff.md) for accounting,
-recipient authorization, replay and migration requirements.
+Bridge accounting, recipient authorization, replay and migration requirements
+are tracked in the [Groundhog Bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
