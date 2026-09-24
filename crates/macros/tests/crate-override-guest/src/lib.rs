@@ -40,11 +40,10 @@ pub struct Derived([u32; LIMBS]);
 // The derive references `ContractTypeName` but never emits it, so a consumer
 // supplies it.
 impl spec::ContractTypeName for Derived {
-    const NAME: spec::ContractSpecIdView<'static> =
-        spec::ContractSpecIdView {
-            crate_name: env!("CARGO_PKG_NAME"),
-            major: "0",
-            module_path: module_path!(),
-            declared: "Derived",
-        };
+    const NAME: spec::ContractSpecIdView<'static> = spec::ContractSpecIdView {
+        crate_name: env!("CARGO_PKG_NAME"),
+        major: "0",
+        module_path: module_path!(),
+        declared: "Derived",
+    };
 }

@@ -332,6 +332,12 @@ fn canonicalize_spec_inner(
                 }
                 let mut emits = fragment.emits.to_vec();
                 for name in &emits {
+                    // The whole id, not just the segment the emptiness check
+                    // reads: all four are unvalidated bytes off the wire, and
+                    // a malformed crate or module segment would otherwise
+                    // travel on to event lookup and surface as a missing
+                    // event rather than as the bad fragment it is.
+                    spec_id_str(name)?;
                     if spec_str(&name.declared)?.is_empty() {
                         return Err(SpecToolError::InvalidRawFragment(
                             format!(

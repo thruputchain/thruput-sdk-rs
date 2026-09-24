@@ -2659,3 +2659,40 @@ fn retained_events_with_distinct_signatures_are_kept() {
         .collect();
     assert_eq!(names, vec!["a@1::Updated", "b@1::Updated"]);
 }
+
+/// An `emits` entry is four unvalidated XDR strings, not one.
+///
+/// Only `declared` is read by the emptiness check beside it, so validating
+/// just that segment would let a malformed crate, major or module path
+/// through: the reference would reach event lookup and be reported as a
+/// missing event, blaming the wrong thing. Every segment is checked.
+#[test]
+fn an_emits_entry_with_a_non_utf8_segment_is_rejected_as_a_bad_fragment() {
+    for (label, bad) in [("crate_name", 0), ("major", 1), ("module_path", 2)] {
+        let mut wrong = id("Ev");
+        let invalid =
+            ContractSpecString::try_from(vec![0xC0u8, 0x80]).unwrap();
+        match bad {
+            0 => wrong.crate_name = invalid,
+            1 => wrong.major = invalid,
+            _ => wrong.module_path = invalid,
+        }
+        let err = canon(&[
+            SpecFragment::SpecInterface {
+                interface_fragment: SpecInterfaceFragment {
+                    interface_name: s("Named"),
+                    interface_version: s("0.1.0"),
+                    throws: vec![].try_into().unwrap(),
+                    emits: vec![wrong].try_into().unwrap(),
+                },
+            },
+            anchor("Named"),
+        ])
+        .unwrap_err();
+        assert!(
+            matches!(err, SpecToolError::InvalidRawFragment(_)),
+            "a bad {label} segment must be rejected as an invalid fragment, \
+             got {err:?}",
+        );
+    }
+}
