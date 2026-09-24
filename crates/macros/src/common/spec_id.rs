@@ -39,15 +39,7 @@ pub fn spec_id_tokens(
     declared: &str,
     version: Option<&str>,
 ) -> TokenStream {
-    // The major version, by the same rule interface versions use: the leftmost
-    // non-zero component, so semver-compatible releases share an id and only a
-    // breaking release changes it.
-    let major = groundhog_contract_util::semver::major_version_from_string(
-        &version.map_or_else(
-            crate::common::contract::interface_vers_default,
-            str::to_string,
-        ),
-    );
+    let major = major_tokens(version);
     quote! {
         {
             const MAJOR: &str = #major;
@@ -73,4 +65,53 @@ pub fn spec_id_tokens(
             }
         }
     }
+}
+
+/// A const expression of type `&'static str` holding `CRATE@MAJOR` for the
+/// crate the expansion site is in: what a bare impl or free-function contract
+/// records as the declarer of its interface (see
+/// `SpecInterfaceAnchor::declared_by`). `version` is as for
+/// [`spec_id_tokens`].
+///
+/// Only the crate segment of `module_path!()` is used, so unlike
+/// [`spec_id_tokens`] this may be emitted anywhere in the declaring crate.
+pub fn crate_id_tokens(
+    krate: &syn::Path,
+    version: Option<&str>,
+) -> TokenStream {
+    let major = major_tokens(version);
+    quote! {
+        {
+            const MAJOR: &str = #major;
+            const LEN: usize = #krate::__contract_spec::crate_id_len(
+                ::core::module_path!(),
+                MAJOR,
+            );
+            const BYTES: [u8; LEN] =
+                #krate::__contract_spec::crate_id_bytes::<LEN>(
+                    ::core::module_path!(),
+                    MAJOR,
+                );
+            match ::core::str::from_utf8(&BYTES) {
+                ::core::result::Result::Ok(id) => id,
+                // The crate segment is spliced on an ASCII boundary, so this
+                // is unreachable.
+                ::core::result::Result::Err(_) => {
+                    ::core::panic!("crate id is not valid UTF-8")
+                }
+            }
+        }
+    }
+}
+
+/// The major version, by the same rule interface versions use: the leftmost
+/// non-zero component, so semver-compatible releases share an id and only a
+/// breaking release changes it. `None` takes the declaring crate's version.
+fn major_tokens(version: Option<&str>) -> String {
+    groundhog_contract_util::semver::major_version_from_string(
+        &version.map_or_else(
+            crate::common::contract::interface_vers_default,
+            str::to_string,
+        ),
+    )
 }

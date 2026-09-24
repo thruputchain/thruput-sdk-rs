@@ -30,22 +30,25 @@ fn canon(fragments: &[SpecFragment]) -> Result<ContractSpec, SpecToolError> {
                 keys.insert((
                     i.interface_name.clone(),
                     i.interface_version.clone(),
+                    i.declared_by.clone(),
                 ));
             }
             SpecFragment::SpecMethod { method_fragment: m } => {
                 keys.insert((
                     m.interface_name.clone(),
                     m.interface_version.clone(),
+                    m.declared_by.clone(),
                 ));
             }
             _ => {}
         }
     }
-    for (interface_name, interface_version) in keys {
+    for (interface_name, interface_version, declared_by) in keys {
         v.push(SpecFragment::InterfaceAnchor {
             interface_anchor: SpecInterfaceAnchor {
                 interface_name,
                 interface_version,
+                declared_by,
             },
         });
     }
@@ -73,6 +76,7 @@ fn canonicalize_spec_drops_unanchored_interfaces() {
         interface_fragment: SpecInterfaceFragment {
             interface_name: s("Named"),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
             throws: vec![].try_into().unwrap(),
             emits: vec![].try_into().unwrap(),
         },
@@ -88,6 +92,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![ContractField {
@@ -108,6 +113,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
                 })]
@@ -120,6 +126,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("pong"),
                     args: vec![].try_into().unwrap(),
@@ -204,6 +211,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
                 })]
@@ -216,6 +224,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("zeta"),
                     args: vec![].try_into().unwrap(),
@@ -227,6 +236,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
                 })]
@@ -239,6 +249,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("alpha"),
                     args: vec![].try_into().unwrap(),
@@ -286,6 +297,7 @@ fn canonicalize_spec_dedups_identical_methods() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -294,6 +306,7 @@ fn canonicalize_spec_dedups_identical_methods() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: method.clone(),
             },
         },
@@ -301,6 +314,7 @@ fn canonicalize_spec_dedups_identical_methods() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method,
             },
         },
@@ -319,6 +333,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -327,6 +342,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("alpha"),
                     args: vec![ContractField {
@@ -343,6 +359,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("alpha"),
                     args: vec![ContractField {
@@ -395,6 +412,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -403,6 +421,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -444,6 +463,7 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
                 })]
@@ -456,6 +476,7 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -477,6 +498,7 @@ fn canonicalize_spec_rejects_method_only_interface_buckets() {
         method_fragment: SpecMethodFragment {
             interface_name: s("Named"),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
             method: ContractSpecMethod {
                 name: s("ping"),
                 args: vec![].try_into().unwrap(),
@@ -498,6 +520,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
                 })]
@@ -510,6 +533,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -557,6 +581,7 @@ fn canonicalize_spec_shakes_unreachable_conflicting_type_defs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -565,6 +590,7 @@ fn canonicalize_spec_shakes_unreachable_conflicting_type_defs() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -614,6 +640,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
         interface_fragment: SpecInterfaceFragment {
             interface_name: s(name),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
             throws: vec![].try_into().unwrap(),
             emits: vec![].try_into().unwrap(),
         },
@@ -622,6 +649,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
         method_fragment: SpecMethodFragment {
             interface_name: s(name),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
             method: ContractSpecMethod {
                 name: s("configure"),
                 args: vec![ContractField {
@@ -642,6 +670,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Caller"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -694,6 +723,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
                 })]
@@ -706,6 +736,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("OtherError"),
                 })]
@@ -718,6 +749,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -756,6 +788,7 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(ContractType::Named {
                     named: s("DemoError"),
                 })]
@@ -768,6 +801,7 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![ContractField {
@@ -809,6 +843,7 @@ fn canonicalize_spec_rejects_non_semver_interface_versions() {
         interface_fragment: SpecInterfaceFragment {
             interface_name: s("Named"),
             interface_version: s("v1"),
+            declared_by: s("test_if@0.1::Iface"),
             throws: vec![].try_into().unwrap(),
             emits: vec![].try_into().unwrap(),
         },
@@ -834,6 +869,7 @@ fn canonicalize_spec_accepts_prerelease_interface_versions() {
         interface_fragment: SpecInterfaceFragment {
             interface_name: s("Named"),
             interface_version: s("1.0.0-rc.1"),
+            declared_by: s("test_if@0.1::Iface"),
             throws: vec![].try_into().unwrap(),
             emits: vec![].try_into().unwrap(),
         },
@@ -854,6 +890,7 @@ fn canonicalize_spec_rejects_non_canonical_semver_versions() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s(bad),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -873,6 +910,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -881,6 +919,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("get"),
                     args: vec![].try_into().unwrap(),
@@ -988,6 +1027,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -996,6 +1036,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -1066,6 +1107,7 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -1074,6 +1116,7 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -1153,6 +1196,7 @@ fn base_interface_fragments() -> Vec<SpecFragment> {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -1161,6 +1205,7 @@ fn base_interface_fragments() -> Vec<SpecFragment> {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -1349,6 +1394,7 @@ fn non_utf8_interface_name_is_rejected_not_panicked() {
             ])
             .unwrap(),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
             throws: vec![].try_into().unwrap(),
             emits: vec![].try_into().unwrap(),
         },
@@ -1364,6 +1410,7 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -1372,6 +1419,7 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -1396,6 +1444,7 @@ fn duplicate_exception_selector_with_different_types_is_rejected() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![
                     ContractExceptionType {
                         selector: 7,
@@ -1415,6 +1464,7 @@ fn duplicate_exception_selector_with_different_types_is_rejected() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -1437,6 +1487,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![
                     ContractExceptionType {
                         selector: 7,
@@ -1456,6 +1507,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -1487,6 +1539,7 @@ fn iface_with_emits(name: &str, emits: &[&str]) -> SpecFragment {
         interface_fragment: SpecInterfaceFragment {
             interface_name: s(name),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
             throws: vec![].try_into().unwrap(),
             emits: emits
                 .iter()
@@ -1503,6 +1556,7 @@ fn anchor(name: &str) -> SpecFragment {
         interface_anchor: SpecInterfaceAnchor {
             interface_name: s(name),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
         },
     }
 }
@@ -1620,6 +1674,7 @@ fn iface_with_throws(
         interface_fragment: SpecInterfaceFragment {
             interface_name: s(name),
             interface_version: s("0.1.0"),
+            declared_by: s("test_if@0.1::Iface"),
             throws: throws.to_vec().try_into().unwrap(),
             emits: vec![].try_into().unwrap(),
         },
@@ -1725,6 +1780,7 @@ fn ledger_fixture() -> Vec<SpecFragment> {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Ledger"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -1736,6 +1792,7 @@ fn ledger_fixture() -> Vec<SpecFragment> {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Ledger"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("steal"),
                     args: vec![ContractField {
@@ -1856,6 +1913,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Token"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -1864,6 +1922,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Token"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("transfer"),
                     args: vec![
@@ -1921,6 +1980,7 @@ fn opaque_signed_token_return_type_canonicalizes() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Wallet"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -1929,6 +1989,7 @@ fn opaque_signed_token_return_type_canonicalizes() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Wallet"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("is_valid_signature"),
                     args: vec![].try_into().unwrap(),
@@ -1964,6 +2025,7 @@ fn signed_token_preimage_missing_typedef_is_rejected() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Token"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -1972,6 +2034,7 @@ fn signed_token_preimage_missing_typedef_is_rejected() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Token"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("transfer"),
                     args: vec![ContractField {
@@ -2012,6 +2075,7 @@ fn canon_with_throws(
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![exn(exn_ty)].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -2020,6 +2084,7 @@ fn canon_with_throws(
             method_fragment: SpecMethodFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -2206,6 +2271,7 @@ fn signed_token_in_method_argument_is_still_allowed() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -2214,6 +2280,7 @@ fn signed_token_in_method_argument_is_still_allowed() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Demo"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("deposit"),
                     args: vec![ContractField {
@@ -2333,6 +2400,7 @@ fn iface_returning(return_type: ContractType) -> Vec<SpecFragment> {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -2341,6 +2409,7 @@ fn iface_returning(return_type: ContractType) -> Vec<SpecFragment> {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("get"),
                     args: vec![].try_into().unwrap(),
@@ -2504,6 +2573,7 @@ fn an_event_and_a_type_sharing_a_final_segment_both_survive() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("get"),
                     args: vec![].try_into().unwrap(),
@@ -2618,4 +2688,175 @@ fn retained_events_with_distinct_signatures_are_kept() {
     let names: Vec<&str> =
         spec.events.iter().map(|e| spec_str(&e.name)).collect();
     assert_eq!(names, vec!["a@1::Updated", "b@1::Updated"]);
+}
+
+// --- Interface declarers -------------------------------------------------
+//
+// An interface key is (name, version): all the wire carries, and all two
+// unrelated traits need to collide on. Every interface-keyed fragment also
+// names its declarer, so shaking keeps the anchored declarer's fragments only,
+// and an artifact anchoring two declarers under one key is refused.
+
+const DECLARER_A: &str = "iface_a@0.1::Token";
+const DECLARER_B: &str = "iface_b@0.1::Token";
+
+fn declared_iface(declared_by: &str, emits: &[&str]) -> SpecFragment {
+    SpecFragment::SpecInterface {
+        interface_fragment: SpecInterfaceFragment {
+            interface_name: s("Token"),
+            interface_version: s("0.1.0"),
+            declared_by: s(declared_by),
+            throws: vec![].try_into().unwrap(),
+            emits: emits
+                .iter()
+                .map(|e| s(e))
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+        },
+    }
+}
+
+fn declared_method(declared_by: &str, name: &str) -> SpecFragment {
+    SpecFragment::SpecMethod {
+        method_fragment: SpecMethodFragment {
+            interface_name: s("Token"),
+            interface_version: s("0.1.0"),
+            declared_by: s(declared_by),
+            method: ContractSpecMethod {
+                name: s(name),
+                args: vec![].try_into().unwrap(),
+                return_type: ContractType::U32,
+            },
+        },
+    }
+}
+
+fn declared_anchor(declared_by: &str) -> SpecFragment {
+    SpecFragment::InterfaceAnchor {
+        interface_anchor: SpecInterfaceAnchor {
+            interface_name: s("Token"),
+            interface_version: s("0.1.0"),
+            declared_by: s(declared_by),
+        },
+    }
+}
+
+#[test]
+fn two_declarers_anchored_under_one_key_are_rejected() {
+    // A contract implementing two unrelated `Token` traits: distinct methods,
+    // so the entrypoints link, but one interface id for both.
+    let err = canonicalize_spec(&[
+        declared_iface(DECLARER_A, &[]),
+        declared_method(DECLARER_A, "ping"),
+        declared_anchor(DECLARER_A),
+        declared_iface(DECLARER_B, &[]),
+        declared_method(DECLARER_B, "pong"),
+        declared_anchor(DECLARER_B),
+    ])
+    .unwrap_err();
+    assert!(
+        matches!(err, SpecToolError::ConflictingInterfaceDeclarers(_)),
+        "{err}"
+    );
+    let msg = err.to_string();
+    assert!(
+        msg.contains(DECLARER_A) && msg.contains(DECLARER_B),
+        "{msg}"
+    );
+}
+
+#[test]
+fn an_unanchored_colliders_metadata_does_not_conflict_with_the_anchored_one() {
+    // The contract implements A's `Token` and merely links B's (to call a B
+    // token through its client). Before declarers, B's candidate landed in the
+    // anchored key's bucket and its different `emits` failed the build.
+    let spec = canonicalize_spec(&[
+        declared_iface(DECLARER_A, &["PingEvent"]),
+        SpecFragment::SpecEvent {
+            event_def: event("PingEvent"),
+        },
+        declared_method(DECLARER_A, "ping"),
+        declared_anchor(DECLARER_A),
+        declared_iface(DECLARER_B, &[]),
+    ])
+    .unwrap();
+    assert_eq!(spec.interfaces.len(), 1);
+    let names: Vec<&str> =
+        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    assert_eq!(names, ["PingEvent"], "A's emits must be the ones kept");
+}
+
+#[test]
+fn an_unanchored_colliders_methods_are_not_merged_in() {
+    // Method fragments normally come only from an anchoring site, but a
+    // carrier or test harness can link one for a collider. Its methods belong
+    // to the collider, not to the anchored interface.
+    let spec = canonicalize_spec(&[
+        declared_iface(DECLARER_A, &[]),
+        declared_method(DECLARER_A, "ping"),
+        declared_anchor(DECLARER_A),
+        declared_iface(DECLARER_B, &[]),
+        declared_method(DECLARER_B, "pong"),
+    ])
+    .unwrap();
+    let methods: Vec<&str> = spec.interfaces[0]
+        .methods
+        .iter()
+        .map(|m| spec_str(&m.name))
+        .collect();
+    assert_eq!(methods, ["ping"]);
+}
+
+#[test]
+fn only_the_anchored_declarers_candidate_counts_as_the_interface_fragment() {
+    // An anchor whose own declarer contributed no interface fragment is
+    // missing its fragment, even if a collider's candidate sits on the key.
+    let err = canonicalize_spec(&[
+        declared_method(DECLARER_A, "ping"),
+        declared_anchor(DECLARER_A),
+        declared_iface(DECLARER_B, &[]),
+    ])
+    .unwrap_err();
+    assert!(
+        matches!(err, SpecToolError::MissingInterfaceFragment(_)),
+        "{err}"
+    );
+}
+
+#[test]
+fn an_interface_fragment_without_a_declarer_is_rejected() {
+    for fragment in [
+        declared_iface("", &[]),
+        declared_method("", "ping"),
+        declared_anchor(""),
+    ] {
+        let err = canonicalize_spec(&[fragment]).unwrap_err();
+        assert!(matches!(err, SpecToolError::InvalidRawFragment(_)), "{err}");
+    }
+}
+
+#[test]
+fn the_declarer_is_build_time_only_and_never_reaches_the_final_spec() {
+    // `declared_by` exists to shake and check raw fragments. The published
+    // `ContractSpec` has no field for it, and must not change with it: the
+    // same interface declared under two different ids finalizes to the same
+    // bytes.
+    let finalize = |declared_by: &str| {
+        let spec = canonicalize_spec(&[
+            declared_iface(declared_by, &[]),
+            declared_method(declared_by, "ping"),
+            declared_anchor(declared_by),
+        ])
+        .unwrap();
+        encode(&spec).unwrap()
+    };
+    let a = finalize(DECLARER_A);
+    assert_eq!(a, finalize(DECLARER_B));
+    for declarer in [DECLARER_A, DECLARER_B] {
+        assert!(
+            !a.windows(declarer.len()).any(|w| w == declarer.as_bytes()),
+            "{declarer} leaked into the final spec"
+        );
+    }
 }

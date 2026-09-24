@@ -26,7 +26,7 @@ LOWERED="${TARGET_DIR}/groundhog"
 # IS the rv32 enablement.
 #
 # The `disabled` marker is what keeps the negative fixtures
-# (missing_contract_macro, iface_conflict_impl, dup_entrypoint_neg) and
+# (missing_contract_macro, dup_entrypoint_neg) and
 # bigint-bench-contract out of this loop: they carry
 # bins too, but must never be built here expecting success. The checks that
 # own them build them by name.
@@ -246,7 +246,7 @@ eg_build_rv32_all() {
     check_rv32_strings $(ls_rv32_packages "${SDK_DIR}/example-contracts") &&
     check_rv32_contract_spec_artifacts &&
     check_rv32_typedef_conflict_detected &&
-    check_rv32_iface_conflict_detected &&
+    check_rv32_iface_declarer_conflict_detected &&
     check_rv32_event_signature_pending_cli &&
     check_rv32_missing_entrypoints_detected &&
     check_rv32_duplicate_entrypoint_detected
@@ -326,26 +326,30 @@ output was: $out"
     fi
 }
 
-# Negative spec fixture: iface_conflict_impl implements iface_conflict_if_a's
-# Token (anchoring the shared Token interface key) while also linking
-# iface_conflict_if_b, whose colliding Token candidate carries different
-# emits metadata. The ELF links; the spec canonicalization must FAIL with an
-# emits-metadata conflict — pinning that the anchored-key conflict error
-# survived the unanchored-conflict relaxation.
-check_rv32_iface_conflict_detected() {
-    info "CHECK-RV32-IFACE-CONFLICT-DETECTED"
+# Negative spec fixture: iface_declarer_collision implements two unrelated
+# `Token` traits (ledger::Token, vault::Token). They share an interface key —
+# name and major version, all the wire carries — so they share an interface
+# id, while their distinct methods let the entrypoints link. The ELF links;
+# spec canonicalization must FAIL naming both declarers, rather than publish
+# one `Token` holding both method sets. (iface_conflict_impl, which
+# implements one `Token` and only links the other, used to be refused here
+# too; declarers tell its two candidates apart, so it now builds — see
+# check_rv32_contract_spec_artifacts.)
+check_rv32_iface_declarer_conflict_detected() {
+    info "CHECK-RV32-IFACE-DECLARER-CONFLICT-DETECTED"
 
     local out
     if out=$( (
-        cd "${SDK_DIR}/example-contracts" &&
-        groundhog build -p iface_conflict_impl
+        cd "${SDK_DIR}/negative-contracts" &&
+        groundhog build -p iface_declarer_collision
     ) 2>&1); then
-        fail "Expected the rv32 build of iface_conflict_impl to fail with an emits-metadata conflict, but it succeeded"
+        fail "Expected the rv32 build of iface_declarer_collision to fail with an interface declarer conflict, but it succeeded"
         return 1
     fi
-    echo "$out" | rg -F --quiet \
-        "conflicting emits metadata for interface Token" || {
-        fail "Expected a Token emits-metadata conflict from iface_conflict_impl, got: $out"
+    # The ids carry the crate's major version, so match around it.
+    echo "$out" | rg --quiet \
+        "interface declared by more than one item: Token@.*::ledger::Token and .*::vault::Token" || {
+        fail "Expected a Token declarer conflict from iface_declarer_collision, got: $out"
         return 1
     }
 }
@@ -560,6 +564,7 @@ check_rv32_contract_spec_artifacts() {
     # AdoptedPayload asserts positive typedef retention; OrphanPayload asserts
     # typedef shaking (both directions covered by a single fixture).
     local rv32_event_shaking_json rv32_typedef_shaking_json rv32_iface_conflict_json
+    local iface_conflict_impl_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
     local erc20_json signer_callee_json signed_op_wallet_json coexist_json
     local name_reuse_json
@@ -567,6 +572,7 @@ check_rv32_contract_spec_artifacts() {
     rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
     rv32_iface_conflict_json="${groundhog_dir}/iface_conflict_caller.spec.json"
+    iface_conflict_impl_json="${groundhog_dir}/iface_conflict_impl.spec.json"
     free_fn_json="${groundhog_dir}/free_fn_unnamed.spec.json"
     imported_json="${groundhog_dir}/imported_error_callee.spec.json"
     multi_json="${groundhog_dir}/multi_imported_traits.spec.json"
@@ -729,6 +735,15 @@ check_rv32_contract_spec_artifacts() {
     assert_file_contains "$rv32_iface_conflict_json" '"name":"ConflictCaller"' &&
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"Token"' &&
     assert_file_lacks_id "$rv32_iface_conflict_json" PingEvent &&
+
+    # The anchored half of the same collision: iface_conflict_impl implements
+    # A's Token and only links B's (to call a B token). Each candidate names
+    # its declarer, so B's is shaken like any unimplemented interface and A's
+    # metadata stands alone — A's PingEvent is kept. The declarer itself is
+    # build-time only and must not reach the final spec.
+    assert_file_contains "$iface_conflict_impl_json" '"name":"Token"' &&
+    assert_file_contains_id "$iface_conflict_impl_json" PingEvent &&
+    assert_file_lacks "$iface_conflict_impl_json" '::Token"' &&
 
     assert_rv32a_lacks_spec_content \
         "${groundhog_dir}/event_shaking_subset.rv32a" \
