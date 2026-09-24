@@ -14,12 +14,3 @@ rules:
     ignore:
       - publish.yml
       - yank.yml
-
-  # These checks must read referenced repos, and groundhogchain/actions is
-  # private.
-  impostor-commit:
-    disable: true
-  stale-action-refs:
-    disable: true
-  ref-version-mismatch:
-    disable: true

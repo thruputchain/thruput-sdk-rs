@@ -102,7 +102,7 @@ jobs:
         with:
           repository: groundhogchain/actions
           path: actions
-          ref: 2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+          ref: af074672d3a6f3ddedcacd758224ea5a5cf2a8f3 # main
           persist-credentials: false
 
       - name: Select packages
