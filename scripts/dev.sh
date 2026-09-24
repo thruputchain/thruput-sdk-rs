@@ -513,12 +513,14 @@ assert_file_matches() {
 # matching `AdoptedPayload`, and it is why the `lacks` form still bites — a
 # bare `"name":"OrphanPayload"` needle would match nothing now and pass
 # whether or not the type was shaken.
+# Spec ids are structured (crate, major, module_path, declared), so match on
+# the declared-name field rather than a joined `crate::path::Name` string.
 assert_file_contains_id() {
-    assert_file_contains "$1" "::$2\""
+    assert_file_contains "$1" "\"declared\":\"$2\""
 }
 
 assert_file_lacks_id() {
-    assert_file_lacks "$1" "::$2\""
+    assert_file_lacks "$1" "\"declared\":\"$2\""
 }
 
 # Spec content must not reach the deployed .rv32a memory image. Raw fragments
