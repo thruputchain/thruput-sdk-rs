@@ -20,7 +20,7 @@ use groundhog_access_control::AccessControlState;
 use sdk::storage::{Balance, Map, Value};
 use sdk::*;
 
-type Allowance = Balance;
+type Allowance = sdk::storage::NNInt;
 
 hash_ident! { pub static PAUSER_ROLE: SHA256Hash; }
 
@@ -102,7 +102,12 @@ impl PausableTokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
-        self.allowances.at(owner).at(spender).get()
+        self.allowances
+            .at(owner)
+            .at(spender)
+            .try_get()
+            .none_if_missing()
+            .unwrap_or(0) as Amount
     }
 
     // Adjust allowance for owner and spender, from zero if empty.
@@ -114,14 +119,9 @@ impl PausableTokenContract {
     ) {
         let mut owner_allowances = self.allowances.at_mut(owner);
         let mut allowance = owner_allowances.at_mut(spender);
-        let result = if diff >= 0 {
-            // Allowances are not bounded by total supply, so increase them
-            // strictly to preserve the interface's immediate TooLarge error.
-            allowance.try_increase(diff as u128)
-        } else {
-            allowance.try_decrease(diff.unsigned_abs())
-        };
-        result.unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+        allowance
+            .try_strict_inc(diff)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
         log_approval_event(owner, spender, diff);
     }
@@ -182,6 +182,15 @@ impl ERC20 for PausableTokenContract {
         self._lazy_increase_balance(receiver, amount);
 
         log_transfer_event(owner, receiver, amount);
+    }
+
+    fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
+        let owner = get_caller();
+        self.allowances
+            .at_mut(&owner)
+            .at_mut_exclusive(spender)
+            .set(amount_to_diff(amount));
+        log_approve_event(&owner, spender, amount);
     }
 
     fn adjust_allowance(

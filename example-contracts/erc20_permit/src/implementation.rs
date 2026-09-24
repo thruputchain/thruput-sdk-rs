@@ -1,5 +1,6 @@
 //! ERC20 state and the two grant-consuming entrypoints.
 
+use groundhog_erc20_if::log_approve_event;
 use groundhog_erc20_if::{
     Amount, Difference, ERC20, ERC20Error, amount_to_diff, log_approval_event,
     log_burn_event, log_mint_event, log_transfer_event,
@@ -9,7 +10,7 @@ use sdk::signer::Signed;
 use sdk::storage::{Balance, Map, Value};
 use sdk::*;
 
-type Allowance = Balance;
+type Allowance = sdk::storage::NNInt;
 
 #[sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
@@ -49,12 +50,9 @@ impl PermitToken {
     ) {
         let mut owner_allowances = self.allowances.at_mut(owner);
         let mut allowance = owner_allowances.at_mut(spender);
-        let result = if diff >= 0 {
-            allowance.try_increase(diff as u128)
-        } else {
-            allowance.try_decrease(diff.unsigned_abs())
-        };
-        result.unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+        allowance
+            .try_strict_inc(diff)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 
         log_approval_event(owner, spender, diff);
     }
@@ -97,6 +95,15 @@ impl ERC20 for PermitToken {
         self._move(owner, receiver, amount);
     }
 
+    fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
+        let owner = get_caller();
+        self.allowances
+            .at_mut(&owner)
+            .at_mut_exclusive(spender)
+            .set(amount_to_diff(amount));
+        log_approve_event(&owner, spender, amount);
+    }
+
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
@@ -111,7 +118,12 @@ impl ERC20 for PermitToken {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
-        self.allowances.at(owner).at(spender).get()
+        self.allowances
+            .at(owner)
+            .at(spender)
+            .try_get()
+            .none_if_missing()
+            .unwrap_or(0) as Amount
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Amount {

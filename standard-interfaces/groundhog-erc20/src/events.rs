@@ -198,6 +198,94 @@ impl<'a> fmt::Display for ApprovalEvent<'a> {
     }
 }
 
+pub fn log_approve_event(
+    owner: &ContractAddress,
+    spender: &ContractAddress,
+    amount: u128,
+) {
+    let event = ApproveEvent::new(
+        owner,
+        spender,
+        crate::error::amount_to_diff(amount),
+    );
+
+    log_event(&event);
+}
+
+/// Absolute remaining allowance set by `approve`. Its signature is distinct
+/// from the legacy [`ApprovalEvent`], whose payload is a signed delta.
+#[derive(Event, Clone, Debug, PartialEq, Eq)]
+pub struct ApproveEvent<'a> {
+    #[topic]
+    pub owner: &'a ContractAddress,
+    #[topic]
+    pub spender: &'a ContractAddress,
+    pub amount: i128,
+}
+
+impl<'a> ApproveEvent<'a> {
+    pub fn new(
+        owner: &'a ContractAddress,
+        spender: &'a ContractAddress,
+        amount: i128,
+    ) -> Self {
+        Self {
+            owner,
+            spender,
+            amount,
+        }
+    }
+}
+
+impl<'a> TryFrom<EmittedEvent<'a>> for ApproveEvent<'a> {
+    type Error = &'static str;
+
+    fn try_from(
+        event: EmittedEvent<'a>,
+    ) -> core::result::Result<Self, Self::Error> {
+        let sig = event.topic(0).ok_or("No event signature")?;
+
+        if sig != ApproveEvent::SIGNATURE {
+            return Err("Unexpected event signature");
+        }
+
+        let owner: &ContractAddress =
+            event.topic(1).ok_or("Missing topic")?.into();
+        let spender: &ContractAddress =
+            event.topic(2).ok_or("Missing topic")?.into();
+
+        let payload = event
+            .payload()
+            .ok_or("Malformed event: topics overrun body")?;
+        let amount: i128 = sdk::internal::decode_xdr(payload)
+            .map_err(|_| "Couldn't parse event payload")?;
+
+        Ok(ApproveEvent::new(owner, spender, amount))
+    }
+}
+
+impl<'a> From<&ApproveEvent<'a>> for stdevt::ApprovalEvent {
+    fn from(val: &ApproveEvent<'a>) -> Self {
+        stdevt::ApprovalEvent {
+            owner_address: *val.owner,
+            spender_address: *val.spender,
+            amount: val.amount.into(),
+        }
+    }
+}
+
+impl<'a> fmt::Display for ApproveEvent<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "APPROVE({}, {}, amount:{:?})",
+            hex_encode(self.owner),
+            hex_encode(self.spender),
+            self.amount
+        )
+    }
+}
+
 // ----------------------------------------------------------------------
 
 /// Log that `amount` tokens were created into `to`.
@@ -320,6 +408,7 @@ pub enum ERC20Event<'a> {
     Approval(ApprovalEvent<'a>),
     Mint(MintEvent<'a>),
     Burn(BurnEvent<'a>),
+    Approve(ApproveEvent<'a>),
 }
 
 impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
@@ -333,6 +422,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
         match sig {
             TransferEvent::SIGNATURE => {
                 Ok(ERC20Event::Transfer(event.try_into()?))
+            }
+            ApproveEvent::SIGNATURE => {
+                Ok(ERC20Event::Approve(event.try_into()?))
             }
             ApprovalEvent::SIGNATURE => {
                 Ok(ERC20Event::Approval(event.try_into()?))
@@ -353,6 +445,7 @@ impl<'a> fmt::Display for ERC20Event<'a> {
             ERC20Event::Approval(e) => e.fmt(f),
             ERC20Event::Mint(e) => e.fmt(f),
             ERC20Event::Burn(e) => e.fmt(f),
+            ERC20Event::Approve(e) => e.fmt(f),
         }
     }
 }
@@ -400,6 +493,8 @@ pub enum StdERC20Event {
     Approval(stdevt::ApprovalEvent),
     Mint(StdMintEvent),
     Burn(StdBurnEvent),
+    /// Absolute allowance; `Approval` remains the legacy delta variant.
+    Approve(stdevt::ApprovalEvent),
 }
 
 impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
@@ -409,6 +504,7 @@ impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
             ERC20Event::Approval(e) => StdERC20Event::Approval(e.into()),
             ERC20Event::Mint(e) => StdERC20Event::Mint(e.into()),
             ERC20Event::Burn(e) => StdERC20Event::Burn(e.into()),
+            ERC20Event::Approve(e) => StdERC20Event::Approve(e.into()),
         }
     }
 }

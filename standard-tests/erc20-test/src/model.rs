@@ -52,6 +52,17 @@ impl Model {
         self.log_burn_event(owner, amount);
     }
 
+    pub fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
+        let owner = self.get_caller();
+        self.allowances.insert((owner, *spender), amount);
+        let event = ERC20Event::Approve(ApproveEvent::new(
+            &owner,
+            spender,
+            amount.try_into().unwrap(),
+        ));
+        self.events.push((&event).into());
+    }
+
     pub fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,

@@ -1,23 +1,11 @@
-//! Operation names and fields follow SEP-41 and SAC, in Groundhog encoding.
-//! Approve carries an absolute allowance and expiry, never a signed delta.
-//! Allowance consumption emits only its transfer or burn event.
-
 use sdk::{ContractAddress, Event};
 
 // These are the established Groundhog token movement events. Re-exporting
 // keeps their signatures and encoding recognizable to existing consumers.
 pub use groundhog_erc20_if::{BurnEvent, MintEvent, TransferEvent};
 
-#[derive(Event, Clone, Debug, PartialEq, Eq)]
-pub struct ApproveEvent<'a> {
-    #[topic]
-    pub from: &'a ContractAddress,
-    #[topic]
-    pub spender: &'a ContractAddress,
-    pub amount: i128,
-    pub live_until_ledger: u32,
-}
-
+/// Context for a forced burn. The accompanying canonical BurnEvent is the
+/// only supply movement; do not count this event as a second destruction.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct ClawbackEvent<'a> {
     #[topic]

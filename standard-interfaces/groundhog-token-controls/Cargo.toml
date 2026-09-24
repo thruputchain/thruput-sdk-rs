@@ -1,11 +1,11 @@
 [package]
-name = "groundhog-sep41-if"
+name = "groundhog-token-controls-if"
 version = "0.1.0"
 edition.workspace = true
 publish.workspace = true
 authors = ["Groundhog Team"]
 license = "MIT OR Apache-2.0"
-description = "SEP-41-style token interface for Groundhog smart contracts"
+description = "Optional issuer controls and holder burns for Groundhog ERC20 tokens"
 repository = "https://github.com/groundhogchain/sdk_rs"
 
 [features]
@@ -15,6 +15,7 @@ dev = ["sdk/dev", "dep:thiserror", "groundhog-erc20-if/dev"]
 [dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.38.0" }
 groundhog-erc20-if.workspace = true
+groundhog-erc20-metadata-if.workspace = true
 heapless.workspace = true
 thiserror = { workspace = true, optional = true }
 
@@ -25,6 +26,6 @@ sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.38.0", f
 doctest = false
 
 [[bin]]
-name = "groundhog-sep41-if"
+name = "groundhog-token-controls-if"
 path = "src/main.rs"
 required-features = ["entrypoints"]

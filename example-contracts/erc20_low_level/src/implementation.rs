@@ -110,6 +110,16 @@ pub fn transfer_from(
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
+pub fn approve(spender: &ContractAddress, amount: Amount) {
+    let owner = get_caller();
+    non_negative_int_set_exclusive(
+        &get_allowance_key(&owner, spender),
+        amount_to_diff(amount),
+    );
+    log_approve_event(&owner, spender, amount);
+}
+
+#[contract(interface = "ERC20", version = "0.1.0")]
 pub fn adjust_allowance(spender: &ContractAddress, diff: Difference) {
     let caller = get_caller();
 

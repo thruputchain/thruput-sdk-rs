@@ -74,9 +74,22 @@ fn setup() -> sdk::TestEnvironmentHandle {
 
     permit_wallet::register_mock_contract(&env)
         .deploy_contract_to(&wallet_address());
-    let token = erc20_permit::register_mock_contract(&env);
-    token.deploy_contract_to(&token_address());
-    token.deploy_contract_to(&other_token_address());
+    if let Some(path) = std::env::var_os("ERC20_PERMIT_RV32_ARTIFACT") {
+        let contract = sdk::types::Contract::kRv32 {
+            rv32_contract: sdk::types::contract::ContractBlob {
+                data: BytesM(
+                    std::fs::read(path).expect("read permit RV32 artifact"),
+                ),
+            },
+        };
+        env.setup_create_contract(&contract);
+        env.setup_create_deployment(&token_address(), &contract);
+        env.setup_create_deployment(&other_token_address(), &contract);
+    } else {
+        let token = erc20_permit::register_mock_contract(&env);
+        token.deploy_contract_to(&token_address());
+        token.deploy_contract_to(&other_token_address());
+    }
 
     env.transact(|tx| {
         tx.call(&admin()).run(|| {

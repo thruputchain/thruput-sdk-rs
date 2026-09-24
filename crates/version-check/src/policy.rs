@@ -89,7 +89,7 @@ pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
 /// workspace version.
 pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
     Named {
-        name: "groundhog-sep41-if",
+        name: "groundhog-token-controls-if",
         reason: "standard interface with an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
