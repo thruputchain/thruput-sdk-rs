@@ -2860,3 +2860,49 @@ fn the_declarer_is_build_time_only_and_never_reaches_the_final_spec() {
         );
     }
 }
+
+fn versioned_anchor(declared_by: &str, version: &str) -> Vec<SpecFragment> {
+    let key = |f: SpecFragment| match f {
+        SpecFragment::SpecInterface {
+            mut interface_fragment,
+        } => {
+            interface_fragment.interface_version = s(version);
+            SpecFragment::SpecInterface { interface_fragment }
+        }
+        SpecFragment::InterfaceAnchor {
+            mut interface_anchor,
+        } => {
+            interface_anchor.interface_version = s(version);
+            SpecFragment::InterfaceAnchor { interface_anchor }
+        }
+        other => other,
+    };
+    vec![
+        key(declared_iface(declared_by, &[])),
+        key(declared_anchor(declared_by)),
+    ]
+}
+
+#[test]
+fn declarers_collide_across_full_versions_that_share_a_major() {
+    // `1.0.0` and `1.1.0` are separate keys, but the wire hashes only the
+    // major, so the two interfaces share an interface id all the same.
+    let mut fragments = versioned_anchor(DECLARER_A, "1.0.0");
+    fragments.extend(versioned_anchor(DECLARER_B, "1.1.0"));
+    let err = canonicalize_spec(&fragments).unwrap_err();
+    assert!(
+        matches!(err, SpecToolError::ConflictingInterfaceDeclarers(_)),
+        "{err}"
+    );
+    assert!(err.to_string().contains("Token@1 "), "{err}");
+}
+
+#[test]
+fn declarers_at_different_majors_do_not_collide() {
+    // Distinct majors are distinct wire identities, so two declarers may
+    // each own one.
+    let mut fragments = versioned_anchor(DECLARER_A, "1.0.0");
+    fragments.extend(versioned_anchor(DECLARER_B, "2.0.0"));
+    let spec = canonicalize_spec(&fragments).unwrap();
+    assert_eq!(spec.interfaces.len(), 2);
+}

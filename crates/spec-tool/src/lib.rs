@@ -440,7 +440,27 @@ fn canonicalize_spec_inner(
     // interfaces the wire cannot tell apart: they share an interface id, and
     // any method signature they share maps to one entrypoint id. Refuse it
     // rather than publishing one interface with both method sets.
+    //
+    // Compared per (name, MAJOR), not per key: the key carries the full
+    // version, but the wire identity hashes only the major, so `Token@1.0.0`
+    // and `Token@1.1.0` from two declarers collide on the wire while landing
+    // in separate buckets here.
+    let mut declarers_by_wire_identity = BTreeMap::<
+        (String, String),
+        std::collections::BTreeSet<&ContractSpecString>,
+    >::new();
     for ((name, vers), declarers) in &anchored_interfaces {
+        declarers_by_wire_identity
+            .entry((
+                spec_str_lossy(name).into_owned(),
+                groundhog_contract_util::semver::major_version_from_string(
+                    spec_str(vers)?,
+                ),
+            ))
+            .or_default()
+            .extend(declarers);
+    }
+    for ((name, major), declarers) in &declarers_by_wire_identity {
         if declarers.len() > 1 {
             let named = declarers
                 .iter()
@@ -453,10 +473,7 @@ fn canonicalize_spec_inner(
                      entrypoint ids hash only the interface name and major \
                      version, so callers cannot tell them apart — give one \
                      a distinct name with #[contract(interface = \"...\")]",
-                    interface_key_string(
-                        &spec_str_lossy(name),
-                        &spec_str_lossy(vers),
-                    ),
+                    interface_key_string(name, major),
                 ),
             ));
         }
