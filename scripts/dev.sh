@@ -346,9 +346,9 @@ check_rv32_iface_declarer_conflict_detected() {
         fail "Expected the rv32 build of iface_declarer_collision to fail with an interface declarer conflict, but it succeeded"
         return 1
     fi
-    # The ids carry the crate's major version, so match around it.
+    # Each declarer is followed by its crate@major, so match around those.
     echo "$out" | rg --quiet \
-        "interface declared by more than one item: Token@.*::ledger::Token and .*::vault::Token" || {
+        "interface declared by more than one item: Token@.* is declared by both .*::ledger::Token .* and .*::vault::Token" || {
         fail "Expected a Token declarer conflict from iface_declarer_collision, got: $out"
         return 1
     }
