@@ -1,9 +1,10 @@
 use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractExceptionType,
-    ContractField, ContractSpec, ContractSpecMethod, ContractSpecString,
-    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
-    ContractUnionCaseType, ContractUnionDef, ContractVectorType, SpecFragment,
-    SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
+    ContractField, ContractSpec, ContractSpecId, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    ContractUnionCase, ContractUnionCaseType, ContractUnionDef,
+    ContractVectorType, SpecFragment, SpecInterfaceAnchor,
+    SpecInterfaceFragment, SpecMethodFragment,
 };
 use groundhog_spec_tool::{
     SpecToolError, canonicalize_spec, canonicalize_spec_with_exports,
@@ -13,6 +14,24 @@ use xdrs::txs::encode;
 
 fn s(value: &str) -> ContractSpecString {
     ContractSpecString::try_from(value).unwrap()
+}
+
+/// A spec id for a test fixture: only `declared` varies, so a fixture reads
+/// the way it used to while still carrying a well-formed id.
+/// How a fixture id renders in a diagnostic, matching spec-tool's
+/// `spec_id_lossy`. Spelled out here rather than imported so a change to the
+/// rendering has to be made deliberately in both places.
+fn id_str(declared: &str) -> String {
+    format!("testcrate::{declared} (testcrate@0)")
+}
+
+fn id(value: &str) -> ContractSpecId {
+    ContractSpecId {
+        crate_name: s("testcrate"),
+        major: s("0"),
+        module_path: s("testcrate"),
+        declared: s(value),
+    }
 }
 
 /// Canonicalize, first anchoring every interface the fragments mention — which
@@ -93,13 +112,13 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                     args: vec![ContractField {
                         name: s("request"),
                         ty: ContractType::Named {
-                            named: s("Payload"),
+                            named: id("Payload"),
                         },
                     }]
                     .try_into()
                     .unwrap(),
                     return_type: ContractType::Named {
-                        named: s("Response"),
+                        named: id("Response"),
                     },
                 },
             },
@@ -109,7 +128,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("DemoError"),
+                    named: id("DemoError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -130,7 +149,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("DemoError"),
+                    name: id("DemoError"),
                     variants: vec![ContractEnumVariant {
                         name: s("Nope"),
                         value: 7,
@@ -143,7 +162,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("Payload"),
+                    name: id("Payload"),
                     fields: vec![ContractField {
                         name: s("count"),
                         ty: ContractType::U32,
@@ -156,7 +175,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("Response"),
+                    name: id("Response"),
                     fields: vec![ContractField {
                         name: s("ok"),
                         ty: ContractType::Bool,
@@ -185,11 +204,11 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
             .iter()
             .map(|type_def| match type_def {
                 ContractTypeDef::TypeDefStruct { struct_def } =>
-                    spec_str(&struct_def.name),
+                    spec_str(&struct_def.name.declared),
                 ContractTypeDef::TypeDefEnum { enum_def } =>
-                    spec_str(&enum_def.name),
+                    spec_str(&enum_def.name.declared),
                 ContractTypeDef::TypeDefUnion { union_def } =>
-                    spec_str(&union_def.name),
+                    spec_str(&union_def.name.declared),
                 _ => panic!("unexpected variant"),
             })
             .collect::<Vec<_>>(),
@@ -205,7 +224,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("DemoError"),
+                    named: id("DemoError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -228,7 +247,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("DemoError"),
+                    named: id("DemoError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -249,7 +268,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("DemoError"),
+                    name: id("DemoError"),
                     variants: vec![].try_into().unwrap(),
                 },
             },
@@ -367,7 +386,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
 fn canonicalize_spec_dedups_identical_type_defs() {
     let payload = ContractTypeDef::TypeDefStruct {
         struct_def: ContractStructDef {
-            name: s("Payload"),
+            name: id("Payload"),
             fields: vec![ContractField {
                 name: s("count"),
                 ty: ContractType::U32,
@@ -378,11 +397,11 @@ fn canonicalize_spec_dedups_identical_type_defs() {
     };
     let response = ContractTypeDef::TypeDefStruct {
         struct_def: ContractStructDef {
-            name: s("Response"),
+            name: id("Response"),
             fields: vec![ContractField {
                 name: s("payload"),
                 ty: ContractType::Named {
-                    named: s("Payload"),
+                    named: id("Payload"),
                 },
             }]
             .try_into()
@@ -407,7 +426,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Named {
-                        named: s("Response"),
+                        named: id("Response"),
                     },
                 },
             },
@@ -425,11 +444,11 @@ fn canonicalize_spec_dedups_identical_type_defs() {
             .iter()
             .map(|type_def| match type_def {
                 ContractTypeDef::TypeDefStruct { struct_def } =>
-                    spec_str(&struct_def.name),
+                    spec_str(&struct_def.name.declared),
                 ContractTypeDef::TypeDefEnum { enum_def } =>
-                    spec_str(&enum_def.name),
+                    spec_str(&enum_def.name.declared),
                 ContractTypeDef::TypeDefUnion { union_def } =>
-                    spec_str(&union_def.name),
+                    spec_str(&union_def.name.declared),
                 _ => panic!("unexpected variant"),
             })
             .collect::<Vec<_>>(),
@@ -445,7 +464,7 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("DemoError"),
+                    named: id("DemoError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -467,7 +486,7 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
     .unwrap_err();
 
     assert!(
-        matches!(err, SpecToolError::MissingTypeDef(name) if name == "DemoError")
+        matches!(err, SpecToolError::MissingTypeDef(name) if name == id_str("DemoError"))
     );
 }
 
@@ -499,7 +518,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("DemoError"),
+                    named: id("DemoError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -520,7 +539,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("DemoError"),
+                    name: id("DemoError"),
                     variants: vec![ContractEnumVariant {
                         name: s("Nope"),
                         value: 7,
@@ -533,7 +552,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("DemoError"),
+                    name: id("DemoError"),
                     fields: vec![].try_into().unwrap(),
                 },
             },
@@ -542,7 +561,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
     .unwrap_err();
 
     assert!(
-        matches!(err, SpecToolError::ConflictingTypeDef(name) if name == "DemoError")
+        matches!(err, SpecToolError::ConflictingTypeDef(name) if name == id_str("DemoError"))
     );
 }
 
@@ -575,7 +594,7 @@ fn canonicalize_spec_shakes_unreachable_conflicting_type_defs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("NeverUsed"),
+                    name: id("NeverUsed"),
                     variants: vec![ContractEnumVariant {
                         name: s("Left"),
                         value: 1,
@@ -588,7 +607,7 @@ fn canonicalize_spec_shakes_unreachable_conflicting_type_defs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("NeverUsed"),
+                    name: id("NeverUsed"),
                     fields: vec![].try_into().unwrap(),
                 },
             },
@@ -627,7 +646,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
                 args: vec![ContractField {
                     name: s("cfg"),
                     ty: ContractType::Named {
-                        named: s("SharedConfig"),
+                        named: id("SharedConfig"),
                     },
                 }]
                 .try_into()
@@ -656,7 +675,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("SharedConfig"),
+                    name: id("SharedConfig"),
                     fields: vec![ContractField {
                         name: s("limit"),
                         ty: ContractType::U32,
@@ -669,7 +688,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("SharedConfig"),
+                    name: id("SharedConfig"),
                     fields: vec![].try_into().unwrap(),
                 },
             },
@@ -695,7 +714,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("DemoError"),
+                    named: id("DemoError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -707,7 +726,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("OtherError"),
+                    named: id("OtherError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -728,7 +747,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("DemoError"),
+                    name: id("DemoError"),
                     variants: vec![].try_into().unwrap(),
                 },
             },
@@ -736,7 +755,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("OtherError"),
+                    name: id("OtherError"),
                     variants: vec![].try_into().unwrap(),
                 },
             },
@@ -757,7 +776,7 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("DemoError"),
+                    named: id("DemoError"),
                 })]
                 .try_into()
                 .unwrap(),
@@ -783,7 +802,7 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("DemoError"),
+                    name: id("DemoError"),
                     variants: vec![ContractEnumVariant {
                         name: s("Nope"),
                         value: 7,
@@ -885,7 +904,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
                     name: s("get"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Named {
-                        named: s("Envelope"),
+                        named: id("Envelope"),
                     },
                 },
             },
@@ -893,7 +912,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefUnion {
                 union_def: ContractUnionDef {
-                    name: s("Envelope"),
+                    name: id("Envelope"),
                     cases: vec![
                         ContractUnionCase {
                             name: s("Empty"),
@@ -909,7 +928,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
                                         ContractField {
                                             name: s("payload"),
                                             ty: ContractType::Named {
-                                                named: s("Payload"),
+                                                named: id("Payload"),
                                             },
                                         },
                                         ContractField {
@@ -927,7 +946,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
                             case_type: ContractUnionCaseType::UnionCaseTuple {
                                 tuple: vec![
                                     ContractType::Named {
-                                        named: s("Payload"),
+                                        named: id("Payload"),
                                     },
                                     ContractType::U32,
                                 ]
@@ -944,7 +963,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("Payload"),
+                    name: id("Payload"),
                     fields: vec![ContractField {
                         name: s("data"),
                         ty: ContractType::U32,
@@ -962,13 +981,13 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
         .iter()
         .map(|td| match td {
             ContractTypeDef::TypeDefStruct { struct_def } => {
-                spec_str(&struct_def.name)
+                spec_str(&struct_def.name.declared)
             }
             ContractTypeDef::TypeDefEnum { enum_def } => {
-                spec_str(&enum_def.name)
+                spec_str(&enum_def.name.declared)
             }
             ContractTypeDef::TypeDefUnion { union_def } => {
-                spec_str(&union_def.name)
+                spec_str(&union_def.name.declared)
             }
             _ => panic!("unexpected variant"),
         })
@@ -1007,7 +1026,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
         SpecFragment::ExportedSpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("ExportedEvent"),
+                    name: id("ExportedEvent"),
                     fields: vec![ContractField {
                         name: s("value"),
                         ty: ContractType::U32,
@@ -1022,7 +1041,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("NeverUsedHelper"),
+                    name: id("NeverUsedHelper"),
                     fields: vec![].try_into().unwrap(),
                 },
             },
@@ -1035,13 +1054,13 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
         .iter()
         .map(|td| match td {
             ContractTypeDef::TypeDefStruct { struct_def } => {
-                spec_str(&struct_def.name)
+                spec_str(&struct_def.name.declared)
             }
             ContractTypeDef::TypeDefEnum { enum_def } => {
-                spec_str(&enum_def.name)
+                spec_str(&enum_def.name.declared)
             }
             ContractTypeDef::TypeDefUnion { union_def } => {
-                spec_str(&union_def.name)
+                spec_str(&union_def.name.declared)
             }
             _ => panic!("unexpected variant"),
         })
@@ -1085,11 +1104,11 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
         SpecFragment::ExportedSpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("ExportedEvent"),
+                    name: id("ExportedEvent"),
                     fields: vec![ContractField {
                         name: s("meta"),
                         ty: ContractType::Named {
-                            named: s("Metadata"),
+                            named: id("Metadata"),
                         },
                     }]
                     .try_into()
@@ -1101,7 +1120,7 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("Metadata"),
+                    name: id("Metadata"),
                     fields: vec![ContractField {
                         name: s("tag"),
                         ty: ContractType::U64,
@@ -1119,13 +1138,13 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
         .iter()
         .map(|td| match td {
             ContractTypeDef::TypeDefStruct { struct_def } => {
-                spec_str(&struct_def.name)
+                spec_str(&struct_def.name.declared)
             }
             ContractTypeDef::TypeDefEnum { enum_def } => {
-                spec_str(&enum_def.name)
+                spec_str(&enum_def.name.declared)
             }
             ContractTypeDef::TypeDefUnion { union_def } => {
-                spec_str(&union_def.name)
+                spec_str(&union_def.name.declared)
             }
             _ => panic!("unexpected variant"),
         })
@@ -1191,7 +1210,7 @@ fn signature_for(name: &str) -> [u8; 32] {
 
 fn event_def(name: &str, payload_ty: ContractType) -> ContractEventDef {
     ContractEventDef {
-        name: s(name),
+        name: id(name),
         signature: signature_for(name).into(),
         topics: vec![ContractField {
             name: s("from"),
@@ -1226,8 +1245,11 @@ fn canonicalize_spec_collects_and_dedupes_event_defs() {
 
     let spec = canonicalize_spec(&fragments).unwrap();
 
-    let names: Vec<_> =
-        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    let names: Vec<_> = spec
+        .events
+        .iter()
+        .map(|e| spec_str(&e.name.declared))
+        .collect();
     assert_eq!(names, vec!["ApprovalEvent", "TransferEvent"]);
 }
 
@@ -1240,14 +1262,14 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
         event_def: event_def(
             "MintEvent",
             ContractType::Named {
-                named: s("Payload"),
+                named: id("Payload"),
             },
         ),
     });
     fragments.push(SpecFragment::SpecTypeDef {
         type_def: ContractTypeDef::TypeDefStruct {
             struct_def: ContractStructDef {
-                name: s("Payload"),
+                name: id("Payload"),
                 fields: vec![ContractField {
                     name: s("count"),
                     ty: ContractType::U32,
@@ -1269,13 +1291,13 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
         event_def: event_def(
             "MintEvent",
             ContractType::Named {
-                named: s("Payload"),
+                named: id("Payload"),
             },
         ),
     });
     assert_eq!(
         canonicalize_spec(&missing),
-        Err(SpecToolError::MissingTypeDef("Payload".to_owned()))
+        Err(SpecToolError::MissingTypeDef(id_str("Payload")))
     );
 }
 
@@ -1292,9 +1314,7 @@ fn canonicalize_spec_rejects_conflicting_event_defs() {
 
     assert_eq!(
         canonicalize_spec(&fragments),
-        Err(SpecToolError::ConflictingEventDef(
-            "TransferEvent".to_owned()
-        ))
+        Err(SpecToolError::ConflictingEventDef(id_str("TransferEvent")))
     );
 }
 
@@ -1309,7 +1329,7 @@ fn canonicalize_spec_rejects_event_with_too_many_topics() {
         .collect();
     fragments.push(SpecFragment::SpecEvent {
         event_def: ContractEventDef {
-            name: s("NoisyEvent"),
+            name: id("NoisyEvent"),
             signature: [0xAB; 32].into(),
             topics: too_many_topics.try_into().unwrap(),
             fields: vec![].try_into().unwrap(),
@@ -1327,7 +1347,7 @@ fn canonicalize_spec_rejects_event_without_name() {
     let mut fragments = base_interface_fragments();
     fragments.push(SpecFragment::SpecEvent {
         event_def: ContractEventDef {
-            name: s(""),
+            name: id(""),
             signature: [0xAB; 32].into(),
             topics: vec![].try_into().unwrap(),
             fields: vec![].try_into().unwrap(),
@@ -1376,10 +1396,15 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Named {
-                        named: ContractSpecString::try_from(vec![
-                            0xC0u8, 0x80,
-                        ])
-                        .unwrap(),
+                        named: ContractSpecId {
+                            crate_name: s("testcrate"),
+                            major: s("0"),
+                            module_path: s("testcrate"),
+                            declared: ContractSpecString::try_from(vec![
+                                0xC0u8, 0x80,
+                            ])
+                            .unwrap(),
+                        },
                     },
                 },
             },
@@ -1399,11 +1424,11 @@ fn duplicate_exception_selector_with_different_types_is_rejected() {
                 throws: vec![
                     ContractExceptionType {
                         selector: 7,
-                        ty: ContractType::Named { named: s("ErrA") },
+                        ty: ContractType::Named { named: id("ErrA") },
                     },
                     ContractExceptionType {
                         selector: 7,
-                        ty: ContractType::Named { named: s("ErrB") },
+                        ty: ContractType::Named { named: id("ErrB") },
                     },
                 ]
                 .try_into()
@@ -1475,7 +1500,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
 
 fn event(name: &str) -> ContractEventDef {
     ContractEventDef {
-        name: s(name),
+        name: id(name),
         signature: signature_for(name).into(),
         topics: vec![].try_into().unwrap(),
         fields: vec![].try_into().unwrap(),
@@ -1490,7 +1515,7 @@ fn iface_with_emits(name: &str, emits: &[&str]) -> SpecFragment {
             throws: vec![].try_into().unwrap(),
             emits: emits
                 .iter()
-                .map(|e| s(e))
+                .map(|e| id(e))
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap(),
@@ -1524,8 +1549,11 @@ fn events_of_unanchored_interfaces_are_shaken() {
         anchor("A"),
     ])
     .unwrap();
-    let names: Vec<&str> =
-        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    let names: Vec<&str> = spec
+        .events
+        .iter()
+        .map(|e| spec_str(&e.name.declared))
+        .collect();
     assert_eq!(names, vec!["AEvent"]);
 }
 
@@ -1539,8 +1567,11 @@ fn exported_events_survive_without_any_interface_reference() {
         anchor("A"),
     ])
     .unwrap();
-    let names: Vec<&str> =
-        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    let names: Vec<&str> = spec
+        .events
+        .iter()
+        .map(|e| spec_str(&e.name.declared))
+        .collect();
     assert_eq!(names, vec!["LooseEvent"]);
 }
 
@@ -1639,11 +1670,11 @@ fn conflicting_throws_ignored_when_interface_is_unanchored() {
         iface_with_emits("A", &[]),
         iface_with_throws(
             "B",
-            &[exn(ContractType::Named { named: s("ErrX") })],
+            &[exn(ContractType::Named { named: id("ErrX") })],
         ),
         iface_with_throws(
             "B",
-            &[exn(ContractType::Named { named: s("ErrY") })],
+            &[exn(ContractType::Named { named: id("ErrY") })],
         ),
         anchor("A"),
     ])
@@ -1683,11 +1714,11 @@ fn selector_conflict_ignored_when_interface_is_unanchored() {
             &[
                 ContractExceptionType {
                     selector: 7,
-                    ty: ContractType::Named { named: s("ErrA") },
+                    ty: ContractType::Named { named: id("ErrA") },
                 },
                 ContractExceptionType {
                     selector: 7,
-                    ty: ContractType::Named { named: s("ErrB") },
+                    ty: ContractType::Named { named: id("ErrB") },
                 },
             ],
         ),
@@ -1741,7 +1772,7 @@ fn ledger_fixture() -> Vec<SpecFragment> {
                     args: vec![ContractField {
                         name: s("cfg"),
                         ty: ContractType::Named {
-                            named: s("LootCfg"),
+                            named: id("LootCfg"),
                         },
                     }]
                     .try_into()
@@ -1753,7 +1784,7 @@ fn ledger_fixture() -> Vec<SpecFragment> {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("LootCfg"),
+                    name: id("LootCfg"),
                     fields: vec![].try_into().unwrap(),
                 },
             },
@@ -1870,7 +1901,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
                         ContractField {
                             name: s("auth"),
                             ty: signed_token(ContractType::Named {
-                                named: s("TransferAuth"),
+                                named: id("TransferAuth"),
                             }),
                         },
                         ContractField {
@@ -1887,7 +1918,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
         SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("TransferAuth"),
+                    name: id("TransferAuth"),
                     fields: vec![ContractField {
                         name: s("amount"),
                         ty: ContractType::U64,
@@ -1904,7 +1935,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
     assert_eq!(
         method.args[0].ty,
         signed_token(ContractType::Named {
-            named: s("TransferAuth"),
+            named: id("TransferAuth"),
         })
     );
     assert_eq!(method.args[1].ty, ContractType::U64);
@@ -1977,7 +2008,7 @@ fn signed_token_preimage_missing_typedef_is_rejected() {
                     args: vec![ContractField {
                         name: s("auth"),
                         ty: signed_token(ContractType::Named {
-                            named: s("MissingAuth"),
+                            named: id("MissingAuth"),
                         }),
                     }]
                     .try_into()
@@ -1990,7 +2021,7 @@ fn signed_token_preimage_missing_typedef_is_rejected() {
     .unwrap_err();
 
     assert!(
-        matches!(err, SpecToolError::MissingTypeDef(ref name) if name == "MissingAuth"),
+        matches!(err, SpecToolError::MissingTypeDef(ref name) if name == &id_str("MissingAuth")),
         "expected MissingTypeDef(MissingAuth), got {err:?}"
     );
 }
@@ -2039,7 +2070,7 @@ fn canon_with_throws(
 fn struct_def(name: &str, fields: Vec<ContractField>) -> ContractTypeDef {
     ContractTypeDef::TypeDefStruct {
         struct_def: ContractStructDef {
-            name: s(name),
+            name: id(name),
             fields: fields.try_into().unwrap(),
         },
     }
@@ -2068,7 +2099,7 @@ fn throws_struct_field_signed_token_is_rejected() {
     assert!(matches!(
         canon_with_throws(
             ContractType::Named {
-                named: s("RefundError")
+                named: id("RefundError")
             },
             vec![struct_def(
                 "RefundError",
@@ -2087,7 +2118,7 @@ fn throws_deeply_nested_signed_token_is_rejected() {
     // Wrapping in containers and another named type must not launder it.
     assert!(matches!(
         canon_with_throws(
-            ContractType::Named { named: s("Outer") },
+            ContractType::Named { named: id("Outer") },
             vec![
                 struct_def(
                     "Outer",
@@ -2095,7 +2126,7 @@ fn throws_deeply_nested_signed_token_is_rejected() {
                         name: s("inner"),
                         ty: ContractType::Option {
                             option_inner: Box::new(ContractType::Named {
-                                named: s("Inner")
+                                named: id("Inner")
                             }),
                         },
                     }],
@@ -2124,7 +2155,7 @@ fn throws_recursive_type_without_token_is_accepted() {
     // than recurse forever — and must not be falsely accused.
     let spec = canon_with_throws(
         ContractType::Named {
-            named: s("TreeError"),
+            named: id("TreeError"),
         },
         vec![struct_def(
             "TreeError",
@@ -2137,7 +2168,7 @@ fn throws_recursive_type_without_token_is_accepted() {
                     name: s("cause"),
                     ty: ContractType::Option {
                         option_inner: Box::new(ContractType::Named {
-                            named: s("TreeError"),
+                            named: id("TreeError"),
                         }),
                     },
                 },
@@ -2155,7 +2186,7 @@ fn throws_recursive_type_reaching_token_is_still_rejected() {
     assert!(matches!(
         canon_with_throws(
             ContractType::Named {
-                named: s("TreeError")
+                named: id("TreeError")
             },
             vec![struct_def(
                 "TreeError",
@@ -2168,7 +2199,7 @@ fn throws_recursive_type_reaching_token_is_still_rejected() {
                         name: s("cause"),
                         ty: ContractType::Option {
                             option_inner: Box::new(ContractType::Named {
-                                named: s("TreeError")
+                                named: id("TreeError")
                             }),
                         },
                     },
@@ -2183,7 +2214,7 @@ fn throws_recursive_type_reaching_token_is_still_rejected() {
 fn throws_without_signed_token_is_accepted() {
     let spec = canon_with_throws(
         ContractType::Named {
-            named: s("PlainError"),
+            named: id("PlainError"),
         },
         vec![struct_def(
             "PlainError",
@@ -2251,10 +2282,10 @@ fn signed_token_in_method_argument_is_still_allowed() {
 
 /// A struct type def whose spec name is `id` and whose fields are
 /// `(name, type)` pairs.
-fn id_struct(id: &str, fields: &[(&str, ContractType)]) -> ContractTypeDef {
+fn id_struct(sym: &str, fields: &[(&str, ContractType)]) -> ContractTypeDef {
     ContractTypeDef::TypeDefStruct {
         struct_def: ContractStructDef {
-            name: s(id),
+            name: id(sym),
             fields: fields
                 .iter()
                 .map(|(name, ty)| ContractField {
@@ -2268,8 +2299,8 @@ fn id_struct(id: &str, fields: &[(&str, ContractType)]) -> ContractTypeDef {
     }
 }
 
-fn named(id: &str) -> ContractType {
-    ContractType::Named { named: s(id) }
+fn named(sym: &str) -> ContractType {
+    ContractType::Named { named: id(sym) }
 }
 
 /// The spec name each type def carries, in output order.
@@ -2278,13 +2309,13 @@ fn type_def_names(spec: &ContractSpec) -> Vec<&str> {
         .iter()
         .map(|type_def| match type_def {
             ContractTypeDef::TypeDefStruct { struct_def } => {
-                spec_str(&struct_def.name)
+                spec_str(&struct_def.name.declared)
             }
             ContractTypeDef::TypeDefEnum { enum_def } => {
-                spec_str(&enum_def.name)
+                spec_str(&enum_def.name.declared)
             }
             ContractTypeDef::TypeDefUnion { union_def } => {
-                spec_str(&union_def.name)
+                spec_str(&union_def.name.declared)
             }
             _ => panic!("unexpected variant"),
         })
@@ -2300,7 +2331,7 @@ fn field_refs<'a>(
         .iter()
         .find_map(|type_def| match type_def {
             ContractTypeDef::TypeDefStruct { struct_def }
-                if spec_str(&struct_def.name) == name =>
+                if spec_str(&struct_def.name.declared) == name =>
             {
                 Some(
                     struct_def
@@ -2309,7 +2340,7 @@ fn field_refs<'a>(
                         .map(|f| {
                             let target = match &f.ty {
                                 ContractType::Named { named } => {
-                                    spec_str(named)
+                                    spec_str(&named.declared)
                                 }
                                 other => {
                                     panic!("{other:?} is not a named type")
@@ -2488,7 +2519,7 @@ fn different_shapes_under_one_id_are_still_rejected() {
     // The id, not the shortened name: the id is what disagrees.
     assert_eq!(
         err,
-        SpecToolError::ConflictingTypeDef("mycrate@1::Meta".to_string())
+        SpecToolError::ConflictingTypeDef(id_str("mycrate@1::Meta"))
     );
 }
 
@@ -2526,8 +2557,11 @@ fn an_event_and_a_type_sharing_a_final_segment_both_survive() {
 
     let spec = canonicalize_spec(&fragments).unwrap();
 
-    let event_names: Vec<&str> =
-        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    let event_names: Vec<&str> = spec
+        .events
+        .iter()
+        .map(|e| spec_str(&e.name.declared))
+        .collect();
     assert_eq!(type_def_names(&spec), vec!["ty@1::Transfer"]);
     assert_eq!(event_names, vec!["evt@1::Transfer"]);
 }
@@ -2540,7 +2574,7 @@ fn an_event_and_a_type_sharing_a_final_segment_both_survive() {
 #[test]
 fn retained_events_sharing_a_signature_are_rejected() {
     let collide = |name: &str| ContractEventDef {
-        name: s(name),
+        name: id(name),
         signature: signature_for("Updated").into(),
         topics: vec![].try_into().unwrap(),
         fields: vec![].try_into().unwrap(),
@@ -2573,7 +2607,7 @@ fn retained_events_sharing_a_signature_are_rejected() {
 #[test]
 fn shaken_events_sharing_a_signature_are_ignored() {
     let collide = |name: &str| ContractEventDef {
-        name: s(name),
+        name: id(name),
         signature: signature_for("Updated").into(),
         topics: vec![].try_into().unwrap(),
         fields: vec![].try_into().unwrap(),
@@ -2593,8 +2627,11 @@ fn shaken_events_sharing_a_signature_are_ignored() {
     ])
     .unwrap();
 
-    let names: Vec<&str> =
-        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    let names: Vec<&str> = spec
+        .events
+        .iter()
+        .map(|e| spec_str(&e.name.declared))
+        .collect();
     assert_eq!(names, vec!["evt@1::ledger::Updated"]);
 }
 
@@ -2615,7 +2652,10 @@ fn retained_events_with_distinct_signatures_are_kept() {
     ])
     .unwrap();
 
-    let names: Vec<&str> =
-        spec.events.iter().map(|e| spec_str(&e.name)).collect();
+    let names: Vec<&str> = spec
+        .events
+        .iter()
+        .map(|e| spec_str(&e.name.declared))
+        .collect();
     assert_eq!(names, vec!["a@1::Updated", "b@1::Updated"]);
 }

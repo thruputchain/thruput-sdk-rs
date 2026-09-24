@@ -30,7 +30,18 @@ fn to_spec_string(s: &str) -> ContractSpecString {
 /// "..."` substitutes its value verbatim, `::` and all -- and because every
 /// segment is something the declaring macro already holds whole, so nothing
 /// here is parsed out of anything.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    ConstWriteXDR,
+    WriteXDR,
+)]
 pub struct ContractSpecIdView<'a> {
     /// Declaring crate, as Cargo names the package: hyphenated.
     pub crate_name: &'a str,
@@ -397,9 +408,9 @@ impl From<ContractTypeView<'_>> for ContractType {
                     .try_into()
                     .unwrap(),
             },
-            ContractTypeView::Named(name) => ContractType::Named {
-                named: name.into(),
-            },
+            ContractTypeView::Named(name) => {
+                ContractType::Named { named: name.into() }
+            }
             ContractTypeView::U8 => ContractType::U8,
             ContractTypeView::Array(array) => ContractType::Array {
                 array: array.into(),

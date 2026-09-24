@@ -33,9 +33,9 @@
 //! encoding transitively — most likely a type in `groundhog-spec`.
 
 use groundhog_contract_spec::{
-    ContractEventDef, ContractField, ContractSpecMethod, ContractSpecString,
-    ContractStructDef, ContractType, ContractTypeDef, RAW_SPEC_FORMAT,
-    SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment,
+    ContractEventDef, ContractField, ContractSpecId, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    RAW_SPEC_FORMAT, SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment,
     SpecMethodFragment,
 };
 use xdrs::txs::encode;
@@ -49,6 +49,17 @@ fn spec_string(s: &str) -> ContractSpecString {
     ContractSpecString::try_from(s).expect("spec string fits")
 }
 
+/// A spec id for the sample below. All four segments are populated, so the
+/// golden pins the whole id encoding and not just its declared name.
+fn spec_id(declared: &str) -> ContractSpecId {
+    ContractSpecId {
+        crate_name: spec_string("goldencrate"),
+        major: spec_string("0"),
+        module_path: spec_string("goldencrate::sample"),
+        declared: spec_string(declared),
+    }
+}
+
 fn field(name: &str, ty: ContractType) -> ContractField {
     ContractField {
         name: spec_string(name),
@@ -59,7 +70,7 @@ fn field(name: &str, ty: ContractType) -> ContractField {
 fn struct_def(name: &str) -> ContractTypeDef {
     ContractTypeDef::TypeDefStruct {
         struct_def: ContractStructDef {
-            name: spec_string(name),
+            name: spec_id(name),
             fields: vec![field("a", ContractType::U32)]
                 .try_into()
                 .expect("field list fits"),
@@ -69,7 +80,7 @@ fn struct_def(name: &str) -> ContractTypeDef {
 
 fn event_def(name: &str) -> ContractEventDef {
     ContractEventDef {
-        name: spec_string(name),
+        name: spec_id(name),
         signature: [0xAB; 32].into(),
         topics: vec![field("from", ContractType::Address)]
             .try_into()
@@ -92,7 +103,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
                 interface_name: spec_string("Iface"),
                 interface_version: spec_string("1.2.3"),
                 throws: vec![].try_into().expect("throws list fits"),
-                emits: vec![spec_string("Ev")]
+                emits: vec![spec_id("Ev")]
                     .try_into()
                     .expect("emits list fits"),
             },

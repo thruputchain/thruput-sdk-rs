@@ -85,7 +85,21 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> WriteXDR for SignedOp<'_, T> {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use groundhog_contract_spec::ContractTypeName;
+    use groundhog_contract_spec::{ContractSpecIdView, ContractTypeName};
+
+    /// Id for a fixture below. Only `declared` varies, so `GrantV2` keeping
+    /// `Grant`'s name still collides on the whole id -- which is the point of
+    /// the fixture.
+    const fn fixture_id(
+        declared: &'static str,
+    ) -> ContractSpecIdView<'static> {
+        ContractSpecIdView {
+            crate_name: env!("CARGO_PKG_NAME"),
+            major: "0",
+            module_path: module_path!(),
+            declared,
+        }
+    }
     use groundhog_macros::ContractTypeSpec as DeriveContractTypeSpec;
     use groundhog_xdr::types::{BlockHeight, SHA256Hash};
 
@@ -99,7 +113,7 @@ mod tests {
         amount: u64,
     }
     impl ContractTypeName for Grant {
-        const NAME: &'static str = "Grant";
+        const NAME: ContractSpecIdView<'static> = fixture_id("Grant");
     }
 
     /// Byte-identical to `Grant` as a value; only `TYPE_DEF` separates them.
@@ -109,7 +123,7 @@ mod tests {
         id: u64,
     }
     impl ContractTypeName for Revoke {
-        const NAME: &'static str = "Revoke";
+        const NAME: ContractSpecIdView<'static> = fixture_id("Revoke");
     }
 
     /// `Grant` with a field added and the name kept: what a name-based
@@ -121,7 +135,7 @@ mod tests {
         recipient: u64,
     }
     impl ContractTypeName for GrantV2 {
-        const NAME: &'static str = "Grant";
+        const NAME: ContractSpecIdView<'static> = fixture_id("Grant");
     }
 
     fn op<T>(body: &T) -> SignedOp<'_, T> {

@@ -430,7 +430,8 @@ impl_tuple_type_ref_spec!(
 ///
 /// The id, not a display name: read [`ContractSpecIdView::declared`] for the
 /// bare identifier, and see that type on why the segments travel apart.
-pub const fn symbol<T: ContractTypeSpec>() -> view::ContractSpecIdView<'static> {
+pub const fn symbol<T: ContractTypeSpec>() -> view::ContractSpecIdView<'static>
+{
     T::TYPE_DEF.symbol()
 }
 

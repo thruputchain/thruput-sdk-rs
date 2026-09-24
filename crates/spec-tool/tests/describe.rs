@@ -18,7 +18,9 @@ fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
             }
         }
         ContractType::Named { named } => {
-            refs.insert(std::str::from_utf8(named).unwrap().to_string());
+            refs.insert(
+                std::str::from_utf8(&named.declared).unwrap().to_string(),
+            );
         }
         _ => {}
     }
@@ -73,7 +75,7 @@ fn defined_names(output: &DescribeOutput) -> BTreeSet<String> {
                 ContractTypeDef::TypeDefUnion { union_def } => &union_def.name,
                 _ => panic!("unknown ContractTypeDef variant"),
             };
-            std::str::from_utf8(name).unwrap().to_string()
+            std::str::from_utf8(&name.declared).unwrap().to_string()
         })
         .collect()
 }

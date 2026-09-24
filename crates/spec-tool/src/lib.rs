@@ -5,11 +5,11 @@ pub mod raw;
 
 pub use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
-    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
-    ContractSpecId, ContractSpecMethod, ContractSpecString, ContractStructDef,
-    ContractType,
-    ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
+    ContractExceptionType, ContractField, ContractSpec, ContractSpecId,
+    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
+    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
+    ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    SpecInterfaceFragment, SpecMethodFragment,
 };
 pub use raw::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
@@ -56,6 +56,21 @@ fn spec_id_str(id: &ContractSpecId) -> Result<(), SpecToolError> {
 /// segment is which. `module_path` already leads with the crate as Rust
 /// spells it, so the crate and major trail in parentheses rather than
 /// doubling up in the path.
+/// A spec id as JSON, segment by segment.
+///
+/// [`render_spec_json`] is written to a sidecar file that consumers read, so
+/// an id is rendered as an object rather than as the prose
+/// [`spec_id_lossy`] produces for diagnostics: flattening it would hand every
+/// reader back the splitting problem the segments exist to remove.
+fn spec_id_json(id: &ContractSpecId) -> serde_json::Value {
+    serde_json::json!({
+        "crate": spec_str_lossy(&id.crate_name),
+        "major": spec_str_lossy(&id.major),
+        "module_path": spec_str_lossy(&id.module_path),
+        "declared": spec_str_lossy(&id.declared),
+    })
+}
+
 fn spec_id_lossy(id: &ContractSpecId) -> String {
     format!(
         "{}::{} ({}@{})",
@@ -286,8 +301,7 @@ fn canonicalize_spec_inner(
         ContractSpecString,
         ContractSpecString,
     )>::new();
-    let mut events =
-        BTreeMap::<ContractSpecId, Vec<ContractEventDef>>::new();
+    let mut events = BTreeMap::<ContractSpecId, Vec<ContractEventDef>>::new();
     let mut exported_events =
         std::collections::BTreeSet::<ContractSpecId>::new();
 
@@ -541,9 +555,7 @@ fn canonicalize_spec_inner(
         .into_iter()
         .map(|name| {
             let defs = events.remove(&name).ok_or_else(|| {
-                SpecToolError::MissingEventDef(
-                    spec_id_lossy(&name),
-                )
+                SpecToolError::MissingEventDef(spec_id_lossy(&name))
             })?;
             if defs.len() > 1 {
                 return Err(SpecToolError::ConflictingEventDef(
@@ -1026,9 +1038,9 @@ fn resolve_reachable_type_defs(
                 ));
             }
             None => {
-                return Err(SpecToolError::MissingTypeDef(
-                    spec_id_lossy(&symbol),
-                ));
+                return Err(SpecToolError::MissingTypeDef(spec_id_lossy(
+                    &symbol,
+                )));
             }
         }
     }
@@ -1069,14 +1081,14 @@ fn collect_named_types(
         ContractType::Named { named } => {
             spec_id_str(named)?;
             let Some(candidates) = defs.get(named) else {
-                return Err(SpecToolError::MissingTypeDef(
-                    spec_id_lossy(named),
-                ));
+                return Err(SpecToolError::MissingTypeDef(spec_id_lossy(
+                    named,
+                )));
             };
             if candidates.len() > 1 {
-                return Err(SpecToolError::ConflictingTypeDef(
-                    spec_id_lossy(named),
-                ));
+                return Err(SpecToolError::ConflictingTypeDef(spec_id_lossy(
+                    named,
+                )));
             }
             if !resolved.contains_key(named) {
                 resolved.insert(named.clone(), candidates[0].clone());
@@ -1262,7 +1274,7 @@ pub fn event_def_to_json(event: &ContractEventDef) -> serde_json::Value {
     let signature: String =
         event.signature.iter().map(|b| format!("{b:02x}")).collect();
     serde_json::json!({
-        "name": spec_id_lossy(&event.name),
+        "name": spec_id_json(&event.name),
         "signature": signature,
         "topics": event.topics.iter().map(field_to_json).collect::<Vec<_>>(),
         "fields": event.fields.iter().map(field_to_json).collect::<Vec<_>>(),
@@ -1297,7 +1309,7 @@ pub fn type_to_json(ty: &ContractType) -> serde_json::Value {
             json!({"kind": "tuple", "items": tuple.iter().map(type_to_json).collect::<Vec<_>>()})
         }
         ContractType::Named { named } => {
-            json!({"kind": "named", "name": spec_id_lossy(named)})
+            json!({"kind": "named", "name": spec_id_json(named)})
         }
         ContractType::Array { array } => {
             let element = &array.element;
@@ -1326,17 +1338,17 @@ pub fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
     match type_def {
         ContractTypeDef::TypeDefStruct { struct_def } => json!({
             "kind": "struct",
-            "name": spec_id_lossy(&struct_def.name),
+            "name": spec_id_json(&struct_def.name),
             "fields": struct_def.fields.iter().map(field_to_json).collect::<Vec<_>>(),
         }),
         ContractTypeDef::TypeDefEnum { enum_def } => json!({
             "kind": "enum",
-            "name": spec_id_lossy(&enum_def.name),
+            "name": spec_id_json(&enum_def.name),
             "variants": enum_def.variants.iter().map(|v| json!({"name": spec_str_lossy(&v.name), "value": v.value})).collect::<Vec<_>>(),
         }),
         ContractTypeDef::TypeDefUnion { union_def } => json!({
             "kind": "union",
-            "name": spec_id_lossy(&union_def.name),
+            "name": spec_id_json(&union_def.name),
             "cases": union_def.cases.iter().map(|c| json!({
                 "name": spec_str_lossy(&c.name),
                 "discriminant": c.discriminant,

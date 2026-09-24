@@ -9,7 +9,13 @@ use sdk::{I256, U256};
 
 const INTERFACE: &str = "WideIntegers";
 const VERSION: &str = "1.0.0";
-const EVENT: &str = "WideIntegerEvent";
+const EVENT: groundhog_contract_spec::ContractSpecIdView<'static> =
+    groundhog_contract_spec::ContractSpecIdView {
+        crate_name: "testcrate",
+        major: "0",
+        module_path: "testcrate",
+        declared: "WideIntegerEvent",
+    };
 
 const U256_TYPE: groundhog_contract_spec::ContractTypeView<'static> =
     <U256 as ContractTypeRefSpec>::INFO.ty;
