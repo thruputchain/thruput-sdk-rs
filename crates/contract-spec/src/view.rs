@@ -186,6 +186,7 @@ pub enum SpecFragmentView<'a> {
 pub struct SpecInterfaceFragmentView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
+    pub declared_by: &'a str,
     pub throws: &'a [ContractExceptionTypeView<'a>],
     /// Names of the events this interface declares via `emits(...)`.
     /// References into the artifact's event-def pool; the post-processor
@@ -198,6 +199,7 @@ pub struct SpecInterfaceFragmentView<'a> {
 pub struct SpecMethodFragmentView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
+    pub declared_by: &'a str,
     pub method: ContractSpecMethodView<'a>,
 }
 
@@ -208,6 +210,7 @@ pub struct SpecMethodFragmentView<'a> {
 pub struct SpecInterfaceAnchorView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
+    pub declared_by: &'a str,
 }
 
 #[cfg(feature = "owned-model")]
@@ -570,6 +573,7 @@ impl From<SpecInterfaceAnchorView<'_>> for SpecInterfaceAnchor {
         Self {
             interface_name: to_spec_string(value.interface_name),
             interface_version: to_spec_string(value.interface_version),
+            declared_by: to_spec_string(value.declared_by),
         }
     }
 }
@@ -580,6 +584,7 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
         Self {
             interface_name: to_spec_string(value.interface_name),
             interface_version: to_spec_string(value.interface_version),
+            declared_by: to_spec_string(value.declared_by),
             throws: value
                 .throws
                 .iter()
@@ -606,6 +611,7 @@ impl From<SpecMethodFragmentView<'_>> for SpecMethodFragment {
         Self {
             interface_name: to_spec_string(value.interface_name),
             interface_version: to_spec_string(value.interface_version),
+            declared_by: to_spec_string(value.declared_by),
             method: value.method.into(),
         }
     }

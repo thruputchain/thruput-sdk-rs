@@ -17,7 +17,7 @@ description = "Canonical contract spec model for Groundhog contracts"
 # `format::RAW_SPEC_FORMAT`; `manifest_metadata_matches_raw_spec_format` pins
 # the two together.
 [package.metadata.groundhog]
-raw_spec_format = 2
+raw_spec_format = 3
 
 [lib]
 crate-type = ["rlib"]

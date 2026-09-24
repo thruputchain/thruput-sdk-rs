@@ -20,12 +20,14 @@ const FRAGMENTS: &[SpecFragmentView<'static>] = &[
     SpecFragmentView::Interface(SpecInterfaceFragmentView {
         interface_name: INTERFACE,
         interface_version: VERSION,
+        declared_by: "native_256_if@0.1::Iface",
         throws: &[],
         emits: &[EVENT],
     }),
     SpecFragmentView::Method(SpecMethodFragmentView {
         interface_name: INTERFACE,
         interface_version: VERSION,
+        declared_by: "native_256_if@0.1::Iface",
         method: ContractSpecMethodView {
             name: "convert",
             args: &[ContractFieldView {
@@ -53,6 +55,7 @@ const FRAGMENTS: &[SpecFragmentView<'static>] = &[
     SpecFragmentView::InterfaceAnchor(SpecInterfaceAnchorView {
         interface_name: INTERFACE,
         interface_version: VERSION,
+        declared_by: "native_256_if@0.1::Iface",
     }),
 ];
 

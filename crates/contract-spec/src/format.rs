@@ -41,7 +41,7 @@
 pub const RAW_SECTION_PREFIX: &str = "groundhogspecraw";
 
 /// Wire-format version of the raw spec section this SDK produces and parses.
-pub const RAW_SPEC_FORMAT: u32 = 2;
+pub const RAW_SPEC_FORMAT: u32 = 3;
 
 /// Name of the raw spec ELF section this SDK emits.
 ///
@@ -49,7 +49,7 @@ pub const RAW_SPEC_FORMAT: u32 = 2;
 /// [`RAW_SPEC_FORMAT`] because `#[link_section = ...]` in `groundhog-macros`
 /// needs a literal anyway; `raw_section_name_matches_its_parts` pins the
 /// three against each other.
-pub const RAW_SECTION_NAME: &str = "groundhogspecrawv2";
+pub const RAW_SECTION_NAME: &str = "groundhogspecrawv3";
 
 /// Name of the finalized spec ELF section.
 ///

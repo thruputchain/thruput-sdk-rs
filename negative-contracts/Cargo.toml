@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "typedef_id_collision",
     "event_signature_collision",
+    "iface_declarer_collision",
 ]
 
 # Contract fixtures that must FAIL, kept out of example-contracts because that
@@ -24,4 +25,4 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.37.0" }
+sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.38.0" }

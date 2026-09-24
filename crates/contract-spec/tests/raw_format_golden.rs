@@ -91,6 +91,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: spec_string("Iface"),
                 interface_version: spec_string("1.2.3"),
+                declared_by: spec_string("golden_if@1::Iface"),
                 throws: vec![].try_into().expect("throws list fits"),
                 emits: vec![spec_string("Ev")]
                     .try_into()
@@ -101,6 +102,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
             method_fragment: SpecMethodFragment {
                 interface_name: spec_string("Iface"),
                 interface_version: spec_string("1.2.3"),
+                declared_by: spec_string("golden_if@1::Iface"),
                 method: ContractSpecMethod {
                     name: spec_string("do_thing"),
                     args: vec![field("arg", ContractType::U32)]
@@ -126,6 +128,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
             interface_anchor: SpecInterfaceAnchor {
                 interface_name: spec_string("Iface"),
                 interface_version: spec_string("1.2.3"),
+                declared_by: spec_string("golden_if@1::Iface"),
             },
         },
     ]
