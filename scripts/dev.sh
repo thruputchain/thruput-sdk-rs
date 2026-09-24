@@ -676,7 +676,7 @@ check_rv32_contract_spec_artifacts() {
     # `Signed<T>` args/returns spec as signed_token nodes carrying the
     # preimage type (they consume no calldata bytes), never as u32 handles;
     # `Signed<Opaque>` is an erased (null) preimage.
-    assert_file_matches "$signer_callee_json" '"name":"auth","type":\{"kind":"signed_token","preimage":\{"kind":"named","name":"[^"]*::TransferAuth"\}\}' &&
+    assert_file_matches "$signer_callee_json" '"name":"auth","type":\{"kind":"signed_token","preimage":\{"kind":"named","name":\{[^}]*"declared":"TransferAuth"\}\}\}' &&
     assert_file_contains_id "$signer_callee_json" TransferAuth &&
     assert_file_contains "$signed_op_wallet_json" '"kind":"signed_token","preimage":null' &&
 
@@ -717,22 +717,22 @@ check_rv32_contract_spec_artifacts() {
     # around it: two of the three pairs are its dependencies' names.
     #
     # Asserted per crate so both halves of a pair must be present: matching
-    # `::Error"` alone would pass with only one of them.
-    assert_file_matches "$name_reuse_json" 'dup_name_if_a@[^"]*::Error"' &&
-    assert_file_matches "$name_reuse_json" 'dup_name_if_b@[^"]*::Error"' &&
-    assert_file_matches "$name_reuse_json" 'dup_name_if_a@[^"]*::Updated"' &&
-    assert_file_matches "$name_reuse_json" 'dup_name_if_b@[^"]*::Updated"' &&
+    # `"declared":"Error"` alone would pass with only one of them.
+    assert_file_matches "$name_reuse_json" '"crate":"dup_name_if_a",[^}]*"declared":"Error"' &&
+    assert_file_matches "$name_reuse_json" '"crate":"dup_name_if_b",[^}]*"declared":"Error"' &&
+    assert_file_matches "$name_reuse_json" '"crate":"dup_name_if_a",[^}]*"declared":"Updated"' &&
+    assert_file_matches "$name_reuse_json" '"crate":"dup_name_if_b",[^}]*"declared":"Updated"' &&
     # Two modules of the contract's own crate reusing one ident.
-    assert_file_contains "$name_reuse_json" '::ledger::Config"' &&
-    assert_file_contains "$name_reuse_json" '::vault::Config"' &&
+    assert_file_contains "$name_reuse_json" '::ledger","declared":"Config"' &&
+    assert_file_contains "$name_reuse_json" '::vault","declared":"Config"' &&
 
     # Two crates, one simple name, both defs in the pool: v1's is reachable
     # (the contract implements MarketV1) and v2's is not. Ids are what keep
     # them apart — before them this contract could not be built at all, and
     # the reference would have been ambiguous between the two shapes.
     assert_file_contains_id "$coexist_json" SharedConfig &&
-    assert_file_contains "$coexist_json" 'typedef_shaking_if_v1@' &&
-    assert_file_lacks "$coexist_json" 'typedef_shaking_if_v2@' &&
+    assert_file_contains "$coexist_json" '"crate":"typedef_shaking_if_v1"' &&
+    assert_file_lacks "$coexist_json" '"crate":"typedef_shaking_if_v2"' &&
 
     assert_file_contains "$rv32_iface_conflict_json" '"name":"ConflictCaller"' &&
     assert_file_lacks "$rv32_iface_conflict_json" '"name":"Token"' &&
@@ -745,7 +745,7 @@ check_rv32_contract_spec_artifacts() {
     # build-time only and must not reach the final spec.
     assert_file_contains "$iface_conflict_impl_json" '"name":"Token"' &&
     assert_file_contains_id "$iface_conflict_impl_json" PingEvent &&
-    assert_file_lacks "$iface_conflict_impl_json" '::Token"' &&
+    assert_file_lacks_id "$iface_conflict_impl_json" Token &&
 
     assert_rv32a_lacks_spec_content \
         "${groundhog_dir}/event_shaking_subset.rv32a" \
