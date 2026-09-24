@@ -452,7 +452,7 @@ fn canonicalize_spec_inner(
     for ((name, vers), declarers) in &anchored_interfaces {
         declarers_by_wire_identity
             .entry((
-                spec_str_lossy(name).into_owned(),
+                spec_str(name)?.to_string(),
                 groundhog_contract_util::semver::major_version_from_string(
                     spec_str(vers)?,
                 ),
