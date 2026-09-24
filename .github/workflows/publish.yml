@@ -88,13 +88,19 @@ jobs:
   publish:
     permissions:
       contents: write
-    runs-on: hog1
+    runs-on: namespace-profile-hogd-linux-2604
+    env:
+      # Share one FFI download cache across every groundhog-sys build instance
+      # (and across runs, via the Namespace cache below). The dry runs below
+      # package groundhog-sys once per feature combination, and each instance
+      # would otherwise re-download the prebuilt FFI tarball into its own
+      # OUT_DIR. Mirrors ci.yml and sdk_tests.yml.
+      HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:
-      - name: Clean up .gitconfig
-        run: |
-            echo "Cleaning up .gitconfig"
-            rm -f /home/hogci/.gitconfig
+      # Loaded before checkout so the recursive submodule fetch (which uses
+      # SSH remotes) can authenticate, and so the actions-repo checkout below
+      # resolves through the SSH rewrite.
       - name: Setup SSH Agent
         uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
@@ -104,9 +110,23 @@ jobs:
             ${{ secrets.SDK_TO_SELF }}
 
       - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
+      # NB: deliberately NOT caching ./target (no `cache: rust`). The Namespace
+      # cross-invocation cache is a network/overlay-backed mount; cargo's
+      # many-small-file churn in target/ stalls on it. Cache only the dependency
+      # *sources* (read-mostly, few large files) plus the one-shot FFI download.
+      # Mirrors ci.yml.
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
-          submodules: recursive
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ github.workspace }}/.hogd-ffi-cache
 
       - name: Configure git to use SSH
         run: |

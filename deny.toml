@@ -42,6 +42,17 @@ wildcards = "deny"
 # publish = false, so path wildcards are safe. Registry wildcards stay denied.
 allow-wildcard-paths = true
 
+# bindgen (groundhog-sys's `source-build` feature) accepts
+# `prettyplease = ">=0.2.7, <0.4"` but itself builds against syn 2, while
+# prettyplease 0.3 moved to syn 3. Resolving both to their newest gives
+# bindgen a `syn 2` File where prettyplease wants a `syn 3` one, and it fails
+# to compile. Nothing in the default feature set builds bindgen, so this
+# surfaces only in the release dry run's feature powerset -- keep it a PR-time
+# failure instead.
+[[bans.deny]]
+name = "prettyplease"
+version = ">=0.3"
+
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
