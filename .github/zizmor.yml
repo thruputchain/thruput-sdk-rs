@@ -17,8 +17,3 @@ rules:
       - native_exec_tests.yml
       - scaffold_smoke.yml
       - sdk_tests.yml
-
-  # Style: prefers '$/...' over './...' for same-repo composite actions.
-  self-repository:
-    ignore:
-      - publish.yml
