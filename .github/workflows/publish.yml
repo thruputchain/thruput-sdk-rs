@@ -37,6 +37,13 @@ concurrency:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  # The publish steps take the registry token as an action input, but the
+  # dry runs reach the registry as plain cargo -- `cargo vendor` is the very
+  # first thing they do -- and that needs a credential provider of its own.
+  # hog1 had one configured on disk; an ephemeral runner does not. Same pair
+  # ci.yml and sdk_tests.yml set.
+  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
   # Workspace-versioned crates published under the `v<version>` tag, in
   # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
   # line but is named separately: those crates publish after the standard
