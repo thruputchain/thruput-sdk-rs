@@ -42,6 +42,28 @@ wildcards = "deny"
 # publish = false, so path wildcards are safe. Registry wildcards stay denied.
 allow-wildcard-paths = true
 
+# bindgen (groundhog-sys's `source-build` feature) takes `syn = ">=2, <4"` and
+# `prettyplease = ">=0.2.7, <0.4"` as independent ranges, but the two have to
+# agree: prettyplease 0.2 is syn 2 and prettyplease 0.3 is syn 3. syn 2 is
+# already in the graph, so cargo reuses it for bindgen rather than adding a
+# second syn -- and prettyplease, unconstrained, goes to 0.3. That pairing
+# hands bindgen a syn-2 `File` where `prettyplease::unparse` wants a syn-3
+# one, and bindgen does not compile. Nothing in the default feature set builds
+# bindgen, so it surfaces only in the release dry run's feature powerset --
+# keep it a PR-time failure instead.
+#
+# Lift this once nothing holds syn 2 any more: bindgen would then take syn 3
+# and prettyplease 0.3 is what agrees with it. Today the sole holder is
+# curve25519-dalek-derive 0.1.1 (`syn = "^2.0.27"`; 0.1.0 and 0.1.1 are its
+# only releases, both syn 2), reached through curve25519-dalek 5.0.0 ->
+# ed25519-dalek 3.0.0 -> groundhog-native-exec [dev-dependencies]. Every
+# published curve25519-dalek from 4.1.2 on requires that derive crate
+# unconditionally, so there is no upgrade out of it -- only dropping
+# ed25519-dalek from native-exec's dev-dependencies.
+[[bans.deny]]
+name = "prettyplease"
+version = ">=0.3"
+
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
