@@ -3,7 +3,7 @@
 A standard Groundhog ERC20 token with optional authorization, freeze, clawback
 and holder burns. It uses the existing signed-grant interface for delegated
 transactions. See the [spec](../../docs/sep41-reference-token.md) and
-[bridge notes](../../docs/sep41-bridge-handoff.md).
+[bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
 
 Use `groundhog-erc20-if` for token operations, `groundhog-erc20-metadata-if` for
 metadata and `groundhog-token-controls-if` for issuer operations. Deploy and
