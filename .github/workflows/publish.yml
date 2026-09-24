@@ -96,6 +96,7 @@ jobs:
         uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: |
+            ${{ secrets.ACTIONS_KEY }}
             ${{ secrets.SDK_TO_ITC }}
             ${{ secrets.SDK_TO_SELF }}
 
@@ -108,8 +109,15 @@ jobs:
         run: |
           git config --global url."git@github.com:".insteadOf "https://github.com/"
 
+      - name: Checkout actions repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: groundhogchain/actions
+          path: actions
+          ref: main
+
       - name: Publish dry run
-        uses: groundhogchain/actions/cargo-publish-dry-run@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish-dry-run
         with:
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           # The interface-dependent crates reach the standard interfaces (and
@@ -160,7 +168,7 @@ jobs:
         run: rm -rf vendor
 
       - name: Publish dry run (standard interfaces)
-        uses: groundhogchain/actions/cargo-publish-dry-run@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish-dry-run
         env:
           # The workspace no longer carries rv32 target rustflags (the single
           # rv32 config lives in example-contracts/.cargo/config.toml; see
@@ -217,7 +225,7 @@ jobs:
       - name: Tag commit with version
         if: ${{ inputs.dry_run == false }}
         id: publish-tag
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           github-token: ${{ github.token }}
@@ -233,7 +241,7 @@ jobs:
       - name: Tag groundhog-erc20-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-erc20-if
           tag-prefix: 'groundhog-erc20-if-v'
@@ -245,7 +253,7 @@ jobs:
       - name: Tag groundhog-erc20-metadata-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-metadata-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-erc20-metadata-if
           tag-prefix: 'groundhog-erc20-metadata-if-v'
@@ -257,7 +265,7 @@ jobs:
       - name: Tag groundhog-erc20-pausable-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-pausable-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-erc20-pausable-if
           tag-prefix: 'groundhog-erc20-pausable-if-v'
@@ -269,7 +277,7 @@ jobs:
       - name: Tag groundhog-signed-op
         if: ${{ inputs.dry_run == false }}
         id: tag-signed-op
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-signed-op
           tag-prefix: 'groundhog-signed-op-v'
@@ -281,7 +289,7 @@ jobs:
       - name: Tag groundhog-access-control-if
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-access-control-if
           tag-prefix: 'groundhog-access-control-if-v'
@@ -293,7 +301,7 @@ jobs:
       - name: Tag groundhog-signed-op-if
         if: ${{ inputs.dry_run == false }}
         id: tag-signed-op-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-signed-op-if
           tag-prefix: 'groundhog-signed-op-if-v'
@@ -305,7 +313,7 @@ jobs:
       - name: Tag groundhog-erc20-permit-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-permit-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-erc20-permit-if
           tag-prefix: 'groundhog-erc20-permit-if-v'
@@ -317,7 +325,7 @@ jobs:
       - name: Tag groundhog-erc165-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc165-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-erc165-if
           tag-prefix: 'groundhog-erc165-if-v'
@@ -329,7 +337,7 @@ jobs:
       - name: Tag groundhog-erc721-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc721-if
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-erc721-if
           tag-prefix: 'groundhog-erc721-if-v'
@@ -341,7 +349,7 @@ jobs:
       - name: Tag groundhog-access-control
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control
-        uses: groundhogchain/actions/cargo-release-tag@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-release-tag
         with:
           packages: groundhog-access-control
           tag-prefix: 'groundhog-access-control-v'
@@ -356,7 +364,7 @@ jobs:
       # interface versions must already be published.
       - name: Publish
         if: ${{ inputs.dry_run == false }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: ${{ env.PRIMARY_PACKAGES }}
           git-tag: ${{ steps.publish-tag.outputs.tag }}
@@ -373,7 +381,7 @@ jobs:
 
       - name: Publish groundhog-erc20-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-if
           git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
@@ -389,7 +397,7 @@ jobs:
 
       - name: Publish groundhog-erc20-metadata-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-metadata-if
           git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
@@ -401,7 +409,7 @@ jobs:
 
       - name: Publish groundhog-erc20-pausable-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-pausable-if
           git-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
@@ -413,7 +421,7 @@ jobs:
 
       - name: Publish groundhog-erc165-if
         if: ${{ inputs.dry_run == false && steps.tag-erc165-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc165-if
           git-tag: ${{ steps.tag-erc165-if.outputs.tag }}
@@ -425,7 +433,7 @@ jobs:
 
       - name: Publish groundhog-erc721-if
         if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc721-if
           git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
@@ -437,7 +445,7 @@ jobs:
 
       - name: Publish groundhog-access-control-if
         if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-access-control-if
           git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
@@ -449,7 +457,7 @@ jobs:
 
       - name: Publish groundhog-signed-op-if
         if: ${{ inputs.dry_run == false && steps.tag-signed-op-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-signed-op-if
           git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
@@ -463,7 +471,7 @@ jobs:
       # publish resolves deps against the live registry.
       - name: Publish groundhog-signed-op
         if: ${{ inputs.dry_run == false && steps.tag-signed-op.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-signed-op
           git-tag: ${{ steps.tag-signed-op.outputs.tag }}
@@ -477,7 +485,7 @@ jobs:
       # resolves deps against the live registry.
       - name: Publish groundhog-erc20-permit-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-permit-if.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-erc20-permit-if
           git-tag: ${{ steps.tag-erc20-permit-if.outputs.tag }}
@@ -491,7 +499,7 @@ jobs:
       # this publish resolves deps against the live registry.
       - name: Publish groundhog-access-control
         if: ${{ inputs.dry_run == false && steps.tag-access-control.outputs.released == 'true' }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: groundhog-access-control
           git-tag: ${{ steps.tag-access-control.outputs.tag }}
@@ -503,7 +511,7 @@ jobs:
 
       - name: Publish interface-dependent crates
         if: ${{ inputs.dry_run == false }}
-        uses: groundhogchain/actions/cargo-publish@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-publish
         with:
           packages: ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           git-tag: ${{ steps.publish-tag.outputs.tag }}
