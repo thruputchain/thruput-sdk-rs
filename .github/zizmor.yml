@@ -22,3 +22,4 @@ rules:
   self-repository:
     ignore:
       - publish.yml
+      - yank.yml
