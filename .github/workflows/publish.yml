@@ -135,6 +135,17 @@ jobs:
             ~/.cargo/git
             ${{ github.workspace }}/.hogd-ffi-cache
 
+      # The dry runs below drive cargo-hack over each crate's feature
+      # powerset; hog1 had it installed globally and the runner image does
+      # not ship it. It comes from crates.io, so this needs no registry
+      # auth, and it is a ~1min compile against a release that takes 15.
+      - name: Install cargo-hack
+        run: |
+          if ! command -v cargo-hack >/dev/null; then
+            cargo install cargo-hack --locked
+          fi
+          cargo hack --version
+
       - name: Configure git to use SSH
         run: |
           git config --global url."git@github.com:".insteadOf "https://github.com/"
