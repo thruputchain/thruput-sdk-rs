@@ -283,3 +283,10 @@ When running tests:
 - Set `TEST_FFI_TRACE=1` to see interactions with the test executor. When
   reporting a bug, it's helpful to include a trace captured with
   `TEST_FFI_TRACE=1`.
+
+## Stellar token reference
+
+The [SEP-41-style reference token](example-contracts/sep41/README.md) provides
+expiring allowances and local issuer controls for Groundhog applications.
+See its [spec and work plan](docs/sep41-reference-token.md) for Groundhog
+adaptations, verification and Quickbridge integration work.

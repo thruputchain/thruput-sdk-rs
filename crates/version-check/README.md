@@ -126,7 +126,7 @@ The current set:
 - Manifests under `standard-interfaces/` and `standard-impls/` caret-depend on
   `sdk` rather than pinning it, because the published interface and
   implementation-component crates are compatible with any SDK patch release.
-- The standard-interface crates (`groundhog-erc20-if`,
+- The standard-interface crates (`groundhog-sep41-if`, `groundhog-erc20-if`,
   `groundhog-erc20-metadata-if`,
   `groundhog-erc20-pausable-if`, `groundhog-access-control-if`, `groundhog-erc165-if`,
   `groundhog-erc721-if`,
