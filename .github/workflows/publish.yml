@@ -81,6 +81,9 @@ env:
     erc20-native-test
     erc20-bottle-test
 
+permissions:
+  contents: read
+
 jobs:
   publish:
     permissions:
