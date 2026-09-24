@@ -6,7 +6,9 @@
 //! side gets from `#[contract_type]` and a client has to reproduce from the
 //! contract spec it ships.
 
-use groundhog_contract_spec::{ContractTypeName, ContractTypeSpec};
+use groundhog_contract_spec::{
+    ContractSpecIdView, ContractTypeName, ContractTypeSpec,
+};
 use groundhog_domain_separator::{SIGNED_OP, SignedOp};
 use groundhog_xdr::transaction::Uniquifier;
 use groundhog_xdr::types::{
@@ -16,6 +18,14 @@ use serde_json::{Value, json};
 use xdrs::WriteXDR;
 
 use crate::hex;
+
+/// Major the fixture types below carry in their spec ids.
+///
+/// They are fixtures, not published types -- nothing outside this crate
+/// resolves against them -- so this is a fixed literal rather than the
+/// crate's own major, which would churn every generated vector on each
+/// breaking release for no reader's benefit.
+const FIXTURE_MAJOR: &str = "0";
 
 // Payload types are derived, not hand-written: `type_def_cxs_hex` is the
 // cross-SDK contract, so a hand-written `TYPE_DEF` could pin bytes no real
@@ -30,7 +40,12 @@ struct Transfer {
 }
 
 impl ContractTypeName for Transfer {
-    const NAME: &'static str = "Transfer";
+    const NAME: ContractSpecIdView<'static> = ContractSpecIdView {
+        crate_name: env!("CARGO_PKG_NAME"),
+        major: FIXTURE_MAJOR,
+        module_path: module_path!(),
+        declared: "Transfer",
+    };
 }
 
 /// Encodes byte-identically to [`Revoke`]; only the type definition separates
@@ -42,7 +57,12 @@ struct Grant {
 }
 
 impl ContractTypeName for Grant {
-    const NAME: &'static str = "Grant";
+    const NAME: ContractSpecIdView<'static> = ContractSpecIdView {
+        crate_name: env!("CARGO_PKG_NAME"),
+        major: FIXTURE_MAJOR,
+        module_path: module_path!(),
+        declared: "Grant",
+    };
 }
 
 #[derive(WriteXDR, groundhog_macros::ContractTypeSpec)]
@@ -52,7 +72,12 @@ struct Revoke {
 }
 
 impl ContractTypeName for Revoke {
-    const NAME: &'static str = "Revoke";
+    const NAME: ContractSpecIdView<'static> = ContractSpecIdView {
+        crate_name: env!("CARGO_PKG_NAME"),
+        major: FIXTURE_MAJOR,
+        module_path: module_path!(),
+        declared: "Revoke",
+    };
 }
 
 #[derive(Clone, Copy)]
@@ -81,7 +106,7 @@ fn vector<T: WriteXDR + ContractTypeSpec>(
 
     json!({
         "label": label,
-        "type_name": T::TYPE_DEF.symbol(),
+        "type_name": T::TYPE_DEF.symbol().declared,
         "type_def_cxs_hex": hex(&xdrs::cxs::encode(&T::TYPE_DEF).unwrap()),
         "network_hex": hex(&header.network),
         "verifying_contract_hex": hex(&header.verifying_contract),

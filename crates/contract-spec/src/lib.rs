@@ -17,7 +17,7 @@ pub use format::{
 pub use groundhog_spec::{
     ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
     ContractExceptionType, ContractField, ContractSignedTokenPreimage,
-    ContractSpec, ContractSpecInterface, ContractSpecMethod,
+    ContractSpec, ContractSpecId, ContractSpecInterface, ContractSpecMethod,
     ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
     ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
     ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
@@ -73,101 +73,28 @@ pub trait ContractEventSpec {
 
 /// Provides the spec-visible name for a contract type.
 pub trait ContractTypeName {
-    /// The fully qualified id this type is known by in the contract spec:
-    /// `CRATE@MAJOR::module::path::Name`.
+    /// The fully qualified id this type is known by in the contract spec.
     ///
     /// This is an identity claim, not a label. A bare ident cannot tell two
     /// user-defined types apart — two crates, two modules of one crate, or two
     /// major versions of one crate may each define a `Meta` — so every
     /// reference in a spec resolves through this const, and two types agree on
     /// an id only if they are the same type. The crate and major-version
-    /// segments are load-bearing: shortening the id to its final segment for
+    /// segments are load-bearing: shortening an id to its declared name for
     /// display is each codegen's business, not the spec's.
     ///
+    /// The segments travel apart rather than joined into
+    /// `CRATE@MAJOR::module::path::Name`, because the joined form cannot be
+    /// split back: `name = "..."` substitutes its value verbatim, `::` and
+    /// all, so the boundary between module path and declared name is not
+    /// recoverable from the string.
+    ///
     /// `#[contract_type]` and `#[contract_exception]` derive it at the
-    /// declaration, where `module_path!()` and the declaring crate's version
-    /// are both in scope, so it cannot be taken from the wrong crate. A
+    /// declaration, where `module_path!()` and the declaring crate's name and
+    /// version are all in scope, so it cannot be taken from the wrong crate. A
     /// hand-written impl (for a type this crate does not declare) is asserting
-    /// the id itself and is responsible for its accuracy; prefer
-    /// [`qualified_id_len`]/[`qualified_id_bytes`] over a literal so the crate
-    /// and version are still filled in mechanically.
-    const NAME: &'static str;
-}
-
-/// Byte length of the id [`qualified_id_bytes`] builds, for sizing its array.
-pub const fn qualified_id_len(
-    module_path: &str,
-    major: &str,
-    declared: &str,
-) -> usize {
-    // One `@` inserted after the crate segment, one `::` before the name.
-    module_path.len() + 1 + major.len() + 2 + declared.len()
-}
-
-/// Builds `CRATE@MAJOR::module::path::Declared` from `module_path!()` by
-/// inserting `@MAJOR` after the crate segment and appending the declared name.
-///
-/// The crate segment is taken from the module path rather than from
-/// `CARGO_PKG_NAME` so that one source decides it, spelled the one way Rust
-/// spells it (underscores, not hyphens).
-///
-/// `N` must be [`qualified_id_len`] of the same three inputs.
-pub const fn qualified_id_bytes<const N: usize>(
-    module_path: &str,
-    major: &str,
-    declared: &str,
-) -> [u8; N] {
-    let path = module_path.as_bytes();
-    let major = major.as_bytes();
-    let declared = declared.as_bytes();
-    let mut out = [0u8; N];
-    let mut w = 0;
-
-    // The crate segment is everything before the first `::`; a type declared
-    // in the crate root has no `::` and the whole path is the crate segment.
-    let mut root = path.len();
-    let mut i = 0;
-    while i + 1 < path.len() {
-        if path[i] == b':' && path[i + 1] == b':' {
-            root = i;
-            break;
-        }
-        i += 1;
-    }
-
-    let mut i = 0;
-    while i < root {
-        out[w] = path[i];
-        w += 1;
-        i += 1;
-    }
-    out[w] = b'@';
-    w += 1;
-    let mut i = 0;
-    while i < major.len() {
-        out[w] = major[i];
-        w += 1;
-        i += 1;
-    }
-    // The rest of the module path, which already carries its leading `::`.
-    let mut i = root;
-    while i < path.len() {
-        out[w] = path[i];
-        w += 1;
-        i += 1;
-    }
-    out[w] = b':';
-    w += 1;
-    out[w] = b':';
-    w += 1;
-    let mut i = 0;
-    while i < declared.len() {
-        out[w] = declared[i];
-        w += 1;
-        i += 1;
-    }
-
-    out
+    /// the id itself and is responsible for its accuracy, segment by segment.
+    const NAME: view::ContractSpecIdView<'static>;
 }
 
 /// Bundles a type reference for use in contract spec signatures.
@@ -499,8 +426,12 @@ impl_tuple_type_ref_spec!(
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P),
 );
 
-/// Returns the spec-visible symbol name for a `ContractTypeSpec` type.
-pub const fn symbol<T: ContractTypeSpec>() -> &'static str {
+/// Returns the spec id a `ContractTypeSpec` type names itself by.
+///
+/// The id, not a display name: read [`ContractSpecIdView::declared`] for the
+/// bare identifier, and see that type on why the segments travel apart.
+pub const fn symbol<T: ContractTypeSpec>() -> view::ContractSpecIdView<'static>
+{
     T::TYPE_DEF.symbol()
 }
 

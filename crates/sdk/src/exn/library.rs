@@ -206,7 +206,13 @@ impl<T> NoneIfMissing<T> for Result<T, LibraryExn> {
 }
 
 impl crate::__contract_spec::ContractTypeName for LibraryExn {
-    const NAME: &'static str = "LibraryExn";
+    const NAME: crate::__contract_spec::ContractSpecIdView<'static> =
+        crate::__contract_spec::ContractSpecIdView {
+            crate_name: ::core::env!("CARGO_PKG_NAME"),
+            major: crate::exn::EXN_ABI_MAJOR,
+            module_path: ::core::module_path!(),
+            declared: "LibraryExn",
+        };
 }
 
 #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
@@ -297,7 +303,13 @@ impl Display for SyscallExn {
 }
 
 impl crate::__contract_spec::ContractTypeName for SyscallExn {
-    const NAME: &'static str = "SyscallExn";
+    const NAME: crate::__contract_spec::ContractSpecIdView<'static> =
+        crate::__contract_spec::ContractSpecIdView {
+            crate_name: ::core::env!("CARGO_PKG_NAME"),
+            major: crate::exn::EXN_ABI_MAJOR,
+            module_path: ::core::module_path!(),
+            declared: "SyscallExn",
+        };
 }
 
 #[cfg(test)]

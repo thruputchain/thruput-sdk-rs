@@ -32,8 +32,18 @@ pub struct Derived([u32; LIMBS]);
 // The derive references `ContractTypeName` but never emits it, so a consumer
 // supplies it. No encoded bytes here, so nothing to drift.
 impl spec::ContractTypeName for Derived {
-    const NAME: &'static str = "Derived";
+    const NAME: spec::ContractSpecIdView<'static> = DERIVED_ID;
 }
+
+/// The id `Derived` names itself by, written once so the impl above and the
+/// expected fragment below cannot drift apart.
+const DERIVED_ID: spec::ContractSpecIdView<'static> =
+    spec::ContractSpecIdView {
+        crate_name: env!("CARGO_PKG_NAME"),
+        major: "0",
+        module_path: module_path!(),
+        declared: "Derived",
+    };
 
 /// What the derive is expected to produce, written out by hand.
 ///
@@ -44,7 +54,7 @@ impl spec::ContractTypeName for Derived {
 const EXPECTED_FRAGMENT: spec::SpecFragmentView<'static> =
     spec::SpecFragmentView::TypeDef(spec::ContractTypeDefView::Struct(
         spec::ContractStructDefView {
-            name: "Derived",
+            name: DERIVED_ID,
             // A tuple struct's single unnamed field is `_0`, not the Rust-side
             // field name (there isn't one). Any consumer that wants a
             // meaningful spec field name needs a named-field struct.
@@ -80,7 +90,7 @@ fn derived_type_def_round_trips_through_the_shim_paths() {
     );
     assert_eq!(
         <Derived as ContractTypeRefSpec>::INFO.ty,
-        spec::ContractTypeView::Named("Derived")
+        spec::ContractTypeView::Named(DERIVED_ID)
     );
 }
 
@@ -108,7 +118,13 @@ fn raw_fragment_encoding_is_pinned() {
 const EXPECTED_RAW_BYTES: [u8; RAW_LEN] = [
     0, 0, 0, 2, // SpecFragmentView::TypeDef
     0, 0, 0, 0, // ContractTypeDefView::Struct
-    0, 0, 0, 7, b'D', b'e', b'r', b'i', b'v', b'e', b'd', 0, // name "Derived"
+    // name: the four segments of ContractSpecIdView, each an XDR string
+    0, 0, 0, 16, b'g', b'r', b'o', b'u', b'n', b'd', b'h', b'o', b'g', b'-',
+    b'm', b'a', b'c', b'r', b'o', b's', // crate_name "groundhog-macros"
+    0, 0, 0, 1, b'0', 0, 0, 0, // major "0"
+    0, 0, 0, 14, b'c', b'r', b'a', b't', b'e', b'_', b'o', b'v', b'e', b'r',
+    b'r', b'i', b'd', b'e', 0, 0, // module_path "crate_override"
+    0, 0, 0, 7, b'D', b'e', b'r', b'i', b'v', b'e', b'd', 0, // declared "Derived"
     0, 0, 0, 1, // one field
     0, 0, 0, 2, b'_', b'0', 0, 0, // field name "_0"
     0, 0, 0, 16, // ContractTypeView::Array

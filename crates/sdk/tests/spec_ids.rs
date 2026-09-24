@@ -1,7 +1,13 @@
 //! Spec identity: every user-defined thing the spec names — a
 //! `#[contract_type]`, a `#[contract_exception]`, a `#[derive(Event)]` — names
-//! itself by a fully qualified id, `CRATE@MAJOR::module::path::Name`, not by
-//! its bare ident.
+//! itself by a fully qualified id -- declaring crate, major version, module
+//! path and declared name -- not by its bare ident.
+//!
+//! The segments travel apart rather than joined into one string. `name =
+//! "..."` is substituted verbatim and may carry `::`, so a joined id could
+//! not be split back into module path and declared name; see
+//! `a_custom_name_carrying_a_path_is_taken_verbatim` for the case that
+//! forces it.
 //!
 //! A bare ident cannot tell two of them apart: two crates, or two modules of
 //! one crate, can each declare a `Meta`, and a spec that names both `Meta`
@@ -37,12 +43,36 @@ use sdk::*;
 /// integration test the module path is rooted at the test binary (`spec_ids`)
 /// while the version is `sdk`'s, which is why this is built rather than
 /// spelled out.
-fn crate_at_major() -> String {
-    format!(
-        "{}@{}",
-        module_path!(),
-        major_version_from_string(env!("CARGO_PKG_VERSION"))
-    )
+fn expected_crate() -> &'static str {
+    env!("CARGO_PKG_NAME")
+}
+
+fn expected_major() -> String {
+    major_version_from_string(env!("CARGO_PKG_VERSION"))
+}
+
+/// Assert an id segment by segment.
+///
+/// `module_suffix` is relative to this test binary's module root; empty means
+/// the root itself. Note the crate appears twice over, spelled two ways: as
+/// the package in `crate_name`, and as the Rust path root inside
+/// `module_path` -- which in an integration test is the test binary, not the
+/// library.
+#[track_caller]
+fn assert_id(
+    id: sdk::__contract_spec::ContractSpecIdView<'static>,
+    module_suffix: &str,
+    declared: &str,
+) {
+    assert_eq!(id.crate_name, expected_crate(), "crate segment");
+    assert_eq!(id.major, expected_major(), "major segment");
+    let expected_module = if module_suffix.is_empty() {
+        module_path!().to_string()
+    } else {
+        format!("{}::{}", module_path!(), module_suffix)
+    };
+    assert_eq!(id.module_path, expected_module, "module path segment");
+    assert_eq!(id.declared, declared, "declared segment");
 }
 
 #[contract_type]
@@ -96,21 +126,16 @@ pub struct Wrapper {
 
 #[test]
 fn id_is_crate_major_module_path_and_name() {
-    assert_eq!(
-        <Meta as ContractTypeName>::NAME,
-        format!("{}::Meta", crate_at_major()),
-    );
+    assert_id(<Meta as ContractTypeName>::NAME, "", "Meta");
 }
 
 #[test]
 fn id_carries_the_module_path_within_the_crate() {
-    assert_eq!(
-        <inner::Meta as ContractTypeName>::NAME,
-        format!("{}::inner::Meta", crate_at_major()),
-    );
-    assert_eq!(
+    assert_id(<inner::Meta as ContractTypeName>::NAME, "inner", "Meta");
+    assert_id(
         <inner::deeper::Meta as ContractTypeName>::NAME,
-        format!("{}::inner::deeper::Meta", crate_at_major()),
+        "inner::deeper",
+        "Meta",
     );
 }
 
@@ -123,10 +148,10 @@ fn types_sharing_an_ident_in_different_modules_get_distinct_ids() {
     ];
     let distinct: std::collections::BTreeSet<_> = ids.iter().collect();
     assert_eq!(distinct.len(), ids.len(), "ids must be distinct: {ids:?}");
-    // Every one still ends in the declared name, which is what the display
-    // name is reduced from.
+    // Only the module path tells them apart: each still declares `Meta`,
+    // which is what a display name is reduced to.
     for id in ids {
-        assert!(id.ends_with("::Meta"), "{id}");
+        assert_eq!(id.declared, "Meta", "{id:?}");
     }
 }
 
@@ -138,28 +163,23 @@ fn every_id_is_rooted_at_the_declaring_crate_and_major() {
         <Payload as ContractTypeName>::NAME,
         <Wrapper as ContractTypeName>::NAME,
     ] {
-        assert!(
-            id.starts_with(&format!("{}::", crate_at_major())),
-            "{id} is not rooted at {}",
-            crate_at_major()
-        );
+        assert_eq!(id.crate_name, expected_crate(), "{id:?}");
+        assert_eq!(id.major, expected_major(), "{id:?}");
     }
 }
 
 #[test]
 fn custom_name_replaces_the_final_segment_only() {
-    assert_eq!(
-        <Payload as ContractTypeName>::NAME,
-        format!("{}::SpecPayload", crate_at_major()),
-    );
+    assert_id(<Payload as ContractTypeName>::NAME, "", "SpecPayload");
 }
 
 #[test]
 fn a_custom_name_carrying_a_path_is_taken_verbatim() {
-    assert_eq!(
-        <SpelledOut as ContractTypeName>::NAME,
-        format!("{}::spelled::Out", crate_at_major()),
-    );
+    // The whole value lands in `declared`, `::` and all, and the module path
+    // is untouched. Joined into one string these two segments would be
+    // indistinguishable from a type `Out` declared in a module `spelled` --
+    // which is precisely why they are not joined.
+    assert_id(<SpelledOut as ContractTypeName>::NAME, "", "spelled::Out");
 }
 
 #[test]
@@ -181,14 +201,14 @@ fn a_field_reference_resolves_to_the_referenced_types_own_id() {
     else {
         panic!("Wrapper should be a struct def");
     };
-    let named = |field: &str| -> String {
+    let named = |field: &str| {
         let f = def
             .fields
             .iter()
             .find(|f| f.name == field)
             .unwrap_or_else(|| panic!("no field {field}"));
         match f.ty {
-            ContractTypeView::Named(name) => name.to_string(),
+            ContractTypeView::Named(name) => name,
             other => panic!("field {field} is not a named type: {other:?}"),
         }
     };
@@ -227,13 +247,11 @@ mod evt {
 
 #[test]
 fn an_event_names_itself_by_its_id() {
-    assert_eq!(
-        <Moved as ContractEventSpec>::EVENT_DEF.name,
-        format!("{}::Moved", crate_at_major()),
-    );
-    assert_eq!(
+    assert_id(<Moved as ContractEventSpec>::EVENT_DEF.name, "", "Moved");
+    assert_id(
         <evt::Moved as ContractEventSpec>::EVENT_DEF.name,
-        format!("{}::evt::Moved", crate_at_major()),
+        "evt",
+        "Moved",
     );
 }
 
@@ -251,11 +269,11 @@ fn an_event_and_a_type_declared_alike_agree_on_the_id_shape() {
     // in their own declared name.
     let type_id = <Meta as ContractTypeName>::NAME;
     let event_id = <Moved as ContractEventSpec>::EVENT_DEF.name;
-    let prefix = format!("{}::", crate_at_major());
-    assert!(type_id.starts_with(&prefix), "{type_id}");
-    assert!(event_id.starts_with(&prefix), "{event_id}");
-    assert!(type_id.ends_with("::Meta"), "{type_id}");
-    assert!(event_id.ends_with("::Moved"), "{event_id}");
+    assert_eq!(type_id.crate_name, event_id.crate_name);
+    assert_eq!(type_id.major, event_id.major);
+    assert_eq!(type_id.module_path, event_id.module_path);
+    assert_eq!(type_id.declared, "Meta");
+    assert_eq!(event_id.declared, "Moved");
 }
 
 #[test]
@@ -330,16 +348,17 @@ pub enum UnpinnedError {
 
 #[test]
 fn a_declared_version_pins_the_ids_major_segment() {
-    assert_eq!(
-        <PinnedError as ContractTypeName>::NAME,
-        format!("{}@2::PinnedError", module_path!()),
-    );
+    let id = <PinnedError as ContractTypeName>::NAME;
+    assert_eq!(id.major, "2", "the declared version pins the major");
+    assert_ne!(id.major, expected_major(), "and it is not the crate's");
+    assert_eq!(id.declared, "PinnedError");
 }
 
 #[test]
 fn without_a_declared_version_the_id_takes_the_crates() {
-    assert_eq!(
+    assert_id(
         <UnpinnedError as ContractTypeName>::NAME,
-        format!("{}::UnpinnedError", crate_at_major()),
+        "",
+        "UnpinnedError",
     );
 }

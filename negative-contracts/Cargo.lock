@@ -207,9 +207,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.38.0"
+version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "e7dc38ea10d95f7e69c70e0581d6aa53074671551a2acf042ed488a5d29e6cf5"
+checksum = "72a698650278949590cdb7389fc8e70a2d6aff3548b5ca988e3091585d971ce3"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -234,15 +234,15 @@ dependencies = [
 
 [[package]]
 name = "groundhog-syscall"
-version = "0.38.0"
+version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "a520a5cdc5c17393759c211e94a5b1c2c09f32346e954e0c1b5b33e57b79dbbe"
+checksum = "a7be006cbd0150dbb7cee942883954abd38d9c60ecdf4bab66f439e8ae8fdaae"
 
 [[package]]
 name = "groundhog-trace"
-version = "0.38.0"
+version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "708cc39c0f41459ff3bfe09e22665d5eb83724efc130e6a8c00ca6d5112a048d"
+checksum = "4c934c994ec23f6bd6aa36798a3b48df3717470bba0a717c489d45254908109f"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -261,9 +261,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.38.0"
+version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "057096f61394b3d36627936a095f1da2c0a4cfc4e62e92543ba3021420dd9988"
+checksum = "90097f393046e7685b5e53c8d2bebd4f0dd425db8d6d0227c03f5417dfa9245d"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
@@ -277,9 +277,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.38.0"
+version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "f8d9ad46ec87ce37ce385dc9488c4b2ee0b03d7c8b3fd160c37d383162c8808e"
+checksum = "aec80aab730a1a5e4842ab050c2ea195a6c37436c43e822a70923b8300d590ed"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -317,9 +317,9 @@ dependencies = [
 
 [[package]]
 name = "hogexec-internal"
-version = "0.38.0"
+version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "6f2ae6f195a00a2a84e0292040144d041147c16a494165af77474e3b0d4c7eba"
+checksum = "3211ab152de734aef14d451090f0e0662bd8ac0337b14d63dccec31074e6e74e"
 dependencies = [
  "xdrs",
 ]

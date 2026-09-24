@@ -212,7 +212,13 @@ const _: () = assert!(matches!(
 ));
 
 impl crate::__contract_spec::ContractTypeName for FaultString {
-    const NAME: &'static str = "FaultString";
+    const NAME: crate::__contract_spec::ContractSpecIdView<'static> =
+        crate::__contract_spec::ContractSpecIdView {
+            crate_name: ::core::env!("CARGO_PKG_NAME"),
+            major: crate::exn::EXN_ABI_MAJOR,
+            module_path: ::core::module_path!(),
+            declared: "FaultString",
+        };
 }
 
 impl crate::__contract_spec::ContractTypeSpec for FaultString {

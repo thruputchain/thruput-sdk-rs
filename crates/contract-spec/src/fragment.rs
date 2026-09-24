@@ -13,8 +13,8 @@
 //! about the layout desynchronizes rather than failing cleanly.
 
 use groundhog_spec::{
-    ContractEventDef, ContractExceptionType, ContractSpecMethod,
-    ContractSpecString, ContractTypeDef,
+    ContractEventDef, ContractExceptionType, ContractSpecId,
+    ContractSpecMethod, ContractSpecString, ContractTypeDef,
 };
 use xdrs::*;
 
@@ -36,9 +36,9 @@ pub struct SpecInterfaceFragment {
     /// The item that declares this interface: the `#[contract]` trait's spec
     /// id (`CRATE@MAJOR::module::path::Trait`), or `CRATE@MAJOR` for a bare
     /// impl or free-function contract. See [`SpecInterfaceAnchor::declared_by`].
-    pub declared_by: ContractSpecString,
+    pub declared_by: ContractSpecId,
     pub throws: VecM<ContractExceptionType>,
-    pub emits: VecM<ContractSpecString>,
+    pub emits: VecM<ContractSpecId>,
 }
 
 #[derive(
@@ -69,7 +69,7 @@ pub struct SpecMethodFragment {
     /// The item that declares this interface: the `#[contract]` trait's spec
     /// id (`CRATE@MAJOR::module::path::Trait`), or `CRATE@MAJOR` for a bare
     /// impl or free-function contract. See [`SpecInterfaceAnchor::declared_by`].
-    pub declared_by: ContractSpecString,
+    pub declared_by: ContractSpecId,
     pub method: ContractSpecMethod,
 }
 
@@ -100,7 +100,7 @@ pub struct SpecInterfaceAnchor {
     /// of the declarer an artifact anchors, and rejects an artifact that
     /// anchors two declarers under one key, since nothing on the wire could
     /// tell their interfaces apart.
-    pub declared_by: ContractSpecString,
+    pub declared_by: ContractSpecId,
 }
 
 #[derive(

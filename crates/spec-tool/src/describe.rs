@@ -1,27 +1,22 @@
 use groundhog_contract_spec::{
-    ContractExceptionType, ContractType, ContractTypeDef, ContractTypeName,
-    SpecFragmentView,
+    ContractExceptionType, ContractSpecIdView, ContractType, ContractTypeDef,
+    ContractTypeName, SpecFragmentView,
 };
 use std::io::{self, Write};
 use xdrs::txs;
 
 pub struct DescribableType {
     pub name: &'static str,
-    /// `CARGO_PKG_NAME` of the crate defining the type — the selector
-    /// preimage's crate component.
-    pub crate_name: &'static str,
-    /// Major version in the selector preimage (`"1"`, `"0.1"`, ...), as
-    /// derived by `groundhog_contract_util::semver` from the version the
-    /// type's macro baked in. The registry invariant test recomputes each
-    /// selector from these fields, so an entry that skews from its crate's
-    /// actual selector fails the build here.
-    pub major_version: &'static str,
     pub selector: u64,
     pub fragments: &'static [SpecFragmentView<'static>],
     /// The id of the root type among `fragments`, taken from the type's own
     /// [`ContractTypeName`] rather than spelled out, so it is whatever that
     /// type calls itself and cannot skew from the def in `fragments`.
-    pub root: &'static str,
+    ///
+    /// The selector invariant test below recomputes each selector from this
+    /// id, so an entry is checked against the identity its type actually
+    /// emits rather than against a copy repeated here.
+    pub root: ContractSpecIdView<'static>,
 }
 
 const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
@@ -53,26 +48,18 @@ const ERC20_PERMIT_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {
         name: "LibraryExn",
-        crate_name: "sdk",
-        // The sdk pins `#[exn(version = "1.0.0")]` rather than tracking
-        // CARGO_PKG_VERSION.
-        major_version: "1",
         selector: <sdk::exn::LibraryExn as sdk::exn::Exn>::SELECTOR,
         fragments: LIBRARY_EXN_FRAGMENTS,
         root: <sdk::exn::LibraryExn as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20Error",
-        crate_name: "groundhog-erc20-if",
-        major_version: "0.1",
         selector: <groundhog_erc20_if::ERC20Error as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_ERROR_FRAGMENTS,
         root: <groundhog_erc20_if::ERC20Error as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20PausableError",
-        crate_name: "groundhog-erc20-pausable-if",
-        major_version: "0.1",
         selector: <groundhog_erc20_pausable_if::ERC20PausableError
             as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PAUSABLE_ERROR_FRAGMENTS,
@@ -80,8 +67,6 @@ pub const REGISTRY: &[DescribableType] = &[
     },
     DescribableType {
         name: "AccessControlError",
-        crate_name: "groundhog-access-control-if",
-        major_version: "0.1",
         selector: <groundhog_access_control_if::AccessControlError
             as sdk::exn::Exn>::SELECTOR,
         fragments: ACCESS_CONTROL_ERROR_FRAGMENTS,
@@ -89,8 +74,6 @@ pub const REGISTRY: &[DescribableType] = &[
     },
     DescribableType {
         name: "SignedOpError",
-        crate_name: "groundhog-signed-op-if",
-        major_version: "0.1",
         selector:
             <groundhog_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
         fragments: SIGNED_OP_ERROR_FRAGMENTS,
@@ -98,8 +81,6 @@ pub const REGISTRY: &[DescribableType] = &[
     },
     DescribableType {
         name: "ERC20PermitError",
-        crate_name: "groundhog-erc20-permit-if",
-        major_version: "0.1",
         selector:
             <groundhog_erc20_permit_if::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PERMIT_ERROR_FRAGMENTS,
@@ -137,9 +118,7 @@ pub fn build_describe(ty: &DescribableType) -> DescribeOutput {
         exception: ContractExceptionType {
             selector: ty.selector,
             ty: ContractType::Named {
-                named: ty.root.as_bytes().try_into().expect(
-                    "registered describe root must fit in ContractSpecString",
-                ),
+                named: ty.root.into(),
             },
         },
         type_defs,
@@ -201,9 +180,9 @@ mod registry_tests {
         for entry in REGISTRY {
             let expected =
                 groundhog_contract_util::exception_selector_from_major(
-                    entry.major_version,
-                    entry.crate_name,
-                    entry.name,
+                    entry.root.major,
+                    entry.root.crate_name,
+                    entry.root.declared,
                 );
             assert_eq!(
                 entry.selector,
@@ -212,9 +191,9 @@ mod registry_tests {
                  preimage ({} :: {} :: {}) hashes to 0x{:016x}",
                 entry.name,
                 entry.selector,
-                entry.major_version,
-                entry.crate_name,
-                entry.name,
+                entry.root.major,
+                entry.root.crate_name,
+                entry.root.declared,
                 expected,
             );
         }

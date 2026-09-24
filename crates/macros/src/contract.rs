@@ -171,7 +171,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             );
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_DECLARED_BY: &'static str = #declared_by;
+                const __GROUNDHOG_IFACE_DECLARED_BY: ::sdk::__contract_spec::ContractSpecIdView<'static> = #declared_by;
             });
             let interface_id_lit = common::entrypoint::interface_id_literal(
                 Some(&iface_name),
@@ -214,7 +214,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_EMITS: &'static [&'static str] = &[#(#emits_name_tokens),*];
+                const __GROUNDHOG_IFACE_EMITS: &'static [::sdk::__contract_spec::ContractSpecIdView<'static>] = &[#(#emits_name_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
