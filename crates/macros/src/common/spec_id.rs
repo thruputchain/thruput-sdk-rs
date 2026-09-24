@@ -67,41 +67,22 @@ pub fn spec_id_tokens(
     }
 }
 
-/// A const expression of type `&'static str` holding `CRATE@MAJOR` for the
-/// crate the expansion site is in: what a bare impl or free-function contract
-/// records as the declarer of its interface (see
-/// `SpecInterfaceAnchor::declared_by`). `version` is as for
-/// [`spec_id_tokens`].
+/// A `&'static str` literal holding `CRATE@MAJOR` for the crate being
+/// compiled: what a bare impl or free-function contract records as the
+/// declarer of its interface (see `SpecInterfaceAnchor::declared_by`).
+/// `version` is as for [`spec_id_tokens`].
 ///
-/// Only the crate segment of `module_path!()` is used, so unlike
-/// [`spec_id_tokens`] this may be emitted anywhere in the declaring crate.
-pub fn crate_id_tokens(
-    krate: &syn::Path,
-    version: Option<&str>,
-) -> TokenStream {
-    let major = major_tokens(version);
-    quote! {
-        {
-            const MAJOR: &str = #major;
-            const LEN: usize = #krate::__contract_spec::crate_id_len(
-                ::core::module_path!(),
-                MAJOR,
-            );
-            const BYTES: [u8; LEN] =
-                #krate::__contract_spec::crate_id_bytes::<LEN>(
-                    ::core::module_path!(),
-                    MAJOR,
-                );
-            match ::core::str::from_utf8(&BYTES) {
-                ::core::result::Result::Ok(id) => id,
-                // The crate segment is spliced on an ASCII boundary, so this
-                // is unreachable.
-                ::core::result::Result::Err(_) => {
-                    ::core::panic!("crate id is not valid UTF-8")
-                }
-            }
-        }
-    }
+/// There is no trait to name, and one crate may spread such an interface over
+/// several impl blocks or modules, so the crate is the identity. It only has
+/// to agree with itself and never with a trait's id, which always carries a
+/// `::` path after the crate segment. The crate name is known at expansion
+/// time: a proc macro sees the environment of the rustc process compiling
+/// the crate it is invoked in.
+pub fn crate_id_tokens(version: Option<&str>) -> TokenStream {
+    let krate = std::env::var("CARGO_CRATE_NAME")
+        .unwrap_or_else(|_| "unknown_crate".to_string());
+    let id = format!("{krate}@{}", major_tokens(version));
+    quote! { #id }
 }
 
 /// The major version, by the same rule interface versions use: the leftmost

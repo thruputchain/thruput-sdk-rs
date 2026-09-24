@@ -170,61 +170,6 @@ pub const fn qualified_id_bytes<const N: usize>(
     out
 }
 
-/// Byte length of the id [`crate_id_bytes`] builds, for sizing its array.
-pub const fn crate_id_len(module_path: &str, major: &str) -> usize {
-    crate_segment_len(module_path) + 1 + major.len()
-}
-
-/// Builds `CRATE@MAJOR` from `module_path!()`: the crate segment of a
-/// [`qualified_id_bytes`] id on its own.
-///
-/// This names what a bare impl or free-function contract declares its
-/// interface from. Such an interface has no trait to name, and a contract may
-/// spread one over several impl blocks or modules, so the crate is the
-/// identity: the same crate always agrees with itself, and a trait (whose id
-/// carries a module path and name) never agrees with it.
-///
-/// `N` must be [`crate_id_len`] of the same two inputs.
-pub const fn crate_id_bytes<const N: usize>(
-    module_path: &str,
-    major: &str,
-) -> [u8; N] {
-    let path = module_path.as_bytes();
-    let major = major.as_bytes();
-    let root = crate_segment_len(module_path);
-    let mut out = [0u8; N];
-    let mut w = 0;
-    let mut i = 0;
-    while i < root {
-        out[w] = path[i];
-        w += 1;
-        i += 1;
-    }
-    out[w] = b'@';
-    w += 1;
-    let mut i = 0;
-    while i < major.len() {
-        out[w] = major[i];
-        w += 1;
-        i += 1;
-    }
-    out
-}
-
-/// Length of the crate segment of a module path: everything before the first
-/// `::`, or the whole path for the crate root.
-const fn crate_segment_len(module_path: &str) -> usize {
-    let path = module_path.as_bytes();
-    let mut i = 0;
-    while i + 1 < path.len() {
-        if path[i] == b':' && path[i + 1] == b':' {
-            return i;
-        }
-        i += 1;
-    }
-    path.len()
-}
-
 /// Bundles a type reference for use in contract spec signatures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ContractTypeInfo<'a> {
