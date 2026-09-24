@@ -79,9 +79,30 @@ jobs:
             echo "Cleaning up .gitconfig"
             rm -f /home/hogci/.gitconfig
 
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.ACTIONS_KEY }}
+
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
+          persist-credentials: false
+
+      - name: Configure git to use SSH
+        run: |
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+      # Cloned rather than referenced as `groundhogchain/actions/...@<sha>`:
+      # zizmor's online impostor-commit audit in CI cannot read the private
+      # actions repository, and aborts on any direct reference to it.
+      - name: Checkout actions repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: groundhogchain/actions
+          path: actions
+          ref: 2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
           persist-credentials: false
 
       - name: Select packages
@@ -98,7 +119,7 @@ jobs:
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
       - name: Yank
-        uses: groundhogchain/actions/cargo-yank@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+        uses: ./actions/cargo-yank
         with:
           version: ${{ inputs.version }}
           undo: ${{ inputs.undo }}
