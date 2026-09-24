@@ -13,20 +13,15 @@ env:
   CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
-# No job here uses GITHUB_TOKEN; read is all they need.
 permissions:
   contents: read
 
 jobs:
-  # Mechanism lives in groundhogchain/actions; policy (deny.toml,
-  # .github/zizmor.yml, .github/actionlint.yaml) stays here.
   dependency-policy:
     permissions:
       contents: read
     uses: groundhogchain/actions/.github/workflows/rust-dependency-policy.yml@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51
     with:
-      # Kept on the Namespace runner: this repo resolves crates from the
-      # private registry, and that path is proven there today.
       runs-on: namespace-profile-hogd-linux-2604
       registry-name: groundhog
     secrets:
@@ -37,13 +32,8 @@ jobs:
       contents: read
     uses: groundhogchain/actions/.github/workflows/workflow-lint.yml@2c5fd2d95a58f11da1e362b08c57a08fb7dfec51
 
-  # Gated on dependency-policy: cargo-deny inspects the graph without
-  # compiling it, so these run only once the dependencies are known
-  # good. Otherwise every dependency's build scripts and proc-macros
-  # execute here, with these jobs' secrets in scope, while the check
-  # that might object is still running.
   build:
-    needs: dependency-policy
+    needs: dependency-policy # check deps before building anything
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     name: build (${{ matrix.name }})
     strategy:
@@ -165,7 +155,7 @@ jobs:
   # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize
   # metrics read the rv32 release ELFs and target/groundhog).
   metrics:
-    needs: dependency-policy
+    needs: dependency-policy # check deps before building anything
     if: github.ref == 'refs/heads/main'
     runs-on: namespace-profile-hogd-linux-2604
     env:
