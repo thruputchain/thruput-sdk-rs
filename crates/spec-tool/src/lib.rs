@@ -113,6 +113,12 @@ pub enum SpecToolError {
     ConflictingEventSignature(String),
     /// Multiple interface fragments declare different `emits` for the same interface.
     ConflictingInterfaceEmits(String),
+    /// One artifact anchors two different declarers (traits, or a trait and
+    /// a bare-impl contract) under one interface key. The key is all the
+    /// wire carries — `interface_id` and every entrypoint id hash only the
+    /// interface name and major version — so callers cannot tell the two
+    /// interfaces apart.
+    ConflictingInterfaceDeclarers(String),
     /// An interface's `emits` references an event with no definition fragment.
     MissingEventDef(String),
     /// The spec contains a variant this tool version does not understand
@@ -189,6 +195,9 @@ impl core::fmt::Display for SpecToolError {
             Self::ConflictingInterfaceEmits(msg) => {
                 write!(f, "conflicting emits metadata for interface {msg}")
             }
+            Self::ConflictingInterfaceDeclarers(msg) => {
+                write!(f, "interface declared by more than one item: {msg}")
+            }
             Self::MissingEventDef(msg) => {
                 write!(f, "missing event definition for {msg}")
             }
@@ -216,17 +225,27 @@ impl core::fmt::Display for SpecToolError {
 
 impl std::error::Error for SpecToolError {}
 
+/// Everything the fragments say about one interface key, from every declarer
+/// that uses it.
+///
+/// Unrelated interface crates can collide on a key (trait-ident name,
+/// crate-version version), so a bucket may hold several declarers' fragments.
+/// Each entry carries its `declared_by`, and only the anchored declarer's
+/// survive shaking: a caller linking a collider it does not implement must
+/// neither fail on the collider's disagreeing metadata nor inherit its
+/// methods.
 #[derive(Default)]
 struct InterfaceBucket {
-    /// Distinct (throws, emits) candidates from this interface's fragments;
-    /// emits pre-canonicalized (sorted, deduped), throws kept raw. Conflicts
-    /// among candidates — including selector conflicts within a throws list —
-    /// are only checked for anchored interfaces after shaking: unrelated
-    /// interface crates can collide on a key (trait-ident name, crate-version
-    /// version), and a caller linking both must not fail on their
-    /// disagreement.
-    candidates: Vec<(Vec<ContractExceptionType>, Vec<ContractSpecId>)>,
-    methods: Vec<ContractSpecMethod>,
+    /// Distinct (declared_by, throws, emits) candidates; emits
+    /// pre-canonicalized (sorted, deduped), throws kept raw. Conflicts among
+    /// one declarer's candidates — including selector conflicts within a
+    /// throws list — are checked after shaking.
+    candidates: Vec<(
+        ContractSpecString,
+        Vec<ContractExceptionType>,
+        Vec<ContractSpecId>,
+    )>,
+    methods: Vec<(ContractSpecString, ContractSpecMethod)>,
 }
 
 /// Assembles raw spec fragments into a canonical [`ContractSpec`].
@@ -297,10 +316,13 @@ fn canonicalize_spec_inner(
     // output only if anchored. Shaking is strict — an empty set drops every
     // interface (there is intentionally no "include all when unanchored"
     // fallback; a real contract always anchors its own interface).
-    let mut anchored_interfaces = std::collections::BTreeSet::<(
-        ContractSpecString,
-        ContractSpecString,
-    )>::new();
+    //
+    // Keyed by interface key, holding every declarer anchored under it. More
+    // than one is an error (see `ConflictingInterfaceDeclarers`).
+    let mut anchored_interfaces = BTreeMap::<
+        (ContractSpecString, ContractSpecString),
+        std::collections::BTreeSet<ContractSpecString>,
+    >::new();
     let mut events = BTreeMap::<ContractSpecId, Vec<ContractEventDef>>::new();
     let mut exported_events =
         std::collections::BTreeSet::<ContractSpecId>::new();
@@ -349,7 +371,12 @@ fn canonicalize_spec_inner(
                 emits.sort();
                 emits.dedup();
 
-                let candidate = (fragment.throws.to_vec(), emits);
+                validate_declared_by(&interface_key, &fragment.declared_by)?;
+                let candidate = (
+                    fragment.declared_by.clone(),
+                    fragment.throws.to_vec(),
+                    emits,
+                );
                 let bucket = interfaces.entry(key).or_default();
                 if !bucket.candidates.contains(&candidate) {
                     bucket.candidates.push(candidate);
@@ -363,16 +390,22 @@ fn canonicalize_spec_inner(
                     spec_str(&fragment.interface_version)?,
                 )?;
                 validate_method(&fragment.method)?;
+                validate_declared_by(
+                    &interface_key_string(
+                        &spec_str_lossy(&fragment.interface_name),
+                        &spec_str_lossy(&fragment.interface_version),
+                    ),
+                    &fragment.declared_by,
+                )?;
 
                 let key = (
                     fragment.interface_name.clone(),
                     fragment.interface_version.clone(),
                 );
-                interfaces
-                    .entry(key)
-                    .or_default()
-                    .methods
-                    .push(fragment.method.clone());
+                interfaces.entry(key).or_default().methods.push((
+                    fragment.declared_by.clone(),
+                    fragment.method.clone(),
+                ));
             }
             SpecFragment::SpecTypeDef { type_def } => {
                 validate_type_def(type_def)?;
@@ -414,10 +447,20 @@ fn canonicalize_spec_inner(
                     spec_str(&interface_anchor.interface_name)?,
                     spec_str(&interface_anchor.interface_version)?,
                 )?;
-                anchored_interfaces.insert((
-                    interface_anchor.interface_name.clone(),
-                    interface_anchor.interface_version.clone(),
-                ));
+                validate_declared_by(
+                    &interface_key_string(
+                        &spec_str_lossy(&interface_anchor.interface_name),
+                        &spec_str_lossy(&interface_anchor.interface_version),
+                    ),
+                    &interface_anchor.declared_by,
+                )?;
+                anchored_interfaces
+                    .entry((
+                        interface_anchor.interface_name.clone(),
+                        interface_anchor.interface_version.clone(),
+                    ))
+                    .or_default()
+                    .insert(interface_anchor.declared_by.clone());
             } // `SpecFragment` is SDK-owned and matched exhaustively: a new
               // fragment kind is a compile error here, and an unknown
               // discriminant in raw bytes fails XDR decode in
@@ -443,22 +486,81 @@ fn canonicalize_spec_inner(
     //
     // While iterating surviving interfaces, collect the event names they emit
     // so we can shake unreferenced event defs in the next step.
+    //
+    // An artifact that anchors two declarers under one key implements two
+    // interfaces the wire cannot tell apart: they share an interface id, and
+    // any method signature they share maps to one entrypoint id. Refuse it
+    // rather than publishing one interface with both method sets.
+    //
+    // Compared per (name, MAJOR), not per key: the key carries the full
+    // version, but the wire identity hashes only the major, so `Token@1.0.0`
+    // and `Token@1.1.0` from two declarers collide on the wire while landing
+    // in separate buckets here.
+    let mut declarers_by_wire_identity = BTreeMap::<
+        (String, String),
+        std::collections::BTreeSet<&ContractSpecString>,
+    >::new();
+    for ((name, vers), declarers) in &anchored_interfaces {
+        declarers_by_wire_identity
+            .entry((
+                spec_str(name)?.to_string(),
+                groundhog_contract_util::semver::major_version_from_string(
+                    spec_str(vers)?,
+                ),
+            ))
+            .or_default()
+            .extend(declarers);
+    }
+    for ((name, major), declarers) in &declarers_by_wire_identity {
+        if declarers.len() > 1 {
+            let named = declarers
+                .iter()
+                .map(|declarer| spec_str_lossy(declarer).into_owned())
+                .collect::<Vec<_>>()
+                .join(" and ");
+            return Err(SpecToolError::ConflictingInterfaceDeclarers(
+                format!(
+                    "{} is declared by both {named}; its interface id and \
+                     entrypoint ids hash only the interface name and major \
+                     version, so callers cannot tell them apart — give one \
+                     a distinct name with #[contract(interface = \"...\")]",
+                    interface_key_string(name, major),
+                ),
+            ));
+        }
+    }
+
     let mut retained_event_names = exported_events;
     let interfaces = interfaces
         .into_iter()
-        .filter(|((name, vers), _)| {
-            anchored_interfaces.contains(&(name.clone(), vers.clone()))
+        .filter_map(|(key, mut bucket)| {
+            // Exactly one declarer per anchored key, checked above. Keep only
+            // its fragments: a collider's are shaken like any unanchored
+            // interface's.
+            let declarer = anchored_interfaces.get(&key)?.first()?.clone();
+            bucket.candidates.retain(|(by, _, _)| *by == declarer);
+            let methods = std::mem::take(&mut bucket.methods);
+            bucket.methods = methods
+                .into_iter()
+                .filter(|(by, _)| *by == declarer)
+                .collect();
+            Some((key, bucket))
         })
-        .map(|((name, vers), mut bucket)| {
-            bucket.methods.sort_by(|left, right| {
+        .map(|((name, vers), bucket)| {
+            let mut methods = bucket
+                .methods
+                .into_iter()
+                .map(|(_, method)| method)
+                .collect::<Vec<_>>();
+            methods.sort_by(|left, right| {
                 left.name.cmp(&right.name).then_with(|| {
                     canonical_method_key(left)
                         .cmp(&canonical_method_key(right))
                 })
             });
             let mut deduped_methods: Vec<ContractSpecMethod> =
-                Vec::with_capacity(bucket.methods.len());
-            for method in bucket.methods {
+                Vec::with_capacity(methods.len());
+            for method in methods {
                 if let Some(existing) = deduped_methods.last()
                     && existing.name == method.name
                 {
@@ -518,7 +620,7 @@ fn canonicalize_spec_inner(
                 &spec_str_lossy(&vers),
             );
             let mut candidates = bucket.candidates.into_iter();
-            let (first_throws, emits) =
+            let (_, first_throws, emits) =
                 candidates.next().ok_or_else(|| {
                     SpecToolError::MissingInterfaceFragment(
                         interface_key.clone(),
@@ -526,7 +628,7 @@ fn canonicalize_spec_inner(
                 })?;
             let throws =
                 canonicalize_exception_list(&interface_key, &first_throws)?;
-            for (other_throws, other_emits) in candidates {
+            for (_, other_throws, other_emits) in candidates {
                 let other_throws = canonicalize_exception_list(
                     &interface_key,
                     &other_throws,
@@ -682,6 +784,20 @@ fn validate_interface_key(
             "interface version must be a semver triplet like \"1.0.0\" \
              (optionally with -PRERELEASE and +BUILD suffixes), got \
              {interface_version}"
+        )));
+    }
+    Ok(())
+}
+
+/// Reject a missing or malformed `declared_by`: every interface-keyed
+/// fragment names its declarer, and shaking keys on it.
+fn validate_declared_by(
+    interface_key: &str,
+    declared_by: &ContractSpecString,
+) -> Result<(), SpecToolError> {
+    if spec_str(declared_by)?.is_empty() {
+        return Err(SpecToolError::InvalidRawFragment(format!(
+            "{interface_key}: interface fragments must name their declarer"
         )));
     }
     Ok(())

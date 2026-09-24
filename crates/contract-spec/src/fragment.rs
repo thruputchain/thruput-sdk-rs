@@ -33,6 +33,10 @@ use xdrs::*;
 pub struct SpecInterfaceFragment {
     pub interface_name: ContractSpecString,
     pub interface_version: ContractSpecString,
+    /// The item that declares this interface: the `#[contract]` trait's spec
+    /// id (`CRATE@MAJOR::module::path::Trait`), or `CRATE@MAJOR` for a bare
+    /// impl or free-function contract. See [`SpecInterfaceAnchor::declared_by`].
+    pub declared_by: ContractSpecString,
     pub throws: VecM<ContractExceptionType>,
     pub emits: VecM<ContractSpecId>,
 }
@@ -56,11 +60,16 @@ pub struct SpecInterfaceFragment {
 /// definition emits its [`SpecInterfaceFragment`] as a candidate but no
 /// methods: two unrelated traits can collide on one interface key (default
 /// name = trait ident, default version = crate version), and candidate
-/// methods from a trait nothing implements would merge into the same bucket
-/// and publish as phantom methods of the contract that merely links them.
+/// methods from a trait nothing implements would otherwise publish as
+/// phantom methods of the contract that merely links them. (`declared_by`
+/// now separates such traits in spec-tool as well.)
 pub struct SpecMethodFragment {
     pub interface_name: ContractSpecString,
     pub interface_version: ContractSpecString,
+    /// The item that declares this interface: the `#[contract]` trait's spec
+    /// id (`CRATE@MAJOR::module::path::Trait`), or `CRATE@MAJOR` for a bare
+    /// impl or free-function contract. See [`SpecInterfaceAnchor::declared_by`].
+    pub declared_by: ContractSpecString,
     pub method: ContractSpecMethod,
 }
 
@@ -79,6 +88,19 @@ pub struct SpecMethodFragment {
 pub struct SpecInterfaceAnchor {
     pub interface_name: ContractSpecString,
     pub interface_version: ContractSpecString,
+    /// The item that declares the anchored interface: the `#[contract]`
+    /// trait's spec id (`CRATE@MAJOR::module::path::Trait`), or `CRATE@MAJOR`
+    /// for a bare impl or free-function contract.
+    ///
+    /// The interface *key* is (name, version) because that is all the wire
+    /// carries — `interface_id` and every entrypoint id hash the bare name
+    /// and major version, so that independent crates can implement one
+    /// interface. Two unrelated traits can therefore share a key. This field
+    /// is spec-only and tells them apart: spec-tool keeps only the fragments
+    /// of the declarer an artifact anchors, and rejects an artifact that
+    /// anchors two declarers under one key, since nothing on the wire could
+    /// tell their interfaces apart.
+    pub declared_by: ContractSpecString,
 }
 
 #[derive(

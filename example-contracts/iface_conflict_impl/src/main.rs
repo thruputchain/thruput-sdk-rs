@@ -1,6 +1,5 @@
-//! RV32 binary wrapper for the anchored interface-metadata-conflict negative
-//! fixture. The ELF links, but the spec canonicalization the `groundhog` CLI
-//! runs during lowering must FAIL with a `Token` emits-metadata conflict.
+//! RV32 binary wrapper for the anchored interface-collision fixture: builds,
+//! with A's `Token` (and A's emits) in its spec.
 
 #![no_std]
 #![no_main]

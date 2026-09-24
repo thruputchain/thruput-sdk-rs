@@ -371,12 +371,14 @@ fn fragment_and_view_conversions_roundtrip() {
     let interface = SpecInterfaceFragmentView {
         interface_name: "Named",
         interface_version: "0.1.0",
+        declared_by: "test_if@0.1::Iface",
         throws: &interface_throws,
         emits: &[],
     };
     let method = SpecMethodFragmentView {
         interface_name: "Named",
         interface_version: "0.1.0",
+        declared_by: "test_if@0.1::Iface",
         method: ContractSpecMethodView {
             name: "ping",
             args: &[ContractFieldView {
@@ -451,12 +453,14 @@ fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
     let interface = SpecFragmentView::Interface(SpecInterfaceFragmentView {
         interface_name: "Named",
         interface_version: "0.3.0",
+        declared_by: "test_if@0.1::Iface",
         throws: &interface_throws,
         emits: &[],
     });
     let method = SpecFragmentView::Method(SpecMethodFragmentView {
         interface_name: "Named",
         interface_version: "0.3.0",
+        declared_by: "test_if@0.1::Iface",
         method: ContractSpecMethodView {
             name: "ping",
             args: &[ContractFieldView {
@@ -520,6 +524,7 @@ fn borrowed_fragment_views_have_const_txs_writers() {
         SpecInterfaceFragmentView {
             interface_name: "Named",
             interface_version: "0.1.0",
+            declared_by: "test_if@0.1::Iface",
             throws: &THROWS,
             emits: &[],
         };
@@ -633,6 +638,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 throws: vec![].try_into().unwrap(),
                 emits: vec![].try_into().unwrap(),
             },
@@ -644,6 +650,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
             method_fragment: SpecMethodFragment {
                 interface_name: s("Named"),
                 interface_version: s("0.1.0"),
+                declared_by: s("test_if@0.1::Iface"),
                 method: ContractSpecMethod {
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
@@ -849,6 +856,7 @@ fn interface_fragment_emits_roundtrips() {
     let view = SpecFragmentView::Interface(SpecInterfaceFragmentView {
         interface_name: "Token",
         interface_version: "0.1.0",
+        declared_by: "test_if@0.1::Iface",
         throws: &throws,
         emits: &[idv("TransferEvent"), idv("ApprovalEvent")],
     });

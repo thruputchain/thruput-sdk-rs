@@ -159,6 +159,19 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
             });
+            // The trait's own spec id, pinned to the interface version like an
+            // exception's is pinned to its declared one. The interface key
+            // (name, version) is all the wire carries and two unrelated traits
+            // can share it; this is what tells them apart in the spec. See
+            // `SpecInterfaceAnchor::declared_by`.
+            let declared_by = common::spec_id::declarer_id_tokens(
+                &item.ident.to_string(),
+                Some(&iface_vers),
+            );
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_DECLARED_BY: &'static str = #declared_by;
+            });
             let interface_id_lit = common::entrypoint::interface_id_literal(
                 Some(&iface_name),
                 &iface_vers,
@@ -293,6 +306,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                     ::sdk::__contract_spec::SpecInterfaceAnchorView {
                         interface_name: #iface_name,
                         interface_version: #iface_vers,
+                        declared_by: #declared_by,
                     };
 
                 #[doc(hidden)]

@@ -13,6 +13,9 @@ env:
   CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
+permissions:
+  contents: read
+
 jobs:
   sdk-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false

@@ -1,0 +1,128 @@
+# Yanks (or un-yanks) a published release from the groundhog registry.
+#
+# The crates here release on two version lines (see publish.yml): the
+# workspace-versioned crates share one `v<version>` release, while each
+# standard-interface crate versions independently. So a yank targets either
+# the whole workspace release or a single interface crate, never "every crate
+# at this version" — an interface version could coincide with an unrelated
+# old workspace release.
+name: Yank package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to yank (e.g. 0.37.0)'
+        required: true
+        type: string
+      target:
+        description: 'The workspace release, or one independently-versioned interface crate'
+        required: true
+        type: choice
+        default: workspace
+        # Keep in sync with INTERFACE_PACKAGES in publish.yml.
+        options:
+          - workspace
+          - groundhog-erc20-if
+          - groundhog-erc20-metadata-if
+          - groundhog-erc20-pausable-if
+          - groundhog-signed-op-if
+          - groundhog-signed-op
+          - groundhog-erc20-permit-if
+          - groundhog-erc165-if
+          - groundhog-erc721-if
+          - groundhog-access-control-if
+          - groundhog-access-control
+      undo:
+        description: 'Un-yank (restore) instead of yank'
+        required: false
+        type: boolean
+        default: false
+
+# A yank racing a publish of the same version would leave registry state
+# depending on which finished last; queue behind publish.yml.
+concurrency:
+  group: publish
+
+env:
+  # Everything published under the `v<version>` tag: PRIMARY_PACKAGES plus
+  # INTERFACE_DEPENDENT_PACKAGES in publish.yml. Keep in sync with those.
+  WORKSPACE_PACKAGES: >-
+    groundhog-event
+    groundhog-exn
+    groundhog-storage-cost
+    groundhog-contract-util
+    groundhog-contract-spec
+    groundhog-sys
+    groundhog-macros
+    groundhog-domain-separator
+    groundhog-native-exec
+    groundhog-u256
+    groundhog-test-vectors
+    groundhog-rv32-runtime
+    sdk
+    bottle-test-if
+    groundhog-spec-tool
+    erc20-test
+    erc20-native-test
+    erc20-bottle-test
+
+jobs:
+  yank:
+    permissions:
+      contents: read
+    runs-on: hog1
+
+    steps:
+      - name: Clean up .gitconfig
+        run: |
+            echo "Cleaning up .gitconfig"
+            rm -f /home/hogci/.gitconfig
+
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.ACTIONS_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Configure git to use SSH
+        run: |
+          git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+      # Cloned rather than referenced as `groundhogchain/actions/...@<sha>`:
+      # zizmor's online impostor-commit audit in CI cannot read the private
+      # actions repository, and aborts on any direct reference to it.
+      - name: Checkout actions repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: groundhogchain/actions
+          path: actions
+          ref: 2c5fd2d95a58f11da1e362b08c57a08fb7dfec51 # main
+          persist-credentials: false
+
+      - name: Select packages
+        id: select
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          if [ "$TARGET" = "workspace" ]; then
+            packages="$WORKSPACE_PACKAGES"
+          else
+            packages="$TARGET"
+          fi
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+
+      - name: Yank
+        uses: ./actions/cargo-yank
+        with:
+          version: ${{ inputs.version }}
+          undo: ${{ inputs.undo }}
+          packages: ${{ steps.select.outputs.packages }}
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}

@@ -1,6 +1,6 @@
 [package]
 name = "iface_conflict_impl"
-description = "Negative spec fixture: implements A's Token while linking B's colliding Token, so the anchored-key metadata conflict must fail spec rewrite"
+description = "Spec fixture: implements A's Token while linking B's colliding Token; the spec keeps A's interface and shakes B's"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -20,9 +20,7 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. The directory deliberately lacks a `-rv32` suffix so the
-# wrapper glob in scripts/dev.sh never builds it expecting success; the
-# negative check builds it by name. Same shape as dup_entrypoint_neg.
+# The rv32 artifact, built by the standard rv32 loop in scripts/dev.sh.
 [[bin]]
 name = "iface_conflict_impl"
 path = "src/main.rs"

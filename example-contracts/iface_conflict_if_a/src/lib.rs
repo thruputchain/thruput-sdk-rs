@@ -6,8 +6,8 @@
 //! crate version, both crates' candidates collide on the same interface key
 //! with different emits metadata.  A caller linking both while implementing
 //! neither must not fail on that disagreement (both candidates are shaken);
-//! a contract that *implements* either `Token` anchors the key and must
-//! still fail the spec rewrite on the ambiguous metadata.
+//! a contract that *implements* one `Token` keeps that trait's metadata and
+//! sheds the other's, since each candidate names its declaring trait.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
