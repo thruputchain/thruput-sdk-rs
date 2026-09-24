@@ -26,7 +26,14 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 ///
 /// # Error contract
 ///
-/// Implementations must throw exactly these [`ERC20Error`]s:
+/// These operations use the following [`ERC20Error`]s. Optional policy
+/// extensions may reject an operation with additional errors, as with
+/// `ERC20Pausable` and `TokenAuthorization`. Clients expose those through
+/// their unknown-error path.
+///
+/// The basic reference uses one administrator for mint and burn. Issuer
+/// extensions may delegate mint authority and restrict administrator burns:
+/// possession of the role does not bypass the token's policy.
 ///
 /// - [`ERC20Error::AlreadyInitialized`] — `initialize` called twice.
 /// - [`ERC20Error::MustBeContractOwner`] — `mint`/`burn` called by anyone
@@ -37,7 +44,7 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, ApprovalEvent, MintEvent, BurnEvent)
+    emits(TransferEvent, ApprovalEvent, MintEvent, BurnEvent, ApproveEvent)
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -59,7 +66,17 @@ pub trait ERC20 {
         amount: Amount,
     );
 
-    /// Adjust allowance for `spender` by `amount` (positive or negative).
+    /// Replace the caller's remaining allowance for `spender` and emit
+    /// [`ApproveEvent`]. Zero revokes. Amounts above `i128::MAX` throw
+    /// [`ERC20Error::TooLarge`]. Replacement must conflict with concurrent
+    /// writes to the same allowance, including spending it.
+    ///
+    /// A spender may consume the old grant before a replacement executes.
+    /// Use a one-shot signed transfer when spending itself must expire.
+    fn approve(&mut self, spender: &ContractAddress, amount: Amount);
+
+    /// Legacy relative adjustment. Prefer [`ERC20::approve`] for new callers.
+    /// Adjust allowance for `spender` by `diff` (positive or negative).
     /// Throws [`ERC20Error::TooLarge`] if the resulting allowance would be
     /// negative.
     fn adjust_allowance(

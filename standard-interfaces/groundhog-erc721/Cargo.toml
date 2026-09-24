@@ -1,6 +1,6 @@
 [package]
 name = "groundhog-erc721-if"
-version = "0.1.36"
+version = "0.1.37"
 edition.workspace = true
 publish.workspace = true
 authors = ["Groundhog Team"]

@@ -4,7 +4,7 @@ The GH-414 reference token supplies local balances, allowances, issuer controls
 and events. A backed wrapper still needs bridge records, custody accounting and
 an asset policy. These notes capture the 2026-09-24 comparison with Stellar for
 the implementation team. See [the token spec](sep41-reference-token.md) for the
-interface and pinned upstream sources.
+interface and the Stellar comparison.
 
 ## Tracking
 
@@ -37,10 +37,16 @@ Use exclusive consumption records on Groundhog so two deliveries of the same
 claim cannot both commit in one block.
 
 A withdrawal must authenticate the owner's chosen destination and atomically
-record the obligation with token destruction. The bridge can use `burn_from`
-with an owner allowance and itself as spender. The allowance does not authorize
-an arbitrary caller to choose the Stellar recipient. Direct `burn(owner, ...)`
-requires the owner to be the immediate caller; a bridge cannot impersonate it.
+record the obligation with token destruction. The bridge can use `TokenBurn::burn_from` with an owner allowance and itself
+as spender, or pull tokens into escrow and burn its own balance. Authenticate
+the Stellar recipient separately. `ERC20::burn(owner, amount)` is the
+administrator operation and obeys clawback policy; it is not a holder withdrawal.
+
+Prefer an expiring signed bridge operation for withdrawals. Bind networks,
+asset, amount, recipient and transfer ID in its payload. The standard
+`Signed<PermitGrant>` also authorizes creation of a standing allowance, and its
+spender chooses the receiver, so it is not by itself an expiring withdrawal.
+Use a wire-distinct operation payload, not just another Rust struct name.
 
 ## Destruction and custody accounting
 
@@ -54,6 +60,8 @@ backing as unclaimed. The same decision applies to administrative clawback.
 Reconcile custody with supply, pending deposits, pending withdrawals and
 identified surplus at consistent checkpoints. Generic token movement events
 serve balance consumers; bridge records serve delivery and reconciliation.
+Forced destruction emits a canonical `BurnEvent` and a `ClawbackEvent` carrying
+context. Count the burn once; do not treat the context event as another debit.
 
 ## Issuer controls
 
@@ -97,8 +105,7 @@ pending obligations and custody authority, or explicitly migrate them. Rotating
 the token minter alone does not achieve this. Keep verification outside the token
 so Quickbridge can precede federation.
 
-The token tests exercise native and RV32 contract execution with resource charges
-disabled. They do not prove signed-wallet delivery, live indexer ingestion,
-Stellar consumer compatibility or a cross-network round trip. Those checks remain
-part of integration. Additional token qualification should cover signed wallets,
-supply races, role rotation versus old-role operations, and extreme expiry heights.
+The token tests exercise native and RV32 execution, including signed-wallet
+flows, supply races and role visibility, with resource charges disabled. They
+do not prove live indexer ingestion, Stellar consumer compatibility or a
+cross-network round trip. Those checks remain part of integration.

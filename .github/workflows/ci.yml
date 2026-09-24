@@ -150,12 +150,13 @@ jobs:
       - name: Run CI
         run: env ${{ matrix.skips }} ./scripts/ci.sh
 
-      - name: Test SEP-41 contract through RV32
+      - name: Test issuer token through RV32
         if: matrix.name == 'examples-test'
         working-directory: example-contracts
         env:
-          SEP41_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/sep41.rv32a
-        run: cargo test -p sep41 --locked
+          ERC20_PERMIT_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
+          ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
+        run: cargo test -p erc20_issuer --locked
 
   # Main pushes only, off the PR critical path. Self-contained: rebuilds the
   # rv32 example artifacts and the full integration block (metrics.sh's

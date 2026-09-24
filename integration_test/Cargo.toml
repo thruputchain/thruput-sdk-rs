@@ -52,7 +52,7 @@ edition = "2024"
 sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.38.0" }
 groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.38.0", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.36" }
+groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.37" }
 
 erc20-test = { path = "../standard-tests/erc20-test", registry = "groundhog", version = "=0.38.0" }
 erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "groundhog", version = "=0.38.0" }

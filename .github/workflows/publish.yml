@@ -71,8 +71,8 @@ env:
   # component exact-pins its interface crate, so it comes after it.
   INTERFACE_PACKAGES: >-
     groundhog-erc20-if
-    groundhog-sep41-if
     groundhog-erc20-metadata-if
+    groundhog-token-controls-if
     groundhog-erc20-pausable-if
     groundhog-signed-op-if
     groundhog-signed-op
@@ -194,6 +194,7 @@ jobs:
             bottle-test-if
             groundhog-erc20-if
             groundhog-erc20-metadata-if
+            groundhog-erc20-metadata-if
             groundhog-erc20-pausable-if
             groundhog-erc20-permit-if
             groundhog-signed-op-if
@@ -262,6 +263,7 @@ jobs:
             groundhog-rv32-runtime
             sdk
             groundhog-erc20-if
+            groundhog-erc20-metadata-if
             groundhog-signed-op-if
             groundhog-access-control-if
           # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
@@ -302,13 +304,13 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-sep41-if
+      - name: Tag groundhog-token-controls-if
         if: ${{ inputs.dry_run == false }}
-        id: tag-sep41-if
+        id: tag-token-controls-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-sep41-if
-          tag-prefix: 'groundhog-sep41-if-v'
+          packages: groundhog-token-controls-if
+          tag-prefix: 'groundhog-token-controls-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: groundhog
@@ -459,18 +461,6 @@ jobs:
           no-verify: 'true'
           publish-delay-seconds: '20'
 
-      - name: Publish groundhog-sep41-if
-        if: ${{ inputs.dry_run == false && steps.tag-sep41-if.outputs.released == 'true' }}
-        uses: ./actions/cargo-publish
-        with:
-          packages: groundhog-sep41-if
-          git-tag: ${{ steps.tag-sep41-if.outputs.tag }}
-          tag-prefix: 'groundhog-sep41-if-v'
-          registry-name: groundhog
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '20'
-
       - name: Publish groundhog-erc20-metadata-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
@@ -478,6 +468,18 @@ jobs:
           packages: groundhog-erc20-metadata-if
           git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-metadata-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '20'
+
+      - name: Publish groundhog-token-controls-if
+        if: ${{ inputs.dry_run == false && steps.tag-token-controls-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-token-controls-if
+          git-tag: ${{ steps.tag-token-controls-if.outputs.tag }}
+          tag-prefix: 'groundhog-token-controls-if-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'

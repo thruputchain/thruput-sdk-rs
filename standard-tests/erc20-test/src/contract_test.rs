@@ -113,6 +113,21 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     client.adjust_allowance(other, -amt);
     m.adjust_allowance(other, -amt);
 
+    // Absolute approval replaces the remainder, including an identical grant.
+    for amount in [23, 23, 9, 0, i128::MAX as u128, 7] {
+        client.approve(other, amount);
+        m.approve(other, amount);
+        m.check_allowances(&client);
+    }
+    #[cfg(not(feature = "no_check_aborts"))]
+    assert_eq!(
+        client
+            .try_approve(other, i128::MAX as u128 + 1)
+            .unwrap_err()
+            .try_as(),
+        Some(ERC20Error::TooLarge),
+    );
+
     // Check client state against the model
     m.check(&client);
 
