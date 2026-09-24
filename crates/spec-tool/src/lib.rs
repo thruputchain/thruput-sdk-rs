@@ -48,20 +48,11 @@ fn spec_id_str(id: &ContractSpecId) -> Result<(), SpecToolError> {
     Ok(())
 }
 
-/// Lossy spec-id rendering for error messages.
-///
-/// Deliberately not the old joined `CRATE@MAJOR::module::path::Name` form:
-/// reassembling that would put back the ambiguity the segments exist to
-/// remove, and a diagnostic is exactly where the reader wants to see which
-/// segment is which. `module_path` already leads with the crate as Rust
-/// spells it, so the crate and major trail in parentheses rather than
-/// doubling up in the path.
 /// A spec id as JSON, segment by segment.
 ///
-/// [`render_spec_json`] is written to a sidecar file that consumers read, so
-/// an id is rendered as an object rather than as the prose
-/// [`spec_id_lossy`] produces for diagnostics: flattening it would hand every
-/// reader back the splitting problem the segments exist to remove.
+/// [`render_spec_json`] lands in a sidecar file that consumers read, so an id
+/// goes there as an object: flattening it would hand every reader back the
+/// splitting problem the segments exist to remove.
 fn spec_id_json(id: &ContractSpecId) -> serde_json::Value {
     serde_json::json!({
         "crate": spec_str_lossy(&id.crate_name),
@@ -71,6 +62,11 @@ fn spec_id_json(id: &ContractSpecId) -> serde_json::Value {
     })
 }
 
+/// A spec id rendered for a diagnostic, where a person is reading.
+///
+/// Not the joined form: a reader wants to see which segment is which, and
+/// `module_path` already leads with the crate, so the crate and major trail
+/// in parentheses rather than doubling up in the path.
 fn spec_id_lossy(id: &ContractSpecId) -> String {
     format!(
         "{}::{} ({}@{})",
@@ -354,11 +350,9 @@ fn canonicalize_spec_inner(
                 }
                 let mut emits = fragment.emits.to_vec();
                 for name in &emits {
-                    // The whole id, not just the segment the emptiness check
-                    // reads: all four are unvalidated bytes off the wire, and
-                    // a malformed crate or module segment would otherwise
-                    // travel on to event lookup and surface as a missing
-                    // event rather than as the bad fragment it is.
+                    // The whole id: a bad crate or module segment would
+                    // otherwise reach event lookup and be reported as a
+                    // missing event rather than a malformed fragment.
                     spec_id_str(name)?;
                     if spec_str(&name.declared)?.is_empty() {
                         return Err(SpecToolError::InvalidRawFragment(
@@ -552,12 +546,10 @@ fn canonicalize_spec_inner(
                 .into_iter()
                 .map(|(_, method)| method)
                 .collect::<Vec<_>>();
-            methods.sort_by(|left, right| {
-                left.name.cmp(&right.name).then_with(|| {
-                    canonical_method_key(left)
-                        .cmp(&canonical_method_key(right))
-                })
-            });
+            // By name alone: the loop below either deduplicates equal-name
+            // methods (identical) or rejects them (not), so nothing downstream
+            // can see the order they arrived in.
+            methods.sort_by(|left, right| left.name.cmp(&right.name));
             let mut deduped_methods: Vec<ContractSpecMethod> =
                 Vec::with_capacity(methods.len());
             for method in methods {
@@ -1058,18 +1050,14 @@ fn canonicalize_exception_list(
     interface_key: &str,
     types: &[ContractExceptionType],
 ) -> Result<Vec<ContractExceptionType>, SpecToolError> {
-    // Validate before sorting: the sort key below assumes known variants.
     for exn in types {
         validate_type(&exn.ty)?;
     }
     let mut types = types.to_vec();
     // Canonical order is by selector, since the selector is the key clients
-    // decode exceptions by.
-    types.sort_by(|left, right| {
-        left.selector.cmp(&right.selector).then_with(|| {
-            canonical_type_key(&left.ty).cmp(&canonical_type_key(&right.ty))
-        })
-    });
+    // decode exceptions by. By selector alone: entries sharing one are either
+    // equal, and collapse below, or a conflict the check after it rejects.
+    types.sort_by_key(|exn| exn.selector);
     types.dedup();
 
     // After dedup, adjacent entries sharing a selector must differ in payload
@@ -1272,80 +1260,6 @@ fn collect_union_case_named_types(
         }
     }
     Ok(())
-}
-
-fn canonical_method_key(method: &ContractSpecMethod) -> String {
-    let mut key = spec_str_lossy(&method.name).into_owned();
-    key.push('|');
-    for arg in method.args.iter() {
-        key.push_str(&spec_str_lossy(&arg.name));
-        key.push(':');
-        key.push_str(&canonical_type_key(&arg.ty));
-        key.push('|');
-    }
-    key.push_str("->");
-    key.push_str(&canonical_type_key(&method.return_type));
-    key
-}
-
-fn canonical_type_key(ty: &ContractType) -> String {
-    match ty {
-        ContractType::Void => "void".to_string(),
-        ContractType::Bool => "bool".to_string(),
-        ContractType::U8 => "u8".to_string(),
-        ContractType::U32 => "u32".to_string(),
-        ContractType::I32 => "i32".to_string(),
-        ContractType::U64 => "u64".to_string(),
-        ContractType::I64 => "i64".to_string(),
-        ContractType::U128 => "u128".to_string(),
-        ContractType::I128 => "i128".to_string(),
-        ContractType::U256 => "u256".to_string(),
-        ContractType::I256 => "i256".to_string(),
-        ContractType::String => "string".to_string(),
-        ContractType::Bytes => "bytes".to_string(),
-        ContractType::Address => "address".to_string(),
-        ContractType::Option { option_inner } => {
-            format!("option({})", canonical_type_key(option_inner))
-        }
-        ContractType::Vector { vector } => {
-            let element = &vector.element;
-            format!(
-                "vector({}, {})",
-                canonical_type_key(element),
-                vector.max_len
-            )
-        }
-        ContractType::Tuple { tuple } => {
-            let mut key = String::from("tuple(");
-            for (index, item) in tuple.iter().enumerate() {
-                if index > 0 {
-                    key.push(',');
-                }
-                key.push_str(&canonical_type_key(item));
-            }
-            key.push(')');
-            key
-        }
-        ContractType::Array { array } => {
-            let element = &array.element;
-            format!("array({}, {})", canonical_type_key(element), array.len)
-        }
-        ContractType::Named { named } => {
-            format!("named({})", spec_id_lossy(named))
-        }
-        ContractType::SignedToken {
-            signed_token_preimage,
-        } => match &signed_token_preimage.preimage_type {
-            Some(preimage_type) => {
-                format!("signed_token({})", canonical_type_key(preimage_type))
-            }
-            None => "signed_token(opaque)".to_string(),
-        },
-        // Unreachable for canonicalized input: `validate_type` rejects
-        // unknown variants at fragment ingestion, before any sort key is
-        // rendered. Kept as a loud backstop for direct callers.
-        _ => panic!("unknown ContractType variant"),
-    }
 }
 
 fn type_def_symbol(

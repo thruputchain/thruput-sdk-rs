@@ -1,5 +1,5 @@
 use groundhog_contract_spec::{
-    ContractType, ContractTypeDef, ContractUnionCaseType,
+    ContractSpecId, ContractType, ContractTypeDef, ContractUnionCaseType,
 };
 use groundhog_spec_tool::describe::{
     DescribeOutput, REGISTRY, build_describe,
@@ -7,7 +7,7 @@ use groundhog_spec_tool::describe::{
 use std::{collections::BTreeSet, process::Command};
 use tempfile::tempdir;
 
-fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
+fn walk_type(ty: &ContractType, refs: &mut BTreeSet<ContractSpecId>) {
     match ty {
         ContractType::Option { option_inner } => walk_type(option_inner, refs),
         ContractType::Vector { vector } => walk_type(&vector.element, refs),
@@ -18,15 +18,13 @@ fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
             }
         }
         ContractType::Named { named } => {
-            refs.insert(
-                std::str::from_utf8(&named.declared).unwrap().to_string(),
-            );
+            refs.insert(named.clone());
         }
         _ => {}
     }
 }
 
-fn collect_named_refs(output: &DescribeOutput) -> BTreeSet<String> {
+fn collect_named_refs(output: &DescribeOutput) -> BTreeSet<ContractSpecId> {
     let mut refs = BTreeSet::new();
     walk_type(&output.exception.ty, &mut refs);
     for type_def in &output.type_defs {
@@ -62,7 +60,7 @@ fn collect_named_refs(output: &DescribeOutput) -> BTreeSet<String> {
     refs
 }
 
-fn defined_names(output: &DescribeOutput) -> BTreeSet<String> {
+fn defined_names(output: &DescribeOutput) -> BTreeSet<ContractSpecId> {
     output
         .type_defs
         .iter()
@@ -75,7 +73,7 @@ fn defined_names(output: &DescribeOutput) -> BTreeSet<String> {
                 ContractTypeDef::TypeDefUnion { union_def } => &union_def.name,
                 _ => panic!("unknown ContractTypeDef variant"),
             };
-            std::str::from_utf8(&name.declared).unwrap().to_string()
+            name.clone()
         })
         .collect()
 }

@@ -1324,6 +1324,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "split_module_iface"
+version = "0.4.0"
+dependencies = [
+ "sdk",
+ "split_module_iface",
+]
+
+[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -24,6 +24,7 @@ members = [
     "trait_sourced_method_spec",
     "u256_roundtrip",
     "stateless",
+    "split_module_iface",
     "codegen_trait_noclient",
     "codegen_trait_client",
     "codegen_hygiene",

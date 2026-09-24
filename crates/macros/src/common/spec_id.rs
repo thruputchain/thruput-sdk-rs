@@ -46,35 +46,48 @@ pub fn spec_id_tokens(
     declared: &str,
     version: Option<&str>,
 ) -> TokenStream {
-    let major = major_tokens(version);
+    id_view_tokens(
+        krate,
+        &major_tokens(version),
+        quote! { ::core::module_path!() },
+        declared,
+    )
+}
+
+/// The one place an id's shape is written down. Callers supply the module
+/// path as tokens because they do not agree on it: a declaration takes
+/// `module_path!()`, while a crate's own identity must not vary by module.
+fn id_view_tokens(
+    krate: &syn::Path,
+    major: &str,
+    module_path: TokenStream,
+    declared: &str,
+) -> TokenStream {
     quote! {
         #krate::__contract_spec::ContractSpecIdView {
             crate_name: ::core::env!("CARGO_PKG_NAME"),
             major: #major,
-            module_path: ::core::module_path!(),
+            module_path: #module_path,
             declared: #declared,
         }
     }
 }
 
 /// The declarer id a bare impl or free-function contract records for its
-/// interface: the crate itself, with no declared name (see
-/// `SpecInterfaceAnchor::declared_by`). `version` is as for
-/// [`spec_id_tokens`].
+/// interface: the crate itself (see `SpecInterfaceAnchor::declared_by`).
+/// `version` is as for [`spec_id_tokens`].
 ///
-/// There is no trait to name, and one crate may spread such an interface over
-/// several impl blocks or modules, so the crate is the identity. An empty
-/// `declared` is what says so, and it is why such an id can never collide with
-/// a trait's, which always names the trait.
-///
-/// Built through [`spec_id_tokens`] rather than assembled here: a declarer is
-/// an id like any other, and there is one place that decides what an id looks
-/// like.
+/// Both path segments are empty, so the id is exactly (crate, major). One
+/// crate may spread an interface over several blocks, so a `module_path!()`
+/// here would make two blocks in different modules look like two declarers
+/// and get the crate rejected for spreading its own interface. The empty
+/// `declared` also keeps this id from ever colliding with a trait's, which
+/// always names the trait.
 pub fn crate_id_tokens(
     krate: &syn::Path,
     version: Option<&str>,
 ) -> TokenStream {
-    spec_id_tokens(krate, "", version)
+    id_view_tokens(krate, &major_tokens(version), quote! { "" }, "")
 }
 
 /// The major version, by the same rule interface versions use: the leftmost
@@ -87,4 +100,62 @@ fn major_tokens(version: Option<&str>) -> String {
             str::to_string,
         ),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sdk_path() -> syn::Path {
+        syn::parse_quote! { ::sdk }
+    }
+
+    /// A crate's own identity must not vary by module.
+    ///
+    /// One crate may spread a bare-impl interface across several modules, and
+    /// every block has to record the same declarer or canonicalization sees
+    /// two declarers under one interface key and rejects the crate for
+    /// spreading its own interface. `module_path!()` would do exactly that,
+    /// so the id carries an empty path instead.
+    #[test]
+    fn a_crate_id_does_not_depend_on_the_module_it_expands_in() {
+        let id = crate_id_tokens(&sdk_path(), Some("0.1.0")).to_string();
+        // The field is there; what must not be there is the macro that would
+        // make its value vary by expansion site.
+        assert!(
+            !id.contains("module_path ! ()"),
+            "a crate id must not read module_path!(): {id}"
+        );
+        assert!(
+            id.contains(r#"module_path : "" "#),
+            "a crate id carries an empty module path: {id}"
+        );
+    }
+
+    /// The contrast: a declaration's id is module-scoped, which is what tells
+    /// two same-named types in different modules apart.
+    #[test]
+    fn a_declarations_id_does_depend_on_its_module() {
+        let id =
+            spec_id_tokens(&sdk_path(), "Meta", Some("0.1.0")).to_string();
+        assert!(
+            id.contains("module_path ! ()"),
+            "a declared id must read module_path!(): {id}"
+        );
+    }
+
+    /// Both are built the same way, so neither can drift into a different
+    /// shape: same crate source, same major, same field set.
+    #[test]
+    fn both_ids_share_one_shape() {
+        let crate_id = crate_id_tokens(&sdk_path(), Some("0.1.0")).to_string();
+        let declared =
+            spec_id_tokens(&sdk_path(), "Meta", Some("0.1.0")).to_string();
+        for id in [&crate_id, &declared] {
+            for field in ["crate_name", "major", "module_path", "declared"] {
+                assert!(id.contains(field), "{id} is missing {field}");
+            }
+            assert!(id.contains("CARGO_PKG_NAME"), "{id}");
+        }
+    }
 }
