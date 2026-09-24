@@ -89,6 +89,11 @@ pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
 /// workspace version.
 pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
     Named {
+        name: "groundhog-sep41-if",
+        reason: "standard interface with an independent version line, bumped \
+                 on SDK semver-major rather than every release",
+    },
+    Named {
         name: "groundhog-erc20-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",

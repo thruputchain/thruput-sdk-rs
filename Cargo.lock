@@ -511,6 +511,16 @@ name = "groundhog-rv32-runtime"
 version = "0.38.0"
 
 [[package]]
+name = "groundhog-sep41-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "heapless",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-serde_arrays"
 version = "0.2.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
