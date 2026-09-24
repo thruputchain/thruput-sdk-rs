@@ -7,7 +7,7 @@
 use crate::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
     ContractExceptionType, ContractField, ContractSignedTokenPreimage,
-    ContractSpec, ContractSpecInterface, ContractSpecMethod,
+    ContractSpec, ContractSpecId, ContractSpecInterface, ContractSpecMethod,
     ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
     ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
     SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
@@ -20,6 +20,41 @@ use xdrs::*;
 #[cfg(feature = "owned-model")]
 fn to_spec_string(s: &str) -> ContractSpecString {
     ContractSpecString::try_from(s).expect("spec string conversion")
+}
+
+/// Const-friendly view of a [`ContractSpecId`]: what a user-defined type or
+/// event is called in a spec.
+///
+/// The segments are carried apart because the joined
+/// `CRATE@MAJOR::module::path::Name` form cannot be split back -- `name =
+/// "..."` substitutes its value verbatim, `::` and all -- and because every
+/// segment is something the declaring macro already holds whole, so nothing
+/// here is parsed out of anything.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+pub struct ContractSpecIdView<'a> {
+    /// Declaring crate, as Cargo names the package: hyphenated.
+    pub crate_name: &'a str,
+    /// Leftmost non-zero component of the declaring crate's semver, or of the
+    /// item's own pinned `version = "..."`.
+    pub major: &'a str,
+    /// `module_path!()` at the declaration, verbatim, leading crate segment
+    /// and all -- so its spelling of the crate is the underscored Rust ident,
+    /// not `crate_name`'s.
+    pub module_path: &'a str,
+    /// The declared name, verbatim. May itself contain `::`.
+    pub declared: &'a str,
+}
+
+#[cfg(feature = "owned-model")]
+impl From<ContractSpecIdView<'_>> for ContractSpecId {
+    fn from(value: ContractSpecIdView<'_>) -> Self {
+        Self {
+            crate_name: to_spec_string(value.crate_name),
+            major: to_spec_string(value.major),
+            module_path: to_spec_string(value.module_path),
+            declared: to_spec_string(value.declared),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -67,7 +102,7 @@ pub enum ContractTypeView<'a> {
     Option(&'a ContractTypeView<'a>) = 11,
     Vector(ContractVectorTypeView<'a>) = 12,
     Tuple(&'a [ContractTypeView<'a>]) = 13,
-    Named(&'a str) = 14,
+    Named(ContractSpecIdView<'a>) = 14,
     U8 = 15,
     Array(ContractArrayTypeView<'a>) = 16,
     /// A signed auth token whose preimage has the referenced type, or
@@ -107,7 +142,7 @@ pub enum ContractTypeDefView<'a> {
 }
 
 impl<'a> ContractTypeDefView<'a> {
-    pub const fn symbol(self) -> &'a str {
+    pub const fn symbol(self) -> ContractSpecIdView<'a> {
         match self {
             Self::Struct(def) => def.name,
             Self::Enum(def) => def.name,
@@ -122,13 +157,13 @@ impl<'a> ContractTypeDefView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractStructDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub fields: &'a [ContractFieldView<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractEnumDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub variants: &'a [ContractEnumVariantView<'a>],
 }
 
@@ -140,7 +175,7 @@ pub struct ContractEnumVariantView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractUnionDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub cases: &'a [ContractUnionCaseView<'a>],
 }
 
@@ -164,7 +199,7 @@ pub enum ContractUnionCaseTypeView<'a> {
 /// fields (topics 1..), and `fields` form the XDR-encoded payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractEventDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub signature: [u8; 32],
     pub topics: &'a [ContractFieldView<'a>],
     pub fields: &'a [ContractFieldView<'a>],
@@ -191,7 +226,7 @@ pub struct SpecInterfaceFragmentView<'a> {
     /// References into the artifact's event-def pool; the post-processor
     /// retains only event defs referenced by a surviving interface (or
     /// force-exported via `#[event_spec(export)]`).
-    pub emits: &'a [&'a str],
+    pub emits: &'a [ContractSpecIdView<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -246,7 +281,7 @@ impl From<ContractSpecView<'_>> for ContractSpec {
 impl From<ContractEventDefView<'_>> for ContractEventDef {
     fn from(value: ContractEventDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             signature: value.signature.into(),
             topics: value
                 .topics
@@ -363,7 +398,7 @@ impl From<ContractTypeView<'_>> for ContractType {
                     .unwrap(),
             },
             ContractTypeView::Named(name) => ContractType::Named {
-                named: to_spec_string(name),
+                named: name.into(),
             },
             ContractTypeView::U8 => ContractType::U8,
             ContractTypeView::Array(array) => ContractType::Array {
@@ -426,7 +461,7 @@ impl From<ContractTypeDefView<'_>> for ContractTypeDef {
 impl From<ContractStructDefView<'_>> for ContractStructDef {
     fn from(value: ContractStructDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             fields: value
                 .fields
                 .iter()
@@ -443,7 +478,7 @@ impl From<ContractStructDefView<'_>> for ContractStructDef {
 impl From<ContractEnumDefView<'_>> for ContractEnumDef {
     fn from(value: ContractEnumDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             variants: value
                 .variants
                 .iter()
@@ -470,7 +505,7 @@ impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
 impl From<ContractUnionDefView<'_>> for ContractUnionDef {
     fn from(value: ContractUnionDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             cases: value
                 .cases
                 .iter()
@@ -592,7 +627,7 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
                 .emits
                 .iter()
                 .copied()
-                .map(to_spec_string)
+                .map(Into::into)
                 .collect::<Vec<_>>()
                 .try_into()
                 .unwrap(),

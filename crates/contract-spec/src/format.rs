@@ -41,7 +41,7 @@
 pub const RAW_SECTION_PREFIX: &str = "groundhogspecraw";
 
 /// Wire-format version of the raw spec section this SDK produces and parses.
-pub const RAW_SPEC_FORMAT: u32 = 2;
+pub const RAW_SPEC_FORMAT: u32 = 3;
 
 /// Name of the raw spec ELF section this SDK emits.
 ///
@@ -49,13 +49,24 @@ pub const RAW_SPEC_FORMAT: u32 = 2;
 /// [`RAW_SPEC_FORMAT`] because `#[link_section = ...]` in `groundhog-macros`
 /// needs a literal anyway; `raw_section_name_matches_its_parts` pins the
 /// three against each other.
-pub const RAW_SECTION_NAME: &str = "groundhogspecrawv2";
+pub const RAW_SECTION_NAME: &str = "groundhogspecrawv3";
 
 /// Name of the finalized spec ELF section.
 ///
-/// Unversioned: it holds a `ContractSpec`, whose compatibility is governed by
-/// the protocol-level `groundhog-spec` crate rather than by this module.
-pub const FINAL_SECTION_NAME: &str = "groundhogspecv0";
+/// It holds a `ContractSpec`, whose layout is governed by the protocol-level
+/// `groundhog-spec` crate, so the suffix moves when that layout does. `v1`
+/// carries spec ids as a `ContractSpecId` of separate segments; `v0` carried
+/// them as one joined string, and the two do not decode as each other.
+///
+/// Unlike the raw section, the suffix is not parsed: [`classify_section`]
+/// matches this name exactly, so a `v0` section reads as
+/// [`SpecSection::Other`] and the artifact reports as having no spec rather
+/// than as a version skew. That is the wrong diagnosis, but it is a safe one
+/// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. A
+/// finalized section only ever reaches a reader in an unlowered build
+/// artifact: `groundhog-rv32-lower` drops both spec sections, so nothing
+/// deployed carries one.
+pub const FINAL_SECTION_NAME: &str = "groundhogspecv1";
 
 /// What an ELF section name means to the spec pipeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -59,7 +59,7 @@ fn contract_type_name_impl(
     let id = common::spec_id::spec_id_tokens(krate, &declared, version);
     quote! {
         impl #krate::__contract_spec::ContractTypeName for #ident {
-            const NAME: &'static str = #id;
+            const NAME: #krate::__contract_spec::ContractSpecIdView<'static> = #id;
         }
     }
 }

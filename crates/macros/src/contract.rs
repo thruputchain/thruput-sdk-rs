@@ -200,7 +200,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_EMITS: &'static [&'static str] = &[#(#emits_name_tokens),*];
+                const __GROUNDHOG_IFACE_EMITS: &'static [::sdk::__contract_spec::ContractSpecIdView<'static>] = &[#(#emits_name_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -555,7 +555,7 @@ mod tests {
         let tokens = apply_with_config(&item, &parse_config(""))
             .unwrap()
             .to_string();
-        assert!(tokens.contains("groundhogspecrawv2"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv3"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");

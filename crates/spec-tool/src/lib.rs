@@ -6,7 +6,8 @@ pub mod raw;
 pub use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
     ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
-    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
+    ContractSpecId, ContractSpecMethod, ContractSpecString, ContractStructDef,
+    ContractType,
     ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
     ContractUnionDef, SpecFragment, SpecInterfaceFragment, SpecMethodFragment,
 };
@@ -33,6 +34,36 @@ fn spec_str(s: &ContractSpecString) -> Result<&str, SpecToolError> {
 /// failing on malformed bytes would hide the more useful diagnostic.
 fn spec_str_lossy(s: &ContractSpecString) -> std::borrow::Cow<'_, str> {
     String::from_utf8_lossy(s)
+}
+
+/// Validate every segment of a spec id, as [`spec_str`] does for one string.
+///
+/// An id is four strings on the wire and XDR validates none of them, so each
+/// has to be checked before any part of the id is used or reported.
+fn spec_id_str(id: &ContractSpecId) -> Result<(), SpecToolError> {
+    spec_str(&id.crate_name)?;
+    spec_str(&id.major)?;
+    spec_str(&id.module_path)?;
+    spec_str(&id.declared)?;
+    Ok(())
+}
+
+/// Lossy spec-id rendering for error messages.
+///
+/// Deliberately not the old joined `CRATE@MAJOR::module::path::Name` form:
+/// reassembling that would put back the ambiguity the segments exist to
+/// remove, and a diagnostic is exactly where the reader wants to see which
+/// segment is which. `module_path` already leads with the crate as Rust
+/// spells it, so the crate and major trail in parentheses rather than
+/// doubling up in the path.
+fn spec_id_lossy(id: &ContractSpecId) -> String {
+    format!(
+        "{}::{} ({}@{})",
+        spec_str_lossy(&id.module_path),
+        spec_str_lossy(&id.declared),
+        spec_str_lossy(&id.crate_name),
+        spec_str_lossy(&id.major),
+    )
 }
 
 /// Errors that can occur during spec canonicalization or rendering.
@@ -179,7 +210,7 @@ struct InterfaceBucket {
     /// interface crates can collide on a key (trait-ident name, crate-version
     /// version), and a caller linking both must not fail on their
     /// disagreement.
-    candidates: Vec<(Vec<ContractExceptionType>, Vec<ContractSpecString>)>,
+    candidates: Vec<(Vec<ContractExceptionType>, Vec<ContractSpecId>)>,
     methods: Vec<ContractSpecMethod>,
 }
 
@@ -243,9 +274,9 @@ fn canonicalize_spec_inner(
         InterfaceBucket,
     >::new();
     let mut type_defs =
-        BTreeMap::<ContractSpecString, Vec<ContractTypeDef>>::new();
+        BTreeMap::<ContractSpecId, Vec<ContractTypeDef>>::new();
     let mut exported_roots =
-        std::collections::BTreeSet::<ContractSpecString>::new();
+        std::collections::BTreeSet::<ContractSpecId>::new();
     // Interfaces an impl (or `export_interface_spec!` carrier) anchored for
     // inclusion. A trait's interface spec is a *candidate*: it lands in the
     // output only if anchored. Shaking is strict — an empty set drops every
@@ -256,9 +287,9 @@ fn canonicalize_spec_inner(
         ContractSpecString,
     )>::new();
     let mut events =
-        BTreeMap::<ContractSpecString, Vec<ContractEventDef>>::new();
+        BTreeMap::<ContractSpecId, Vec<ContractEventDef>>::new();
     let mut exported_events =
-        std::collections::BTreeSet::<ContractSpecString>::new();
+        std::collections::BTreeSet::<ContractSpecId>::new();
 
     for fragment in raw {
         match fragment {
@@ -287,7 +318,7 @@ fn canonicalize_spec_inner(
                 }
                 let mut emits = fragment.emits.to_vec();
                 for name in &emits {
-                    if spec_str(name)?.is_empty() {
+                    if spec_str(&name.declared)?.is_empty() {
                         return Err(SpecToolError::InvalidRawFragment(
                             format!(
                                 "{interface_key}: interface emits entries must be non-empty"
@@ -326,7 +357,7 @@ fn canonicalize_spec_inner(
             SpecFragment::SpecTypeDef { type_def } => {
                 validate_type_def(type_def)?;
                 let symbol = type_def_symbol(type_def)?.clone();
-                spec_str(&symbol)?;
+                spec_id_str(&symbol)?;
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
                     defs.push(type_def.clone());
@@ -335,7 +366,7 @@ fn canonicalize_spec_inner(
             SpecFragment::ExportedSpecTypeDef { type_def } => {
                 validate_type_def(type_def)?;
                 let symbol = type_def_symbol(type_def)?.clone();
-                spec_str(&symbol)?;
+                spec_id_str(&symbol)?;
                 exported_roots.insert(symbol.clone());
                 let defs = type_defs.entry(symbol).or_default();
                 if !defs.iter().any(|existing| existing == type_def) {
@@ -511,12 +542,12 @@ fn canonicalize_spec_inner(
         .map(|name| {
             let defs = events.remove(&name).ok_or_else(|| {
                 SpecToolError::MissingEventDef(
-                    spec_str_lossy(&name).into_owned(),
+                    spec_id_lossy(&name),
                 )
             })?;
             if defs.len() > 1 {
                 return Err(SpecToolError::ConflictingEventDef(
-                    spec_str_lossy(&name).into_owned(),
+                    spec_id_lossy(&name),
                 ));
             }
             Ok(defs.into_iter().next().unwrap())
@@ -533,7 +564,7 @@ fn canonicalize_spec_inner(
     // Checked over retained events only, like every other conflict here: two
     // shaken candidates that disagree are nobody's problem.
     {
-        let mut by_sig: BTreeMap<&[u8], &ContractSpecString> = BTreeMap::new();
+        let mut by_sig: BTreeMap<&[u8], &ContractSpecId> = BTreeMap::new();
         for event in &events {
             let sig: &[u8] = event.signature.as_ref();
             if let Some(first) = by_sig.insert(sig, &event.name) {
@@ -541,8 +572,8 @@ fn canonicalize_spec_inner(
                     format!(
                         "{} and {} both hash to {}; they differ only in a module \
                      path, which the signature does not carry — rename one",
-                        spec_str_lossy(first),
-                        spec_str_lossy(&event.name),
+                        spec_id_lossy(first),
+                        spec_id_lossy(&event.name),
                         sig.iter()
                             .map(|b| format!("{b:02x}"))
                             .collect::<String>(),
@@ -679,7 +710,7 @@ fn reject_auth_tokens_in_throws(
     interfaces: &[ContractSpecInterface],
     type_defs: &[ContractTypeDef],
 ) -> Result<(), SpecToolError> {
-    let defs: BTreeMap<&ContractSpecString, &ContractTypeDef> = type_defs
+    let defs: BTreeMap<&ContractSpecId, &ContractTypeDef> = type_defs
         .iter()
         .filter_map(|def| type_def_name(def).map(|name| (name, def)))
         .collect();
@@ -708,7 +739,7 @@ fn reject_auth_tokens_in_throws(
 /// The declared name of a type def, or `None` for a variant this build does
 /// not model. An unknown def is simply not resolvable here;
 /// [`validate_type_def`] is what rejects it.
-fn type_def_name(def: &ContractTypeDef) -> Option<&ContractSpecString> {
+fn type_def_name(def: &ContractTypeDef) -> Option<&ContractSpecId> {
     match def {
         ContractTypeDef::TypeDefStruct { struct_def } => {
             Some(&struct_def.name)
@@ -728,8 +759,8 @@ fn type_def_name(def: &ContractTypeDef) -> Option<&ContractSpecString> {
 /// progress contributes nothing.
 fn type_reaches_auth_token(
     ty: &ContractType,
-    defs: &BTreeMap<&ContractSpecString, &ContractTypeDef>,
-    visited: &mut std::collections::BTreeSet<ContractSpecString>,
+    defs: &BTreeMap<&ContractSpecId, &ContractTypeDef>,
+    visited: &mut std::collections::BTreeSet<ContractSpecId>,
 ) -> bool {
     match ty {
         // The preimage is not inspected: the token itself is already
@@ -765,8 +796,8 @@ fn type_reaches_auth_token(
 /// `SignedToken`. Enums are plain discriminants, so they carry nothing.
 fn type_def_reaches_auth_token(
     def: &ContractTypeDef,
-    defs: &BTreeMap<&ContractSpecString, &ContractTypeDef>,
-    visited: &mut std::collections::BTreeSet<ContractSpecString>,
+    defs: &BTreeMap<&ContractSpecId, &ContractTypeDef>,
+    visited: &mut std::collections::BTreeSet<ContractSpecId>,
 ) -> bool {
     match def {
         ContractTypeDef::TypeDefStruct { struct_def } => struct_def
@@ -806,7 +837,7 @@ fn validate_type(ty: &ContractType) -> Result<(), SpecToolError> {
             // An erased (opaque) preimage.
             None => Ok(()),
         },
-        ContractType::Named { named } => spec_str(named).map(|_| ()),
+        ContractType::Named { named } => spec_id_str(named),
         ContractType::Void
         | ContractType::Bool
         | ContractType::U8
@@ -864,18 +895,18 @@ fn validate_union_case_type(
 }
 
 fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
-    if event.name.is_empty() {
+    if event.name.declared.is_empty() {
         return Err(SpecToolError::InvalidRawFragment(
             "event fragments must include an event name".to_string(),
         ));
     }
-    spec_str(&event.name)?;
+    spec_id_str(&event.name)?;
     // Topic 0 is reserved for the event signature.
     let max_user_topics = (sdk::EVENT_MAX_TOPICS - 1) as usize;
     if event.topics.len() > max_user_topics {
         return Err(SpecToolError::InvalidRawFragment(format!(
             "event {} declares {} topics, but at most {max_user_topics} are allowed",
-            spec_str_lossy(&event.name),
+            spec_id_lossy(&event.name),
             event.topics.len(),
         )));
     }
@@ -921,11 +952,11 @@ fn canonicalize_exception_list(
 fn resolve_reachable_type_defs(
     interfaces: &[ContractSpecInterface],
     events: &[ContractEventDef],
-    defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
-    exported_roots: &std::collections::BTreeSet<ContractSpecString>,
+    defs: &BTreeMap<ContractSpecId, Vec<ContractTypeDef>>,
+    exported_roots: &std::collections::BTreeSet<ContractSpecId>,
 ) -> Result<Vec<ContractTypeDef>, SpecToolError> {
-    let mut resolved = BTreeMap::<ContractSpecString, ContractTypeDef>::new();
-    let mut pending = Vec::<ContractSpecString>::new();
+    let mut resolved = BTreeMap::<ContractSpecId, ContractTypeDef>::new();
+    let mut pending = Vec::<ContractSpecId>::new();
 
     for interface in interfaces {
         for exn in interface.throws.iter() {
@@ -996,7 +1027,7 @@ fn resolve_reachable_type_defs(
             }
             None => {
                 return Err(SpecToolError::MissingTypeDef(
-                    spec_str_lossy(&symbol).into_owned(),
+                    spec_id_lossy(&symbol),
                 ));
             }
         }
@@ -1007,9 +1038,9 @@ fn resolve_reachable_type_defs(
 
 fn collect_named_types(
     ty: &ContractType,
-    defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
-    resolved: &mut BTreeMap<ContractSpecString, ContractTypeDef>,
-    pending: &mut Vec<ContractSpecString>,
+    defs: &BTreeMap<ContractSpecId, Vec<ContractTypeDef>>,
+    resolved: &mut BTreeMap<ContractSpecId, ContractTypeDef>,
+    pending: &mut Vec<ContractSpecId>,
 ) -> Result<(), SpecToolError> {
     match ty {
         ContractType::Option { option_inner } => {
@@ -1036,15 +1067,15 @@ fn collect_named_types(
             }
         }
         ContractType::Named { named } => {
-            spec_str(named)?;
+            spec_id_str(named)?;
             let Some(candidates) = defs.get(named) else {
                 return Err(SpecToolError::MissingTypeDef(
-                    spec_str_lossy(named).into_owned(),
+                    spec_id_lossy(named),
                 ));
             };
             if candidates.len() > 1 {
                 return Err(SpecToolError::ConflictingTypeDef(
-                    spec_str_lossy(named).into_owned(),
+                    spec_id_lossy(named),
                 ));
             }
             if !resolved.contains_key(named) {
@@ -1080,9 +1111,9 @@ fn collect_named_types(
 
 fn collect_union_case_named_types(
     case_type: &ContractUnionCaseType,
-    defs: &BTreeMap<ContractSpecString, Vec<ContractTypeDef>>,
-    resolved: &mut BTreeMap<ContractSpecString, ContractTypeDef>,
-    pending: &mut Vec<ContractSpecString>,
+    defs: &BTreeMap<ContractSpecId, Vec<ContractTypeDef>>,
+    resolved: &mut BTreeMap<ContractSpecId, ContractTypeDef>,
+    pending: &mut Vec<ContractSpecId>,
 ) -> Result<(), SpecToolError> {
     match case_type {
         ContractUnionCaseType::UnionCaseVoid => {}
@@ -1162,7 +1193,7 @@ fn canonical_type_key(ty: &ContractType) -> String {
             format!("array({}, {})", canonical_type_key(element), array.len)
         }
         ContractType::Named { named } => {
-            format!("named({})", spec_str_lossy(named))
+            format!("named({})", spec_id_lossy(named))
         }
         ContractType::SignedToken {
             signed_token_preimage,
@@ -1181,7 +1212,7 @@ fn canonical_type_key(ty: &ContractType) -> String {
 
 fn type_def_symbol(
     type_def: &ContractTypeDef,
-) -> Result<&ContractSpecString, SpecToolError> {
+) -> Result<&ContractSpecId, SpecToolError> {
     match type_def {
         ContractTypeDef::TypeDefStruct { struct_def } => Ok(&struct_def.name),
         ContractTypeDef::TypeDefEnum { enum_def } => Ok(&enum_def.name),
@@ -1231,7 +1262,7 @@ pub fn event_def_to_json(event: &ContractEventDef) -> serde_json::Value {
     let signature: String =
         event.signature.iter().map(|b| format!("{b:02x}")).collect();
     serde_json::json!({
-        "name": spec_str_lossy(&event.name),
+        "name": spec_id_lossy(&event.name),
         "signature": signature,
         "topics": event.topics.iter().map(field_to_json).collect::<Vec<_>>(),
         "fields": event.fields.iter().map(field_to_json).collect::<Vec<_>>(),
@@ -1266,7 +1297,7 @@ pub fn type_to_json(ty: &ContractType) -> serde_json::Value {
             json!({"kind": "tuple", "items": tuple.iter().map(type_to_json).collect::<Vec<_>>()})
         }
         ContractType::Named { named } => {
-            json!({"kind": "named", "name": spec_str_lossy(named)})
+            json!({"kind": "named", "name": spec_id_lossy(named)})
         }
         ContractType::Array { array } => {
             let element = &array.element;
@@ -1295,17 +1326,17 @@ pub fn type_def_to_json(type_def: &ContractTypeDef) -> serde_json::Value {
     match type_def {
         ContractTypeDef::TypeDefStruct { struct_def } => json!({
             "kind": "struct",
-            "name": spec_str_lossy(&struct_def.name),
+            "name": spec_id_lossy(&struct_def.name),
             "fields": struct_def.fields.iter().map(field_to_json).collect::<Vec<_>>(),
         }),
         ContractTypeDef::TypeDefEnum { enum_def } => json!({
             "kind": "enum",
-            "name": spec_str_lossy(&enum_def.name),
+            "name": spec_id_lossy(&enum_def.name),
             "variants": enum_def.variants.iter().map(|v| json!({"name": spec_str_lossy(&v.name), "value": v.value})).collect::<Vec<_>>(),
         }),
         ContractTypeDef::TypeDefUnion { union_def } => json!({
             "kind": "union",
-            "name": spec_str_lossy(&union_def.name),
+            "name": spec_id_lossy(&union_def.name),
             "cases": union_def.cases.iter().map(|c| json!({
                 "name": spec_str_lossy(&c.name),
                 "discriminant": c.discriminant,

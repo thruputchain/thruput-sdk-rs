@@ -1,6 +1,6 @@
 use groundhog_contract_spec::{
-    ContractExceptionType, ContractType, ContractTypeDef, ContractTypeName,
-    SpecFragmentView,
+    ContractExceptionType, ContractSpecIdView, ContractType, ContractTypeDef,
+    ContractTypeName, SpecFragmentView,
 };
 use std::io::{self, Write};
 use xdrs::txs;
@@ -21,7 +21,11 @@ pub struct DescribableType {
     /// The id of the root type among `fragments`, taken from the type's own
     /// [`ContractTypeName`] rather than spelled out, so it is whatever that
     /// type calls itself and cannot skew from the def in `fragments`.
-    pub root: &'static str,
+    ///
+    /// Its `crate_name` and `major` now say what `crate_name` and
+    /// `major_version` above say; those remain because the selector
+    /// invariant test recomputes the preimage from them.
+    pub root: ContractSpecIdView<'static>,
 }
 
 const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
@@ -137,9 +141,7 @@ pub fn build_describe(ty: &DescribableType) -> DescribeOutput {
         exception: ContractExceptionType {
             selector: ty.selector,
             ty: ContractType::Named {
-                named: ty.root.as_bytes().try_into().expect(
-                    "registered describe root must fit in ContractSpecString",
-                ),
+                named: ty.root.into(),
             },
         },
         type_defs,

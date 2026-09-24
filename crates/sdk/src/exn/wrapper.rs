@@ -118,13 +118,31 @@ pub enum AuthTokenError {
 }
 
 impl crate::__contract_spec::ContractTypeName for CallingError {
-    const NAME: &'static str = "CallingError";
+    const NAME: crate::__contract_spec::ContractSpecIdView<'static> =
+        crate::__contract_spec::ContractSpecIdView {
+            crate_name: ::core::env!("CARGO_PKG_NAME"),
+            major: crate::exn::EXN_ABI_MAJOR,
+            module_path: ::core::module_path!(),
+            declared: "CallingError",
+        };
 }
 
 impl crate::__contract_spec::ContractTypeName for HandlingError {
-    const NAME: &'static str = "HandlingError";
+    const NAME: crate::__contract_spec::ContractSpecIdView<'static> =
+        crate::__contract_spec::ContractSpecIdView {
+            crate_name: ::core::env!("CARGO_PKG_NAME"),
+            major: crate::exn::EXN_ABI_MAJOR,
+            module_path: ::core::module_path!(),
+            declared: "HandlingError",
+        };
 }
 
 impl crate::__contract_spec::ContractTypeName for AuthTokenError {
-    const NAME: &'static str = "AuthTokenError";
+    const NAME: crate::__contract_spec::ContractSpecIdView<'static> =
+        crate::__contract_spec::ContractSpecIdView {
+            crate_name: ::core::env!("CARGO_PKG_NAME"),
+            major: crate::exn::EXN_ABI_MAJOR,
+            module_path: ::core::module_path!(),
+            declared: "AuthTokenError",
+        };
 }

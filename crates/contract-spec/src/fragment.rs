@@ -13,8 +13,8 @@
 //! about the layout desynchronizes rather than failing cleanly.
 
 use groundhog_spec::{
-    ContractEventDef, ContractExceptionType, ContractSpecMethod,
-    ContractSpecString, ContractTypeDef,
+    ContractEventDef, ContractExceptionType, ContractSpecId,
+    ContractSpecMethod, ContractSpecString, ContractTypeDef,
 };
 use xdrs::*;
 
@@ -34,7 +34,7 @@ pub struct SpecInterfaceFragment {
     pub interface_name: ContractSpecString,
     pub interface_version: ContractSpecString,
     pub throws: VecM<ContractExceptionType>,
-    pub emits: VecM<ContractSpecString>,
+    pub emits: VecM<ContractSpecId>,
 }
 
 #[derive(

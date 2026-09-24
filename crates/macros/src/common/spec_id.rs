@@ -16,13 +16,20 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 
-/// A const expression of type `&'static str` holding the spec id of an item
-/// declared at the expansion site under the name `declared`.
+/// A const expression of type [`ContractSpecIdView<'static>`] holding the spec
+/// id of an item declared at the expansion site under the name `declared`.
 ///
-/// The module path is only known where the item is declared and a macro cannot
-/// see it, so `module_path!()` is emitted for the compiler to expand in place.
-/// `version` is the identity version the item declares — `#[contract_exception
-/// (version = "...")]` — or `None` to take the declaring crate's. It must be
+/// Every segment is emitted whole, from something already in hand at the
+/// declaration -- nothing here takes a string apart. The module path is only
+/// known where the item is declared and a macro cannot see it, so
+/// `module_path!()` is emitted for the compiler to expand in place, and
+/// `env!("CARGO_PKG_NAME")` likewise resolves in the declaring crate. Note
+/// that the two spell the crate differently: `module_path!()` leads with the
+/// Rust ident (underscored) while `CARGO_PKG_NAME` is the package name
+/// (hyphenated), and the id carries both.
+///
+/// `version` is the identity version the item declares -- `#[contract_exception
+/// (version = "...")]` -- or `None` to take the declaring crate's. It must be
 /// whatever that item's other identity derivations use, or the same type ends
 /// up with a selector pinned to one version and an id tracking another.
 ///
@@ -49,28 +56,11 @@ pub fn spec_id_tokens(
         ),
     );
     quote! {
-        {
-            const MAJOR: &str = #major;
-            const DECLARED: &str = #declared;
-            const LEN: usize = #krate::__contract_spec::qualified_id_len(
-                ::core::module_path!(),
-                MAJOR,
-                DECLARED,
-            );
-            const BYTES: [u8; LEN] =
-                #krate::__contract_spec::qualified_id_bytes::<LEN>(
-                    ::core::module_path!(),
-                    MAJOR,
-                    DECLARED,
-                );
-            match ::core::str::from_utf8(&BYTES) {
-                ::core::result::Result::Ok(id) => id,
-                // Every input is UTF-8 and the id is spliced on ASCII
-                // boundaries, so this is unreachable.
-                ::core::result::Result::Err(_) => {
-                    ::core::panic!("spec id is not valid UTF-8")
-                }
-            }
+        #krate::__contract_spec::ContractSpecIdView {
+            crate_name: ::core::env!("CARGO_PKG_NAME"),
+            major: #major,
+            module_path: ::core::module_path!(),
+            declared: #declared,
         }
     }
 }
