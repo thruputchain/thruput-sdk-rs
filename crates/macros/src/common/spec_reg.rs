@@ -267,7 +267,8 @@ fn generate_trait_method_fragments_tokens(
             const NAME: &str = <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
             const VERS: &str =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION;
-            const DECLARED_BY: &str =
+            const DECLARED_BY:
+                ::sdk::__contract_spec::ContractSpecIdView<'static> =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_DECLARED_BY;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
@@ -443,7 +444,9 @@ fn generate_carrier_method_fragments_tokens(
                 #methods_path;
             const NAME: &str = #anchor_path.interface_name;
             const VERS: &str = #anchor_path.interface_version;
-            const DECLARED_BY: &str = #anchor_path.declared_by;
+            const DECLARED_BY:
+                ::sdk::__contract_spec::ContractSpecIdView<'static> =
+                #anchor_path.declared_by;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
