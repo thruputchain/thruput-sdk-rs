@@ -135,6 +135,26 @@ jobs:
             ~/.cargo/git
             ${{ github.workspace }}/.hogd-ffi-cache
 
+      # The dry runs below drive cargo-hack over each crate's feature
+      # powerset; hog1 had it installed globally and the runner image does
+      # not ship it. It comes from crates.io, so this needs no registry
+      # auth, and it is a ~1min compile against a release that takes 15.
+      #
+      # Pinned exactly, and checked by version rather than by presence, the
+      # way ci.sh pins the groundhog CLI: this runs with the release job's
+      # SSH agent already loaded, so it must build the version that was
+      # tested rather than whatever was published since. `--locked` alone
+      # would pin cargo-hack's dependencies but not cargo-hack.
+      - name: Install cargo-hack
+        env:
+          CARGO_HACK_VERSION: '0.6.45'
+        run: |
+          if [ "$(cargo hack --version 2>/dev/null | awk '{print $2}')" \
+               != "$CARGO_HACK_VERSION" ]; then
+            cargo install cargo-hack --version "=$CARGO_HACK_VERSION" --locked
+          fi
+          cargo hack --version
+
       - name: Configure git to use SSH
         run: |
           git config --global url."git@github.com:".insteadOf "https://github.com/"
