@@ -241,11 +241,11 @@ struct InterfaceBucket {
     /// one declarer's candidates — including selector conflicts within a
     /// throws list — are checked after shaking.
     candidates: Vec<(
-        ContractSpecString,
+        ContractSpecId,
         Vec<ContractExceptionType>,
         Vec<ContractSpecId>,
     )>,
-    methods: Vec<(ContractSpecString, ContractSpecMethod)>,
+    methods: Vec<(ContractSpecId, ContractSpecMethod)>,
 }
 
 /// Assembles raw spec fragments into a canonical [`ContractSpec`].
@@ -321,7 +321,7 @@ fn canonicalize_spec_inner(
     // than one is an error (see `ConflictingInterfaceDeclarers`).
     let mut anchored_interfaces = BTreeMap::<
         (ContractSpecString, ContractSpecString),
-        std::collections::BTreeSet<ContractSpecString>,
+        std::collections::BTreeSet<ContractSpecId>,
     >::new();
     let mut events = BTreeMap::<ContractSpecId, Vec<ContractEventDef>>::new();
     let mut exported_events =
@@ -498,7 +498,7 @@ fn canonicalize_spec_inner(
     // in separate buckets here.
     let mut declarers_by_wire_identity = BTreeMap::<
         (String, String),
-        std::collections::BTreeSet<&ContractSpecString>,
+        std::collections::BTreeSet<&ContractSpecId>,
     >::new();
     for ((name, vers), declarers) in &anchored_interfaces {
         declarers_by_wire_identity
@@ -515,7 +515,7 @@ fn canonicalize_spec_inner(
         if declarers.len() > 1 {
             let named = declarers
                 .iter()
-                .map(|declarer| spec_str_lossy(declarer).into_owned())
+                .map(|declarer| spec_id_lossy(declarer))
                 .collect::<Vec<_>>()
                 .join(" and ");
             return Err(SpecToolError::ConflictingInterfaceDeclarers(
@@ -793,9 +793,13 @@ fn validate_interface_key(
 /// fragment names its declarer, and shaking keys on it.
 fn validate_declared_by(
     interface_key: &str,
-    declared_by: &ContractSpecString,
+    declared_by: &ContractSpecId,
 ) -> Result<(), SpecToolError> {
-    if spec_str(declared_by)?.is_empty() {
+    spec_id_str(declared_by)?;
+    // `declared` is empty by design when the declarer is the crate itself
+    // rather than a trait, so the crate segment is what must be there: an id
+    // naming nothing at all names no declarer.
+    if spec_str(&declared_by.crate_name)?.is_empty() {
         return Err(SpecToolError::InvalidRawFragment(format!(
             "{interface_key}: interface fragments must name their declarer"
         )));

@@ -67,8 +67,10 @@ pub fn generate_impl_raw_spec_fragments(
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
     // No trait declares this interface: the contract crate itself does.
-    let declared_by =
-        crate::common::spec_id::crate_id_tokens(Some(&iface_vers));
+    let declared_by = crate::common::spec_id::crate_id_tokens(
+        &crate::common::contract::sdk_crate_path(),
+        Some(&iface_vers),
+    );
 
     let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
@@ -127,8 +129,10 @@ pub fn generate_free_function_raw_spec_fragments(
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
     // No trait declares this interface: the contract crate itself does.
-    let declared_by =
-        crate::common::spec_id::crate_id_tokens(Some(&iface_vers));
+    let declared_by = crate::common::spec_id::crate_id_tokens(
+        &crate::common::contract::sdk_crate_path(),
+        Some(&iface_vers),
+    );
 
     let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(

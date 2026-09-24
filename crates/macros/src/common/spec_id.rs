@@ -57,39 +57,24 @@ pub fn spec_id_tokens(
     }
 }
 
-/// A `&'static str` literal holding `CRATE@MAJOR` for the crate being
-/// compiled: what a bare impl or free-function contract records as the
-/// declarer of its interface (see `SpecInterfaceAnchor::declared_by`).
-/// `version` is as for [`spec_id_tokens`].
+/// The declarer id a bare impl or free-function contract records for its
+/// interface: the crate itself, with no declared name (see
+/// `SpecInterfaceAnchor::declared_by`). `version` is as for
+/// [`spec_id_tokens`].
 ///
 /// There is no trait to name, and one crate may spread such an interface over
-/// several impl blocks or modules, so the crate is the identity. It only has
-/// to agree with itself and never with a trait's id, which always carries a
-/// `::` path after the crate segment. The crate name is known at expansion
-/// time: a proc macro sees the environment of the rustc process compiling
-/// the crate it is invoked in.
-/// The declarer id for a `#[contract]` trait: `CRATE@MAJOR::Trait`.
+/// several impl blocks or modules, so the crate is the identity. An empty
+/// `declared` is what says so, and it is why such an id can never collide with
+/// a trait's, which always names the trait.
 ///
-/// A declarer is not a spec id. It names *who* declared an interface, so that
-/// two unrelated traits sharing an interface key can be told apart, and it is
-/// only ever compared for equality -- never resolved, and never split. It stays
-/// one string for that reason, where a type's or event's id carries its
-/// segments apart.
-pub fn declarer_id_tokens(
-    declared: &str,
+/// Built through [`spec_id_tokens`] rather than assembled here: a declarer is
+/// an id like any other, and there is one place that decides what an id looks
+/// like.
+pub fn crate_id_tokens(
+    krate: &syn::Path,
     version: Option<&str>,
 ) -> TokenStream {
-    let krate = std::env::var("CARGO_CRATE_NAME")
-        .unwrap_or_else(|_| "unknown_crate".to_string());
-    let id = format!("{krate}@{}::{declared}", major_tokens(version));
-    quote! { #id }
-}
-
-pub fn crate_id_tokens(version: Option<&str>) -> TokenStream {
-    let krate = std::env::var("CARGO_CRATE_NAME")
-        .unwrap_or_else(|_| "unknown_crate".to_string());
-    let id = format!("{krate}@{}", major_tokens(version));
-    quote! { #id }
+    spec_id_tokens(krate, "", version)
 }
 
 /// The major version, by the same rule interface versions use: the leftmost

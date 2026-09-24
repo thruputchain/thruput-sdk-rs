@@ -9,6 +9,14 @@ use sdk::{I256, U256};
 
 const INTERFACE: &str = "WideIntegers";
 const VERSION: &str = "1.0.0";
+const DECLARED_BY: groundhog_contract_spec::ContractSpecIdView<'static> =
+    groundhog_contract_spec::ContractSpecIdView {
+        crate_name: "native_256_if",
+        major: "0.1",
+        module_path: "native_256_if",
+        declared: "Iface",
+    };
+
 const EVENT: groundhog_contract_spec::ContractSpecIdView<'static> =
     groundhog_contract_spec::ContractSpecIdView {
         crate_name: "testcrate",
@@ -26,14 +34,14 @@ const FRAGMENTS: &[SpecFragmentView<'static>] = &[
     SpecFragmentView::Interface(SpecInterfaceFragmentView {
         interface_name: INTERFACE,
         interface_version: VERSION,
-        declared_by: "native_256_if@0.1::Iface",
+        declared_by: DECLARED_BY,
         throws: &[],
         emits: &[EVENT],
     }),
     SpecFragmentView::Method(SpecMethodFragmentView {
         interface_name: INTERFACE,
         interface_version: VERSION,
-        declared_by: "native_256_if@0.1::Iface",
+        declared_by: DECLARED_BY,
         method: ContractSpecMethodView {
             name: "convert",
             args: &[ContractFieldView {
@@ -61,7 +69,7 @@ const FRAGMENTS: &[SpecFragmentView<'static>] = &[
     SpecFragmentView::InterfaceAnchor(SpecInterfaceAnchorView {
         interface_name: INTERFACE,
         interface_version: VERSION,
-        declared_by: "native_256_if@0.1::Iface",
+        declared_by: DECLARED_BY,
     }),
 ];
 

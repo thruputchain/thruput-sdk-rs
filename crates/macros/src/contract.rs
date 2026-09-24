@@ -164,13 +164,14 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             // (name, version) is all the wire carries and two unrelated traits
             // can share it; this is what tells them apart in the spec. See
             // `SpecInterfaceAnchor::declared_by`.
-            let declared_by = common::spec_id::declarer_id_tokens(
+            let declared_by = common::spec_id::spec_id_tokens(
+                &contract::sdk_crate_path(),
                 &item.ident.to_string(),
                 Some(&iface_vers),
             );
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_DECLARED_BY: &'static str = #declared_by;
+                const __GROUNDHOG_IFACE_DECLARED_BY: ::sdk::__contract_spec::ContractSpecIdView<'static> = #declared_by;
             });
             let interface_id_lit = common::entrypoint::interface_id_literal(
                 Some(&iface_name),

@@ -51,6 +51,16 @@ fn spec_string(s: &str) -> ContractSpecString {
 
 /// A spec id for the sample below. All four segments are populated, so the
 /// golden pins the whole id encoding and not just its declared name.
+/// The declarer id the sample interface fragments carry.
+fn golden_declarer() -> ContractSpecId {
+    ContractSpecId {
+        crate_name: spec_string("golden_if"),
+        major: spec_string("1"),
+        module_path: spec_string("golden_if"),
+        declared: spec_string("Iface"),
+    }
+}
+
 fn spec_id(declared: &str) -> ContractSpecId {
     ContractSpecId {
         crate_name: spec_string("goldencrate"),
@@ -102,7 +112,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
             interface_fragment: SpecInterfaceFragment {
                 interface_name: spec_string("Iface"),
                 interface_version: spec_string("1.2.3"),
-                declared_by: spec_string("golden_if@1::Iface"),
+                declared_by: golden_declarer(),
                 throws: vec![].try_into().expect("throws list fits"),
                 emits: vec![spec_id("Ev")]
                     .try_into()
@@ -113,7 +123,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
             method_fragment: SpecMethodFragment {
                 interface_name: spec_string("Iface"),
                 interface_version: spec_string("1.2.3"),
-                declared_by: spec_string("golden_if@1::Iface"),
+                declared_by: golden_declarer(),
                 method: ContractSpecMethod {
                     name: spec_string("do_thing"),
                     args: vec![field("arg", ContractType::U32)]
@@ -139,7 +149,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
             interface_anchor: SpecInterfaceAnchor {
                 interface_name: spec_string("Iface"),
                 interface_version: spec_string("1.2.3"),
-                declared_by: spec_string("golden_if@1::Iface"),
+                declared_by: golden_declarer(),
             },
         },
     ]
