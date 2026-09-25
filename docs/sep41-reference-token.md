@@ -90,7 +90,7 @@ representation still needs agreement with downstream users.
 
 ## Work plan and validation
 
-1. Add canonical absolute approval while retaining existing selectors/events.
+1. Replace relative approval and delta events with absolute approval.
 2. Replace the separate token core with issuer extensions and this ERC20 example.
 3. Add matching native HOG approval in [hogd#4145](https://github.com/groundhogchain/hogd/pull/4145). The shared SDK approval suite passes against that runtime build.
 4. Update bridge tracking and downstream event fixtures. Integrate Quickbridge
