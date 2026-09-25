@@ -116,13 +116,42 @@ impl ERC20 for Token {
             .unwrap_or(0) as Amount
     }
 
-    fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
+    fn increase_allowance(
+        &mut self,
+        spender: &ContractAddress,
+        difference: Difference,
+        exclusive: bool,
+    ) {
         let owner = get_caller();
-        non_negative_int_set_exclusive(
-            &get_allowance_key(&owner, spender),
-            amount_to_diff(amount),
-        );
-        ApprovalEvent::new(&owner, spender, amount_to_diff(amount)).log();
+        let key = get_allowance_key(&owner, spender);
+        non_negative_int_try_strict_inc(&key, difference)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+        if exclusive {
+            // Add the lock without replacing the pending delta.
+            let (set, add) = sdk::sys_exn::nnint_internal::get_values(&key);
+            sdk::sys_exn::nnint_internal::set_add(
+                &key,
+                set,
+                add,
+                StorageDeltaFlags::ExclusiveLock,
+            );
+        }
+        AllowanceChangeEvent::new(&owner, spender, difference).log();
+    }
+
+    fn clear_allowance(&mut self, spender: &ContractAddress) {
+        let owner = get_caller();
+        delete_exclusive(&get_allowance_key(&owner, spender));
+        ApprovalEvent::new(&owner, spender, 0).log();
+    }
+
+    fn clear_balance(&mut self) {
+        let key = get_balance_key(&get_caller());
+        let balance = non_negative_int_try_get(&key)
+            .none_if_missing()
+            .unwrap_or(0);
+        ensure(balance == 0, ERC20Error::BalanceNotZero);
+        delete_exclusive(&key);
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Amount {

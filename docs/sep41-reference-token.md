@@ -7,9 +7,11 @@ calls for ordinary tokens, native HOG and wrapped Stellar assets.
 
 ## Interface
 
-- `ERC20`: caller-based transfer, delegated transfer, balances, supply and absolute
-  `approve(spender, amount)`. Zero revokes. Amounts are `u128`, bounded to
-  `i128::MAX` to match storage and Stellar's positive amount range.
+- `ERC20`: transfers, balances, supply, `increase_allowance(spender, difference,
+  exclusive)`, `clear_allowance(spender)` and `clear_balance()`. Transfer amounts
+  are `u128`, bounded to `i128::MAX`; allowance differences are `i128`.
+- `ERC20Client::approve`: an absolute replacement library helper. It is not a
+  token entrypoint.
 - `ERC20Metadata`: names, symbols and decimals. Symbols now allow 12 bytes,
   including classic Stellar asset codes.
 - `ERC20Admin`: initialize metadata and immutable policy; rotate admin/minter.
@@ -37,28 +39,48 @@ Holder-authorized burns use `ERC20Burn`. Policy rejections are additional
 `ERC20ControlsError`s, exposed through the standard client's unknown-error path, as with
 `ERC20Pausable`. Ordinary range and administrator checks retain `ERC20Error`.
 
-## Allowances and signed actions
+## Allowance comparison
 
-`approve` replaces the remaining grant. Exclusive replacement conflicts with
-spending and another replacement of that owner/spender pair
-in the same block. Different pairs remain independent. Ordinary spends use
-checked non-negative deltas and may merge within the available allowance.
-A spender may still use an old allowance before a replacement executes; absolute
-approval does not eliminate that familiar ordering race.
+This branch is an alternative to [SDK #479](https://github.com/groundhogchain/sdk_rs/pull/479).
+The issuer controls and signed-token model are shared. The core allowance calls differ:
 
-`approve` and signed `permit` both replace the remaining allowance and emit
-one absolute `ApprovalEvent`. The old relative endpoint and delta event are
-removed. Spending emits only the token movement; query `allowance` for the
-remaining grant. This preserves mergeable allowance debits.
+| Operation | #479 | This branch |
+| --- | --- | --- |
+| Grant or reduce | Absolute `approve` | Signed `increase_allowance` difference |
+| Concurrency | Every approval is exclusive | Caller selects `exclusive` |
+| Absolute replacement | Token entrypoint | `ERC20Client::approve` library helper |
+| Revoke and free storage | Set zero, retain entry | Exclusive `clear_allowance` deletion |
+| Empty balance cleanup | No method | Caller-only `clear_balance` deletion |
 
-There is no expiry field on a standing allowance. `Signed<PermitGrant>` expires
-at the runtime's Groundhog block height. `transfer_from_signed` consumes it and
-moves tokens immediately without writing an allowance. The existing grant also
-authorizes `permit`, which can create an allowance before expiry that survives
-it. A bridge withdrawal requiring a strict deadline must authenticate its own
-operation and destination, not treat a general permit as a deadline-bound
-withdrawal. Signed payload names alone do not separate permissions: auth tokens
-bind a consumer, while the payload must distinguish allowed operations on wire.
+`increase_allowance` checks that the local result stays in `0..=i128::MAX`.
+With `exclusive=false`, concurrent differences and spending may merge within
+those bounds. With `exclusive=true`, other writes to that owner/spender pair
+conflict, even when the difference is zero. Other pairs remain independent.
+
+The `approve` helper reads the calling contract's allowance, computes target
+minus current, and invokes an exclusive increase. A spender can still consume
+the old allowance before this transaction executes. It is a convenience for
+absolute intent, not protection against that ordering race.
+
+`clear_allowance` revokes any remaining amount and deletes the entry exclusively.
+`clear_balance` deletes only the caller's empty balance, otherwise throwing
+`BalanceNotZero`. Both accept missing entries and conflict with concurrent writes.
+Balance cleanup leaves supply and issuer authorization unchanged and emits no
+movement event. Refund routing, sponsorship and automatic zero-entry collection
+are outside this comparison.
+
+Explicit differences emit `AllowanceChangeEvent { owner, spender, difference }`.
+The library `approve` therefore emits a delta event too. `clear_allowance` emits
+absolute `ApprovalEvent` with zero. Signed `permit` retains absolute replacement
+and its absolute event. These event types have different signatures; consumers
+must not reinterpret deltas as remaining allowances. Spending emits only the
+token movement, so callers still query `allowance` for the remainder.
+
+Standing allowances do not expire. For a transfer with a deadline, use
+`ERC20Permit::transfer_from_signed` with an expiring signed operation. It consumes
+the grant and transfers immediately without using or changing any allowance.
+Signed `permit` instead records an allowance that survives the operation's expiry.
+A bridge withdrawal must authenticate its destination and operation separately.
 
 ## Stellar comparison
 
@@ -82,40 +104,18 @@ representation still needs agreement with downstream users.
 
 ## Work plan and validation
 
-1. Replace relative approval and delta events with absolute approval.
-2. Replace the separate token core with issuer extensions and this ERC20 example.
-3. Add matching native HOG approval in [hogd#4145](https://github.com/groundhogchain/hogd/pull/4145). The shared SDK approval suite passes against that runtime build.
-4. Update bridge tracking and downstream event fixtures. Integrate Quickbridge
-   under GH-55/GH-103; broader asset and issuer synchronization stays in GH-429.
+1. Compare the SDK primitives, reference implementations and shared tests with
+   #479. Test mergeable differences, exclusive zero changes, replacement,
+   grant/spend/clear, deletion conflicts and empty balance cleanup.
+2. After reviewing the SDK design, update a separate ITC/native-HOG companion
+   and RPC/CLI event consumer. The existing companion PRs still target #479.
+3. Publish the selected SDK interface and replace temporary Git pins in consumers
+   before merging them. Do not publish both alternatives at the same version.
 
-Runtime tests cover replacement, revocation, concurrent writes, checked supply,
-rollback, roles, authorization, clawback and signed-wallet flows. They run using
-native dispatch and the compiled RV32 token with resource charges disabled.
-This does not prove charged execution, live indexer ingestion or a cross-network
-round trip. Native HOG needs the companion runtime change before new clients
-can use `approve` there; an SDK release alone cannot add that endpoint.
+The comparison starts with SDK test-runtime execution. It does not establish
+native-HOG endpoint support, charged storage refunds, live event ingestion or a
+working bridge. RV32 validation and exact local test results belong in the PR.
 
-The interface family is bumped to `0.1.37`; controls starts at `0.1.0`.
-Package verification builds controls against the packaged ERC20 and metadata
-crates, so it cannot silently pick up the older published symbol limit.
-The native companion passes 60 allowance/parity tests, including a charged
-approval test. To run the four shared SDK approval tests against its FFI:
-
-```sh
-ERC20_APPROVE_NATIVE=1 HOGD_FFI_LIB_DIR=/path/to/test-ffi \
-  cargo test -p erc20 --test approve --locked
-```
-
-Run from `example-contracts/`; the FFI directory must include `bindings.rs`.
-The native precompile conformance test is explicitly ignored against the older
-bundled FFI. Run it with the matching runtime before release:
-
-```sh
-HOGD_FFI_LIB_DIR=/path/to/test-ffi cargo test -p erc20-native-test --test native_token_precompile -- --ignored
-```
-
-Remove the ignore when the SDK pins an FFI release containing native approval.
-No published native deployment is implied by these local tests.
-
-Bridge accounting, recipient authorization and replay requirements
-are tracked in the [Groundhog Bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
+Bridge integration remains tracked under GH-55/GH-103 and broader Stellar assets
+under GH-429. Existing [bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1)
+continue to describe the original PR until this alternative is selected.

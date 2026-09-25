@@ -199,10 +199,11 @@ fn replacement_partial_spends_revoke_and_standard_events() {
     r.assert_success();
     r.assert_event_count(1);
     r.assert_raw_event(0, |e| {
-        let a = ApprovalEvent::try_from(EmittedEvent::from(e.raw())).unwrap();
+        let a = AllowanceChangeEvent::try_from(EmittedEvent::from(e.raw()))
+            .unwrap();
         assert_eq!(a.owner, &ALICE);
         assert_eq!(a.spender, &SPENDER);
-        assert_eq!(a.amount, 60);
+        assert_eq!(a.difference, 60);
     });
     env.advance_block();
     for _ in 0..2 {
@@ -548,4 +549,37 @@ fn export_cli_event_fixture() {
     }
     std::fs::write(output, format!("[\n{}\n]\n", records.join(",\n")))
         .unwrap();
+}
+
+#[test]
+fn clearing_a_frozen_zero_balance_preserves_authorization_metadata() {
+    let env = setup();
+    mint(&env, 10);
+    call(&env, &ADMIN, || auth().set_authorized(&ALICE, false))
+        .assert_success();
+    env.advance_block();
+    erc_error(
+        call(&env, &ALICE, || token().clear_balance()),
+        ERC20Error::BalanceNotZero,
+    );
+    call(&env, &ADMIN, || clawback().clawback(&ALICE, 10)).assert_success();
+    env.advance_block();
+    let cleared = call(&env, &ALICE, || token().clear_balance());
+    cleared.assert_success();
+    cleared.assert_no_events();
+    env.advance_block();
+    call(&env, &ALICE, || {
+        assert_eq!(token().get_balance(), 0);
+        assert!(!auth().authorized(&ALICE));
+        let metadata = ERC20MetadataClient::new(&TOKEN);
+        assert_eq!(metadata.name().unwrap().as_str(), "Reference Token");
+        assert_eq!(metadata.symbol().unwrap().as_str(), "ABCDEFGHIJKL");
+        assert_eq!(metadata.decimals(), Some(7));
+        token().clear_balance();
+    })
+    .assert_success();
+    error(
+        call(&env, &MINTER, || token().mint(&ALICE, 1)),
+        ERC20ControlsError::HolderNotAuthorized,
+    );
 }

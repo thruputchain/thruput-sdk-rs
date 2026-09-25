@@ -3,7 +3,7 @@
 use groundhog_erc20_if::*;
 use groundhog_erc20_permit_if::{ERC20Permit, ERC20PermitError, PermitGrant};
 use sdk::signer::Signed;
-use sdk::storage::{Balance, Map, Value};
+use sdk::storage::{Balance, Deletable, Map, Value};
 use sdk::*;
 
 type Allowance = sdk::storage::NNInt;
@@ -101,8 +101,39 @@ impl ERC20 for PermitToken {
         self._move(owner, receiver, amount);
     }
 
-    fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
-        self.set_allowance(&get_caller(), spender, amount);
+    fn increase_allowance(
+        &mut self,
+        spender: &ContractAddress,
+        difference: Difference,
+        exclusive: bool,
+    ) {
+        let owner = get_caller();
+        let mut allowances = self.allowances.at_mut(&owner);
+        let mut allowance = if exclusive {
+            allowances.at_mut_exclusive(spender)
+        } else {
+            allowances.at_mut(spender)
+        };
+        allowance
+            .try_strict_inc(difference)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+        AllowanceChangeEvent::new(&owner, spender, difference).log();
+    }
+
+    fn clear_allowance(&mut self, spender: &ContractAddress) {
+        let owner = get_caller();
+        self.allowances
+            .at_mut(&owner)
+            .at_mut(spender)
+            .delete_exclusive();
+        ApprovalEvent::new(&owner, spender, 0).log();
+    }
+
+    fn clear_balance(&mut self) {
+        let owner = get_caller();
+        let mut balance = self.balances.at_mut(&owner);
+        ensure(balance.get() == 0, ERC20Error::BalanceNotZero);
+        balance.delete_exclusive();
     }
 
     fn allowance(

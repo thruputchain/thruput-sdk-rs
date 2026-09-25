@@ -41,10 +41,12 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 /// - [`ERC20Error::TooLarge`] — an operation would drive a balance or
 ///   allowance below zero (overdraft), or an `Amount` doesn't fit in
 ///   [`Difference`].
+/// - [`ERC20Error::BalanceNotZero`] — `clear_balance` called with a nonzero
+///   balance.
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, ApprovalEvent, MintEvent, BurnEvent)
+    emits(TransferEvent, AllowanceChangeEvent, ApprovalEvent, MintEvent, BurnEvent)
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -66,16 +68,31 @@ pub trait ERC20 {
         amount: Amount,
     );
 
-    /// Replace the caller's remaining allowance for `spender` and emit
-    /// [`ApprovalEvent`]. Zero revokes. Amounts above `i128::MAX` throw
-    /// [`ERC20Error::TooLarge`]. Replacement must conflict with concurrent
-    /// writes to the same allowance, including spending it.
+    /// Add `difference` to the caller's allowance for `spender` and emit
+    /// [`AllowanceChangeEvent`]. Negative differences reduce the allowance.
+    /// A result outside `0..=i128::MAX` throws [`ERC20Error::TooLarge`].
     ///
-    /// A spender may spend the previous allowance before this call executes.
-    /// Stored allowances do not expire. For spending with a deadline, use
-    /// `ERC20Permit::transfer_from_signed` from `groundhog-erc20-permit-if`
-    /// with an expiring signed operation verified by the owner's wallet.
-    fn approve(&mut self, spender: &ContractAddress, amount: Amount);
+    /// With `exclusive=false`, adjustments may merge with concurrent spending
+    /// and adjustments within the allowance bounds. With `exclusive=true`,
+    /// this transaction conflicts with other writers to the same pair,
+    /// including when `difference` is zero. Different pairs remain independent.
+    fn increase_allowance(
+        &mut self,
+        spender: &ContractAddress,
+        difference: Difference,
+        exclusive: bool,
+    );
+
+    /// Revoke the caller's allowance for `spender` and delete its storage entry.
+    /// Missing entries are allowed. Deletion conflicts with concurrent writes,
+    /// including grants and spending. Emit [`ApprovalEvent`] with amount zero.
+    fn clear_allowance(&mut self, spender: &ContractAddress);
+
+    /// Delete the caller's empty balance entry, leaving supply unchanged.
+    /// Throw [`ERC20Error::BalanceNotZero`] for a nonzero balance. Missing
+    /// entries are allowed. Deletion conflicts with concurrent balance writes.
+    /// Do not delete holder authorization or emit a token movement event.
+    fn clear_balance(&mut self);
 
     /// Get `spender`'s allowance of `owner`'s tokens
     fn allowance(
@@ -103,4 +120,22 @@ pub trait ERC20 {
 
     /// Get total supply of outstanding tokens
     fn total_supply(&self) -> Amount;
+}
+
+impl ERC20Client {
+    /// Replace this calling contract's allowance using an exclusive adjustment.
+    /// This is a library helper, not a token entrypoint. It reads the allowance
+    /// then calls [`Self::increase_allowance`], which emits a delta event.
+    /// Even an unchanged target makes an exclusive call.
+    ///
+    /// A spender may use the old allowance before this transaction executes.
+    /// Stored allowances do not expire. For spending with a deadline, use
+    /// `ERC20Permit::transfer_from_signed` with an expiring signed operation.
+    pub fn approve(&self, spender: &ContractAddress, amount: Amount) {
+        let target = amount_to_diff(amount);
+        let current = amount_to_diff(
+            self.allowance(&sdk::get_current_address(), spender),
+        );
+        self.increase_allowance(spender, target - current, true);
+    }
 }

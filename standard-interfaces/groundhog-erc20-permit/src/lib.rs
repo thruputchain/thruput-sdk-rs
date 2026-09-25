@@ -110,7 +110,7 @@ pub trait ERC20Permit {
     /// be spent later through `transfer_from`.
     ///
     /// Replace the remaining allowance with the granted amount, as with
-    /// [`ERC20::approve`](groundhog_erc20_if::ERC20::approve). Zero revokes.
+    /// [`ERC20Client::approve`](groundhog_erc20_if::ERC20Client::approve). Zero revokes.
     /// Competing grants for the same owner/spender must conflict, even if
     /// their amounts are identical. The wallet checks the signed operation's
     /// expiry before minting the grant; the stored allowance does not expire.
