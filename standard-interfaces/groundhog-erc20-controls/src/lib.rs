@@ -14,12 +14,16 @@ use groundhog_erc20_if::{Amount, ERC20Error};
 pub use groundhog_erc20_metadata_if::{Name, Symbol};
 use sdk::{ContractAddress, contract, contract_type};
 
-/// Immutable policy. Clawback requires revocation. SAC trustline history and
-/// cross-chain policy synchronization are the bridge's responsibility.
+/// Policy fixed at initialization. `clawback_enabled` requires
+/// `auth_revocable`. SAC trustline history and cross-chain policy
+/// synchronization are the bridge's responsibility.
 #[contract_type]
 pub struct Policy {
+    /// Holders start unauthorized when true, authorized when false.
     pub auth_required: bool,
+    /// The admin may revoke a holder's authorization.
     pub auth_revocable: bool,
+    /// The admin may destroy tokens without the holder's consent.
     pub clawback_enabled: bool,
 }
 
@@ -43,12 +47,13 @@ pub trait ERC20Admin {
 }
 
 /// Optional holder authorization. Frozen holders cannot send, receive or burn.
-/// Approvals and revocations remain available. A committed policy change is
-/// visible to other transactions in the next block.
+/// Setting or revoking allowances remains available to frozen holders.
+/// A committed `set_authorized` change is visible to other transactions in
+/// the next block.
 #[contract(client = ERC20AuthorizationClient, throws = ERC20ControlsError, emits(SetAuthorizedEvent))]
 pub trait ERC20Authorization {
     fn authorized(&self, id: &ContractAddress) -> bool;
-    /// Admin only. Setting false requires revocation enabled.
+    /// Admin only. Setting `authorize` to false requires `auth_revocable`.
     fn set_authorized(&mut self, id: &ContractAddress, authorize: bool);
 }
 
@@ -65,6 +70,6 @@ pub trait ERC20Clawback {
 #[contract(client = ERC20BurnClient, throws(ERC20ControlsError, ERC20Error), emits(BurnEvent))]
 pub trait ERC20Burn {
     fn burn(&mut self, amount: Amount);
-    /// Consume the caller's ERC20 allowance from `owner`.
+    /// Burn `amount` from `owner` and decrease the caller's allowance by it.
     fn burn_from(&mut self, owner: &ContractAddress, amount: Amount);
 }

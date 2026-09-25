@@ -26,17 +26,17 @@
 //!
 //! # Two ways to spend
 //!
-//! [`ERC20Permit::permit`] writes an allowance, so the approval outlives the
-//! call and is spent later through the ordinary
-//! [`ERC20::transfer_from`](groundhog_erc20_if::ERC20::transfer_from). Use it
-//! when something downstream already speaks allowances.
+//! [`ERC20Permit::permit`] replaces the stored allowance for later use by
+//! [`ERC20::transfer_from`](groundhog_erc20_if::ERC20::transfer_from). The
+//! signed operation's expiry limits when the wallet may authorize the permit;
+//! it does not expire the resulting allowance. Use this method when a caller
+//! needs to spend through the allowance interface.
 //!
-//! [`ERC20Permit::transfer_from_signed`] moves the tokens in the same call and
-//! writes no allowance. Prefer it: an auth token is already a one-shot
-//! capability, so turning one into a standing allowance makes a durable copy
-//! of authority that was meant to be spent once. ERC-2612 has no such option —
-//! allowances are Ethereum's workaround for not being able to hand over a
-//! capability at all.
+//! [`ERC20Permit::transfer_from_signed`] consumes the grant and transfers its
+//! amount immediately, without reading or changing any stored allowance.
+//! Use this method with an expiring signed operation when the transfer itself
+//! must occur by a deadline. The wallet checks the operation's expiry;
+//! the token contract consumes the grant in the same transaction.
 
 mod error;
 pub use error::*;
@@ -54,11 +54,10 @@ use sdk::{ContractAddress, contract};
 /// different order, or under a different name, produces a signature no permit
 /// wallet will accept.
 ///
-/// `token` is load-bearing. The preimage binds the network and the *verifying
-/// contract* — the wallet — but says nothing about which token the approval
-/// is for, so without naming it here a submitter could have the grant minted
-/// for a different ERC20 the owner also holds. The wallet uses it as the
-/// grant's consumer.
+/// `token` binds the authorization to the ERC20 contract that may consume
+/// the grant. The signed-operation preimage already binds the network and
+/// wallet; this field prevents a submitter from redirecting the grant to a
+/// different token contract. The wallet uses it as the grant's consumer.
 #[sdk::contract_type]
 pub struct PermitRequest {
     /// The token contract the approval is for.
@@ -91,11 +90,14 @@ pub struct PermitGrant {
 ///
 /// # Error contract
 ///
-/// Implementations must throw exactly these:
+/// The base implementation throws these errors. Issuer-policy extensions
+/// may also reject the operation with their own errors.
 ///
 /// - [`ERC20PermitError::NotSpender`] — `transfer_from_signed` called by
 ///   anyone other than the grant's `spender`.
-/// - [`ERC20Error::TooLarge`] — the owner's balance cannot cover the grant.
+/// - [`ERC20Error::TooLarge`] — the amount exceeds `i128::MAX`, or
+///   `transfer_from_signed` exceeds the owner's balance. `permit` does not
+///   require a balance to cover the allowance.
 ///
 /// A grant minted for another token never reaches the implementation: the
 /// runtime refuses to consume a token at any contract but its named consumer.
@@ -110,12 +112,12 @@ pub trait ERC20Permit {
     /// Replace the remaining allowance with the granted amount, as with
     /// [`ERC20::approve`](groundhog_erc20_if::ERC20::approve). Zero revokes.
     /// Competing grants for the same owner/spender must conflict, even if
-    /// their amounts are identical. Expiry limits submission of the signed
-    /// operation, not the lifetime of the stored allowance.
+    /// their amounts are identical. The wallet checks the signed operation's
+    /// expiry before minting the grant; the stored allowance does not expire.
     fn permit(&mut self, grant: Signed<PermitGrant>);
 
     /// Consume `grant` and immediately transfer the granted amount from its
-    /// minter to `receiver`, writing no allowance.
+    /// minter to `receiver`. Existing allowances are neither used nor changed.
     ///
     /// The caller must be the grant's `spender` — the same authority
     /// `transfer_from` gives a spender under an allowance, including the

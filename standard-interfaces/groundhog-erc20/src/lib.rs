@@ -71,8 +71,10 @@ pub trait ERC20 {
     /// [`ERC20Error::TooLarge`]. Replacement must conflict with concurrent
     /// writes to the same allowance, including spending it.
     ///
-    /// A spender may consume the old grant before a replacement executes.
-    /// Use a one-shot signed transfer when spending itself must expire.
+    /// A spender may spend the previous allowance before this call executes.
+    /// Stored allowances do not expire. For spending with a deadline, use
+    /// `ERC20Permit::transfer_from_signed` from `groundhog-erc20-permit-if`
+    /// with an expiring signed operation verified by the owner's wallet.
     fn approve(&mut self, spender: &ContractAddress, amount: Amount);
 
     /// Get `spender`'s allowance of `owner`'s tokens
