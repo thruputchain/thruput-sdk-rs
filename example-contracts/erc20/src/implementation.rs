@@ -84,7 +84,7 @@ impl TokenContract {
 
     // Adjust allowance for owner and spender, from zero if empty.
     // Returns resulting allowance.
-    fn _adjust_allowance(
+    fn _spend_allowance(
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
@@ -95,8 +95,6 @@ impl TokenContract {
         allowance
             .try_strict_inc(diff)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-
-        log_approval_event(owner, spender, diff);
     }
 
     fn _increase_total_supply(&mut self, amount: Amount) {
@@ -143,7 +141,7 @@ impl ERC20 for TokenContract {
         self._decrease_balance(&owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        log_transfer_event(&owner, receiver, amount);
+        TransferEvent::new(&owner, receiver, amount_to_diff(amount)).log();
     }
 
     fn transfer_from(
@@ -155,11 +153,11 @@ impl ERC20 for TokenContract {
         let spender = get_caller();
 
         let diff = amount_to_diff(amount);
-        self._adjust_allowance(owner, &spender, -diff);
+        self._spend_allowance(owner, &spender, -diff);
         self._decrease_balance(owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        log_transfer_event(owner, receiver, amount);
+        TransferEvent::new(owner, receiver, amount_to_diff(amount)).log();
     }
 
     fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
@@ -168,17 +166,7 @@ impl ERC20 for TokenContract {
             .at_mut(&owner)
             .at_mut_exclusive(spender)
             .set(amount_to_diff(amount));
-        log_approve_event(&owner, spender, amount);
-    }
-
-    fn adjust_allowance(
-        &mut self,
-        spender: &ContractAddress,
-        diff: Difference,
-    ) {
-        let owner = get_caller();
-
-        self._adjust_allowance(&owner, spender, diff);
+        ApprovalEvent::new(&owner, spender, amount_to_diff(amount)).log();
     }
 
     fn allowance(
@@ -210,7 +198,7 @@ impl ERC20 for TokenContract {
         self._increase_total_supply(amount);
         self._lazy_increase_balance(receiver, amount);
 
-        log_mint_event(receiver, amount);
+        MintEvent::new(receiver, amount_to_diff(amount)).log();
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
@@ -223,7 +211,7 @@ impl ERC20 for TokenContract {
         self._decrease_balance(owner, amount);
         self._decrease_total_supply(amount);
 
-        log_burn_event(owner, amount);
+        BurnEvent::new(owner, amount_to_diff(amount)).log();
     }
 
     fn total_supply(&self) -> Amount {

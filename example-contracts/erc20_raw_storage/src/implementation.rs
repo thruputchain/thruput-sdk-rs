@@ -27,8 +27,6 @@ fn get_allowance_key(
     owner: &ContractAddress,
     spender: &ContractAddress,
 ) -> StorageKey {
-    debug_assert!(owner != spender, "no allowance needed on spending self");
-
     (b"allowance", owner, spender).hash().into()
 }
 
@@ -63,8 +61,6 @@ fn add_to_allowance(
 ) {
     non_negative_int_try_strict_inc(&get_allowance_key(owner, spender), diff)
         .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-
-    log_approval_event(owner, spender, diff);
 }
 
 #[storage]
@@ -91,7 +87,7 @@ impl ERC20 for Token {
         add_to_balance(&from, -diff);
         add_to_balance(to, diff);
 
-        log_transfer_event(&from, to, amount);
+        TransferEvent::new(&from, to, amount_to_diff(amount)).log();
     }
 
     fn transfer_from(
@@ -107,7 +103,7 @@ impl ERC20 for Token {
         add_to_balance(owner, -diff);
         add_to_balance(recipient, diff);
 
-        log_transfer_event(owner, recipient, amount);
+        TransferEvent::new(owner, recipient, amount_to_diff(amount)).log();
     }
 
     fn allowance(
@@ -126,17 +122,7 @@ impl ERC20 for Token {
             &get_allowance_key(&owner, spender),
             amount_to_diff(amount),
         );
-        log_approve_event(&owner, spender, amount);
-    }
-
-    fn adjust_allowance(
-        &mut self,
-        spender: &ContractAddress,
-        diff: Difference,
-    ) {
-        let caller = get_caller();
-
-        add_to_allowance(&caller, spender, diff);
+        ApprovalEvent::new(&owner, spender, amount_to_diff(amount)).log();
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Amount {
@@ -156,7 +142,7 @@ impl ERC20 for Token {
         add_to_balance(recipient, diff);
         add_to_total_supply(diff);
 
-        log_mint_event(recipient, amount);
+        MintEvent::new(recipient, amount_to_diff(amount)).log();
     }
 
     fn burn(&mut self, loser: &ContractAddress, amount: Amount) {
@@ -166,7 +152,7 @@ impl ERC20 for Token {
         add_to_balance(loser, -diff);
         add_to_total_supply(-diff);
 
-        log_burn_event(loser, amount);
+        BurnEvent::new(loser, amount_to_diff(amount)).log();
     }
 
     fn total_supply(&self) -> Amount {

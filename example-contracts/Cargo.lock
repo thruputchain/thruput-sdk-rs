@@ -332,11 +332,11 @@ dependencies = [
  "ed25519-dalek",
  "erc20_issuer",
  "groundhog-domain-separator",
+ "groundhog-erc20-controls-if",
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
  "groundhog-erc20-permit-if",
  "groundhog-signed-op-if",
- "groundhog-token-controls-if",
  "permit_wallet",
  "sdk",
 ]
@@ -538,6 +538,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-erc20-controls-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "heapless",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-erc20-if"
 version = "0.1.37"
 dependencies = [
@@ -689,17 +700,6 @@ name = "groundhog-syscall"
 version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
 checksum = "a7be006cbd0150dbb7cee942883954abd38d9c60ecdf4bab66f439e8ae8fdaae"
-
-[[package]]
-name = "groundhog-token-controls-if"
-version = "0.1.0"
-dependencies = [
- "groundhog-erc20-if",
- "groundhog-erc20-metadata-if",
- "heapless",
- "sdk",
- "thiserror",
-]
 
 [[package]]
 name = "groundhog-trace"

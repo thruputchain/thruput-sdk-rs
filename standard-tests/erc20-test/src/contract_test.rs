@@ -95,23 +95,12 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 
     // Approve spending by "other"
     let amt = 17;
-    client.adjust_allowance(other, amt);
-    m.adjust_allowance(other, amt);
+    client.approve(other, amt);
+    m.approve(other, amt);
 
-    #[cfg(not(feature = "no_check_aborts"))]
-    // Withdraw too much approval
-    assert_eq!(
-        client
-            .try_adjust_allowance(other, -20)
-            .unwrap_err()
-            .try_as(),
-        Some(ERC20Error::TooLarge),
-    );
-
-    // Withdraw some approval
-    let amt = 10;
-    client.adjust_allowance(other, -amt);
-    m.adjust_allowance(other, -amt);
+    // Lower the allowance.
+    client.approve(other, 7);
+    m.approve(other, 7);
 
     // Absolute approval replaces the remainder, including an identical grant.
     for amount in [23, 23, 9, 0, i128::MAX as u128, 7] {
@@ -164,23 +153,12 @@ pub fn erc20_funded_test(
 
     // Approve spending by "other"
     let amt = 17;
-    client.adjust_allowance(other, amt);
-    m.adjust_allowance(other, amt);
+    client.approve(other, amt);
+    m.approve(other, amt);
 
-    #[cfg(not(feature = "no_check_aborts"))]
-    // Withdraw too much approval
-    assert_eq!(
-        client
-            .try_adjust_allowance(other, -20)
-            .unwrap_err()
-            .try_as(),
-        Some(ERC20Error::TooLarge),
-    );
-
-    // Withdraw some approval
-    let amt = 10;
-    client.adjust_allowance(other, -amt);
-    m.adjust_allowance(other, -amt);
+    // Lower the allowance.
+    client.approve(other, 7);
+    m.approve(other, 7);
 
     // Check client state against the model
     m.check(&client);

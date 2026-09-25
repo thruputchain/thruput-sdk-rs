@@ -13,17 +13,17 @@ const NONCE: SHA256Hash = SHA256Hash::new([0x17; 32]);
 fn token() -> ERC20Client {
     ERC20Client::new(&TOKEN)
 }
-fn admin() -> TokenAdminClient {
-    TokenAdminClient::new(&TOKEN)
+fn admin() -> ERC20AdminClient {
+    ERC20AdminClient::new(&TOKEN)
 }
-fn auth() -> TokenAuthorizationClient {
-    TokenAuthorizationClient::new(&TOKEN)
+fn auth() -> ERC20AuthorizationClient {
+    ERC20AuthorizationClient::new(&TOKEN)
 }
-fn burn() -> TokenBurnClient {
-    TokenBurnClient::new(&TOKEN)
+fn burn() -> ERC20BurnClient {
+    ERC20BurnClient::new(&TOKEN)
 }
-fn clawback() -> TokenClawbackClient {
-    TokenClawbackClient::new(&TOKEN)
+fn clawback() -> ERC20ClawbackClient {
+    ERC20ClawbackClient::new(&TOKEN)
 }
 fn policy() -> Policy {
     Policy {
@@ -100,8 +100,8 @@ fn state(
     })
     .assert_success();
 }
-fn error(r: TransactResult, expected: TokenError) {
-    assert_eq!(r.assert_abort_as::<TokenError>(), expected);
+fn error(r: TransactResult, expected: ERC20ControlsError) {
+    assert_eq!(r.assert_abort_as::<ERC20ControlsError>(), expected);
     r.assert_no_events();
 }
 fn erc_error(r: TransactResult, expected: ERC20Error) {
@@ -116,7 +116,7 @@ fn atomic_deployment_metadata_and_all_initializers_share_one_guard() {
     let r = env.transact(|tx| {
         tx.call(&ADMIN).run(|| {
             let addr = deploy_contract(&NONCE, &hash);
-            TokenAdminClient::new(&addr).initialize(
+            ERC20AdminClient::new(&addr).initialize(
                 &MINTER,
                 "Name".try_into().unwrap(),
                 "ABCDEFGHIJKL".try_into().unwrap(),
@@ -127,7 +127,7 @@ fn atomic_deployment_metadata_and_all_initializers_share_one_guard() {
             assert_eq!(meta.symbol().unwrap().as_str(), "ABCDEFGHIJKL");
             assert_eq!(meta.name().unwrap().as_str(), "Name");
             assert_eq!(meta.decimals(), Some(7));
-            assert_eq!(TokenAdminClient::new(&addr).admin(), ADMIN);
+            assert_eq!(ERC20AdminClient::new(&addr).admin(), ADMIN);
             assert_eq!(ERC20Client::new(&addr).total_supply(), 0);
             addr
         })
@@ -148,7 +148,7 @@ fn atomic_deployment_metadata_and_all_initializers_share_one_guard() {
     );
     erc_error(
         call(&env, &OTHER, || {
-            TokenAdminClient::new(&addr).initialize(
+            ERC20AdminClient::new(&addr).initialize(
                 &OTHER,
                 "x".try_into().unwrap(),
                 "X".try_into().unwrap(),
@@ -170,7 +170,7 @@ fn invalid_policy_and_uninitialized_calls_leave_no_state() {
         call(&env, &ALICE, || {
             token().get_balance();
         }),
-        TokenError::NotInitialized,
+        ERC20ControlsError::NotInitialized,
     );
     error(
         call(&env, &ADMIN, || {
@@ -186,7 +186,7 @@ fn invalid_policy_and_uninitialized_calls_leave_no_state() {
                 },
             )
         }),
-        TokenError::InvalidPolicy,
+        ERC20ControlsError::InvalidPolicy,
     );
     call(&env, &ADMIN, || token().initialize(&ADMIN)).assert_success();
 }
@@ -199,11 +199,10 @@ fn replacement_partial_spends_revoke_and_standard_events() {
     r.assert_success();
     r.assert_event_count(1);
     r.assert_raw_event(0, |e| {
-        let a = ApproveEvent::try_from(EmittedEvent::from(e.raw())).unwrap();
+        let a = ApprovalEvent::try_from(EmittedEvent::from(e.raw())).unwrap();
         assert_eq!(a.owner, &ALICE);
         assert_eq!(a.spender, &SPENDER);
         assert_eq!(a.amount, 60);
-        assert_ne!(ApproveEvent::SIGNATURE, ApprovalEvent::SIGNATURE);
     });
     env.advance_block();
     for _ in 0..2 {
@@ -238,7 +237,7 @@ fn frozen_holders_cannot_move_mint_or_burn_but_can_revoke() {
         call(&env, &SPENDER, || burn().burn_from(&ALICE, 1)),
         call(&env, &MINTER, || token().mint(&ALICE, 1)),
     ] {
-        error(r, TokenError::HolderNotAuthorized);
+        error(r, ERC20ControlsError::HolderNotAuthorized);
     }
     approve(&env, 0);
     let r = call(&env, &ADMIN, || clawback().clawback(&ALICE, 10));
@@ -273,7 +272,7 @@ fn required_authorization_checks_both_holders_and_rolls_back_allowance() {
     });
     error(
         call(&env, &MINTER, || token().mint(&ALICE, 10)),
-        TokenError::HolderNotAuthorized,
+        ERC20ControlsError::HolderNotAuthorized,
     );
     call(&env, &ADMIN, || auth().set_authorized(&ALICE, true))
         .assert_success();
@@ -282,7 +281,7 @@ fn required_authorization_checks_both_holders_and_rolls_back_allowance() {
     approve(&env, 10);
     error(
         call(&env, &SPENDER, || token().transfer_from(&ALICE, &BOB, 5)),
-        TokenError::HolderNotAuthorized,
+        ERC20ControlsError::HolderNotAuthorized,
     );
     state(&env, 10, 0, 10, 10);
     call(&env, &ADMIN, || auth().set_authorized(&BOB, true)).assert_success();
@@ -306,7 +305,7 @@ fn disabled_clawback_cannot_be_bypassed_by_erc20_burn() {
         call(&env, &ADMIN, || clawback().clawback(&ALICE, 1)),
         call(&env, &ADMIN, || token().burn(&ALICE, 1)),
     ] {
-        error(r, TokenError::OperationDisabled);
+        error(r, ERC20ControlsError::OperationDisabled);
     }
     call(&env, &ALICE, || burn().burn(1)).assert_success();
     env.advance_block();
@@ -329,7 +328,7 @@ fn roles_are_separate_and_rotation_takes_effect_next_block() {
         call(&env, &MINTER, || admin().set_admin(&MINTER)),
         call(&env, &MINTER, || admin().set_minter(&MINTER)),
     ] {
-        error(r, TokenError::Unauthorized);
+        error(r, ERC20ControlsError::Unauthorized);
     }
     call(&env, &ADMIN, || {
         admin().set_minter(&OTHER);
@@ -345,7 +344,7 @@ fn roles_are_separate_and_rotation_takes_effect_next_block() {
     );
     error(
         call(&env, &ADMIN, || admin().set_minter(&MINTER)),
-        TokenError::Unauthorized,
+        ERC20ControlsError::Unauthorized,
     );
     call(&env, &OTHER, || token().mint(&ALICE, 5)).assert_success();
     env.advance_block();
@@ -463,16 +462,8 @@ fn zero_self_transfer_and_delegated_burn_use_standard_events() {
     env.advance_block();
     let r = call(&env, &SPENDER, || burn().burn_from(&ALICE, 5));
     r.assert_success();
-    r.assert_event_count(2);
+    r.assert_event_count(1);
     r.assert_raw_event(0, |e| {
-        assert_eq!(
-            ApprovalEvent::try_from(EmittedEvent::from(e.raw()))
-                .unwrap()
-                .difference,
-            -5
-        )
-    });
-    r.assert_raw_event(1, |e| {
         assert_eq!(
             BurnEvent::try_from(EmittedEvent::from(e.raw()))
                 .unwrap()
@@ -509,7 +500,7 @@ fn signed_transfer_checks_holder_policy_and_leaves_no_allowance() {
     };
     call(&env, &ADMIN, || auth().set_authorized(&BOB, false)).assert_success();
     env.advance_block();
-    error(send(), TokenError::HolderNotAuthorized);
+    error(send(), ERC20ControlsError::HolderNotAuthorized);
     state(&env, 20, 0, 0, 20);
     call(&env, &ADMIN, || auth().set_authorized(&BOB, true)).assert_success();
     env.advance_block();

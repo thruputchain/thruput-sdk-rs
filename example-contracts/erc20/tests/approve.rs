@@ -50,57 +50,37 @@ fn setup() -> TestEnvironmentHandle {
 }
 
 #[test]
-fn approval_conflicts_with_spending_and_legacy_adjustment_in_both_orders() {
+fn approval_conflicts_with_spending_in_both_orders() {
     for approval_first in [false, true] {
-        for adjustment in [false, true] {
-            for replacement in [0, 40, 50] {
-                let env = setup();
-                let approve = || {
-                    call(&env, &OWNER, || {
-                        client().approve(&SPENDER, replacement)
-                    })
-                };
-                let change = || {
-                    if adjustment {
-                        call(&env, &OWNER, || {
-                            client().adjust_allowance(&SPENDER, 10)
-                        })
-                    } else {
-                        call(&env, &SPENDER, || {
-                            client().transfer_from(&OWNER, &OTHER, 10)
-                        })
-                    }
-                };
-                let (first, second) = if approval_first {
-                    (approve(), change())
-                } else {
-                    (change(), approve())
-                };
-                first.assert_success();
-                second.assert_commit_failed_nondeterministically();
-                env.advance_block();
-                call(&env, &OWNER, || {
-                    assert_eq!(
-                        client().allowance(&OWNER, &SPENDER),
-                        if approval_first {
-                            replacement
-                        } else if adjustment {
-                            60
-                        } else {
-                            40
-                        }
-                    );
-                    assert_eq!(
-                        client().get_balance_of(&OTHER),
-                        if !approval_first && !adjustment {
-                            10
-                        } else {
-                            0
-                        }
-                    );
+        for replacement in [0, 40, 50] {
+            let env = setup();
+            let approve = || {
+                call(&env, &OWNER, || client().approve(&SPENDER, replacement))
+            };
+            let spend = || {
+                call(&env, &SPENDER, || {
+                    client().transfer_from(&OWNER, &OTHER, 10)
                 })
-                .assert_success();
-            }
+            };
+            let (first, second) = if approval_first {
+                (approve(), spend())
+            } else {
+                (spend(), approve())
+            };
+            first.assert_success();
+            second.assert_commit_failed_nondeterministically();
+            env.advance_block();
+            call(&env, &OWNER, || {
+                assert_eq!(
+                    client().allowance(&OWNER, &SPENDER),
+                    if approval_first { replacement } else { 40 }
+                );
+                assert_eq!(
+                    client().get_balance_of(&OTHER),
+                    if approval_first { 0 } else { 10 }
+                );
+            })
+            .assert_success();
         }
     }
 }
@@ -154,7 +134,7 @@ fn partial_spends_merge_and_failed_spend_leaves_allowance_intact() {
 
 #[test]
 fn absolute_event_and_amount_bound() {
-    use groundhog_erc20_if::{ApprovalEvent, ApproveEvent, ERC20Error};
+    use groundhog_erc20_if::{ApprovalEvent, ERC20Error};
     let env = setup();
     let result = call(&env, &OWNER, || {
         client().approve(&SPENDER, i128::MAX as u128);
@@ -171,10 +151,9 @@ fn absolute_event_and_amount_bound() {
     result.assert_event_count(1);
     result.assert_raw_event(0, |event| {
         let event =
-            ApproveEvent::try_from(EmittedEvent::from(event.raw())).unwrap();
+            ApprovalEvent::try_from(EmittedEvent::from(event.raw())).unwrap();
         assert_eq!(event.owner, &OWNER);
         assert_eq!(event.spender, &SPENDER);
         assert_eq!(event.amount, i128::MAX);
-        assert_ne!(ApproveEvent::SIGNATURE, ApprovalEvent::SIGNATURE);
     });
 }

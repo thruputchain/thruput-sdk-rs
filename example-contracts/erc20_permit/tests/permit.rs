@@ -566,3 +566,85 @@ fn a_grant_minted_for_one_token_cannot_be_consumed_at_another() {
     // check lives in the runtime, not in either contract's code.
     result.assert_abort();
 }
+
+fn signed_amount(
+    env: &sdk::TestEnvironmentHandle,
+    nonce: u64,
+    amount: u128,
+) -> (Operation, Ed25519Signature) {
+    sign(
+        &ALICE_SEED,
+        &wallet_address(),
+        nonce,
+        current_height(env) + HORIZON,
+        &PermitRequest {
+            token: token_address(),
+            spender: spender(),
+            amount,
+        },
+    )
+}
+
+#[test]
+fn permits_replace_partial_allowances_and_revoke() {
+    let env = setup();
+    for (nonce, amount) in
+        [100, 40, 40, 0, i128::MAX as u128].into_iter().enumerate()
+    {
+        let (op, signature) = signed_amount(&env, nonce as u64, amount);
+        let result = submit_permit(&env, op, signature);
+        result.assert_success();
+        result.assert_event_count(1);
+        result.assert_raw_event(0, |event| {
+            let approval = groundhog_erc20_if::ApprovalEvent::try_from(
+                sdk::EmittedEvent::from(event.raw()),
+            )
+            .unwrap();
+            assert_eq!(approval.amount, amount as i128);
+            assert_eq!(approval.owner, &wallet_address());
+            assert_eq!(approval.spender, &spender());
+        });
+        env.advance_block();
+        assert_eq!(allowance(&env), amount);
+        if nonce == 0 {
+            env.transact(|tx| {
+                tx.call(&spender()).run(|| {
+                    ERC20Client::new(&token_address()).transfer_from(
+                        &wallet_address(),
+                        &receiver(),
+                        10,
+                    );
+                })
+            })
+            .assert_success();
+            env.advance_block();
+            assert_eq!(allowance(&env), 90);
+        }
+    }
+    let (op, signature) = signed_amount(&env, 5, i128::MAX as u128 + 1);
+    let result = submit_permit(&env, op, signature);
+    result.assert_abort_as::<groundhog_erc20_if::ERC20Error>();
+    env.advance_block();
+    assert_eq!(allowance(&env), i128::MAX as u128);
+}
+
+#[test]
+fn independent_signed_grants_for_same_pair_conflict_and_can_retry() {
+    let env = setup();
+    let expiry = current_height(&env) + HORIZON;
+    let request = standard_request();
+    let (op, signature) =
+        sign(&ALICE_SEED, &wallet_address(), 0, expiry.clone(), &request);
+    submit_permit(&env, op, signature).assert_success();
+    let (op, signature) =
+        sign(&ALICE_SEED, &wallet_address(), 1, expiry.clone(), &request);
+    submit_permit(&env, op, signature)
+        .assert_commit_failed_nondeterministically();
+    env.advance_block();
+    assert_eq!(allowance(&env), GRANTED);
+    let (op, signature) =
+        sign(&ALICE_SEED, &wallet_address(), 1, expiry, &request);
+    submit_permit(&env, op, signature).assert_success();
+    env.advance_block();
+    assert_eq!(allowance(&env), GRANTED);
+}

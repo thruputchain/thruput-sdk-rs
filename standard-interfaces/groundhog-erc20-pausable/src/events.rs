@@ -12,10 +12,6 @@ use core::fmt;
 use sdk::{ContractAddress, EmittedEvent, Event, hex_encode, log_event};
 
 /// Log that `account` paused the token.
-pub fn log_paused_event(account: &ContractAddress) {
-    log_event(&PausedEvent::new(*account));
-}
-
 /// An event emitted when the token is paused.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct PausedEvent {
@@ -24,6 +20,10 @@ pub struct PausedEvent {
 }
 
 impl PausedEvent {
+    pub fn log(&self) {
+        log_event(self);
+    }
+
     pub fn new(account: ContractAddress) -> Self {
         Self { account }
     }
@@ -60,10 +60,6 @@ impl fmt::Display for PausedEvent {
 // ----------------------------------------------------------------------
 
 /// Log that `account` unpaused the token.
-pub fn log_unpaused_event(account: &ContractAddress) {
-    log_event(&UnpausedEvent::new(*account));
-}
-
 /// An event emitted when the token is unpaused.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct UnpausedEvent {
@@ -72,6 +68,10 @@ pub struct UnpausedEvent {
 }
 
 impl UnpausedEvent {
+    pub fn log(&self) {
+        log_event(self);
+    }
+
     pub fn new(account: ContractAddress) -> Self {
         Self { account }
     }

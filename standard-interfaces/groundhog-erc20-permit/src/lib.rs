@@ -107,11 +107,11 @@ pub trait ERC20Permit {
     /// Consume `grant` and record the resulting allowance for its minter, to
     /// be spent later through `transfer_from`.
     ///
-    /// The allowance is *increased* by the granted amount rather than set to
-    /// it, matching
-    /// [`ERC20::adjust_allowance`](groundhog_erc20_if::ERC20::adjust_allowance):
-    /// the grant is single-use, so there is no second grant to race and
-    /// nothing for a set-to-value to defend against.
+    /// Replace the remaining allowance with the granted amount, as with
+    /// [`ERC20::approve`](groundhog_erc20_if::ERC20::approve). Zero revokes.
+    /// Competing grants for the same owner/spender must conflict, even if
+    /// their amounts are identical. Expiry limits submission of the signed
+    /// operation, not the lifetime of the stored allowance.
     fn permit(&mut self, grant: Signed<PermitGrant>);
 
     /// Consume `grant` and immediately transfer the granted amount from its

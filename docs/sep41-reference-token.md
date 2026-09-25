@@ -13,14 +13,14 @@ calls for ordinary tokens, native HOG and wrapped Stellar assets.
 - `ERC20Metadata`: names, symbols and decimals. Symbols now allow 12 bytes,
   including classic Stellar asset codes. Older clients with a 10-byte bound
   need updating to decode longer symbols.
-- `TokenAdmin`: initialize metadata and immutable policy; rotate admin/minter.
-- `TokenAuthorization`: authorize or freeze holders.
-- `TokenClawback`: forced destruction when policy permits it.
-- `TokenBurn`: holder burns and allowance-funded burns.
+- `ERC20Admin`: initialize metadata and immutable policy; rotate admin/minter.
+- `ERC20Authorization`: authorize or freeze holders.
+- `ERC20Clawback`: forced destruction when policy permits it.
+- `ERC20Burn`: holder burns and allowance-funded burns.
 - `ERC20Permit`: existing signed grants, including immediate signed transfers.
 
 The example is `example-contracts/erc20_issuer`. New controls live in
-`groundhog-token-controls-if`; there is no separate SEP-41 balance or transfer
+`groundhog-erc20-controls-if`; there is no separate SEP-41 balance or transfer
 interface. This is not an ERC-3643 implementation: identity registries,
 compliance rules, recovery and forced transfers remain outside this change.
 
@@ -32,24 +32,32 @@ a publicly deployed but uninitialized instance can be claimed.
 
 The admin can replace the minter, including with itself. The minter has no issuer
 control authority. `ERC20::mint` uses that configured mint authority. Both
-administrator `ERC20::burn` and explicit `TokenClawback::clawback` require the
+administrator `ERC20::burn` and explicit `ERC20Clawback::clawback` require the
 admin and the same clawback policy; neither bypasses a disabled policy.
-Holder-authorized burns use `TokenBurn`. Policy rejections are additional
-`TokenError`s, exposed through the standard client's unknown-error path, as with
+Holder-authorized burns use `ERC20Burn`. Policy rejections are additional
+`ERC20ControlsError`s, exposed through the standard client's unknown-error path, as with
 `ERC20Pausable`. Ordinary range and administrator checks retain `ERC20Error`.
 
 ## Allowances and signed actions
 
 `approve` replaces the remaining grant. Exclusive replacement conflicts with
-spending, legacy adjustments and another replacement of that owner/spender pair
+spending and another replacement of that owner/spender pair
 in the same block. Different pairs remain independent. Ordinary spends use
 checked non-negative deltas and may merge within the available allowance.
 A spender may still use an old allowance before a replacement executes; absolute
 approval does not eliminate that familiar ordering race.
 
-`adjust_allowance` and its delta `ApprovalEvent` remain for compatibility.
-New absolute approval emits a distinct `ApproveEvent`. Existing `permit` remains
-additive too; already signed grants must not silently acquire new meaning.
+`approve` and signed `permit` both replace the remaining allowance and emit
+one absolute `ApprovalEvent`. The old relative endpoint and delta event are
+removed. Spending emits only the token movement; query `allowance` for the
+remaining grant. This preserves mergeable allowance debits.
+
+This is a coordinated breaking change. `ApprovalEvent` retains its signature
+but now carries an absolute amount, so historical delta events require the
+old contract/release context. Rebuild clients and deploy the matching native
+runtime together. Previously issued additive permits must be invalidated or
+allowed to expire before migrating an existing token. Renaming the controls
+crate and interfaces also changes their event signatures and method selectors.
 
 There is no expiry field on a standing allowance. `Signed<PermitGrant>` expires
 at the runtime's Groundhog block height. `transfer_from_signed` consumes it and
@@ -107,6 +115,14 @@ ERC20_APPROVE_NATIVE=1 HOGD_FFI_LIB_DIR=/path/to/test-ffi \
 ```
 
 Run from `example-contracts/`; the FFI directory must include `bindings.rs`.
+The native precompile conformance test is explicitly ignored against the older
+bundled FFI. Run it with the matching runtime before release:
+
+```sh
+HOGD_FFI_LIB_DIR=/path/to/test-ffi cargo test -p erc20-native-test --test native_token_precompile -- --ignored
+```
+
+Remove the ignore when the SDK pins an FFI release containing native approval.
 No published native deployment is implied by these local tests.
 
 Bridge accounting, recipient authorization, replay and migration requirements

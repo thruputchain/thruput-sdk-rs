@@ -28,7 +28,7 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 ///
 /// These operations use the following [`ERC20Error`]s. Optional policy
 /// extensions may reject an operation with additional errors, as with
-/// `ERC20Pausable` and `TokenAuthorization`. Clients expose those through
+/// `ERC20Pausable` and `ERC20Authorization`. Clients expose those through
 /// their unknown-error path.
 ///
 /// The basic reference uses one administrator for mint and burn. Issuer
@@ -44,7 +44,7 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, ApprovalEvent, MintEvent, BurnEvent, ApproveEvent)
+    emits(TransferEvent, ApprovalEvent, MintEvent, BurnEvent)
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -67,23 +67,13 @@ pub trait ERC20 {
     );
 
     /// Replace the caller's remaining allowance for `spender` and emit
-    /// [`ApproveEvent`]. Zero revokes. Amounts above `i128::MAX` throw
+    /// [`ApprovalEvent`]. Zero revokes. Amounts above `i128::MAX` throw
     /// [`ERC20Error::TooLarge`]. Replacement must conflict with concurrent
     /// writes to the same allowance, including spending it.
     ///
     /// A spender may consume the old grant before a replacement executes.
     /// Use a one-shot signed transfer when spending itself must expire.
     fn approve(&mut self, spender: &ContractAddress, amount: Amount);
-
-    /// Legacy relative adjustment. Prefer [`ERC20::approve`] for new callers.
-    /// Adjust allowance for `spender` by `diff` (positive or negative).
-    /// Throws [`ERC20Error::TooLarge`] if the resulting allowance would be
-    /// negative.
-    fn adjust_allowance(
-        &mut self,
-        spender: &ContractAddress,
-        diff: Difference,
-    );
 
     /// Get `spender`'s allowance of `owner`'s tokens
     fn allowance(

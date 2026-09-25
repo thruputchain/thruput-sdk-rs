@@ -29,8 +29,6 @@ fn get_allowance_key(
     owner: &ContractAddress,
     spender: &ContractAddress,
 ) -> StorageKey {
-    debug_assert!(owner != spender, "no allowance needed on spending self");
-
     (b"allowance", owner, spender).hash().into()
 }
 
@@ -65,8 +63,6 @@ fn add_to_allowance(
 ) {
     non_negative_int_try_strict_inc(&get_allowance_key(owner, spender), diff)
         .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-
-    log_approval_event(owner, spender, diff);
 }
 
 // Exposed contract functions
@@ -90,7 +86,7 @@ pub fn transfer(to: &ContractAddress, amount: Amount) {
     add_to_balance(&from, -diff);
     add_to_balance(to, diff);
 
-    log_transfer_event(&from, to, amount);
+    TransferEvent::new(&from, to, amount_to_diff(amount)).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -106,7 +102,7 @@ pub fn transfer_from(
     add_to_balance(owner, -diff);
     add_to_balance(recipient, diff);
 
-    log_transfer_event(owner, recipient, amount);
+    TransferEvent::new(owner, recipient, amount_to_diff(amount)).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -116,14 +112,7 @@ pub fn approve(spender: &ContractAddress, amount: Amount) {
         &get_allowance_key(&owner, spender),
         amount_to_diff(amount),
     );
-    log_approve_event(&owner, spender, amount);
-}
-
-#[contract(interface = "ERC20", version = "0.1.0")]
-pub fn adjust_allowance(spender: &ContractAddress, diff: Difference) {
-    let caller = get_caller();
-
-    add_to_allowance(&caller, spender, diff)
+    ApprovalEvent::new(&owner, spender, amount_to_diff(amount)).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -156,7 +145,7 @@ pub fn mint(recipient: &ContractAddress, amount: Amount) {
     add_to_balance(recipient, diff);
     add_to_total_supply(diff);
 
-    log_mint_event(recipient, amount);
+    MintEvent::new(recipient, amount_to_diff(amount)).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -167,7 +156,7 @@ pub fn burn(loser: &ContractAddress, amount: Amount) {
     add_to_balance(loser, -diff);
     add_to_total_supply(-diff);
 
-    log_burn_event(loser, amount);
+    BurnEvent::new(loser, amount_to_diff(amount)).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]

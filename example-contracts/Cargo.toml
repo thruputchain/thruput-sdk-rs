@@ -106,7 +106,7 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-groundhog-token-controls-if = { path = "../standard-interfaces/groundhog-token-controls", registry = "groundhog", version = "=0.1.0" }
+groundhog-erc20-controls-if = { path = "../standard-interfaces/groundhog-erc20-controls", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc165-if = { path = "../standard-interfaces/groundhog-erc165", registry = "groundhog", version = "=0.1.37" }
 sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.38.0" }
 groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.38.0" }

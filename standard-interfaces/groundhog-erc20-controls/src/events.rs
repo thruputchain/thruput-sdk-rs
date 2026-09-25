@@ -33,3 +33,27 @@ pub struct SetMinterEvent<'a> {
     pub minter: &'a ContractAddress,
     pub new_minter: ContractAddress,
 }
+
+impl ClawbackEvent<'_> {
+    pub fn log(&self) {
+        sdk::log_event(self);
+    }
+}
+
+impl SetAuthorizedEvent<'_> {
+    pub fn log(&self) {
+        sdk::log_event(self);
+    }
+}
+
+impl SetAdminEvent<'_> {
+    pub fn log(&self) {
+        sdk::log_event(self);
+    }
+}
+
+impl SetMinterEvent<'_> {
+    pub fn log(&self) {
+        sdk::log_event(self);
+    }
+}

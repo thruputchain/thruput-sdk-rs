@@ -1,7 +1,7 @@
 #[sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
-pub enum TokenError {
+pub enum ERC20ControlsError {
     #[cfg_attr(feature = "dev", error("Token is not initialized"))]
     NotInitialized = 1,
     #[cfg_attr(feature = "dev", error("Caller is not authorized"))]

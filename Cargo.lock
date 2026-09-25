@@ -411,6 +411,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-erc20-controls-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "heapless",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-erc20-if"
 version = "0.1.37"
 dependencies = [
@@ -603,17 +614,6 @@ dependencies = [
  "groundhog-xdr",
  "serde_json",
  "xdrs",
-]
-
-[[package]]
-name = "groundhog-token-controls-if"
-version = "0.1.0"
-dependencies = [
- "groundhog-erc20-if",
- "groundhog-erc20-metadata-if",
- "heapless",
- "sdk",
- "thiserror",
 ]
 
 [[package]]
