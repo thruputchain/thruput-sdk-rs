@@ -25,8 +25,8 @@ pub struct Policy {
 
 /// Configuration of the issuer reference. Deploy and initialize atomically.
 /// The caller becomes admin and may replace the minter, including with itself.
-#[contract(client = TokenAdminClient, throws(TokenError, ERC20Error), emits(SetAdminEvent, SetMinterEvent))]
-pub trait TokenAdmin {
+#[contract(client = ERC20AdminClient, throws(ERC20ControlsError, ERC20Error), emits(SetAdminEvent, SetMinterEvent))]
+pub trait ERC20Admin {
     fn initialize(
         &mut self,
         minter: &ContractAddress,
@@ -45,8 +45,8 @@ pub trait TokenAdmin {
 /// Optional holder authorization. Frozen holders cannot send, receive or burn.
 /// Approvals and revocations remain available. A committed policy change is
 /// visible to other transactions in the next block.
-#[contract(client = TokenAuthorizationClient, throws = TokenError, emits(SetAuthorizedEvent))]
-pub trait TokenAuthorization {
+#[contract(client = ERC20AuthorizationClient, throws = ERC20ControlsError, emits(SetAuthorizedEvent))]
+pub trait ERC20Authorization {
     fn authorized(&self, id: &ContractAddress) -> bool;
     /// Admin only. Setting false requires revocation enabled.
     fn set_authorized(&mut self, id: &ContractAddress, authorize: bool);
@@ -55,15 +55,15 @@ pub trait TokenAuthorization {
 /// Optional forced destruction. Both this operation and ERC20's administrator
 /// `burn` must honor the same immutable clawback policy. Frozen balances may
 /// be clawed back. Emit one BurnEvent and one contextual ClawbackEvent.
-#[contract(client = TokenClawbackClient, throws(TokenError, ERC20Error), emits(BurnEvent, ClawbackEvent))]
-pub trait TokenClawback {
+#[contract(client = ERC20ClawbackClient, throws(ERC20ControlsError, ERC20Error), emits(BurnEvent, ClawbackEvent))]
+pub trait ERC20Clawback {
     fn clawback(&mut self, from: &ContractAddress, amount: Amount);
 }
 
 /// Optional holder-authorized destruction. Neither operation creates a bridge
 /// withdrawal claim; the bridge must authenticate and record that separately.
-#[contract(client = TokenBurnClient, throws(TokenError, ERC20Error), emits(BurnEvent))]
-pub trait TokenBurn {
+#[contract(client = ERC20BurnClient, throws(ERC20ControlsError, ERC20Error), emits(BurnEvent))]
+pub trait ERC20Burn {
     fn burn(&mut self, amount: Amount);
     /// Consume the caller's ERC20 allowance from `owner`.
     fn burn_from(&mut self, owner: &ContractAddress, amount: Amount);

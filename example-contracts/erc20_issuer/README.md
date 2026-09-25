@@ -6,12 +6,12 @@ transactions. See the [spec](../../docs/sep41-reference-token.md) and
 [bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
 
 Use `groundhog-erc20-if` for token operations, `groundhog-erc20-metadata-if` for
-metadata and `groundhog-token-controls-if` for issuer operations. Deploy and
+metadata and `groundhog-erc20-controls-if` for issuer operations. Deploy and
 initialize together:
 
 ```rust,ignore
 let address = sdk::deploy_contract(&nonce, &code_hash);
-TokenAdminClient::new(&address).initialize(
+ERC20AdminClient::new(&address).initialize(
     &bridge_address,
     "Example Token".try_into().unwrap(),
     "EXAMPLE".try_into().unwrap(),

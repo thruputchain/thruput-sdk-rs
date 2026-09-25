@@ -23,17 +23,33 @@ struct Settings {
 }
 
 impl TokenContract {
+    fn set_allowance(
+        &mut self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+        amount: Amount,
+    ) {
+        self.settings();
+        self.allowances
+            .at_mut(owner)
+            .at_mut_exclusive(spender)
+            .set(amount_to_diff(amount));
+        ApprovalEvent::new(owner, spender, amount_to_diff(amount)).log();
+    }
     fn settings(&self) -> Settings {
         self.settings
             .try_get()
             .none_if_missing()
-            .unwrap_or_else(|| throw(TokenError::NotInitialized))
+            .unwrap_or_else(|| throw(ERC20ControlsError::NotInitialized))
     }
     fn require_admin(&self) {
-        ensure(get_caller() == self.admin(), TokenError::Unauthorized);
+        ensure(
+            get_caller() == self.admin(),
+            ERC20ControlsError::Unauthorized,
+        );
     }
     fn require_holder(&self, id: &ContractAddress) {
-        ensure(self.authorized(id), TokenError::HolderNotAuthorized);
+        ensure(self.authorized(id), ERC20ControlsError::HolderNotAuthorized);
     }
     fn init(
         &mut self,
@@ -48,7 +64,7 @@ impl TokenContract {
         ensure(
             !settings.policy.clawback_enabled
                 || settings.policy.auth_revocable,
-            TokenError::InvalidPolicy,
+            ERC20ControlsError::InvalidPolicy,
         );
         self.settings.set_exclusive(settings);
         self.administrator.set_exclusive(administrator);
@@ -73,7 +89,6 @@ impl TokenContract {
             .at_mut(spender)
             .try_strict_inc(diff)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-        log_approval_event(owner, spender, diff);
     }
     fn debit(&mut self, from: &ContractAddress, amount: Amount) {
         amount_to_diff(amount);
@@ -99,14 +114,14 @@ impl TokenContract {
         self.require_holder(to);
         self.debit(from, amount);
         self.credit(to, amount);
-        log_transfer_event(from, to, amount);
+        TransferEvent::new(from, to, amount_to_diff(amount)).log();
     }
     fn destroy(&mut self, from: &ContractAddress, amount: Amount) {
         self.debit(from, amount);
         self.supply
             .try_decrease(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-        log_burn_event(from, amount);
+        BurnEvent::new(from, amount_to_diff(amount)).log();
     }
     fn forced_burn(&mut self, from: &ContractAddress, amount: Amount) {
         ensure(
@@ -115,17 +130,18 @@ impl TokenContract {
         );
         ensure(
             self.settings().policy.clawback_enabled,
-            TokenError::OperationDisabled,
+            ERC20ControlsError::OperationDisabled,
         );
         self.destroy(from, amount);
-        log_event(&ClawbackEvent {
+        ClawbackEvent {
             from,
             amount: amount_to_diff(amount),
-        });
+        }
+        .log();
     }
 }
 
-// Policy extensions can also throw TokenError through the standard client's
+// Policy extensions can also throw ERC20ControlsError through the standard client's
 // unknown-error path, as with ERC20Pausable.
 #[contract(version = "0.1.0")]
 impl ERC20 for TokenContract {
@@ -162,21 +178,9 @@ impl ERC20 for TokenContract {
             .unwrap_or(0) as Amount
     }
     fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
-        self.settings();
-        let owner = get_caller();
-        self.allowances
-            .at_mut(&owner)
-            .at_mut_exclusive(spender)
-            .set(amount_to_diff(amount));
-        log_approve_event(&owner, spender, amount);
+        self.set_allowance(&get_caller(), spender, amount);
     }
-    fn adjust_allowance(
-        &mut self,
-        spender: &ContractAddress,
-        diff: Difference,
-    ) {
-        self.adjust(&get_caller(), spender, diff);
-    }
+
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
         self.move_tokens(&get_caller(), receiver, amount);
     }
@@ -200,7 +204,7 @@ impl ERC20 for TokenContract {
             .try_increase(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         self.credit(receiver, amount);
-        log_mint_event(receiver, amount);
+        MintEvent::new(receiver, amount_to_diff(amount)).log();
     }
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
         self.forced_burn(owner, amount);
@@ -243,7 +247,7 @@ impl ERC20Metadata for TokenContract {
 }
 
 #[contract(version = "0.1.0")]
-impl TokenAdmin for TokenContract {
+impl ERC20Admin for TokenContract {
     fn initialize(
         &mut self,
         minter: &ContractAddress,
@@ -271,10 +275,11 @@ impl TokenAdmin for TokenContract {
         self.require_admin();
         let admin = self.admin();
         self.administrator.set_exclusive(new_admin);
-        log_event(&SetAdminEvent {
+        SetAdminEvent {
             admin: &admin,
             new_admin: *new_admin,
-        });
+        }
+        .log();
     }
     fn minter(&self) -> ContractAddress {
         self.settings();
@@ -284,10 +289,11 @@ impl TokenAdmin for TokenContract {
         self.require_admin();
         let minter = self.minter();
         self.mint_authority.set_exclusive(new_minter);
-        log_event(&SetMinterEvent {
+        SetMinterEvent {
             minter: &minter,
             new_minter: *new_minter,
-        });
+        }
+        .log();
     }
     fn policy(&self) -> Policy {
         self.settings().policy
@@ -295,7 +301,7 @@ impl TokenAdmin for TokenContract {
 }
 
 #[contract(version = "0.1.0")]
-impl TokenAuthorization for TokenContract {
+impl ERC20Authorization for TokenContract {
     fn authorized(&self, id: &ContractAddress) -> bool {
         let policy = self.settings().policy;
         self.authorizations
@@ -308,22 +314,22 @@ impl TokenAuthorization for TokenContract {
         self.require_admin();
         ensure(
             authorize || self.settings().policy.auth_revocable,
-            TokenError::OperationDisabled,
+            ERC20ControlsError::OperationDisabled,
         );
         self.authorizations.at_mut(id).set_exclusive(&authorize);
-        log_event(&SetAuthorizedEvent { id, authorize });
+        SetAuthorizedEvent { id, authorize }.log();
     }
 }
 
 #[contract(version = "0.1.0")]
-impl TokenClawback for TokenContract {
+impl ERC20Clawback for TokenContract {
     fn clawback(&mut self, from: &ContractAddress, amount: Amount) {
         self.forced_burn(from, amount);
     }
 }
 
 #[contract(version = "0.1.0")]
-impl TokenBurn for TokenContract {
+impl ERC20Burn for TokenContract {
     fn burn(&mut self, amount: Amount) {
         let owner = get_caller();
         self.require_holder(&owner);
@@ -340,8 +346,9 @@ impl TokenBurn for TokenContract {
 impl ERC20Permit for TokenContract {
     fn permit(&mut self, grant: Signed<PermitGrant>) {
         let (grant, owner) = grant.consume();
-        self.adjust(&owner, &grant.spender, amount_to_diff(grant.amount));
+        self.set_allowance(&owner, &grant.spender, grant.amount);
     }
+
     fn transfer_from_signed(
         &mut self,
         grant: Signed<PermitGrant>,
