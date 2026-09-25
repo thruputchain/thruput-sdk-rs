@@ -1,15 +1,23 @@
 use darling::FromMeta;
+use darling::util::SpannedValue;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Item;
 
 #[derive(Debug, Default, FromMeta)]
 pub struct ContractTypeArgs {
-    pub name: Option<String>,
+    pub name: Option<SpannedValue<String>>,
     pub export: Option<bool>,
 }
 
 pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
+    if let Some(name) = &args.name
+        && let Err(err) =
+            crate::common::util::validate_spec_name(name.span(), name)
+    {
+        return err.into_compile_error();
+    }
+
     match item {
         Item::Enum(item) => {
             if !item.generics.params.is_empty() {
@@ -168,7 +176,7 @@ fn expand_contract_type_name(
     crate::contract_type_name_impl(
         &crate::common::contract::sdk_crate_path(),
         ident,
-        args.name.as_deref(),
+        args.name.as_ref().map(|name| name.as_str()),
         // `#[contract_type]` declares no version of its own; the crate's it is.
         None,
     )

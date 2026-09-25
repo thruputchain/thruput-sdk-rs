@@ -151,3 +151,52 @@ pub fn validate_ident_string(
     }
     Ok(())
 }
+
+/// Validate a user-supplied `name = "..."` before it becomes the declared
+/// segment of a spec id. `span` should be the span of the attribute value so
+/// the error points at it.
+///
+/// `::` is the id's path separator, and the path is derived from where the
+/// item is declared, not chosen by its author. A name carrying one would spell
+/// path segments of its own, and an id joined for display could no longer
+/// tell `name = "a::B"` from a `B` declared in a module `a`.
+pub fn validate_spec_name(
+    span: proc_macro2::Span,
+    name: &str,
+) -> Result<(), Error> {
+    if name.contains("::") {
+        return Err(Error::new(
+            span,
+            format!(
+                "name = {name:?} must not contain `::` (it replaces only \
+                 the final segment of the spec id; the module path comes \
+                 from where the type is declared)"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_spec_name_without_a_path_separator_is_accepted() {
+        validate_spec_name(proc_macro2::Span::call_site(), "SpecPayload")
+            .unwrap();
+    }
+
+    /// Wherever it sits, a `::` would read as a path separator.
+    #[test]
+    fn a_spec_name_carrying_a_path_separator_anywhere_is_rejected() {
+        for name in ["spelled::Out", "::Out", "Out::", "::", "a::b::C"] {
+            let err = validate_spec_name(proc_macro2::Span::call_site(), name)
+                .unwrap_err();
+            assert!(
+                err.to_string().contains("must not contain `::`"),
+                "{name:?}: {err}"
+            );
+        }
+    }
+}

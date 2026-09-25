@@ -3,11 +3,11 @@
 //! itself by a fully qualified id -- declaring crate, major version, module
 //! path and declared name -- not by its bare ident.
 //!
-//! The segments travel apart rather than joined into one string. `name =
-//! "..."` is substituted verbatim and may carry `::`, so a joined id could
-//! not be split back into module path and declared name; see
-//! `a_custom_name_carrying_a_path_is_taken_verbatim` for the case that
-//! forces it.
+//! The segments travel apart rather than joined into one string, each held
+//! whole from the declaration. `name = "..."` replaces only the declared
+//! segment and is refused if it carries `::` (the
+//! `contract_type_name_with_path` compile-fail fixture), so it cannot spell a
+//! module path of its own.
 //!
 //! A bare ident cannot tell two of them apart: two crates, or two modules of
 //! one crate, can each declare a `Meta`, and a spec that names both `Meta`
@@ -104,19 +104,6 @@ pub struct Payload {
     pub count: u32,
 }
 
-/// A name is substituted verbatim, `::` and all — nothing rejects one that
-/// spells extra segments.
-///
-/// It cannot forge an id outside this crate: the crate name and major version
-/// prefix every id, and both come from the declaring crate. So the most an
-/// author can do is collide with another of their own types, in a crate they
-/// control, which is their conflict to resolve — canonicalization still
-/// refuses two shapes under one id.
-#[contract_type(name = "spelled::Out")]
-pub struct SpelledOut {
-    pub v: u32,
-}
-
 /// A type that references another user-defined type in a field.
 #[contract_type]
 pub struct Wrapper {
@@ -171,15 +158,6 @@ fn every_id_is_rooted_at_the_declaring_crate_and_major() {
 #[test]
 fn custom_name_replaces_the_final_segment_only() {
     assert_id(<Payload as ContractTypeName>::NAME, "", "SpecPayload");
-}
-
-#[test]
-fn a_custom_name_carrying_a_path_is_taken_verbatim() {
-    // The whole value lands in `declared`, `::` and all, and the module path
-    // is untouched. Joined into one string these two segments would be
-    // indistinguishable from a type `Out` declared in a module `spelled` --
-    // which is precisely why they are not joined.
-    assert_id(<SpelledOut as ContractTypeName>::NAME, "", "spelled::Out");
 }
 
 #[test]
@@ -361,4 +339,36 @@ fn without_a_declared_version_the_id_takes_the_crates() {
         "",
         "UnpinnedError",
     );
+}
+
+// --- A declared name renames an exception's id and selector alike -----------
+
+/// `#[contract_exception(name = "...")]` renames the type in both of its
+/// identities: the spec id's declared segment and the selector preimage.
+#[contract_exception(name = "SpecRenamedError")]
+pub enum RenamedError {
+    Denied = 1,
+}
+
+#[test]
+fn a_declared_name_renames_an_exceptions_id() {
+    assert_id(
+        <RenamedError as ContractTypeName>::NAME,
+        "",
+        "SpecRenamedError",
+    );
+}
+
+#[test]
+fn a_declared_name_renames_an_exceptions_selector() {
+    let selector = |type_name: &str| {
+        groundhog_contract_util::exception_selector(
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_NAME"),
+            type_name,
+        )
+    };
+    let actual = <RenamedError as sdk::exn::Exn>::SELECTOR;
+    assert_eq!(actual, selector("SpecRenamedError"));
+    assert_ne!(actual, selector("RenamedError"), "not the ident's");
 }

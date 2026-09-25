@@ -38,13 +38,15 @@ fn check_enum_discriminants(
 /// Shared helper: generate `impl ContractTypeName for #ident`.
 /// Used by both `#[contract_type]` and `#[contract_exception]`.
 ///
-/// `name = "..."` replaces the final segment of the id, substituted verbatim:
-/// a value carrying `::` spells its own segments, and nothing rejects it. The
-/// crate name and major version still prefix every id and come from the
-/// declaring crate, so a name cannot reach another crate's id — the most it
-/// can do is collide with another type in its own, which is the author's
-/// conflict to resolve. The id itself comes from
-/// [`common::spec_id::spec_id_tokens`], which every spec-named item shares.
+/// `name = "..."` replaces the final segment of the id, substituted verbatim.
+/// Both callers first reject a value carrying `::`
+/// ([`common::util::validate_spec_name`]), so a name cannot spell segments of
+/// its own: the module path is always the declaration's. The crate name and
+/// major version still prefix every id and come from the declaring crate, so a
+/// name cannot reach another crate's id — the most it can do is collide with
+/// another type in its own, which is the author's conflict to resolve. The id
+/// itself comes from [`common::spec_id::spec_id_tokens`], which every
+/// spec-named item shares.
 ///
 /// `version` is the item's declared identity version, or `None` for the
 /// crate's. `#[contract_exception(version = "...")]` pins one to hold its
@@ -305,6 +307,9 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
 /// full convenience macro: derives + `#[repr(i32)]` + `impl Exn` +
 /// `impl ContractTypeName`.
 ///
+/// `name = "..."` renames the type in the spec as it does for
+/// `#[contract_type]`, and may not contain `::` either.
+///
 /// # Exception payloads cannot carry auth tokens
 ///
 /// No field may be — or contain — a `sdk::signer::Signed`.
@@ -373,6 +378,10 @@ pub fn derive_event(input: TokenStream) -> TokenStream {
 /// `Preimage` mirror is `AuthTokenPreimage<T::Preimage>`.
 ///
 /// Enum variants must carry explicit discriminants.
+///
+/// `name = "..."` renames the type in the spec: it replaces the final segment
+/// of the type's spec id, and may not contain `::` (the module path is always
+/// the one the type is declared in).
 #[proc_macro_attribute]
 pub fn contract_type(
     attr_args: TokenStream,

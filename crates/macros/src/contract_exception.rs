@@ -7,7 +7,7 @@ use syn::Item;
 #[derive(Debug, Default, FromMeta)]
 pub struct ContractExceptionArgs {
     pub version: Option<SpannedValue<String>>,
-    pub name: Option<String>,
+    pub name: Option<SpannedValue<String>>,
 }
 
 /// Expand `#[contract_exception]` or `#[contract_exception(version = "...")]`
@@ -21,6 +21,12 @@ pub fn expand(args: ContractExceptionArgs, item: Item) -> TokenStream {
             version.span(),
             version,
         )
+    {
+        return err.into_compile_error();
+    }
+    if let Some(name) = &args.name
+        && let Err(err) =
+            crate::common::util::validate_spec_name(name.span(), name)
     {
         return err.into_compile_error();
     }
@@ -61,7 +67,7 @@ fn expand_contract_type_name(
     crate::contract_type_name_impl(
         &crate::common::contract::sdk_crate_path(),
         ident,
-        args.name.as_deref(),
+        args.name.as_ref().map(|name| name.as_str()),
         // The same version the selector is derived from, so the two identities
         // cannot drift: a pinned exception keeps both across a crate release.
         args.version.as_ref().map(|version| version.as_str()),
