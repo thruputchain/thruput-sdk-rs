@@ -77,8 +77,10 @@ must not reinterpret deltas as remaining allowances. Spending emits only the
 token movement, so callers still query `allowance` for the remainder.
 
 Standing allowances do not expire. For a transfer with a deadline, use
-`ERC20Permit::transfer_from_signed` with an expiring signed operation. It consumes
-the grant and transfers immediately without using or changing any allowance.
+`ERC20Permit::transfer_from_signed` with `PermitAction::Transfer` and an expiring
+signed operation. The action is bound in both the signed request and the grant;
+a transfer grant cannot create a standing allowance. The wallet must bound the
+grant lifetime to the operation expiry.
 Signed `permit` instead records an allowance that survives the operation's expiry.
 A bridge withdrawal must authenticate its destination and operation separately.
 

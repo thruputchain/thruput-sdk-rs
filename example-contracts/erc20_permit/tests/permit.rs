@@ -19,8 +19,8 @@
 
 use ed25519_dalek::{Signer, SigningKey};
 use erc20_permit::{
-    ERC20Client, ERC20PermitClient, ERC20PermitError, PermitGrant,
-    PermitRequest,
+    ERC20Client, ERC20PermitClient, ERC20PermitError, PermitAction,
+    PermitGrant, PermitRequest,
 };
 use groundhog_domain_separator::SignedOp as SignedOpPreimage;
 use groundhog_signed_op_if::{Operation, SignedOpClient, SignedOpError};
@@ -156,6 +156,7 @@ fn sign(
 /// `token_address()`, spendable by `spender()`.
 fn standard_request() -> PermitRequest {
     PermitRequest {
+        action: PermitAction::Approve,
         token: token_address(),
         spender: spender(),
         amount: GRANTED,
@@ -305,7 +306,8 @@ fn permit_records_an_allowance_the_spender_can_draw_on() {
 #[test]
 fn transfer_from_signed_moves_the_balance_and_leaves_no_allowance() {
     let env = setup();
-    let (op, signature) = alice_permit(&env);
+    let (op, signature) =
+        sign_action(PermitAction::Transfer, current_height(&env));
 
     env.transact(|tx| {
         tx.call(&spender()).run(move || {
@@ -327,7 +329,8 @@ fn transfer_from_signed_moves_the_balance_and_leaves_no_allowance() {
 #[test]
 fn only_the_named_spender_may_redeem_a_grant_directly() {
     let env = setup();
-    let (op, signature) = alice_permit(&env);
+    let (op, signature) =
+        sign_action(PermitAction::Transfer, current_height(&env) + HORIZON);
 
     // The grant is genuine — Alice signed it — but it names `spender()`, and
     // `receiver()` is the one presenting it.
@@ -578,6 +581,7 @@ fn signed_amount(
         nonce,
         current_height(env) + HORIZON,
         &PermitRequest {
+            action: PermitAction::Approve,
             token: token_address(),
             spender: spender(),
             amount,
@@ -647,4 +651,65 @@ fn independent_signed_grants_for_same_pair_conflict_and_can_retry() {
     submit_permit(&env, op, signature).assert_success();
     env.advance_block();
     assert_eq!(allowance(&env), GRANTED);
+}
+
+fn sign_action(
+    action: PermitAction,
+    expiry: BlockHeight,
+) -> (Operation, Ed25519Signature) {
+    let mut request = standard_request();
+    request.action = action;
+    sign(&ALICE_SEED, &wallet_address(), 0, expiry, &request)
+}
+
+#[test]
+fn transfer_grant_cannot_be_converted_to_a_standing_allowance() {
+    let env = setup();
+    let expiry = current_height(&env);
+    let (op, signature) = sign_action(PermitAction::Transfer, expiry.clone());
+    let result = submit_permit(&env, op, signature);
+    assert_eq!(
+        result.assert_abort_as::<ERC20PermitError>(),
+        ERC20PermitError::WrongAction
+    );
+    result.assert_no_events();
+    env.advance_block();
+    assert_eq!(allowance(&env), 0);
+    assert_eq!(balance_of(&env, wallet_address()), MINTED);
+    let (op, signature) = sign_action(PermitAction::Transfer, expiry);
+    assert_wallet_refuses!(&env, op, signature, SignedOpError::Expired);
+}
+
+#[test]
+fn allowance_grant_cannot_be_used_for_an_immediate_transfer() {
+    let env = setup();
+    let (op, signature) = alice_permit(&env);
+    let result = env.transact(|tx| {
+        tx.call(&spender()).run(move || {
+            ERC20PermitClient::new(&token_address())
+                .transfer_from_signed(mint_grant(op, &signature), &receiver());
+        })
+    });
+    assert_eq!(
+        result.assert_abort_as::<ERC20PermitError>(),
+        ERC20PermitError::WrongAction
+    );
+    result.assert_no_events();
+    env.advance_block();
+    assert_eq!(allowance(&env), 0);
+    assert_eq!(balance_of(&env, wallet_address()), MINTED);
+}
+
+#[test]
+fn changing_the_signed_action_is_refused() {
+    let env = setup();
+    let expiry = current_height(&env) + HORIZON;
+    let (_, signature) = sign_action(PermitAction::Transfer, expiry.clone());
+    let (op, _) = sign_action(PermitAction::Approve, expiry);
+    assert_wallet_refuses!(
+        &env,
+        op,
+        signature,
+        SignedOpError::InvalidSignature
+    );
 }

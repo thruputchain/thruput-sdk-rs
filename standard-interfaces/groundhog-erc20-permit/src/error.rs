@@ -12,4 +12,10 @@ pub enum ERC20PermitError {
     /// owner authorized.
     #[cfg_attr(feature = "dev", error("Caller is not the authorized spender"))]
     NotSpender = 1,
+    /// The grant authorizes a different operation.
+    #[cfg_attr(
+        feature = "dev",
+        error("Grant authorizes a different operation")
+    )]
+    WrongAction = 2,
 }

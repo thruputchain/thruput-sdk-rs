@@ -490,6 +490,8 @@ fn signed_transfer_checks_holder_policy_and_leaves_no_allowance() {
                 AuthTokenPreimage {
                     consumer: TOKEN,
                     data: GrantData {
+                        action:
+                            <PermitAction as MintableType>::Preimage::Transfer,
                         spender: ALICE,
                         amount: 5,
                     },

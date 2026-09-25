@@ -1,7 +1,9 @@
 //! ERC20 state and the two grant-consuming entrypoints.
 
 use groundhog_erc20_if::*;
-use groundhog_erc20_permit_if::{ERC20Permit, ERC20PermitError, PermitGrant};
+use groundhog_erc20_permit_if::{
+    ERC20Permit, ERC20PermitError, PermitAction, PermitGrant,
+};
 use sdk::signer::Signed;
 use sdk::storage::{Balance, Deletable, Map, Value};
 use sdk::*;
@@ -191,14 +193,15 @@ impl ERC20 for PermitToken {
     }
 }
 
-// The owner of a grant is whoever minted it. `consume` reports that address
-// from the runtime, so it is the one fact about a permit the submitter cannot
-// choose; the grant's payload says the rest. Reaching this contract at all
-// already proves the grant was minted for it.
+// Successful consumption verifies the consumer and returns the minter.
 #[contract(version = "0.1.0")]
 impl ERC20Permit for PermitToken {
     fn permit(&mut self, grant: Signed<PermitGrant>) {
         let (grant, owner) = grant.consume();
+        ensure(
+            matches!(grant.action, PermitAction::Approve),
+            ERC20PermitError::WrongAction,
+        );
         self.set_allowance(&owner, &grant.spender, grant.amount);
     }
 
@@ -208,8 +211,10 @@ impl ERC20Permit for PermitToken {
         receiver: &ContractAddress,
     ) {
         let (grant, owner) = grant.consume();
-        // The grant names who may spend it; the caller must be them. No
-        // allowance is written, so this is the whole authorization check.
+        ensure(
+            matches!(grant.action, PermitAction::Transfer),
+            ERC20PermitError::WrongAction,
+        );
         if get_caller() != grant.spender {
             throw(ERC20PermitError::NotSpender);
         }
