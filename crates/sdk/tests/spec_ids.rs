@@ -340,3 +340,35 @@ fn without_a_declared_version_the_id_takes_the_crates() {
         "UnpinnedError",
     );
 }
+
+// --- A declared name renames an exception's id and selector alike -----------
+
+/// `#[contract_exception(name = "...")]` renames the type in both of its
+/// identities: the spec id's declared segment and the selector preimage.
+#[contract_exception(name = "SpecRenamedError")]
+pub enum RenamedError {
+    Denied = 1,
+}
+
+#[test]
+fn a_declared_name_renames_an_exceptions_id() {
+    assert_id(
+        <RenamedError as ContractTypeName>::NAME,
+        "",
+        "SpecRenamedError",
+    );
+}
+
+#[test]
+fn a_declared_name_renames_an_exceptions_selector() {
+    let selector = |type_name: &str| {
+        groundhog_contract_util::exception_selector(
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_NAME"),
+            type_name,
+        )
+    };
+    let actual = <RenamedError as sdk::exn::Exn>::SELECTOR;
+    assert_eq!(actual, selector("SpecRenamedError"));
+    assert_ne!(actual, selector("RenamedError"), "not the ident's");
+}
