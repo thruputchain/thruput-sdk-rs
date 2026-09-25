@@ -25,11 +25,12 @@ fn to_spec_string(s: &str) -> ContractSpecString {
 /// Const-friendly view of a [`ContractSpecId`]: what a user-defined type or
 /// event is called in a spec.
 ///
-/// The segments are carried apart because the joined
-/// `CRATE@MAJOR::module::path::Name` form cannot be split back -- `name =
-/// "..."` substitutes its value verbatim, `::` and all -- and because every
-/// segment is something the declaring macro already holds whole, so nothing
-/// here is parsed out of anything.
+/// The segments are carried apart because every segment is something the
+/// declaring macro already holds whole, so nothing here is parsed out of
+/// anything. Nor could a joined `CRATE@MAJOR::module::path::Name` form be
+/// relied on to split back: the SDK's macros refuse `::` in `name = "..."`,
+/// but nothing stops a hand-written `ContractTypeName` impl from putting one
+/// in `declared`.
 #[derive(
     Debug,
     Clone,
@@ -52,7 +53,8 @@ pub struct ContractSpecIdView<'a> {
     /// and all -- so its spelling of the crate is the underscored Rust ident,
     /// not `crate_name`'s.
     pub module_path: &'a str,
-    /// The declared name, verbatim. May itself contain `::`.
+    /// The declared name, verbatim. The SDK's macros never put `::` in it,
+    /// but a hand-written `ContractTypeName` impl may.
     pub declared: &'a str,
 }
 

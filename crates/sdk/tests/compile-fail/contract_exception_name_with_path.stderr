@@ -1,0 +1,5 @@
+error: name = "spelled::Out" must not contain `::` (it replaces only the final segment of the spec id; the module path comes from where the type is declared)
+ --> tests/compile-fail/contract_exception_name_with_path.rs:5:34
+  |
+5 | #[sdk::contract_exception(name = "spelled::Out")]
+  |                                  ^^^^^^^^^^^^^^
