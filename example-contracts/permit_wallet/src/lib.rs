@@ -18,7 +18,7 @@
 
 sdk::declare_mock_contract!();
 
-use groundhog_erc20_permit_if::{PermitGrant, PermitRequest};
+use groundhog_erc20_permit_if::{PermitAction, PermitGrant, PermitRequest};
 use groundhog_signed_op::{Operation, SignedOp, SignedOpReplayCache};
 use sdk::mintable::{AuthTokenPreimage, MintableType};
 use sdk::signer::{Opaque, Signed};
@@ -129,6 +129,14 @@ impl SignedOp for PermitWallet {
             AuthTokenPreimage {
                 consumer: request.token,
                 data: PermitGrantPreimage {
+                    action: match request.action {
+                        PermitAction::Approve => {
+                            <PermitAction as MintableType>::Preimage::Approve
+                        }
+                        PermitAction::Transfer => {
+                            <PermitAction as MintableType>::Preimage::Transfer
+                        }
+                    },
                     spender: request.spender,
                     amount: request.amount,
                 },

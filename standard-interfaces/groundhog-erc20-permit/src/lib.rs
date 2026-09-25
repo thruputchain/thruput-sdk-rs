@@ -11,8 +11,8 @@
 //! The submitter passes that token down into [`ERC20Permit::permit`] or
 //! [`ERC20Permit::transfer_from_signed`], and the token contract consumes it,
 //! learning the owner from the runtime as the minter address. Nothing the
-//! submitter says about who is approving is trusted; a grant cannot reach any
-//! contract but its named consumer, and cannot be consumed twice.
+//! submitter says about who is approving is trusted. Successful consumption
+//! verifies the consumer, returns the minter, and prevents reuse of the grant.
 //!
 //! Taking a `Signed<PermitGrant>` rather than an operation and a signature is
 //! what keeps this interface independent of *how* the owner authorizes. A
@@ -34,9 +34,10 @@
 //!
 //! [`ERC20Permit::transfer_from_signed`] consumes the grant and transfers its
 //! amount immediately, without reading or changing any stored allowance.
-//! Use this method with an expiring signed operation when the transfer itself
-//! must occur by a deadline. The wallet checks the operation's expiry;
-//! the token contract consumes the grant in the same transaction.
+//! Sign [`PermitAction::Transfer`] with an expiring operation when the transfer
+//! must occur by a deadline. The wallet must check expiry and bound the grant
+//! lifetime to it; the reference wallet mints for the current block only.
+//! The token rejects transfer grants in `permit`.
 
 mod error;
 pub use error::*;
@@ -45,7 +46,18 @@ use groundhog_erc20_if::{Amount, ERC20Error};
 use sdk::signer::Signed;
 use sdk::{ContractAddress, contract};
 
-/// The body an owner signs to approve a spender: the payload of the signed
+/// The operation authorized by a signed request and its grant.
+/// This discriminator is encoded in both payloads; Rust type names alone do
+/// not restrict which method can consume an auth token.
+#[sdk::contract_type]
+pub enum PermitAction {
+    /// Replace the standing allowance through `permit`.
+    Approve = 0,
+    /// Transfer immediately through `transfer_from_signed`.
+    Transfer = 1,
+}
+
+/// The body an owner signs to authorize a spender: the payload of the signed
 /// operation their wallet verifies.
 ///
 /// The token contract never sees this type; it is the contract between the
@@ -60,7 +72,8 @@ use sdk::{ContractAddress, contract};
 /// different token contract. The wallet uses it as the grant's consumer.
 #[sdk::contract_type]
 pub struct PermitRequest {
-    /// The token contract the approval is for.
+    pub action: PermitAction,
+    /// The token contract the authorization is for.
     pub token: ContractAddress,
     /// Who may spend.
     pub spender: ContractAddress,
@@ -77,37 +90,36 @@ pub struct PermitRequest {
 /// the node's consumer, so no other contract can consume it.
 #[sdk::contract_type]
 pub struct PermitGrant {
+    pub action: PermitAction,
     pub spender: ContractAddress,
     pub amount: Amount,
 }
 
 /// An ERC20 that accepts approvals as auth tokens.
 ///
-/// Both methods take a [`PermitGrant`] token and treat its minter as the
-/// owner. The caller obtained it from the owner's wallet in this same frame —
-/// typically `SignedOp::execute_signed_op` — and passes it down; the token
-/// contract has no opinion about how it was minted.
+/// Both methods consume a [`PermitGrant`] and treat its minter as the owner.
+/// The grant action must match the method.
 ///
 /// # Error contract
 ///
 /// The base implementation throws these errors. Issuer-policy extensions
 /// may also reject the operation with their own errors.
 ///
+/// - [`ERC20PermitError::WrongAction`] — the grant authorizes the other method.
 /// - [`ERC20PermitError::NotSpender`] — `transfer_from_signed` called by
 ///   anyone other than the grant's `spender`.
 /// - [`ERC20Error::TooLarge`] — the amount exceeds `i128::MAX`, or
 ///   `transfer_from_signed` exceeds the owner's balance. `permit` does not
 ///   require a balance to cover the allowance.
 ///
-/// A grant minted for another token never reaches the implementation: the
-/// runtime refuses to consume a token at any contract but its named consumer.
+/// The runtime refuses consumption at any contract but the named consumer.
 #[contract(
     client = ERC20PermitClient,
     throws(ERC20PermitError, ERC20Error)
 )]
 pub trait ERC20Permit {
-    /// Consume `grant` and record the resulting allowance for its minter, to
-    /// be spent later through `transfer_from`.
+    /// Consume an [`Approve`](PermitAction::Approve) grant and set its minter's
+    /// allowance for later spending through `transfer_from`.
     ///
     /// Replace the remaining allowance with the granted amount, as with
     /// [`ERC20Client::approve`](groundhog_erc20_if::ERC20Client::approve). Zero revokes.
@@ -116,8 +128,8 @@ pub trait ERC20Permit {
     /// expiry before minting the grant; the stored allowance does not expire.
     fn permit(&mut self, grant: Signed<PermitGrant>);
 
-    /// Consume `grant` and immediately transfer the granted amount from its
-    /// minter to `receiver`. Existing allowances are neither used nor changed.
+    /// Consume a [`Transfer`](PermitAction::Transfer) grant and transfer its
+    /// amount from its minter to `receiver`. Existing allowances are unchanged.
     ///
     /// The caller must be the grant's `spender` — the same authority
     /// `transfer_from` gives a spender under an allowance, including the

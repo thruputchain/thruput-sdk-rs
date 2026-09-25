@@ -380,6 +380,10 @@ impl ERC20Burn for TokenContract {
 impl ERC20Permit for TokenContract {
     fn permit(&mut self, grant: Signed<PermitGrant>) {
         let (grant, owner) = grant.consume();
+        ensure(
+            matches!(grant.action, PermitAction::Approve),
+            ERC20PermitError::WrongAction,
+        );
         self.set_allowance(&owner, &grant.spender, grant.amount);
     }
 
@@ -389,6 +393,10 @@ impl ERC20Permit for TokenContract {
         receiver: &ContractAddress,
     ) {
         let (grant, owner) = grant.consume();
+        ensure(
+            matches!(grant.action, PermitAction::Transfer),
+            ERC20PermitError::WrongAction,
+        );
         ensure(get_caller() == grant.spender, ERC20PermitError::NotSpender);
         self.move_tokens(&owner, receiver, grant.amount);
     }

@@ -130,7 +130,8 @@ impl ERC20Client {
     ///
     /// A spender may use the old allowance before this transaction executes.
     /// Stored allowances do not expire. For spending with a deadline, use
-    /// `ERC20Permit::transfer_from_signed` with an expiring signed operation.
+    /// `ERC20Permit::transfer_from_signed` with a transfer-only grant from an
+    /// expiring signed operation.
     pub fn approve(&self, spender: &ContractAddress, amount: Amount) {
         let target = amount_to_diff(amount);
         let current = amount_to_diff(
