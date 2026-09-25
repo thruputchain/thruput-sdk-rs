@@ -53,13 +53,35 @@ impl Model {
     }
 
     pub fn approve(&mut self, spender: &ContractAddress, amount: Amount) {
+        let old = self
+            .allowances
+            .get(&(self.get_caller(), *spender))
+            .copied()
+            .unwrap_or(0);
+        let difference =
+            i128::try_from(amount).unwrap() - i128::try_from(old).unwrap();
+        self.increase_allowance(spender, difference);
+    }
+
+    pub fn increase_allowance(
+        &mut self,
+        spender: &ContractAddress,
+        difference: Difference,
+    ) {
         let owner = self.get_caller();
-        self.allowances.insert((owner, *spender), amount);
-        let event = ERC20Event::Approval(ApprovalEvent::new(
-            &owner,
-            spender,
-            amount.try_into().unwrap(),
+        let allowance = self.allowances.entry((owner, *spender)).or_insert(0);
+        *allowance = allowance.checked_add_signed(difference).unwrap();
+        let event = ERC20Event::AllowanceChange(AllowanceChangeEvent::new(
+            &owner, spender, difference,
         ));
+        self.events.push((&event).into());
+    }
+
+    pub fn clear_allowance(&mut self, spender: &ContractAddress) {
+        let owner = self.get_caller();
+        self.allowances.insert((owner, *spender), 0);
+        let event =
+            ERC20Event::Approval(ApprovalEvent::new(&owner, spender, 0));
         self.events.push((&event).into());
     }
 

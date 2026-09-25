@@ -93,29 +93,43 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     client.burn(other, amt);
     m.burn(other, amt);
 
-    // Approve spending by "other"
-    let amt = 17;
-    client.approve(other, amt);
-    m.approve(other, amt);
-
-    // Lower the allowance.
-    client.approve(other, 7);
-    m.approve(other, 7);
-
-    // Absolute approval replaces the remainder, including an identical grant.
-    for amount in [23, 23, 9, 0, i128::MAX as u128, 7] {
+    // Exercise the replacement helper and its signed amount boundary.
+    for amount in [23, 0, i128::MAX as u128, 7] {
         client.approve(other, amount);
         m.approve(other, amount);
         m.check_allowances(&client);
     }
+    for difference in [10, -4, 0] {
+        client.increase_allowance(other, difference, false);
+        m.increase_allowance(other, difference);
+        m.check_allowances(&client);
+    }
     #[cfg(not(feature = "no_check_aborts"))]
-    assert_eq!(
-        client
-            .try_approve(other, i128::MAX as u128 + 1)
-            .unwrap_err()
-            .try_as(),
-        Some(ERC20Error::TooLarge),
-    );
+    {
+        assert_eq!(
+            client
+                .try_increase_allowance(other, -14, false)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::TooLarge),
+        );
+        assert_eq!(
+            client
+                .try_increase_allowance(other, i128::MAX, false)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::TooLarge),
+        );
+        assert_eq!(
+            client.try_clear_balance().unwrap_err().try_as(),
+            Some(ERC20Error::BalanceNotZero),
+        );
+    }
+    for _ in 0..2 {
+        client.clear_allowance(other);
+        m.clear_allowance(other);
+        m.check_allowances(&client);
+    }
 
     // Check client state against the model
     m.check(&client);

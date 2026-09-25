@@ -4,7 +4,7 @@
 //! divergences where it can't.
 
 #[test]
-#[ignore = "requires the native approval runtime from hogd#4145; run with its HOGD_FFI_LIB_DIR"]
+#[ignore = "requires a native HOG runtime implementing increase_allowance and clear operations"]
 fn run_test() {
     let env = sdk::TestEnvironment::no_cost();
     erc20_native_test::test_native_token_precompile(env);
