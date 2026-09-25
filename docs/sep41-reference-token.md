@@ -11,8 +11,7 @@ calls for ordinary tokens, native HOG and wrapped Stellar assets.
   `approve(spender, amount)`. Zero revokes. Amounts are `u128`, bounded to
   `i128::MAX` to match storage and Stellar's positive amount range.
 - `ERC20Metadata`: names, symbols and decimals. Symbols now allow 12 bytes,
-  including classic Stellar asset codes. Older clients with a 10-byte bound
-  need updating to decode longer symbols.
+  including classic Stellar asset codes.
 - `ERC20Admin`: initialize metadata and immutable policy; rotate admin/minter.
 - `ERC20Authorization`: authorize or freeze holders.
 - `ERC20Clawback`: forced destruction when policy permits it.
@@ -51,13 +50,6 @@ approval does not eliminate that familiar ordering race.
 one absolute `ApprovalEvent`. The old relative endpoint and delta event are
 removed. Spending emits only the token movement; query `allowance` for the
 remaining grant. This preserves mergeable allowance debits.
-
-This is a coordinated breaking change. `ApprovalEvent` retains its signature
-but now carries an absolute amount, so historical delta events require the
-old contract/release context. Rebuild clients and deploy the matching native
-runtime together. Previously issued additive permits must be invalidated or
-allowed to expire before migrating an existing token. Renaming the controls
-crate and interfaces also changes their event signatures and method selectors.
 
 There is no expiry field on a standing allowance. `Signed<PermitGrant>` expires
 at the runtime's Groundhog block height. `transfer_from_signed` consumes it and
@@ -125,5 +117,5 @@ HOGD_FFI_LIB_DIR=/path/to/test-ffi cargo test -p erc20-native-test --test native
 Remove the ignore when the SDK pins an FFI release containing native approval.
 No published native deployment is implied by these local tests.
 
-Bridge accounting, recipient authorization, replay and migration requirements
+Bridge accounting, recipient authorization and replay requirements
 are tracked in the [Groundhog Bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
