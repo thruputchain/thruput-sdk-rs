@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 pub mod describe;
+pub mod lint;
 pub mod raw;
 
 pub use groundhog_contract_spec::{
@@ -11,6 +12,7 @@ pub use groundhog_contract_spec::{
     ContractUnionCaseType, ContractUnionDef, SpecFragment,
     SpecInterfaceFragment, SpecMethodFragment,
 };
+pub use lint::{SpecWarning, spec_warnings};
 pub use raw::{
     FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
     RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,

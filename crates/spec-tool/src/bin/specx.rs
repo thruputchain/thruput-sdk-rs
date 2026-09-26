@@ -110,6 +110,9 @@ fn main() {
 
     match spec {
         Some(spec) => {
+            for warning in groundhog_spec_tool::spec_warnings(&spec) {
+                eprintln!("specx: warning: {warning}");
+            }
             std::fs::write(&out_path, render_spec_json(&spec)).expect("write");
             eprintln!("specx: wrote {out_path}");
         }
