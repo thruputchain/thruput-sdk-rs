@@ -299,7 +299,7 @@ impl ERC20Admin for TokenContract {
         self.administrator.set_exclusive(new_admin);
         SetAdminEvent {
             admin: &admin,
-            new_admin: *new_admin,
+            new_admin,
         }
         .log();
     }
@@ -313,7 +313,7 @@ impl ERC20Admin for TokenContract {
         self.mint_authority.set_exclusive(new_minter);
         SetMinterEvent {
             minter: &minter,
-            new_minter: *new_minter,
+            new_minter,
         }
         .log();
     }

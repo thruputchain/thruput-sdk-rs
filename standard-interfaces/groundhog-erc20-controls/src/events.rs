@@ -24,14 +24,14 @@ pub struct SetAuthorizedEvent<'a> {
 pub struct SetAdminEvent<'a> {
     #[topic]
     pub admin: &'a ContractAddress,
-    pub new_admin: ContractAddress,
+    pub new_admin: &'a ContractAddress,
 }
 
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct SetMinterEvent<'a> {
     #[topic]
     pub minter: &'a ContractAddress,
-    pub new_minter: ContractAddress,
+    pub new_minter: &'a ContractAddress,
 }
 
 impl ClawbackEvent<'_> {
