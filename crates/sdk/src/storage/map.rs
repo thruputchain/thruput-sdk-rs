@@ -68,6 +68,12 @@ impl<K, V> Map<K, V> {
         SlotMut::new(self, slot)
     }
 
+    /// Like [`at_mut`](Self::at_mut), but every successful write through the
+    /// returned handle is followed by a request for an exclusive lock on the
+    /// entry, so concurrent writers to it conflict. The lock lasts for the
+    /// rest of the transaction: later writes through ordinary handles keep
+    /// it, and only `clear_flags` removes it. Building, reading or dropping
+    /// the handle requests nothing.
     pub fn at_mut_exclusive(&mut self, entry_key: &K) -> SlotMut<'_, Self, V>
     where
         K: WriteXDR,

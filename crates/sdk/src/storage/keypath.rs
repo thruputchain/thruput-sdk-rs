@@ -160,7 +160,10 @@ impl Keypath {
         self.exclusive = true;
     }
 
-    pub fn flags(&self) -> StorageDeltaFlags {
+    /// The flags each write through a handle on this keypath requests after
+    /// it succeeds: `ExclusiveLock` for an exclusive keypath. This is the
+    /// handle's write policy, not the host's current flags for the key.
+    pub fn write_flags(&self) -> StorageDeltaFlags {
         if self.exclusive {
             StorageDeltaFlags::ExclusiveLock
         } else {
@@ -529,7 +532,9 @@ mod leaf_key {
             self.exclusive
         }
 
-        pub fn flags(&self) -> StorageDeltaFlags {
+        /// The flags each write through this leaf requests after it
+        /// succeeds; see [`Keypath::write_flags`].
+        pub fn write_flags(&self) -> StorageDeltaFlags {
             if self.exclusive {
                 StorageDeltaFlags::ExclusiveLock
             } else {

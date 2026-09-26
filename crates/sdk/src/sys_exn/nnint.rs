@@ -78,7 +78,8 @@ pub fn non_negative_int_set(key: &StorageKey, set_value: i128) {
 /// This behaves like [`non_negative_int_set`], with the additional constraint
 /// that, if a concurrent exclusive-set operation is performed by another
 /// contract invocation, only one such invocation can be included in the same
-/// block.
+/// block. The set is followed by a request for an exclusive lock, which later
+/// writes to the key in this transaction keep.
 ///
 pub fn non_negative_int_set_exclusive(key: &StorageKey, set_value: i128) {
     nnint::set_add(key, Some(set_value), 0, EXCLUSIVE);

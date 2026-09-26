@@ -10,9 +10,9 @@ pub trait Deletable {
     /// Delete storage for this node.
     ///
     /// Implementors OR the incoming `flags` with their keypath's own
-    /// exclusive flag before issuing the syscall. This makes exclusivity
-    /// additive: calling `delete()` on a slot accessed via
-    /// `at_mut_exclusive()` still uses exclusive locking.
+    /// exclusive flag and request the result once the deletion succeeds.
+    /// This makes exclusivity additive: calling `delete()` on a slot accessed
+    /// via `at_mut_exclusive()` still locks the deletion.
     fn delete_internal(&mut self, flags: StorageDeltaFlags);
 
     /// Delete using the keypath's own locking semantics.
@@ -20,7 +20,8 @@ pub trait Deletable {
         self.delete_internal(StorageDeltaFlags::None);
     }
 
-    /// Delete with an exclusive lock, regardless of keypath flag.
+    /// Delete, then request an exclusive lock, regardless of keypath flag.
+    /// Later writes in the transaction keep the lock.
     fn delete_exclusive(&mut self) {
         self.delete_internal(StorageDeltaFlags::ExclusiveLock);
     }

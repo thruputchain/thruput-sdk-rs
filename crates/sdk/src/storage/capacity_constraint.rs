@@ -175,8 +175,8 @@ impl CapacityConstraint {
         Ok(())
     }
 
-    fn flags(&self) -> StorageDeltaFlags {
-        self.key.flags()
+    fn write_flags(&self) -> StorageDeltaFlags {
+        self.key.write_flags()
     }
 
     /// Merge this handle's staged changes into the cell's pending values
@@ -207,7 +207,12 @@ impl CapacityConstraint {
         let add_value = a
             .checked_add(self.delta)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
-        nnint::try_set_add(key, self.capacity.or(s), add_value, self.flags())?;
+        nnint::try_set_add(
+            key,
+            self.capacity.or(s),
+            add_value,
+            self.write_flags(),
+        )?;
         self.capacity = None;
         self.delta = 0;
         Ok(())
@@ -233,7 +238,7 @@ impl super::deletable::Deletable for CapacityConstraint {
         // delete when this handle drops.
         self.capacity = None;
         self.delta = 0;
-        let effective = StorageDeltaFlags(flags.0 | self.flags().0);
+        let effective = StorageDeltaFlags(flags.0 | self.write_flags().0);
         crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
     }
 }

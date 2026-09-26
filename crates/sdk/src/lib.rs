@@ -142,6 +142,7 @@ pub mod sys_exn;
 // Currently-blessed primitive interfaces:
 pub use sys_exn::bytestring::*;
 pub use sys_exn::delete::*;
+pub use sys_exn::flags::*;
 pub use sys_exn::nnint::*;
 pub use sys_exn::rcq::*;
 

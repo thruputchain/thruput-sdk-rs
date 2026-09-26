@@ -30,9 +30,12 @@ use crate::re_throw::{OrReThrow, OrSyscallThrow};
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;
 
-/// Replace the "set" and "add" values.
+/// Replace the "set" and "add" values, then add `flags` to the key's storage
+/// flags.
 ///
-/// This discards any values previously present.
+/// This discards any values previously present. It leaves the key's flags as
+/// they are unless `flags` adds some; see
+/// [`sys_result::flags`](crate::sys_result::flags).
 ///
 /// This aborts if `set_value.is_some_and(|s| s + a < 0)`.
 ///
@@ -45,10 +48,10 @@ pub fn set_add(
     try_set_add(key, set_value, add_value, flags).or_re_throw()
 }
 
-/// Like [`set_add`], but report a syscall failure as `Err` instead of
-/// aborting. Callers that pre-check the negativity constraint (so the
-/// remaining error paths are invalid flags or host faults) use this to keep
-/// the `try_` law.
+/// Like [`set_add`], but report a failed write as `Err` instead of aborting.
+/// Callers that pre-check the negativity constraint (so the remaining error
+/// paths are host faults) use this to keep the `try_` law. A failed write
+/// requests no flags.
 #[inline]
 pub(crate) fn try_set_add(
     key: &StorageKey,
@@ -56,8 +59,10 @@ pub(crate) fn try_set_add(
     add_value: i128,
     flags: StorageDeltaFlags,
 ) -> Result<(), LibraryExn> {
-    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value, flags.0)
-        .or_syscall_exn(SyscallNo::kNonnegativeIntSetAdd)
+    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
+        .or_syscall_exn(SyscallNo::kNonnegativeIntSetAdd)?;
+    crate::sys_result::flags::request_after_write(key, flags);
+    Ok(())
 }
 
 /// Get the pending "set" and "add" values.

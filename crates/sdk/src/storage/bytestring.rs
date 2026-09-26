@@ -1,3 +1,4 @@
+use super::flags::leaf_flags_methods;
 use super::keypath::{Keypath, LeafKey};
 use crate::sys_exn::bytestring::*;
 use core::fmt::Debug;
@@ -51,8 +52,9 @@ impl Bytestring {
     }
 
     /// Stores `buf` at this key, overwriting any existing value (including one
-    /// of another type). Uses an exclusive store if this key's keypath is
-    /// exclusive.
+    /// of another type). If this key's keypath is exclusive, the write then
+    /// requests an exclusive lock; otherwise the key's storage flags stay as
+    /// they are.
     pub fn set(&mut self, buf: &[u8]) {
         if self.key.is_exclusive() {
             bytestring_set_exclusive(&self.key, buf);
@@ -96,6 +98,8 @@ impl Bytestring {
     ) -> Result<alloc::boxed::Box<[u8]>, crate::exn::LibraryExn> {
         bytestring_try_get(&self.key)
     }
+
+    leaf_flags_methods!();
 }
 
 impl super::sealed::Sealed for Bytestring {}

@@ -1,3 +1,4 @@
+use super::flags::leaf_flags_methods;
 use super::keypath::{Keypath, LeafKey};
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
@@ -46,9 +47,11 @@ impl From<Keypath> for Balance {
 impl Balance {
     pub const MAX: u128 = i128::MAX as u128;
 
-    fn flags(&self) -> StorageDeltaFlags {
-        self.key.flags()
+    fn write_flags(&self) -> StorageDeltaFlags {
+        self.key.write_flags()
     }
+
+    leaf_flags_methods!();
 
     /// Get the balance, treating a never-written location as zero.
     pub fn get(&self) -> u128 {
@@ -113,7 +116,7 @@ impl Balance {
         if total < 0 {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
-        nnint::try_set_add(key, Some(set), add, self.flags())
+        nnint::try_set_add(key, Some(set), add, self.write_flags())
     }
 
     /// Decrease by a non-negative amount, throwing immediately if the balance
@@ -157,7 +160,7 @@ impl Balance {
         if total < 0 {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
-        nnint::try_set_add(key, Some(set), add, self.flags())
+        nnint::try_set_add(key, Some(set), add, self.write_flags())
     }
 
     /// Increase by a non-negative amount without loading the current balance.
@@ -195,7 +198,7 @@ impl Balance {
         let add = add
             .checked_add(increment)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
-        nnint::try_set_add(key, set, add, self.flags())
+        nnint::try_set_add(key, set, add, self.write_flags())
     }
 
     /// Decrease by a non-negative amount without loading the current balance.
@@ -244,7 +247,7 @@ impl Balance {
                 return Err(LibraryExn::NonNegativeIntUnderflow);
             }
         }
-        nnint::try_set_add(key, set, add, self.flags())
+        nnint::try_set_add(key, set, add, self.write_flags())
     }
 }
 
@@ -253,7 +256,7 @@ impl super::node::StorageType for Balance {}
 
 impl super::deletable::Deletable for Balance {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let effective = StorageDeltaFlags(flags.0 | self.flags().0);
+        let effective = StorageDeltaFlags(flags.0 | self.write_flags().0);
         crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
     }
 }

@@ -13,6 +13,8 @@ use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
+use super::flags::request_after_write;
+
 /// Reports whether a bytestring exists at the given key.
 ///
 /// Returns `false` if nothing is there.
@@ -50,8 +52,11 @@ pub fn bytestring_get_len(key: &StorageKey) -> Result<u32> {
 /// If concurrent contract invocations set the location to the same bytestring,
 /// this will not cause any such invocations to abort.
 ///
+/// This leaves the key's storage flags as they are: a lock requested by an
+/// earlier exclusive write stays (see [`flags`](super::flags)).
+///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(key, slice, StorageDeltaFlags::None.0)
+    sys::raw_BytestringSet(key, slice)
 }
 
 /// Sets the value at the given key to the given bytestring.
@@ -61,8 +66,15 @@ pub fn bytestring_set(key: &StorageKey, slice: &[u8]) -> Result<()> {
 /// If concurrent contract invocations set the bytestring exclusively, only one
 /// such invocation can succeed without reverting.
 ///
+/// The write is followed by a request for
+/// [`ExclusiveLock`](StorageDeltaFlags::ExclusiveLock), which later writes to
+/// the key keep (see [`flags`](super::flags)). If the write fails, no lock is
+/// requested.
+///
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) -> Result<()> {
-    sys::raw_BytestringSet(key, slice, StorageDeltaFlags::ExclusiveLock.0)
+    sys::raw_BytestringSet(key, slice)?;
+    request_after_write(key, StorageDeltaFlags::ExclusiveLock);
+    Ok(())
 }
 
 /// Returns the bytestring contents in a statically-sized array.
