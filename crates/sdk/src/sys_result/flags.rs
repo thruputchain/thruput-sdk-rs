@@ -2,13 +2,11 @@
 //!
 //! A key's flags belong to the transaction's pending write to that key, not to
 //! any single write. Writes never change them: [`set_storage_flags`] adds
-//! flags, [`clear_storage_flags`] removes them all, and whatever the key's
-//! flags are when the transaction commits (or when a `TryInvoke` call pushes
-//! its changes) go with the key's delta. `ExclusiveLock` is the only flag
-//! today.
+//! flags and [`clear_storage_flags`] removes them all. `ExclusiveLock` is the
+//! only flag today.
 //!
-//! Flags follow frames: those set in a frame that reverts, or in a
-//! `TryInvoke` call that fails, are discarded with that frame's writes.
+//! Flags follow frames: changes made in a frame that aborts are discarded with
+//! that frame's writes.
 //!
 //! These routines are thin wrappers around VM syscalls. They return
 //! [`Result<T, E>`](core::result::Result) where `E` is a
@@ -44,12 +42,8 @@ pub fn set_storage_flags(
     sys::raw_SetStorageFlags(key, flags.0)
 }
 
-/// Removes every flag the current transaction requests for `key`. Does
-/// nothing if no write to `key` is pending.
-///
-/// If a `TryInvoke` call already pushed the flags, the transaction's next push
-/// withdraws the post-commit freeze they asked for; the key stays locked
-/// against other transactions until this one commits.
+/// Removes every flag the current transaction requests for `key`, as seen by
+/// the current call frame. Does nothing if no write to `key` is pending.
 pub fn clear_storage_flags(key: &StorageKey) -> Result {
     sys::raw_ClearStorageFlags(key)
 }
