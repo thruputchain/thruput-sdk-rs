@@ -7,18 +7,16 @@ calls for ordinary tokens, native HOG and wrapped Stellar assets.
 
 ## Interface
 
-- `ERC20`: transfers, balances, supply, `increase_allowance(spender, difference,
+- `ERC20`: transfers, balances, supply, `adjust_allowance(spender, difference,
   exclusive)`, `clear_allowance(spender)` and `clear_balance()`. Transfer amounts
   are `u128`, bounded to `i128::MAX`; allowance differences are `i128`.
-- `ERC20Client::approve`: an absolute replacement library helper. It is not a
-  token entrypoint.
 - `ERC20Metadata`: names, symbols and decimals. Symbols now allow 12 bytes,
   including classic Stellar asset codes.
 - `ERC20Admin`: initialize metadata and immutable policy; rotate admin/minter.
 - `ERC20Authorization`: authorize or freeze holders.
 - `ERC20Clawback`: forced destruction when policy permits it.
 - `ERC20Burn`: holder burns and allowance-funded burns.
-- `ERC20Permit`: existing signed grants, including immediate signed transfers.
+- `ERC20Permit`: one-shot signed transfers without stored allowances.
 
 The example is `example-contracts/erc20_issuer`. New controls live in
 `groundhog-erc20-controls-if`; there is no separate SEP-41 balance or transfer
@@ -42,46 +40,42 @@ Holder-authorized burns use `ERC20Burn`. Policy rejections are additional
 ## Allowance comparison
 
 This branch is an alternative to [SDK #479](https://github.com/groundhogchain/sdk_rs/pull/479).
-The issuer controls and signed-token model are shared. The core allowance calls differ:
+The issuer controls are shared. Allowances and signed transfers differ:
 
 | Operation | #479 | This branch |
 | --- | --- | --- |
-| Grant or reduce | Absolute `approve` | Signed `increase_allowance` difference |
+| Grant or reduce | Absolute `approve` | Signed `adjust_allowance` difference |
 | Concurrency | Every approval is exclusive | Caller selects `exclusive` |
-| Absolute replacement | Token entrypoint | `ERC20Client::approve` library helper |
+| Absolute replacement | Token entrypoint | Left to opt-in compatibility clients |
+| Signed authorization | Standing allowance or immediate transfer | Immediate transfer only |
 | Revoke and free storage | Set zero, retain entry | Exclusive `clear_allowance` deletion |
 | Empty balance cleanup | No method | Caller-only `clear_balance` deletion |
 
-`increase_allowance` checks that the local result stays in `0..=i128::MAX`.
+`adjust_allowance` checks that the local result stays in `0..=i128::MAX`.
 With `exclusive=false`, concurrent differences and spending may merge within
 those bounds. With `exclusive=true`, other writes to that owner/spender pair
 conflict, even when the difference is zero. Other pairs remain independent.
 
-The `approve` helper reads the calling contract's allowance, computes target
-minus current, and invokes an exclusive increase. A spender can still consume
-the old allowance before this transaction executes. It is a convenience for
-absolute intent, not protection against that ordering race.
+Absolute approval is not part of the standard client. A compatibility client can
+read the allowance and apply an exclusive difference; that does not prevent
+spending that occurs before its transaction executes.
 
 `clear_allowance` revokes any remaining amount and deletes the entry exclusively.
 `clear_balance` deletes only the caller's empty balance, otherwise throwing
 `BalanceNotZero`. Both accept missing entries and conflict with concurrent writes.
 Balance cleanup leaves supply and issuer authorization unchanged and emits no
-movement event. Refund routing, sponsorship and automatic zero-entry collection
-are outside this comparison.
+movement event. Both clear methods SHOULD refund released storage cost to the
+caller; this reference does not implement refund routing. Sponsorship and
+automatic zero-entry collection remain outside this comparison.
 
-Explicit differences emit `AllowanceChangeEvent { owner, spender, difference }`.
-The library `approve` therefore emits a delta event too. `clear_allowance` emits
-absolute `ApprovalEvent` with zero. Signed `permit` retains absolute replacement
-and its absolute event. These event types have different signatures; consumers
-must not reinterpret deltas as remaining allowances. Spending emits only the
-token movement, so callers still query `allowance` for the remainder.
+Allowance changes emit `AllowanceChangeEvent { owner, spender, difference }`.
+Clearing emits the negative remaining allowance under the same exclusive lock.
+Spending emits only the token movement; query `allowance` for the remainder.
 
-Standing allowances do not expire. For a transfer with a deadline, use
-`ERC20Permit::transfer_from_signed` with `PermitAction::Transfer` and an expiring
-signed operation. The action is bound in both the signed request and the grant;
-a transfer grant cannot create a standing allowance. The wallet must bound the
-grant lifetime to the operation expiry.
-Signed `permit` instead records an allowance that survives the operation's expiry.
+Standing allowances do not expire. `ERC20Permit::transfer_from_signed` consumes
+a grant and transfers immediately without changing allowances. This interface
+cannot turn a grant into a standing allowance. For spending with a deadline, the
+wallet must check the signed operation expiry and bound the grant lifetime to it.
 A bridge withdrawal must authenticate its destination and operation separately.
 
 ## Stellar comparison
@@ -100,14 +94,14 @@ must account for that delay and for source-chain policy history.
 
 Transfer, mint and burn retain standard Groundhog events. Every forced burn
 emits one canonical `BurnEvent` plus a `ClawbackEvent` carrying context. Count
-only the burn as a supply movement. Approvals and issuer-control events are not
+only the burn as a supply movement. Allowance and issuer-control events are not
 balance movements. Groundhog RPC/CLI is the first consumer; a Stellar-facing
 representation still needs agreement with downstream users.
 
 ## Work plan and validation
 
 1. Compare the SDK primitives, reference implementations and shared tests with
-   #479. Test mergeable differences, exclusive zero changes, replacement,
+   #479. Test mergeable differences, exclusive zero changes,
    grant/spend/clear, deletion conflicts and empty balance cleanup.
 2. After reviewing the SDK design, update a separate ITC/native-HOG companion
    and RPC/CLI event consumer. The existing companion PRs still target #479.

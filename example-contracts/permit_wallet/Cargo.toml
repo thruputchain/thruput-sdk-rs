@@ -1,6 +1,6 @@
 [package]
 name = "permit_wallet"
-description = "Example wallet authorizing ERC20 permits with off-chain signatures"
+description = "Example wallet authorizing ERC20 transfers with off-chain signatures"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

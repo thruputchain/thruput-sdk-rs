@@ -641,7 +641,7 @@ check_rv32_contract_spec_artifacts() {
 
     assert_file_contains "$erc20_json" '"events":[' &&
     assert_file_contains_id "$erc20_json" TransferEvent &&
-    assert_file_contains_id "$erc20_json" ApprovalEvent &&
+    assert_file_contains_id "$erc20_json" AllowanceChangeEvent &&
     assert_file_contains "$erc20_json" '"name":"from","type":{"kind":"address"}' &&
 
     # No swap assertions: the swap* contracts are gone. The event coverage they

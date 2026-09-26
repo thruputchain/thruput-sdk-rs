@@ -4,7 +4,7 @@
 //! divergences where it can't.
 
 #[test]
-#[ignore = "requires a native HOG runtime implementing increase_allowance and clear operations"]
+#[ignore = "requires a native HOG runtime implementing adjust_allowance and clear operations"]
 fn run_test() {
     let env = sdk::TestEnvironment::no_cost();
     erc20_native_test::test_native_token_precompile(env);

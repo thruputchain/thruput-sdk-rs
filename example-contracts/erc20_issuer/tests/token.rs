@@ -81,8 +81,15 @@ fn mint(env: &TestEnvironmentHandle, amount: Amount) {
     call(env, &MINTER, || token().mint(&ALICE, amount)).assert_success();
     env.advance_block();
 }
-fn approve(env: &TestEnvironmentHandle, amount: Amount) {
-    call(env, &ALICE, || token().approve(&SPENDER, amount)).assert_success();
+fn adjust(env: &TestEnvironmentHandle, difference: i128) {
+    call(env, &ALICE, || {
+        token().adjust_allowance(&SPENDER, difference, false)
+    })
+    .assert_success();
+    env.advance_block();
+}
+fn clear(env: &TestEnvironmentHandle) {
+    call(env, &ALICE, || token().clear_allowance(&SPENDER)).assert_success();
     env.advance_block();
 }
 fn state(
@@ -192,10 +199,12 @@ fn invalid_policy_and_uninitialized_calls_leave_no_state() {
 }
 
 #[test]
-fn replacement_partial_spends_revoke_and_standard_events() {
+fn adjustment_partial_spends_clear_and_standard_events() {
     let env = setup();
     mint(&env, 100);
-    let r = call(&env, &ALICE, || token().approve(&SPENDER, 60));
+    let r = call(&env, &ALICE, || {
+        token().adjust_allowance(&SPENDER, 60, false)
+    });
     r.assert_success();
     r.assert_event_count(1);
     r.assert_raw_event(0, |e| {
@@ -212,9 +221,9 @@ fn replacement_partial_spends_revoke_and_standard_events() {
     }
     env.advance_block();
     state(&env, 80, 20, 40, 100);
-    approve(&env, 7);
+    adjust(&env, -33);
     state(&env, 80, 20, 7, 100);
-    approve(&env, 0);
+    clear(&env);
     erc_error(
         call(&env, &SPENDER, || token().transfer_from(&ALICE, &BOB, 1)),
         ERC20Error::TooLarge,
@@ -226,7 +235,7 @@ fn replacement_partial_spends_revoke_and_standard_events() {
 fn frozen_holders_cannot_move_mint_or_burn_but_can_revoke() {
     let env = setup();
     mint(&env, 100);
-    approve(&env, 50);
+    adjust(&env, 50);
     call(&env, &ADMIN, || auth().set_authorized(&ALICE, false))
         .assert_success();
     env.advance_block();
@@ -240,7 +249,7 @@ fn frozen_holders_cannot_move_mint_or_burn_but_can_revoke() {
     ] {
         error(r, ERC20ControlsError::HolderNotAuthorized);
     }
-    approve(&env, 0);
+    clear(&env);
     let r = call(&env, &ADMIN, || clawback().clawback(&ALICE, 10));
     r.assert_success();
     r.assert_event_count(2);
@@ -279,7 +288,7 @@ fn required_authorization_checks_both_holders_and_rolls_back_allowance() {
         .assert_success();
     env.advance_block();
     mint(&env, 10);
-    approve(&env, 10);
+    adjust(&env, 10);
     error(
         call(&env, &SPENDER, || token().transfer_from(&ALICE, &BOB, 5)),
         ERC20ControlsError::HolderNotAuthorized,
@@ -360,13 +369,13 @@ fn range_supply_and_caught_failure_preserve_balances_and_allowance() {
         call(&env, &MINTER, || token().mint(&BOB, 1)),
         ERC20Error::TooLarge,
     );
+    adjust(&env, i128::MAX);
     erc_error(
         call(&env, &ALICE, || {
-            token().approve(&SPENDER, i128::MAX as u128 + 1)
+            token().adjust_allowance(&SPENDER, 1, false)
         }),
         ERC20Error::TooLarge,
     );
-    approve(&env, i128::MAX as u128);
     call(&env, &SPENDER, || {
         token().transfer_from(&ALICE, &BOB, i128::MAX as u128)
     })
@@ -375,7 +384,7 @@ fn range_supply_and_caught_failure_preserve_balances_and_allowance() {
     call(&env, &BOB, || burn().burn(i128::MAX as u128)).assert_success();
     env.advance_block();
     state(&env, 0, 0, 0, 0);
-    approve(&env, 100);
+    adjust(&env, 100);
     call(&env, &SPENDER, || {
         assert_eq!(
             token()
@@ -391,21 +400,26 @@ fn range_supply_and_caught_failure_preserve_balances_and_allowance() {
 }
 
 #[test]
-fn replacing_or_revoking_conflicts_with_same_block_spending() {
-    for replacement in [0, 40, 50] {
-        for approval_first in [false, true] {
+fn exclusive_adjustment_or_clearing_conflicts_with_same_block_spending() {
+    for difference in [None, Some(-10), Some(0), Some(10)] {
+        for adjustment_first in [false, true] {
             let env = setup();
             mint(&env, 100);
-            approve(&env, 50);
+            adjust(&env, 50);
             let grant = || {
-                call(&env, &ALICE, || token().approve(&SPENDER, replacement))
+                call(&env, &ALICE, || match difference {
+                    Some(difference) => {
+                        token().adjust_allowance(&SPENDER, difference, true)
+                    }
+                    None => token().clear_allowance(&SPENDER),
+                })
             };
             let spend = || {
                 call(&env, &SPENDER, || {
                     token().transfer_from(&ALICE, &BOB, 10)
                 })
             };
-            let (first, second) = if approval_first {
+            let (first, second) = if adjustment_first {
                 (grant(), spend())
             } else {
                 (spend(), grant())
@@ -413,8 +427,14 @@ fn replacing_or_revoking_conflicts_with_same_block_spending() {
             first.assert_success();
             second.assert_commit_failed_nondeterministically();
             env.advance_block();
-            if approval_first {
-                state(&env, 100, 0, replacement, 100);
+            if adjustment_first {
+                state(
+                    &env,
+                    100,
+                    0,
+                    difference.map_or(0, |d| (50 + d) as u128),
+                    100,
+                );
             } else {
                 state(&env, 90, 10, 40, 100);
             }
@@ -441,20 +461,27 @@ fn supply_and_holder_limits_apply_to_combined_transactions() {
 }
 
 #[test]
-fn independent_pairs_and_equal_replacements() {
+fn independent_pairs_and_conflicting_exclusive_adjustments() {
     let env = setup();
-    call(&env, &ALICE, || token().approve(&SPENDER, 10)).assert_success();
-    call(&env, &ALICE, || token().approve(&OTHER, 10)).assert_success();
-    call(&env, &BOB, || token().approve(&SPENDER, 10)).assert_success();
-    call(&env, &ALICE, || token().approve(&SPENDER, 10))
-        .assert_commit_failed_nondeterministically();
+    call(&env, &ALICE, || {
+        token().adjust_allowance(&SPENDER, 10, true)
+    })
+    .assert_success();
+    call(&env, &ALICE, || token().adjust_allowance(&OTHER, 10, true))
+        .assert_success();
+    call(&env, &BOB, || token().adjust_allowance(&SPENDER, 10, true))
+        .assert_success();
+    call(&env, &ALICE, || {
+        token().adjust_allowance(&SPENDER, 10, true)
+    })
+    .assert_commit_failed_nondeterministically();
 }
 
 #[test]
 fn zero_self_transfer_and_delegated_burn_use_standard_events() {
     let env = setup();
     mint(&env, 10);
-    approve(&env, 5);
+    adjust(&env, 5);
     call(&env, &ALICE, || {
         token().transfer(&ALICE, 10);
         token().transfer(&BOB, 0);
@@ -490,8 +517,6 @@ fn signed_transfer_checks_holder_policy_and_leaves_no_allowance() {
                 AuthTokenPreimage {
                     consumer: TOKEN,
                     data: GrantData {
-                        action:
-                            <PermitAction as MintableType>::Preimage::Transfer,
                         spender: ALICE,
                         amount: 5,
                     },
@@ -522,7 +547,9 @@ fn export_cli_event_fixture() {
     let operations: [Operation; 8] = [
         ("mint", &MINTER, || token().mint(&ALICE, 100)),
         ("transfer", &ALICE, || token().transfer(&BOB, 25)),
-        ("approve", &ALICE, || token().approve(&SPENDER, 30)),
+        ("adjust_allowance", &ALICE, || {
+            token().adjust_allowance(&SPENDER, 30, false)
+        }),
         ("burn", &ALICE, || burn().burn(5)),
         ("clawback", &ADMIN, || clawback().clawback(&ALICE, 7)),
         ("set_authorized", &ADMIN, || {
