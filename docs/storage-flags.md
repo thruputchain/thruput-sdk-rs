@@ -75,12 +75,13 @@ map.at_mut(&key).clear_flags();         // no longer
   `SetStorageFlags(ExclusiveLock)`. Building, reading and dropping a handle do
   nothing to the host's flags, and ordinary handles never clear them. Nested
   handles pass the policy to each leaf they write.
-- The sequence lives in one place, `sys_result::flags::request_after_write`,
+- The sequence lives in one place, `sys_exn::flags::request_after_write`,
   which every SDK write goes through. The setter cannot fail right after a
   successful write for a known flag; if it does, the SDK throws, which reverts
   the frame and its write instead of leaving the write without its lock.
-- Leaf handles (`Value`, `NNInt`, `Balance`, `Bytestring`) gain `flags()`,
-  `set_flags()` (OR) and `clear_flags()`. `StorageFlags` is an alias of
+- Leaf handles (`Value`, `NNInt`, `Balance`, `Bytestring`) implement the
+  sealed `Flaggable` trait: `flags()`, `set_flags()` (OR) and
+  `clear_flags()`. `StorageFlags` is an alias of
   `StorageDeltaFlags`. The free functions are `storage_flags`,
   `set_storage_flags` and `clear_storage_flags` (throwing, re-exported at the
   crate root) and their `sys_result::flags` counterparts.

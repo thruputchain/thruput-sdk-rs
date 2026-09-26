@@ -12,7 +12,8 @@ pub use keypath::*;
 
 mod sealed;
 
-mod flags;
+pub mod flags;
+pub use flags::*;
 
 pub mod node;
 pub use node::*;

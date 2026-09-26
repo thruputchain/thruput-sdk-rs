@@ -1,4 +1,3 @@
-use super::flags::leaf_flags_methods;
 use super::keypath::{Keypath, LeafKey};
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
@@ -50,8 +49,6 @@ impl Balance {
     fn write_flags(&self) -> StorageDeltaFlags {
         self.key.write_flags()
     }
-
-    leaf_flags_methods!();
 
     /// Get the balance, treating a never-written location as zero.
     pub fn get(&self) -> u128 {
@@ -253,6 +250,12 @@ impl Balance {
 
 impl super::sealed::Sealed for Balance {}
 impl super::node::StorageType for Balance {}
+
+impl super::flags::Flaggable for Balance {
+    fn storage_key(&self) -> &crate::types::StorageKey {
+        self.key.get()
+    }
+}
 
 impl super::deletable::Deletable for Balance {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {

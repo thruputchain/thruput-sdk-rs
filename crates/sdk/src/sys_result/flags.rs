@@ -13,8 +13,7 @@
 //! [`SysErr`](crate::sys::SysErr) containing an error code in the case of a
 //! syscall failure.
 
-use crate::exn::syscall_throw;
-use crate::sys::{self, SysResult as Result, SyscallNo};
+use crate::sys::{self, SysResult as Result};
 use crate::types::StorageKey;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
@@ -46,20 +45,4 @@ pub fn set_storage_flags(
 /// the current call frame. Does nothing if no write to `key` is pending.
 pub fn clear_storage_flags(key: &StorageKey) -> Result {
     sys::raw_ClearStorageFlags(key)
-}
-
-/// Requests `flags` for `key` after a write to it succeeded; the one place a
-/// write policy's flags reach the host. `None` adds no syscall.
-///
-/// The write left a pending write in the current frame, so the setter cannot
-/// fail for a known flag. If it fails anyway, this throws: that reverts the
-/// frame and the write with it, instead of leaving the write in place without
-/// the lock it asked for.
-pub(crate) fn request_after_write(key: &StorageKey, flags: StorageDeltaFlags) {
-    if flags.0 == StorageDeltaFlags::None.0 {
-        return;
-    }
-    if let Err(errno) = set_storage_flags(key, flags) {
-        syscall_throw(SyscallNo::kSetStorageFlags, errno);
-    }
 }

@@ -2,7 +2,7 @@ use crate::sys::{self, SysErr};
 use crate::types::StorageKey;
 use groundhog_xdr::storage_item::*;
 
-use super::flags::request_after_write;
+use crate::sys_exn::flags::request_after_write;
 
 /// Deletes the value at `key`. The key's storage flags stay as they are.
 pub fn delete_shared(key: &StorageKey) -> Result<(), SysErr> {

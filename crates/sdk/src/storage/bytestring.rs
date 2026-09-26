@@ -1,4 +1,3 @@
-use super::flags::leaf_flags_methods;
 use super::keypath::{Keypath, LeafKey};
 use crate::sys_exn::bytestring::*;
 use core::fmt::Debug;
@@ -98,12 +97,16 @@ impl Bytestring {
     ) -> Result<alloc::boxed::Box<[u8]>, crate::exn::LibraryExn> {
         bytestring_try_get(&self.key)
     }
-
-    leaf_flags_methods!();
 }
 
 impl super::sealed::Sealed for Bytestring {}
 impl super::node::StorageType for Bytestring {}
+
+impl super::flags::Flaggable for Bytestring {
+    fn storage_key(&self) -> &crate::types::StorageKey {
+        self.key.get()
+    }
+}
 
 impl super::deletable::Deletable for Bytestring {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {

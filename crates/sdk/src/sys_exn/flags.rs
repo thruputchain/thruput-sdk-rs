@@ -2,8 +2,8 @@
 //!
 //! These are the throwing forms of
 //! [`sys_result::flags`](crate::sys_result::flags), which describes how flags
-//! behave. Storage handles expose the same operations as `flags`,
-//! `set_flags` and `clear_flags`.
+//! behave. Leaf storage handles expose the same operations through
+//! [`Flaggable`](crate::storage::Flaggable).
 
 use crate::exn::syscall_throw;
 use crate::sys::SyscallNo;
@@ -37,4 +37,17 @@ pub fn clear_storage_flags(key: &StorageKey) {
     result::clear_storage_flags(key).unwrap_or_else(|errno| {
         syscall_throw(SyscallNo::kClearStorageFlags, errno)
     });
+}
+
+/// Requests `flags` for `key` after a write to it succeeded; the one place a
+/// write policy's flags reach the host. `None` adds no syscall.
+///
+/// The write left a pending write in the current frame, so the setter cannot
+/// fail for a known flag. If it fails anyway, this throws: that reverts the
+/// frame and the write with it, instead of leaving the write in place without
+/// the lock it asked for.
+pub(crate) fn request_after_write(key: &StorageKey, flags: StorageDeltaFlags) {
+    if flags != StorageDeltaFlags::None {
+        set_storage_flags(key, flags);
+    }
 }

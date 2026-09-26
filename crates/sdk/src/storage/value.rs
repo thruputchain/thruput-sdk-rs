@@ -1,5 +1,4 @@
 // src/storage/value.rs
-use super::flags::leaf_flags_methods;
 use super::keypath::*;
 use core::marker::PhantomData;
 pub use core::ops::{Deref, DerefMut};
@@ -33,8 +32,6 @@ impl<T> Value<T> {
     pub fn key(&self) -> &crate::types::StorageKey {
         self.key.get()
     }
-
-    leaf_flags_methods!();
 }
 
 impl<T> Value<T>
@@ -164,6 +161,12 @@ where
             dirty: false,
             _live: crate::storage::live_guards::LiveGuard::new(),
         }
+    }
+}
+
+impl<T> super::flags::Flaggable for Value<T> {
+    fn storage_key(&self) -> &crate::types::StorageKey {
+        self.key.get()
     }
 }
 

@@ -13,7 +13,7 @@ use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
-use super::flags::request_after_write;
+use crate::sys_exn::flags::request_after_write;
 
 /// Reports whether a bytestring exists at the given key.
 ///

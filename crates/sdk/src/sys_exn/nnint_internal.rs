@@ -61,7 +61,7 @@ pub(crate) fn try_set_add(
 ) -> Result<(), LibraryExn> {
     sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
         .or_syscall_exn(SyscallNo::kNonnegativeIntSetAdd)?;
-    crate::sys_result::flags::request_after_write(key, flags);
+    crate::sys_exn::flags::request_after_write(key, flags);
     Ok(())
 }
 

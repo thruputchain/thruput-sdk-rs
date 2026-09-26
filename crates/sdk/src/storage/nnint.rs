@@ -1,4 +1,3 @@
-use super::flags::leaf_flags_methods;
 use super::keypath::{Keypath, LeafKey};
 use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint::*;
@@ -61,8 +60,6 @@ impl NNInt {
     fn write_flags(&self) -> StorageDeltaFlags {
         self.key.write_flags()
     }
-
-    leaf_flags_methods!();
 
     /// Set the value, clearing accumulated [`inc`](Self::inc)s this transaction.
     ///
@@ -133,6 +130,12 @@ impl NNInt {
 
 impl super::sealed::Sealed for NNInt {}
 impl super::node::StorageType for NNInt {}
+
+impl super::flags::Flaggable for NNInt {
+    fn storage_key(&self) -> &crate::types::StorageKey {
+        self.key.get()
+    }
+}
 
 impl super::deletable::Deletable for NNInt {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
