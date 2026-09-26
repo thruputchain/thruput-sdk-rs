@@ -33,12 +33,14 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 #[derive(Debug)]
 pub struct Balance {
     key: LeafKey,
+    preserve_exclusive: bool,
 }
 
 impl From<Keypath> for Balance {
     fn from(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
+            preserve_exclusive: false,
         }
     }
 }
@@ -46,8 +48,23 @@ impl From<Keypath> for Balance {
 impl Balance {
     pub const MAX: u128 = i128::MAX as u128;
 
-    fn flags(&self) -> StorageDeltaFlags {
-        self.key.flags()
+    /// Preserve an earlier `ExclusiveLock` on each write through this handle.
+    /// Readback happens immediately before writing, so nested calls cannot
+    /// leave a cached flag value stale. Other flags are not inherited.
+    pub fn preserve_exclusive(&mut self) -> &mut Self {
+        self.preserve_exclusive = true;
+        self
+    }
+
+    fn flags(&self) -> Result<StorageDeltaFlags, crate::exn::LibraryExn> {
+        if self.preserve_exclusive {
+            crate::sys_exn::storage_flags::preserve_exclusive_flag(
+                self.key.get(),
+                self.key.flags(),
+            )
+        } else {
+            Ok(self.key.flags())
+        }
     }
 
     /// Get the balance, treating a never-written location as zero.
@@ -113,7 +130,7 @@ impl Balance {
         if total < 0 {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
-        nnint::try_set_add(key, Some(set), add, self.flags())
+        nnint::try_set_add(key, Some(set), add, self.flags()?)
     }
 
     /// Decrease by a non-negative amount, throwing immediately if the balance
@@ -157,7 +174,7 @@ impl Balance {
         if total < 0 {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
-        nnint::try_set_add(key, Some(set), add, self.flags())
+        nnint::try_set_add(key, Some(set), add, self.flags()?)
     }
 
     /// Increase by a non-negative amount without loading the current balance.
@@ -195,7 +212,7 @@ impl Balance {
         let add = add
             .checked_add(increment)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
-        nnint::try_set_add(key, set, add, self.flags())
+        nnint::try_set_add(key, set, add, self.flags()?)
     }
 
     /// Decrease by a non-negative amount without loading the current balance.
@@ -244,7 +261,7 @@ impl Balance {
                 return Err(LibraryExn::NonNegativeIntUnderflow);
             }
         }
-        nnint::try_set_add(key, set, add, self.flags())
+        nnint::try_set_add(key, set, add, self.flags()?)
     }
 }
 
@@ -253,7 +270,8 @@ impl super::node::StorageType for Balance {}
 
 impl super::deletable::Deletable for Balance {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let effective = StorageDeltaFlags(flags.0 | self.flags().0);
+        let effective =
+            StorageDeltaFlags(flags.0 | self.flags().or_re_throw().0);
         crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
     }
 }

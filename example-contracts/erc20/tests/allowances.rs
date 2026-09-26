@@ -546,3 +546,77 @@ fn clearing_emits_the_removed_amount_and_allows_regrant_in_one_transaction() {
     })
     .assert_success();
 }
+
+#[test]
+fn exclusivity_survives_later_nonexclusive_adjustment() {
+    for exclusive_first in [true, false] {
+        let env = setup();
+        let exclusive = || {
+            call(&env, &OWNER, || {
+                client().adjust_allowance(&SPENDER, 0, true);
+                client().adjust_allowance(&SPENDER, 10, false);
+            })
+        };
+        let shared = || {
+            call(&env, &SPENDER, || {
+                client().transfer_from(&OWNER, &OTHER, 10)
+            })
+        };
+        let (first, second) = if exclusive_first {
+            (exclusive(), shared())
+        } else {
+            (shared(), exclusive())
+        };
+        first.assert_success();
+        second.assert_commit_failed_nondeterministically();
+    }
+}
+#[test]
+fn clear_exclusivity_survives_regrant() {
+    for clear_first in [true, false] {
+        let env = setup();
+        let clear = || {
+            call(&env, &OWNER, || {
+                client().clear_allowance(&OTHER);
+                client().adjust_allowance(&OTHER, 50, false);
+            })
+        };
+        let shared = || {
+            call(&env, &OWNER, || {
+                client().adjust_allowance(&OTHER, 10, false)
+            })
+        };
+        let (first, second) = if clear_first {
+            (clear(), shared())
+        } else {
+            (shared(), clear())
+        };
+        first.assert_success();
+        second.assert_commit_failed_nondeterministically();
+    }
+}
+#[test]
+fn balance_clear_exclusivity_survives_later_credit() {
+    for clear_first in [true, false] {
+        let env = setup();
+        call(&env, &OWNER, || {
+            client().adjust_allowance(&OTHER, 10, false)
+        })
+        .assert_success();
+        env.advance_block();
+        let clear = || {
+            call(&env, &OTHER, || {
+                client().clear_balance();
+                client().transfer_from(&OWNER, &OTHER, 1);
+            })
+        };
+        let credit = || call(&env, &OWNER, || client().transfer(&OTHER, 10));
+        let (first, second) = if clear_first {
+            (clear(), credit())
+        } else {
+            (credit(), clear())
+        };
+        first.assert_success();
+        second.assert_commit_failed_nondeterministically();
+    }
+}

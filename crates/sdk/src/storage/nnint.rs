@@ -1,5 +1,6 @@
 use super::keypath::{Keypath, LeafKey};
 use crate::exn::nnint_overflow;
+use crate::re_throw::OrReThrow;
 use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
 use core::fmt::Debug;
@@ -29,12 +30,14 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 #[derive(Debug)]
 pub struct NNInt {
     key: LeafKey,
+    preserve_exclusive: bool,
 }
 
 impl From<Keypath> for NNInt {
     fn from(keypath: Keypath) -> Self {
         Self {
             key: LeafKey::from(keypath),
+            preserve_exclusive: false,
         }
     }
 }
@@ -57,8 +60,23 @@ impl NNInt {
         non_negative_int_try_get(self.key.get())
     }
 
-    fn flags(&self) -> StorageDeltaFlags {
-        self.key.flags()
+    /// Preserve an earlier `ExclusiveLock` on each write through this handle.
+    /// Readback happens immediately before writing, so nested calls cannot
+    /// leave a cached flag value stale. Other flags are not inherited.
+    pub fn preserve_exclusive(&mut self) -> &mut Self {
+        self.preserve_exclusive = true;
+        self
+    }
+
+    fn flags(&self) -> Result<StorageDeltaFlags, crate::exn::LibraryExn> {
+        if self.preserve_exclusive {
+            crate::sys_exn::storage_flags::preserve_exclusive_flag(
+                self.key.get(),
+                self.key.flags(),
+            )
+        } else {
+            Ok(self.key.flags())
+        }
     }
 
     /// Set the value, clearing accumulated [`inc`](Self::inc)s this transaction.
@@ -68,7 +86,12 @@ impl NNInt {
     /// lower. A non-negative `set_value` keeps the floor at `0`. (At commit,
     /// `value >= min(set_value, 0)` must hold.) See the [type docs](NNInt).
     pub fn set(&mut self, set_value: i128) {
-        nnint::set_add(self.key.get(), Some(set_value), 0, self.flags());
+        nnint::set_add(
+            self.key.get(),
+            Some(set_value),
+            0,
+            self.flags().or_re_throw(),
+        );
     }
 
     /// Increment by an amount (without querying the current value).
@@ -82,12 +105,11 @@ impl NNInt {
         let (s, a) = nnint::get_values(key);
         let add_value =
             a.checked_add(increment).unwrap_or_else(|| nnint_overflow());
-        nnint::set_add(key, s, add_value, self.flags());
+        nnint::set_add(key, s, add_value, self.flags().or_re_throw());
     }
 
     /// Increment by an amount, throwing in case of a negative result.
     pub fn strict_inc(&mut self, increment: i128) {
-        use crate::re_throw::OrReThrow;
         self.try_strict_inc(increment).or_re_throw()
     }
 
@@ -124,7 +146,7 @@ impl NNInt {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
 
-        nnint::try_set_add(key, Some(s), add_value, self.flags())
+        nnint::try_set_add(key, Some(s), add_value, self.flags()?)
     }
 }
 
@@ -133,7 +155,8 @@ impl super::node::StorageType for NNInt {}
 
 impl super::deletable::Deletable for NNInt {
     fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let effective = StorageDeltaFlags(flags.0 | self.flags().0);
+        let effective =
+            StorageDeltaFlags(flags.0 | self.flags().or_re_throw().0);
         crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
     }
 }

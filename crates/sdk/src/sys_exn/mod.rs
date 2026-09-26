@@ -7,3 +7,5 @@ pub mod rcq;
 
 #[doc(hidden)]
 pub mod nnint_internal;
+
+pub mod storage_flags;

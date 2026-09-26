@@ -140,3 +140,7 @@ heapless = { version = "0.9.2" }
 
 [profile.release]
 trim-paths = "all" # unstable
+
+[patch."sparse+https://crates.thruput.network/api/v1/crates/"]
+groundhog-xdr = { git = "https://github.com/groundhogchain/protocol-rs", rev = "a6d36fc43ee1e39a227dbac8e699a28c77265771" }
+groundhog-trace = { git = "https://github.com/groundhogchain/protocol-rs", rev = "a6d36fc43ee1e39a227dbac8e699a28c77265771" }

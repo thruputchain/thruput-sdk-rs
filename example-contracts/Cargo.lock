@@ -631,7 +631,7 @@ dependencies = [
  "groundhog-sys",
  "groundhog-trace",
  "groundhog-xdr",
- "hogexec-internal",
+ "hogexec-internal 0.39.0 (sparse+https://crates.thruput.network/api/v1/crates/)",
  "sha2",
  "xdr-common",
  "xdrs",
@@ -698,17 +698,15 @@ dependencies = [
 [[package]]
 name = "groundhog-syscall"
 version = "0.39.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "a7be006cbd0150dbb7cee942883954abd38d9c60ecdf4bab66f439e8ae8fdaae"
+source = "git+https://github.com/groundhogchain/protocol-rs?rev=a6d36fc43ee1e39a227dbac8e699a28c77265771#a6d36fc43ee1e39a227dbac8e699a28c77265771"
 
 [[package]]
 name = "groundhog-trace"
 version = "0.39.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "4c934c994ec23f6bd6aa36798a3b48df3717470bba0a717c489d45254908109f"
+source = "git+https://github.com/groundhogchain/protocol-rs?rev=a6d36fc43ee1e39a227dbac8e699a28c77265771#a6d36fc43ee1e39a227dbac8e699a28c77265771"
 dependencies = [
  "groundhog-xdr",
- "hogexec-internal",
+ "hogexec-internal 0.39.0 (git+https://github.com/groundhogchain/protocol-rs?rev=a6d36fc43ee1e39a227dbac8e699a28c77265771)",
  "schemars",
  "xdr-common",
  "xdrs",
@@ -725,8 +723,7 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr"
 version = "0.39.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "90097f393046e7685b5e53c8d2bebd4f0dd425db8d6d0227c03f5417dfa9245d"
+source = "git+https://github.com/groundhogchain/protocol-rs?rev=a6d36fc43ee1e39a227dbac8e699a28c77265771#a6d36fc43ee1e39a227dbac8e699a28c77265771"
 dependencies = [
  "groundhog-serde_arrays",
  "groundhog-syscall",
@@ -741,8 +738,7 @@ dependencies = [
 [[package]]
 name = "groundhog-xdr-macros"
 version = "0.39.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "aec80aab730a1a5e4842ab050c2ea195a6c37436c43e822a70923b8300d590ed"
+source = "git+https://github.com/groundhogchain/protocol-rs?rev=a6d36fc43ee1e39a227dbac8e699a28c77265771#a6d36fc43ee1e39a227dbac8e699a28c77265771"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -806,6 +802,14 @@ name = "hogexec-internal"
 version = "0.39.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
 checksum = "3211ab152de734aef14d451090f0e0662bd8ac0337b14d63dccec31074e6e74e"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
+name = "hogexec-internal"
+version = "0.39.0"
+source = "git+https://github.com/groundhogchain/protocol-rs?rev=a6d36fc43ee1e39a227dbac8e699a28c77265771#a6d36fc43ee1e39a227dbac8e699a28c77265771"
 dependencies = [
  "xdrs",
 ]
@@ -1152,7 +1156,7 @@ dependencies = [
  "groundhog-u256",
  "groundhog-xdr",
  "heapless",
- "hogexec-internal",
+ "hogexec-internal 0.39.0 (sparse+https://crates.thruput.network/api/v1/crates/)",
  "linkme",
  "sha2",
  "thiserror",

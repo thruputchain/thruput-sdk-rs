@@ -58,6 +58,7 @@ impl TokenContract {
     ) {
         self.balances
             .at_mut(owner)
+            .preserve_exclusive()
             .try_lazy_increase(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
@@ -65,6 +66,7 @@ impl TokenContract {
     fn _decrease_balance(&mut self, owner: &ContractAddress, amount: Amount) {
         self.balances
             .at_mut(owner)
+            .preserve_exclusive()
             .try_decrease(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
@@ -92,6 +94,7 @@ impl TokenContract {
         let mut owner_allowances = self.allowances.at_mut(owner);
         let mut allowance = owner_allowances.at_mut(spender);
         allowance
+            .preserve_exclusive()
             .try_strict_inc(diff)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
@@ -173,6 +176,7 @@ impl ERC20 for TokenContract {
             allowances.at_mut(spender)
         };
         allowance
+            .preserve_exclusive()
             .try_strict_inc(difference)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         AllowanceChangeEvent::new(&owner, spender, difference).log();

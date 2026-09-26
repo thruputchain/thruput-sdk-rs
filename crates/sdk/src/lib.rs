@@ -144,6 +144,7 @@ pub use sys_exn::bytestring::*;
 pub use sys_exn::delete::*;
 pub use sys_exn::nnint::*;
 pub use sys_exn::rcq::*;
+pub use sys_exn::storage_flags::*;
 
 #[doc(hidden)]
 pub mod call;
