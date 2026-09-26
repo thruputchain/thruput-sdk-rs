@@ -191,7 +191,7 @@ fn pause_blocks_balance_changes() {
             assert_eq!(token.get_balance(), 75);
             assert_eq!(token.get_balance_of(&OTHER), 25);
             assert_eq!(token.total_supply(), 100);
-            token.approve(&OTHER, 10);
+            token.adjust_allowance(&OTHER, 10, false);
             assert_eq!(token.allowance(&ADMIN, &OTHER), 10);
 
             // Pausing an already-paused token is rejected.

@@ -93,29 +93,24 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     client.burn(other, amt);
     m.burn(other, amt);
 
-    // Exercise the replacement helper and its signed amount boundary.
-    for amount in [23, 0, i128::MAX as u128, 7] {
-        client.approve(other, amount);
-        m.approve(other, amount);
-        m.check_allowances(&client);
-    }
-    for difference in [10, -4, 0] {
-        client.increase_allowance(other, difference, false);
-        m.increase_allowance(other, difference);
+    // Exercise positive, negative, and zero changes at the amount boundary.
+    for difference in [i128::MAX, -(i128::MAX - 7), 10, -4, 0] {
+        client.adjust_allowance(other, difference, false);
+        m.adjust_allowance(other, difference);
         m.check_allowances(&client);
     }
     #[cfg(not(feature = "no_check_aborts"))]
     {
         assert_eq!(
             client
-                .try_increase_allowance(other, -14, false)
+                .try_adjust_allowance(other, -14, false)
                 .unwrap_err()
                 .try_as(),
             Some(ERC20Error::TooLarge),
         );
         assert_eq!(
             client
-                .try_increase_allowance(other, i128::MAX, false)
+                .try_adjust_allowance(other, i128::MAX, false)
                 .unwrap_err()
                 .try_as(),
             Some(ERC20Error::TooLarge),
@@ -165,14 +160,10 @@ pub fn erc20_funded_test(
     client.transfer(other, amt);
     m.transfer(other, amt);
 
-    // Approve spending by "other"
-    let amt = 17;
-    client.approve(other, amt);
-    m.approve(other, amt);
-
-    // Lower the allowance.
-    client.approve(other, 7);
-    m.approve(other, 7);
+    client.adjust_allowance(other, 17, false);
+    m.adjust_allowance(other, 17);
+    client.adjust_allowance(other, -10, false);
+    m.adjust_allowance(other, -10);
 
     // Check client state against the model
     m.check(&client);

@@ -106,7 +106,7 @@ pub fn transfer_from(
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
-pub fn increase_allowance(
+pub fn adjust_allowance(
     spender: &ContractAddress,
     difference: Difference,
     exclusive: bool,
@@ -131,8 +131,9 @@ pub fn increase_allowance(
 #[contract(interface = "ERC20", version = "0.1.0")]
 pub fn clear_allowance(spender: &ContractAddress) {
     let owner = get_caller();
+    let remaining = amount_to_diff(allowance(&owner, spender));
     delete_exclusive(&get_allowance_key(&owner, spender));
-    ApprovalEvent::new(&owner, spender, 0).log();
+    AllowanceChangeEvent::new(&owner, spender, -remaining).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]

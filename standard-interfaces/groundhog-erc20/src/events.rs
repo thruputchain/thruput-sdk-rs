@@ -1,17 +1,8 @@
-//! ERC20 Events
+//! Groundhog token events.
 //!
-//! See [EIP-20] for `Transfer` and `Approval`:
-//!
-//! `event Transfer(address indexed _from, address indexed _to, uint256 _value)`
-//! `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
-//!
-//! Supply changes have their own events here, [`MintEvent`] and
-//! [`BurnEvent`], where Ethereum overloads `Transfer` with the zero address
-//! as `_from` or `_to`. On Groundhog the zero address is an address like
-//! any other, so a transfer involving it is exactly that, and a mint or
-//! burn says so by name.
-//!
-//! [EIP-20]: https://eips.ethereum.org/EIPS/eip-20#events
+//! [`AllowanceChangeEvent`] carries a signed delta, not an absolute approval.
+//! Supply changes use [`MintEvent`] and [`BurnEvent`]; a [`TransferEvent`]
+//! involving the zero address is still an ordinary transfer.
 
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
@@ -102,86 +93,7 @@ impl<'a> fmt::Display for TransferEvent<'a> {
 
 // ----------------------------------------------------------------------
 
-/// Absolute allowance set by `permit` or revoked by `clear_allowance`. Spending an
-/// allowance does not emit this event; query `allowance` for the remainder.
-#[derive(Event, Clone, Debug, PartialEq, Eq)]
-pub struct ApprovalEvent<'a> {
-    #[topic]
-    pub owner: &'a ContractAddress,
-    #[topic]
-    pub spender: &'a ContractAddress,
-    pub amount: i128,
-}
-
-impl<'a> ApprovalEvent<'a> {
-    /// Emit this event.
-    pub fn log(&self) {
-        log_event(self);
-    }
-
-    pub fn new(
-        owner: &'a ContractAddress,
-        spender: &'a ContractAddress,
-        amount: i128,
-    ) -> Self {
-        Self {
-            owner,
-            spender,
-            amount,
-        }
-    }
-}
-
-impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
-    type Error = &'static str;
-
-    fn try_from(
-        event: EmittedEvent<'a>,
-    ) -> core::result::Result<Self, Self::Error> {
-        let sig = event.topic(0).ok_or("No event signature")?;
-
-        if sig != ApprovalEvent::SIGNATURE {
-            return Err("Unexpected event signature");
-        }
-
-        let owner: &ContractAddress =
-            event.topic(1).ok_or("Missing topic")?.into();
-        let spender: &ContractAddress =
-            event.topic(2).ok_or("Missing topic")?.into();
-
-        let payload = event
-            .payload()
-            .ok_or("Malformed event: topics overrun body")?;
-        let amount: i128 = sdk::internal::decode_xdr(payload)
-            .map_err(|_| "Couldn't parse event payload")?;
-
-        Ok(ApprovalEvent::new(owner, spender, amount))
-    }
-}
-
-impl<'a> From<&ApprovalEvent<'a>> for stdevt::ApprovalEvent {
-    fn from(val: &ApprovalEvent<'a>) -> Self {
-        stdevt::ApprovalEvent {
-            owner_address: *val.owner,
-            spender_address: *val.spender,
-            amount: val.amount.into(),
-        }
-    }
-}
-
-impl<'a> fmt::Display for ApprovalEvent<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "APPROVE({}, {}, amount:{:?})",
-            hex_encode(self.owner),
-            hex_encode(self.spender),
-            self.amount
-        )
-    }
-}
-
-/// Signed change made by `increase_allowance`. Spending an allowance emits
+/// Signed change made by `adjust_allowance` or `clear_allowance`. Spending emits
 /// only its token movement; query `allowance` for the remaining value.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct AllowanceChangeEvent<'a> {
@@ -379,7 +291,6 @@ impl<'a> fmt::Display for BurnEvent<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ERC20Event<'a> {
     Transfer(TransferEvent<'a>),
-    Approval(ApprovalEvent<'a>),
     AllowanceChange(AllowanceChangeEvent<'a>),
     Mint(MintEvent<'a>),
     Burn(BurnEvent<'a>),
@@ -397,9 +308,6 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
             TransferEvent::SIGNATURE => {
                 Ok(ERC20Event::Transfer(event.try_into()?))
             }
-            ApprovalEvent::SIGNATURE => {
-                Ok(ERC20Event::Approval(event.try_into()?))
-            }
             AllowanceChangeEvent::SIGNATURE => {
                 Ok(ERC20Event::AllowanceChange(event.try_into()?))
             }
@@ -416,7 +324,6 @@ impl<'a> fmt::Display for ERC20Event<'a> {
 
         match self {
             ERC20Event::Transfer(e) => e.fmt(f),
-            ERC20Event::Approval(e) => e.fmt(f),
             ERC20Event::AllowanceChange(e) => e.fmt(f),
             ERC20Event::Mint(e) => e.fmt(f),
             ERC20Event::Burn(e) => e.fmt(f),
@@ -464,7 +371,6 @@ impl<'a> From<&BurnEvent<'a>> for StdBurnEvent {
 #[repr(i32)]
 pub enum StdERC20Event {
     Transfer(stdevt::TransferEvent),
-    Approval(stdevt::ApprovalEvent),
     Mint(StdMintEvent),
     Burn(StdBurnEvent),
     AllowanceChange(StdAllowanceChangeEvent),
@@ -474,7 +380,6 @@ impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
     fn from(val: &ERC20Event<'a>) -> StdERC20Event {
         match val {
             ERC20Event::Transfer(e) => StdERC20Event::Transfer(e.into()),
-            ERC20Event::Approval(e) => StdERC20Event::Approval(e.into()),
             ERC20Event::AllowanceChange(e) => {
                 StdERC20Event::AllowanceChange(e.into())
             }

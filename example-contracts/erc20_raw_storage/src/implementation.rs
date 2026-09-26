@@ -116,7 +116,7 @@ impl ERC20 for Token {
             .unwrap_or(0) as Amount
     }
 
-    fn increase_allowance(
+    fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
@@ -141,8 +141,9 @@ impl ERC20 for Token {
 
     fn clear_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
+        let remaining = amount_to_diff(self.allowance(&owner, spender));
         delete_exclusive(&get_allowance_key(&owner, spender));
-        ApprovalEvent::new(&owner, spender, 0).log();
+        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
     }
 
     fn clear_balance(&mut self) {

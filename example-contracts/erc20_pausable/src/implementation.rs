@@ -182,7 +182,7 @@ impl ERC20 for PausableTokenContract {
         TransferEvent::new(owner, receiver, amount_to_diff(amount)).log();
     }
 
-    fn increase_allowance(
+    fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
@@ -203,11 +203,12 @@ impl ERC20 for PausableTokenContract {
 
     fn clear_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
+        let remaining = amount_to_diff(self.allowance(&owner, spender));
         self.allowances
             .at_mut(&owner)
             .at_mut(spender)
             .delete_exclusive();
-        ApprovalEvent::new(&owner, spender, 0).log();
+        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
     }
 
     fn clear_balance(&mut self) {

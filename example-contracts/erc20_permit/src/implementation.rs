@@ -1,9 +1,7 @@
-//! ERC20 state and the two grant-consuming entrypoints.
+//! ERC20 state and signed transfers.
 
 use groundhog_erc20_if::*;
-use groundhog_erc20_permit_if::{
-    ERC20Permit, ERC20PermitError, PermitAction, PermitGrant,
-};
+use groundhog_erc20_permit_if::{ERC20Permit, ERC20PermitError, PermitGrant};
 use sdk::signer::Signed;
 use sdk::storage::{Balance, Deletable, Map, Value};
 use sdk::*;
@@ -22,18 +20,6 @@ pub struct PermitToken {
 impl PermitToken {
     // Internal helpers. None of these check authorization.
 
-    fn set_allowance(
-        &mut self,
-        owner: &ContractAddress,
-        spender: &ContractAddress,
-        amount: Amount,
-    ) {
-        self.allowances
-            .at_mut(owner)
-            .at_mut_exclusive(spender)
-            .set(amount_to_diff(amount));
-        ApprovalEvent::new(owner, spender, amount_to_diff(amount)).log();
-    }
     fn _lazy_increase_balance(
         &mut self,
         owner: &ContractAddress,
@@ -103,7 +89,7 @@ impl ERC20 for PermitToken {
         self._move(owner, receiver, amount);
     }
 
-    fn increase_allowance(
+    fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
@@ -124,11 +110,12 @@ impl ERC20 for PermitToken {
 
     fn clear_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
+        let remaining = amount_to_diff(self.allowance(&owner, spender));
         self.allowances
             .at_mut(&owner)
             .at_mut(spender)
             .delete_exclusive();
-        ApprovalEvent::new(&owner, spender, 0).log();
+        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
     }
 
     fn clear_balance(&mut self) {
@@ -196,25 +183,12 @@ impl ERC20 for PermitToken {
 // Successful consumption verifies the consumer and returns the minter.
 #[contract(version = "0.1.0")]
 impl ERC20Permit for PermitToken {
-    fn permit(&mut self, grant: Signed<PermitGrant>) {
-        let (grant, owner) = grant.consume();
-        ensure(
-            matches!(grant.action, PermitAction::Approve),
-            ERC20PermitError::WrongAction,
-        );
-        self.set_allowance(&owner, &grant.spender, grant.amount);
-    }
-
     fn transfer_from_signed(
         &mut self,
         grant: Signed<PermitGrant>,
         receiver: &ContractAddress,
     ) {
         let (grant, owner) = grant.consume();
-        ensure(
-            matches!(grant.action, PermitAction::Transfer),
-            ERC20PermitError::WrongAction,
-        );
         if get_caller() != grant.spender {
             throw(ERC20PermitError::NotSpender);
         }

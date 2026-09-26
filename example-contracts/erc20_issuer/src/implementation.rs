@@ -23,19 +23,6 @@ struct Settings {
 }
 
 impl TokenContract {
-    fn set_allowance(
-        &mut self,
-        owner: &ContractAddress,
-        spender: &ContractAddress,
-        amount: Amount,
-    ) {
-        self.settings();
-        self.allowances
-            .at_mut(owner)
-            .at_mut_exclusive(spender)
-            .set(amount_to_diff(amount));
-        ApprovalEvent::new(owner, spender, amount_to_diff(amount)).log();
-    }
     fn settings(&self) -> Settings {
         self.settings
             .try_get()
@@ -177,7 +164,7 @@ impl ERC20 for TokenContract {
             .none_if_missing()
             .unwrap_or(0) as Amount
     }
-    fn increase_allowance(
+    fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
@@ -200,11 +187,12 @@ impl ERC20 for TokenContract {
     fn clear_allowance(&mut self, spender: &ContractAddress) {
         self.settings();
         let owner = get_caller();
+        let remaining = amount_to_diff(self.allowance(&owner, spender));
         self.allowances
             .at_mut(&owner)
             .at_mut(spender)
             .delete_exclusive();
-        ApprovalEvent::new(&owner, spender, 0).log();
+        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
     }
 
     fn clear_balance(&mut self) {
@@ -378,25 +366,12 @@ impl ERC20Burn for TokenContract {
 
 #[contract(version = "0.1.0")]
 impl ERC20Permit for TokenContract {
-    fn permit(&mut self, grant: Signed<PermitGrant>) {
-        let (grant, owner) = grant.consume();
-        ensure(
-            matches!(grant.action, PermitAction::Approve),
-            ERC20PermitError::WrongAction,
-        );
-        self.set_allowance(&owner, &grant.spender, grant.amount);
-    }
-
     fn transfer_from_signed(
         &mut self,
         grant: Signed<PermitGrant>,
         receiver: &ContractAddress,
     ) {
         let (grant, owner) = grant.consume();
-        ensure(
-            matches!(grant.action, PermitAction::Transfer),
-            ERC20PermitError::WrongAction,
-        );
         ensure(get_caller() == grant.spender, ERC20PermitError::NotSpender);
         self.move_tokens(&owner, receiver, grant.amount);
     }

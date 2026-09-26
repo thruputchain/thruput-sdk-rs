@@ -46,7 +46,7 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, AllowanceChangeEvent, ApprovalEvent, MintEvent, BurnEvent)
+    emits(TransferEvent, AllowanceChangeEvent, MintEvent, BurnEvent)
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -76,7 +76,7 @@ pub trait ERC20 {
     /// and adjustments within the allowance bounds. With `exclusive=true`,
     /// this transaction conflicts with other writers to the same pair,
     /// including when `difference` is zero. Different pairs remain independent.
-    fn increase_allowance(
+    fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
@@ -85,13 +85,16 @@ pub trait ERC20 {
 
     /// Revoke the caller's allowance for `spender` and delete its storage entry.
     /// Missing entries are allowed. Deletion conflicts with concurrent writes,
-    /// including grants and spending. Emit [`ApprovalEvent`] with amount zero.
+    /// including grants and spending. Emit [`AllowanceChangeEvent`] with the
+    /// negative remaining allowance (zero for a missing entry).
+    /// Implementations SHOULD refund the released storage cost to the caller.
     fn clear_allowance(&mut self, spender: &ContractAddress);
 
     /// Delete the caller's empty balance entry, leaving supply unchanged.
     /// Throw [`ERC20Error::BalanceNotZero`] for a nonzero balance. Missing
     /// entries are allowed. Deletion conflicts with concurrent balance writes.
     /// Do not delete holder authorization or emit a token movement event.
+    /// Implementations SHOULD refund the released storage cost to the caller.
     fn clear_balance(&mut self);
 
     /// Get `spender`'s allowance of `owner`'s tokens
@@ -120,23 +123,4 @@ pub trait ERC20 {
 
     /// Get total supply of outstanding tokens
     fn total_supply(&self) -> Amount;
-}
-
-impl ERC20Client {
-    /// Replace this calling contract's allowance using an exclusive adjustment.
-    /// This is a library helper, not a token entrypoint. It reads the allowance
-    /// then calls [`Self::increase_allowance`], which emits a delta event.
-    /// Even an unchanged target makes an exclusive call.
-    ///
-    /// A spender may use the old allowance before this transaction executes.
-    /// Stored allowances do not expire. For spending with a deadline, use
-    /// `ERC20Permit::transfer_from_signed` with a transfer-only grant from an
-    /// expiring signed operation.
-    pub fn approve(&self, spender: &ContractAddress, amount: Amount) {
-        let target = amount_to_diff(amount);
-        let current = amount_to_diff(
-            self.allowance(&sdk::get_current_address(), spender),
-        );
-        self.increase_allowance(spender, target - current, true);
-    }
 }
