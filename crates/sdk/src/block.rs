@@ -1,4 +1,4 @@
-use crate::exn::syscall_throw;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SyscallNo};
 use groundhog_xdr::types::{BlockHeight, NetworkHash, SHA256Hash, TimePoint};
 
@@ -8,7 +8,7 @@ use groundhog_xdr::types::{BlockHeight, NetworkHash, SHA256Hash, TimePoint};
 pub fn get_block_height() -> BlockHeight {
     let mut block: BlockHeight = 0i64.into();
     sys::raw_GetBlockHeight(&mut block)
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetBlockHeight, e));
+        .or_syscall_throw(SyscallNo::kGetBlockHeight);
     block
 }
 
@@ -24,7 +24,7 @@ pub fn get_block_height() -> BlockHeight {
 pub fn get_network_hash() -> NetworkHash {
     let mut network_hash: NetworkHash = SHA256Hash::default().into();
     sys::raw_GetNetworkHash(&mut network_hash)
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetNetworkHash, e));
+        .or_syscall_throw(SyscallNo::kGetNetworkHash);
     network_hash
 }
 
@@ -39,6 +39,6 @@ pub fn get_network_hash() -> NetworkHash {
 pub fn get_block_timepoint() -> TimePoint {
     let mut timepoint: TimePoint = 0u64.into();
     sys::raw_GetBlockTimepoint(&mut timepoint)
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetBlockTimepoint, e));
+        .or_syscall_throw(SyscallNo::kGetBlockTimepoint);
     timepoint
 }

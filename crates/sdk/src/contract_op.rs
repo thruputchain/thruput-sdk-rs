@@ -5,10 +5,11 @@
 
 #[cfg(not(feature = "alloc"))]
 use crate::internal::MUBuf;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
 use crate::xdr::*;
-use crate::{FaultString, HandlingError, syscall_throw};
+use crate::{FaultString, HandlingError};
 use core::mem::MaybeUninit;
 
 pub fn contract_abort(buf: &[u8]) -> ! {
@@ -97,7 +98,7 @@ pub fn get_caller() -> ContractAddress {
         MaybeUninit::<ContractAddress>::uninit();
 
     sys::uninit_GetMsgSender(&mut out_addr)
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetMsgSender, e));
+        .or_syscall_throw(SyscallNo::kGetMsgSender);
 
     unsafe { out_addr.assume_init() }
 }
@@ -113,9 +114,8 @@ pub fn get_caller() -> ContractAddress {
 pub fn get_source_transaction_hash() -> SHA256Hash {
     let mut out_hash: MaybeUninit<SHA256Hash> =
         MaybeUninit::<SHA256Hash>::uninit();
-    sys::uninit_GetSourceTransactionHash(&mut out_hash).unwrap_or_else(|e| {
-        syscall_throw(SyscallNo::kGetSourceTransactionHash, e)
-    });
+    sys::uninit_GetSourceTransactionHash(&mut out_hash)
+        .or_syscall_throw(SyscallNo::kGetSourceTransactionHash);
     unsafe { out_hash.assume_init() }
 }
 
@@ -123,7 +123,7 @@ pub fn get_current_address() -> ContractAddress {
     let mut out_addr: MaybeUninit<ContractAddress> =
         MaybeUninit::<ContractAddress>::uninit();
     sys::uninit_GetCurrentAddress(&mut out_addr)
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetCurrentAddress, e));
+        .or_syscall_throw(SyscallNo::kGetCurrentAddress);
     unsafe { out_addr.assume_init() }
 }
 
@@ -135,8 +135,7 @@ pub fn try_get_calldata_len() -> SysResult<RuntimeMemoryLength> {
 }
 
 pub fn get_calldata_len() -> RuntimeMemoryLength {
-    try_get_calldata_len()
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kGetCalldataLen, e))
+    try_get_calldata_len().or_syscall_throw(SyscallNo::kGetCalldataLen)
 }
 
 /// The calldata buffer — the SDK's single
@@ -316,7 +315,6 @@ pub fn fetch_calldata_and_auth_tokens(
     calldata: &mut Calldata,
     auth_ids: &mut AuthTokenIdBuf,
 ) {
-    fetch_calldata_and_auth_tokens_into(calldata, auth_ids).unwrap_or_else(
-        |syserr| syscall_throw(SyscallNo::kGetCalldata, syserr),
-    );
+    fetch_calldata_and_auth_tokens_into(calldata, auth_ids)
+        .or_syscall_throw(SyscallNo::kGetCalldata);
 }

@@ -26,7 +26,7 @@
 use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 use crate::exn::{LibraryExn, syscall_exn};
-use crate::re_throw::OrReThrow;
+use crate::re_throw::{OrReThrow, OrSyscallThrow};
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;
 
@@ -57,7 +57,7 @@ pub(crate) fn try_set_add(
     flags: StorageDeltaFlags,
 ) -> Result<(), LibraryExn> {
     sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value, flags.0)
-        .map_err(|e| syscall_exn(SyscallNo::kNonnegativeIntSetAdd, e))
+        .or_syscall_exn(SyscallNo::kNonnegativeIntSetAdd)
 }
 
 /// Get the pending "set" and "add" values.
@@ -78,8 +78,7 @@ pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
 pub(crate) fn try_get_values(
     key: &StorageKey,
 ) -> Result<(Option<i128>, i128), LibraryExn> {
-    _get_values(key, false)
-        .map_err(|e| syscall_exn(SyscallNo::kNonnegativeIntGet, e))
+    _get_values(key, false).or_syscall_exn(SyscallNo::kNonnegativeIntGet)
 }
 
 /// Get the pending "set" and "add" values, loading if necessary.
