@@ -6,7 +6,6 @@ use super::slot::{SlotMut, SlotRef};
 use super::value::Value;
 use crate::exn::NoneIfMissing;
 use core::fmt::Debug;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Element slots are keyed by the element index (`u32`); see [`Map`] for the
 /// key-encoding injectivity invariant that governs the underlying derivation.
@@ -198,7 +197,7 @@ impl<S: StorageType + Deletable> Vector<S> {
         }
         let new_len = len - 1;
         let mut elem = S::from(self.make_elem_keypath(new_len));
-        elem.delete_internal(StorageDeltaFlags::ExclusiveLock);
+        elem.delete_exclusive();
         self.len.set_exclusive(&new_len);
     }
 
@@ -215,13 +214,13 @@ impl<S: StorageType + Deletable> Vector<S> {
 }
 
 impl<S: StorageType + Deletable> Deletable for Vector<S> {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+    fn delete_internal(&mut self, exclusive: bool) {
         let len = self.len();
         for i in 0..len {
             let mut elem = S::from(self.make_elem_keypath(i));
-            elem.delete_internal(flags);
+            elem.delete_internal(exclusive);
         }
-        self.len.delete_internal(flags);
+        self.len.delete_internal(exclusive);
     }
 }
 

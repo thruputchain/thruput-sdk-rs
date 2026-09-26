@@ -23,18 +23,16 @@
 //! available, or else loads the snapshot value from the database. This aborts
 //! if the location does not contain a non-negative-int.
 
-use groundhog_xdr::storage_item::StorageDeltaFlags;
-
 use crate::exn::{LibraryExn, syscall_exn};
 use crate::re_throw::{OrReThrow, OrSyscallThrow};
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;
 
-/// Replace the "set" and "add" values, then add `flags` to the key's storage
-/// flags.
+/// Replace the "set" and "add" values. With `exclusive`, then request an
+/// exclusive lock on the key.
 ///
-/// This discards any values previously present. It leaves the key's flags as
-/// they are unless `flags` adds some; see
+/// This discards any values previously present. A shared write leaves the
+/// key's storage flags as they are; see
 /// [`sys_result::flags`](crate::sys_result::flags).
 ///
 /// This aborts if `set_value.is_some_and(|s| s + a < 0)`.
@@ -43,25 +41,25 @@ pub fn set_add(
     key: &StorageKey,
     set_value: Option<i128>,
     add_value: i128,
-    flags: StorageDeltaFlags,
+    exclusive: bool,
 ) {
-    try_set_add(key, set_value, add_value, flags).or_re_throw()
+    try_set_add(key, set_value, add_value, exclusive).or_re_throw()
 }
 
 /// Like [`set_add`], but report a failed write as `Err` instead of aborting.
 /// Callers that pre-check the negativity constraint (so the remaining error
 /// paths are host faults) use this to keep the `try_` law. A failed write
-/// requests no flags.
+/// requests no lock.
 #[inline]
 pub(crate) fn try_set_add(
     key: &StorageKey,
     set_value: Option<i128>,
     add_value: i128,
-    flags: StorageDeltaFlags,
+    exclusive: bool,
 ) -> Result<(), LibraryExn> {
     sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
         .or_syscall_exn(SyscallNo::kNonnegativeIntSetAdd)?;
-    crate::sys_exn::flags::request_after_write(key, flags);
+    crate::sys_exn::flags::lock_after_write(key, exclusive);
     Ok(())
 }
 

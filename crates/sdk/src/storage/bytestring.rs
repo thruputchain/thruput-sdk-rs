@@ -1,7 +1,6 @@
 use super::keypath::{Keypath, LeafKey};
 use crate::sys_exn::bytestring::*;
 use core::fmt::Debug;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 #[derive(Debug)]
 pub struct Bytestring {
@@ -109,13 +108,8 @@ impl super::flags::Flaggable for Bytestring {
 }
 
 impl super::deletable::Deletable for Bytestring {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.key.is_exclusive() {
-            StorageDeltaFlags::ExclusiveLock
-        } else {
-            StorageDeltaFlags::None
-        };
-        let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
-        crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
+    fn delete_internal(&mut self, exclusive: bool) {
+        let exclusive = exclusive || self.key.is_exclusive();
+        crate::sys_exn::delete::delete(self.key.get(), exclusive);
     }
 }

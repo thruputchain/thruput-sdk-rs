@@ -39,15 +39,18 @@ pub fn clear_storage_flags(key: &StorageKey) {
     });
 }
 
-/// Requests `flags` for `key` after a write to it succeeded; the one place a
-/// write policy's flags reach the host. `None` adds no syscall.
+/// Requests an exclusive lock on `key` after a write to it succeeded, if the
+/// write's policy is exclusive; the one place a write policy reaches the host.
+/// A shared write adds no syscall.
 ///
-/// The write left a pending write in the current frame, so the setter cannot
-/// fail for a known flag. If it fails anyway, this throws: that reverts the
-/// frame and the write with it, instead of leaving the write in place without
-/// the lock it asked for.
-pub(crate) fn request_after_write(key: &StorageKey, flags: StorageDeltaFlags) {
-    if flags != StorageDeltaFlags::None {
-        set_storage_flags(key, flags);
+/// The policy is a `bool`, not a flag set, so the only flag this can request
+/// is `ExclusiveLock`, and the write just left a pending write in the current
+/// frame: the setter cannot fail here. If it fails anyway, this throws, which
+/// reverts the frame and the write with it instead of leaving the write in
+/// place without its lock. Arbitrary flags go through [`set_storage_flags`],
+/// which writes nothing, so a rejected flag set leaves storage unchanged.
+pub(crate) fn lock_after_write(key: &StorageKey, exclusive: bool) {
+    if exclusive {
+        set_storage_flags(key, StorageDeltaFlags::ExclusiveLock);
     }
 }

@@ -1,5 +1,3 @@
-use groundhog_xdr::storage_item::StorageDeltaFlags;
-
 /// Trait for storage types whose data can be fully deleted.
 ///
 /// Leaf types (NNInt, Value, Bytestring) delete their single storage key.
@@ -9,20 +7,22 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 pub trait Deletable {
     /// Delete storage for this node.
     ///
-    /// Implementors OR the incoming `flags` with their keypath's own
-    /// exclusive flag and request the result once the deletion succeeds.
-    /// This makes exclusivity additive: calling `delete()` on a slot accessed
-    /// via `at_mut_exclusive()` still locks the deletion.
-    fn delete_internal(&mut self, flags: StorageDeltaFlags);
+    /// `exclusive` is the deletion's write policy. Leaf implementors combine
+    /// it with their keypath's own exclusivity and, if either is set, request
+    /// an exclusive lock once the deletion succeeds; compound implementors
+    /// pass it to each child. This makes exclusivity additive: calling
+    /// `delete()` on a slot accessed via `at_mut_exclusive()` still locks the
+    /// deletion.
+    fn delete_internal(&mut self, exclusive: bool);
 
     /// Delete using the keypath's own locking semantics.
     fn delete(&mut self) {
-        self.delete_internal(StorageDeltaFlags::None);
+        self.delete_internal(false);
     }
 
     /// Delete, then request an exclusive lock, regardless of keypath flag.
     /// Later writes in the transaction keep the lock.
     fn delete_exclusive(&mut self) {
-        self.delete_internal(StorageDeltaFlags::ExclusiveLock);
+        self.delete_internal(true);
     }
 }

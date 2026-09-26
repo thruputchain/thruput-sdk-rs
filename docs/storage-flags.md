@@ -75,10 +75,19 @@ map.at_mut(&key).clear_flags();         // no longer
   `SetStorageFlags(ExclusiveLock)`. Building, reading and dropping a handle do
   nothing to the host's flags, and ordinary handles never clear them. Nested
   handles pass the policy to each leaf they write.
-- The sequence lives in one place, `sys_exn::flags::request_after_write`,
-  which every SDK write goes through. The setter cannot fail right after a
-  successful write for a known flag; if it does, the SDK throws, which reverts
-  the frame and its write instead of leaving the write without its lock.
+- A write's policy is a `bool`, not a flag set, so a write can request
+  `ExclusiveLock` and nothing else. Every SDK write goes through
+  `sys_exn::flags::lock_after_write`, right after a write that left the key
+  pending, so the setter cannot fail there. If it does anyway, the SDK throws,
+  which reverts the frame and its write instead of leaving the write without
+  its lock.
+- Arbitrary flags go only through `set_storage_flags` and
+  `Flaggable::set_flags`. Each is one syscall that writes nothing, so an
+  unknown flag is rejected with storage unchanged: `Err` from
+  `sys_result::flags::set_storage_flags`, a throw from the others. The write
+  helpers that took a flag set are gone: `delete_with_flags` is removed, and
+  `Deletable::delete_internal` (and so the `Deletable` derive) and
+  `sys_exn::nnint_internal::set_add` take `exclusive: bool`.
 - Leaf handles (`Value`, `NNInt`, `Balance`, `Bytestring`) implement the
   sealed `Flaggable` trait: `flags()`, `set_flags()` (OR) and
   `clear_flags()`. `StorageFlags` is an alias of
@@ -86,8 +95,8 @@ map.at_mut(&key).clear_flags();         // no longer
   `set_storage_flags` and `clear_storage_flags` (throwing, re-exported at the
   crate root) and their `sys_result::flags` counterparts.
 - Ordinary writes add no syscall. Exclusive writes add one.
-- The private policy helpers are renamed: `Keypath::flags` and `LeafKey::flags`
-  are now `write_flags`, since `flags` on a handle means the host's flags.
+- `Keypath::flags` and `LeafKey::flags` are removed: `is_exclusive()` is the
+  write policy, and `flags` on a handle now means the host's flags.
 
 ## Allowances in #482
 

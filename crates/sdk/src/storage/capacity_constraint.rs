@@ -2,7 +2,6 @@ use super::keypath::{Keypath, LeafKey};
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
 use crate::sys_exn::nnint_internal as nnint;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Implements a linear constraint on some set of (contract-defined) state.
 /// Specifically, this implements constraints of the form `\Sum_i a_i x_i <= b`.
@@ -175,10 +174,6 @@ impl CapacityConstraint {
         Ok(())
     }
 
-    fn write_flags(&self) -> StorageDeltaFlags {
-        self.key.write_flags()
-    }
-
     /// Merge this handle's staged changes into the cell's pending values
     /// now instead of waiting for drop.
     ///
@@ -211,7 +206,7 @@ impl CapacityConstraint {
             key,
             self.capacity.or(s),
             add_value,
-            self.write_flags(),
+            self.key.is_exclusive(),
         )?;
         self.capacity = None;
         self.delta = 0;
@@ -233,12 +228,12 @@ impl super::sealed::Sealed for CapacityConstraint {}
 impl super::node::StorageType for CapacityConstraint {}
 
 impl super::deletable::Deletable for CapacityConstraint {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+    fn delete_internal(&mut self, exclusive: bool) {
         // Discard staged changes: they must not be flushed on top of the
         // delete when this handle drops.
         self.capacity = None;
         self.delta = 0;
-        let effective = StorageDeltaFlags(flags.0 | self.write_flags().0);
-        crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
+        let exclusive = exclusive || self.key.is_exclusive();
+        crate::sys_exn::delete::delete(self.key.get(), exclusive);
     }
 }
