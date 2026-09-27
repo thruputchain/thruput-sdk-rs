@@ -253,3 +253,50 @@ fn a_module_named_after_a_crate_whose_types_the_bindings_use() {
         ]
     );
 }
+
+#[test]
+fn a_type_and_an_event_that_take_one_name() {
+    // `#[contract_type(name = "Transfer")]` on an enum beside the event, and
+    // a struct named like the event's filter type.
+    for (type_def, warning) in [
+        (
+            enum_def(id("demo", "demo", "Transfer"), &["Mint"]),
+            "generated TypeScript value name \"demo.v1.Transfer\" collides \
+             between enum demo::Transfer (demo@1) and event demo::Transfer \
+             (demo@1)",
+        ),
+        (
+            struct_def(id("demo", "demo", "TransferFilter")),
+            "generated TypeScript value name \"demo.v1.TransferFilter\" \
+             collides between struct demo::TransferFilter (demo@1) and the \
+             filter type of event demo::Transfer (demo@1)",
+        ),
+    ] {
+        let spec = spec(
+            "Demo",
+            vec![type_def],
+            vec![event(id("demo", "demo", "Transfer"))],
+        );
+        assert_eq!(binding_warnings(&spec), [warning]);
+    }
+}
+
+#[test]
+fn an_event_named_like_another_events_filter_type() {
+    let spec = spec(
+        "Demo",
+        vec![],
+        vec![
+            event(id("demo", "demo", "Transfer")),
+            event(id("demo", "demo", "TransferFilter")),
+        ],
+    );
+    assert_eq!(
+        binding_warnings(&spec),
+        [
+            "generated TypeScript value name \"demo.v1.TransferFilter\" \
+             collides between the filter type of event demo::Transfer \
+             (demo@1) and event demo::TransferFilter (demo@1)"
+        ]
+    );
+}

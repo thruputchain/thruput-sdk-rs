@@ -8,7 +8,7 @@
 //! The rules mirror the codegen's; change the two together.
 
 use std::borrow::Cow;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
 use crate::{
     ContractSpec, ContractSpecId, ContractTypeDef, spec_id_lossy,
@@ -32,6 +32,7 @@ pub fn binding_warnings(spec: &ContractSpec) -> Vec<String> {
     for iface in spec.interfaces.iter() {
         interface_warnings(&spec_str_lossy(&iface.name), &mut warnings);
     }
+    namespace_collision_warnings(&declared, &mut warnings);
     crate_shadowing_warnings(&declared, &mut warnings);
     value_clash_warnings(&declared, &mut warnings);
     warnings
@@ -189,6 +190,47 @@ fn interface_warnings(name: &str, out: &mut Vec<String>) {
              the generator reserves for the names it declares itself. \
              Rename it without that prefix."
         ));
+    }
+}
+
+/// Each type, each event and each event's filter type takes a name in its
+/// namespace, and no two can share one: an enum renamed after an event beside
+/// it, say, or a struct named like an event's filter type.
+fn namespace_collision_warnings(
+    declared: &[Declaration],
+    out: &mut Vec<String>,
+) {
+    let mut names: BTreeMap<String, String> = BTreeMap::new();
+    // Types before events, as the codegen reserves them, so a collision
+    // names the two in the same order the codegen's error does.
+    let types = declared
+        .iter()
+        .filter(|decl| !matches!(decl.kind, Kind::Event));
+    let events = declared
+        .iter()
+        .filter(|decl| matches!(decl.kind, Kind::Event));
+    for decl in types.chain(events) {
+        let qualified = decl.path.qualified();
+        let mut claims = vec![(qualified.clone(), decl.label.clone())];
+        if matches!(decl.kind, Kind::Event) {
+            claims.push((
+                format!("{qualified}Filter"),
+                format!("the filter type of {}", decl.label),
+            ));
+        }
+        for (name, source) in claims {
+            match names.entry(name) {
+                Entry::Occupied(existing) => out.push(format!(
+                    "generated TypeScript value name \"{}\" collides between \
+                     {} and {source}",
+                    existing.key(),
+                    existing.get()
+                )),
+                Entry::Vacant(slot) => {
+                    slot.insert(source);
+                }
+            }
+        }
     }
 }
 
