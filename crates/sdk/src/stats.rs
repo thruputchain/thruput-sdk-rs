@@ -1,4 +1,4 @@
-use crate::exn::syscall_throw;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::SyscallNo;
 use crate::transaction::TransactionStatistic;
 use crate::{GasAmount, sys};
@@ -13,9 +13,7 @@ pub fn gas_remaining() -> GasAmount {
         TransactionStatistic::GasRemaining,
         &mut n,
     )
-    .unwrap_or_else(|e| {
-        syscall_throw(SyscallNo::kGetTransactionStatistics, e)
-    });
+    .or_syscall_throw(SyscallNo::kGetTransactionStatistics);
 
     n
 }

@@ -1,5 +1,5 @@
 use crate::SHA256Hash;
-use crate::exn::syscall_throw;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::{SysResult, SyscallNo};
 use core::fmt::*;
 
@@ -20,8 +20,7 @@ impl Hasher {
     /// live-stream cap (the chain's `max_sha256_buffers` network config
     /// parameter) is reached.
     pub fn new() -> Hasher {
-        Hasher::try_new()
-            .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Update, e))
+        Hasher::try_new().or_syscall_throw(SyscallNo::kSHA256Update)
     }
 
     /// Get a hasher if the VM has a free stream, or the refusing syscall's
@@ -41,7 +40,7 @@ impl Hasher {
     /// fails.
     pub fn update<I: AsRef<[u8]>>(&mut self, input: &I) {
         crate::sys::raw_SHA256Update(self.index, input.as_ref(), false)
-            .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Update, e));
+            .or_syscall_throw(SyscallNo::kSHA256Update);
     }
 
     /// Fork the hasher: a new hasher with a copy of the absorbed state,
@@ -51,8 +50,7 @@ impl Hasher {
     ///
     /// Throws a syscall exception if the VM refuses the stream.
     pub fn fork(&self) -> Hasher {
-        self.try_fork()
-            .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Copy, e))
+        self.try_fork().or_syscall_throw(SyscallNo::kSHA256Copy)
     }
 
     /// Fork the hasher if the VM has a free stream (see
@@ -76,7 +74,7 @@ impl Hasher {
         let mut output = core::mem::MaybeUninit::uninit();
 
         crate::sys::uninit_SHA256Finalize(index, &mut output)
-            .unwrap_or_else(|e| syscall_throw(SyscallNo::kSHA256Finalize, e));
+            .or_syscall_throw(SyscallNo::kSHA256Finalize);
 
         // SAFETY: The syscall succeeded, so the output has been initialized
         unsafe { output.assume_init() }

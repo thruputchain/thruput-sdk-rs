@@ -397,15 +397,14 @@ fn mint_encoded_node<T>(
     expiry: groundhog_xdr::types::BlockHeight,
     encoded_node: &[u8],
 ) -> Signed<T> {
+    use crate::re_throw::OrSyscallThrow;
     use crate::sys::SyscallNo;
 
     let mut token_id: core::mem::MaybeUninit<u32> =
         core::mem::MaybeUninit::uninit();
 
     crate::sys::uninit_MintAuthToken(&expiry, encoded_node, &mut token_id)
-        .unwrap_or_else(|e| {
-            crate::exn::syscall_throw(SyscallNo::kMintAuthToken, e)
-        });
+        .or_syscall_throw(SyscallNo::kMintAuthToken);
 
     let handle = unsafe { token_id.assume_init() };
     Signed::from_handle(handle)
@@ -443,6 +442,7 @@ where
         );
 
         use crate::internal::MUBuf;
+        use crate::re_throw::OrSyscallThrow;
         use crate::sys::SyscallNo;
         use core::mem::MaybeUninit;
 
@@ -464,9 +464,7 @@ where
             &mut child_start,
             &mut child_count,
         )
-        .unwrap_or_else(|e| {
-            crate::exn::syscall_throw(SyscallNo::kConsumeAuthToken, e)
-        });
+        .or_syscall_throw(SyscallNo::kConsumeAuthToken);
 
         let written = unsafe { payload_written.assume_init() } as usize;
         unsafe { payload_buf.set_len(written) };

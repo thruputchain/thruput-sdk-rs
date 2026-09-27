@@ -1,6 +1,7 @@
 use crate::call::with_scratch;
 use crate::exn::*;
 use crate::internal::encode_scratch;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SyscallNo};
 
 // Re-export core event types from groundhog-event
@@ -150,8 +151,6 @@ pub fn log_event<E: Event>(event: &E) {
             topic2.as_ref(),
             buf.as_slice(),
         )
-        .unwrap_or_else(|errno| {
-            syscall_throw(SyscallNo::kLogEvent, errno);
-        });
+        .or_syscall_throw(SyscallNo::kLogEvent);
     });
 }

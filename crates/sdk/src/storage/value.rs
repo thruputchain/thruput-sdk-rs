@@ -129,7 +129,8 @@ where
         value: &T,
         exclusive: bool,
     ) -> Result<(), crate::exn::LibraryExn> {
-        use crate::exn::{LibraryExn, syscall_exn};
+        use crate::exn::LibraryExn;
+        use crate::re_throw::OrSyscallThrow;
         use crate::sys::SyscallNo;
         use crate::sys_result::bytestring::*;
 
@@ -141,7 +142,7 @@ where
             } else {
                 bytestring_set(&self.key, buf.as_slice())
             };
-            result.map_err(|e| syscall_exn(SyscallNo::kBytestringSet, e))
+            result.or_syscall_exn(SyscallNo::kBytestringSet)
         })
     }
 }
