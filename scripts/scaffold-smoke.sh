@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Scaffold smoke test: verify that a contract scaffolded by the *latest
-# released* groundhog CLI builds against the sdk at this checkout's head.
+# Scaffold smoke test: verify that a contract scaffolded by the groundhog CLI
+# this repo pins builds against the sdk at this checkout's head.
 #
 # sdk 0.17.8 shipped a feature problem (imported via an xdrs bump) that
 # broke the `groundhog new` scaffold's build without anything in this repo's
@@ -9,23 +9,27 @@
 # CLI from the registry, scaffold a project, point its sdk dependency at
 # this checkout, and build the contract.
 #
+# The CLI is the version scripts/groundhog-cli-version.sh pins, not the
+# latest stable release. `groundhog build` refuses a contract whose SDK
+# writes a raw spec format the CLI cannot read, and the SDK bumps that
+# format before the stable CLI release that adopts it exists (sdk 0.38.0
+# moved to format 3 while the newest stable CLI, 0.18.0, read format 2). An
+# unpinned install then fails on that version skew, not on anything a change
+# here could cause, until a stable CLI release catches up.
+#
 # Run by .github/workflows/scaffold_smoke.yml on pushes to main. Runnable
 # locally too; set SKIP_CLI_INSTALL=1 to use the groundhog CLI already on
-# PATH instead of overwriting it with the latest release.
+# PATH instead of installing the pin.
 
 set -euo pipefail
 
 SDK_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "${SKIP_CLI_INSTALL:-0}" != 1 ]; then
-    # Deliberately unpinned, unlike scripts/ci.sh: the point is the CLI a
-    # new user gets from `cargo install groundhog-cli` today. `cargo
-    # install` ignores the repo's .cargo/config.toml (install is global,
-    # not project-scoped), so the registry index must arrive via
-    # environment config. Keep in sync with .cargo/config.toml
-    # [registries].
-    export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
-    cargo install groundhog-cli --registry groundhog --locked
+    # Same pin and install path as scripts/ci.sh; the helper honors
+    # GROUNDHOG_CLI_ROOT, the Namespace-cached install root the workflow
+    # sets, so the CLI compiles once per pin bump rather than every run.
+    . "$SDK_DIR/scripts/install-groundhog-cli.sh"
 fi
 groundhog --version
 
