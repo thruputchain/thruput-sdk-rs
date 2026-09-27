@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 pub mod describe;
 pub mod raw;
+pub mod typescript;
 
 pub use groundhog_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
