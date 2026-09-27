@@ -148,6 +148,7 @@ version = "0.1.0"
 dependencies = [
  "default_wallet",
  "groundhog-domain-separator",
+ "groundhog-erc20-if",
  "groundhog-xdr",
  "sdk",
 ]
