@@ -1376,6 +1376,33 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
     );
 }
 
+/// Every other fixture id has a `module_path` equal to its crate name, so none
+/// of them can tell those two segments apart in a diagnostic. This one is
+/// declared in a nested module of a crate whose package name is not its Rust
+/// ident, and the whole rendering is spelled out.
+#[test]
+fn diagnostic_keeps_nested_module_path_and_crate_apart() {
+    let nested = ContractSpecId {
+        crate_name: s("my-token"),
+        major: s("0.1"),
+        module_path: s("my_token::types"),
+        declared: s("Payload"),
+    };
+    let mut missing = base_interface_fragments();
+    missing.push(SpecFragment::ExportedSpecEvent {
+        event_def: event_def(
+            "MintEvent",
+            ContractType::Named { named: nested },
+        ),
+    });
+    assert_eq!(
+        canonicalize_spec(&missing),
+        Err(SpecToolError::MissingTypeDef(
+            "my_token::types::Payload (my-token@0.1)".to_owned()
+        ))
+    );
+}
+
 #[test]
 fn canonicalize_spec_rejects_conflicting_event_defs() {
     // Use ExportedSpecEvent so both defs are retained; conflict check must fire.
