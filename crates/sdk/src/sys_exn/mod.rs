@@ -2,6 +2,7 @@
 
 pub mod bytestring;
 pub mod delete;
+pub mod flags;
 pub mod nnint;
 pub mod rcq;
 

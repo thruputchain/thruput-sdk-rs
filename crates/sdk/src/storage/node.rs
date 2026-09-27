@@ -1,7 +1,6 @@
 use super::keypath::Keypath;
 use super::sealed::Sealed;
 use core::ops::{Deref, DerefMut};
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Marker trait for types that can appear as elements in Map and Vector.
 /// Sealed — only SDK storage types implement this.
@@ -63,8 +62,8 @@ impl<T> Sealed for Node<T> {}
 impl<T: From<Keypath>> StorageType for Node<T> {}
 
 impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        self.fields.delete_internal(flags);
+    fn delete_internal(&mut self, exclusive: bool) {
+        self.fields.delete_internal(exclusive);
     }
 }
 

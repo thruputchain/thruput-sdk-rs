@@ -15,6 +15,9 @@ pub use groundhog_xdr::genesis;
 pub use groundhog_xdr::retrocausal_queue::kQueueEntryMaxLen;
 pub use groundhog_xdr::storage_cost::*;
 pub use groundhog_xdr::storage_item::StorageDeltaFlags;
+/// [`StorageDeltaFlags`] under the name storage handles use for it: the flags
+/// (today only `ExclusiveLock`) a transaction requests for a key it writes.
+pub use groundhog_xdr::storage_item::StorageDeltaFlags as StorageFlags;
 pub use groundhog_xdr::transaction;
 pub use groundhog_xdr::types::*;
 

@@ -4,7 +4,6 @@ use crate::sys::{self, SyscallNo};
 use crate::sys_result::bytestring as result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Returns the length of the bytestring stored at the given key.
 ///
@@ -39,11 +38,21 @@ pub fn bytestring_exists(key: &StorageKey) -> bool {
 /// If concurrent contract invocations set the location to the same bytestring,
 /// this will not cause any such invocations to abort.
 ///
+/// This leaves the key's storage flags as they are: a lock requested by an
+/// earlier exclusive write stays (see [`flags`](super::flags)).
+///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
-    sys::raw_BytestringSet(key, slice, StorageDeltaFlags::None.0)
+    sys::raw_BytestringSet(key, slice)
         .or_syscall_throw(SyscallNo::kBytestringSet);
 }
 
+/// Sets the value at the given key to the given bytestring, then requests
+/// [`ExclusiveLock`](crate::StorageDeltaFlags::ExclusiveLock) for the key.
+///
+/// If concurrent contract invocations set the bytestring exclusively, only one
+/// such invocation can succeed without reverting. Later writes to the key in
+/// this transaction keep the lock.
+///
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) {
     result::bytestring_set_exclusive(key, slice)
         .or_syscall_throw(SyscallNo::kBytestringSet);

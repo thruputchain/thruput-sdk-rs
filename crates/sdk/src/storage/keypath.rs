@@ -1,6 +1,5 @@
 use crate::hasher::Hasher;
 use crate::types::StorageKey;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 use xdrs::{WriteXDR, cxs::ConstWriter};
 
 /// Path identifying a storage slot.
@@ -158,14 +157,6 @@ impl Keypath {
 
     pub fn set_exclusive(&mut self) {
         self.exclusive = true;
-    }
-
-    pub fn flags(&self) -> StorageDeltaFlags {
-        if self.exclusive {
-            StorageDeltaFlags::ExclusiveLock
-        } else {
-            StorageDeltaFlags::None
-        }
     }
 }
 
@@ -498,7 +489,6 @@ mod leaf_key {
     use super::Keypath;
     use crate::types::StorageKey;
     use core::ops::Deref;
-    use groundhog_xdr::storage_item::StorageDeltaFlags;
 
     /// The derived storage key a leaf storage cell holds, plus its access
     /// mode. Construction derives the key immediately and releases the
@@ -527,14 +517,6 @@ mod leaf_key {
 
         pub fn is_exclusive(&self) -> bool {
             self.exclusive
-        }
-
-        pub fn flags(&self) -> StorageDeltaFlags {
-            if self.exclusive {
-                StorageDeltaFlags::ExclusiveLock
-            } else {
-                StorageDeltaFlags::None
-            }
         }
     }
 
