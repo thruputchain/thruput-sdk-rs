@@ -1,20 +1,24 @@
 # Storage flags: SetStorageFlags, GetStorageFlags and ClearStorageFlags
 
-An alternative to [hogd #4156](https://github.com/groundhogchain/hogd/pull/4156),
-written against the allowance design in
-[sdk_rs #482](https://github.com/groundhogchain/sdk_rs/pull/482). The protocol
-side is [protocol #190](https://github.com/groundhogchain/protocol/pull/190)
+An alternative to [hogd #4156](https://github.com/groundhogchain/hogd/pull/4156).
+The protocol side is [protocol #190](https://github.com/groundhogchain/protocol/pull/190)
 and the host side [hogd #4158](https://github.com/groundhogchain/hogd/pull/4158).
 
 ## The problem
 
-#482 promises locks that outlive the write that takes them.
+An exclusive write takes a lock on its key. Before this change, a later write
+to the same key in the same transaction replaced the key's flags with its own.
+A transaction that locked a key and then wrote it again ordinarily committed a
+shared change, and a concurrent writer merged with it
+([hogd #3006](https://github.com/groundhogchain/hogd/issues/3006)).
+
+The allowance design in
+[sdk_rs #482](https://github.com/groundhogchain/sdk_rs/pull/482) needs locks
+that outlive the write that takes them.
 `adjust_allowance(spender, difference, exclusive=true)` conflicts with other
 writers to the pair, and `clear_allowance` and `clear_balance` delete under an
-exclusive lock. Today a later write to the same key in the same transaction (a
-nested `transfer_from`, a regrant, a credit) replaces the key's flags with its
-own, so the transaction commits a shared change and a concurrent writer merges
-with it ([hogd #3006](https://github.com/groundhogchain/hogd/issues/3006)).
+exclusive lock. A nested `transfer_from`, a regrant or a credit later in the
+same transaction would drop that lock.
 
 ## Design
 
@@ -95,20 +99,12 @@ map.at_mut(&key).clear_flags();         // no longer
 
 ## Allowances in #482
 
-The SDK-based tokens need no code changes: a nested `transfer_from` after an
-exclusive `adjust_allowance`, a regrant after `clear_allowance` and a credit
-after `clear_balance` all keep the lock. The ERC20 interface docs now say how
-long the lock lasts.
-
-`erc20_low_level` and `erc20_raw_storage` added a lock by re-reading the pair
-and rewriting it with `ExclusiveLock`. They now call `set_storage_flags` after
-the increment.
-
-`erc20/tests/allowances.rs` adds
-`exclusive_adjustment_holds_through_a_nested_spend_in_both_orders` and
-`cleared_balance_stays_locked_through_a_credit_in_both_orders`: in each, the
-locked transaction ends on an ordinary write that would merge with the
-concurrent one under last-write-wins flags.
+#482 is not part of this change. On top of it, #482's SDK-based tokens keep
+their locks with no code changes: a nested `transfer_from` after an exclusive
+`adjust_allowance`, a regrant after `clear_allowance` and a credit after
+`clear_balance`. Its `erc20_low_level` and `erc20_raw_storage` add a lock by
+re-reading the pair and rewriting it with `ExclusiveLock`. They can call
+`set_storage_flags` after the increment instead.
 
 ## Compared with the other approaches
 
@@ -122,14 +118,15 @@ concurrent one under last-write-wins flags.
 
 ## Rollout
 
-1. protocol #190 (merged).
-2. hogd #4158: host semantics and tests, then a test-ffi release.
-3. A `groundhog-xdr` generated from the new `syscalls.yaml`. This branch does
-   not build against 0.39.0.
-4. sdk_rs: bump `groundhog-xdr` and the test-ffi pin (`groundhog-sys` uses
-   0.32.2), then this branch.
-5. Rebuild hogd's integration-test contracts with the new SDK, so their
-   exclusive writes lock again.
+1. protocol #190 (merged), released in protocol-rs 0.40.0.
+2. hogd #4158 (merged), released as test-ffi 0.33.0.
+3. sdk_rs: this branch, on protocol-rs 0.40.0 and test-ffi 0.33.0.
+   `syscall_misc_tests` in `integration_test/contracts` still passes flags to
+   the raw write syscalls, so it has to drop them before this branch's
+   integration build passes.
+4. Rebuild hogd's integration-test contracts with the new SDK, so their
+   exclusive writes lock again. Until then `airdrop_faucet` and
+   `payment_channel` take no lock, and a hogd test for each fails.
 
 ## Deferred
 
@@ -138,9 +135,11 @@ concurrent one under last-write-wins flags.
 - Lock protection in read-only frames.
 - `RetrocausalQueueInsert` counts as a write, so `SetStorageFlags` after an
   insert now produces a permanent-exclusive RCQ insert through syscalls. hog_db
-  handles it (its direct-delta tests), but the syscall-level tests that
-  `rcq_doctored_proposal_data_test.cc` sketches are not written, and RCQ
-  handles get no flag accessors here.
+  handles it (its direct-delta tests), and hogd #4158 tests through syscalls
+  that a lock on a bytestring survives the key's conversion to a queue and
+  keeps another transaction's insert out. The consume-side proposal and
+  validation roundtrips that `rcq_doctored_proposal_data_test.cc` sketches are
+  not written, and RCQ handles get no flag accessors here.
 - `CapacityConstraint` stages its writes until it flushes, so it gets no
   `set_flags`; its exclusive policy still applies at flush.
 
@@ -148,20 +147,8 @@ concurrent one under last-write-wins flags.
 
 - protocol: `generate_syscalls_doc.py` validates the new yaml, and
   `scripts/xdrformat -c` passes.
-- hogd: not built or run here (no private submodules, RV32 contracts or
-  google-benchmark); hogd #4158's CI is the first build. Every changed
-  translation unit that does not include a generated contract header or
-  benchmark header passes `-fsyntax-only` against headers generated from the
-  new protocol, including the new tests. clang-tidy is clean on
-  `syscall_storage_flags.cc`.
-- sdk_rs, against a local `groundhog-xdr` carrying the new yaml: clippy is
-  clean for the SDK, native-exec and the ERC20 examples, including the riscv32
-  guest build of `erc20`, and rustfmt has nothing to change in the touched
-  files. The pinned test-ffi 0.32.2
-  predates syscalls 36 to 38, so every exclusive write there throws
-  `NoSyscall`. The SDK suite passes 343 tests; its 27 failures (24 existing
-  storage tests and the 3 new ones) all stop on syscall 36, 37 or 38.
-  native-exec passes. Of the 75 example-contract packages, 13 have failures:
-  all of them stop on syscall 36, except rv32 tests that need prebuilt
-  `.rv32a` artifacts this environment lacks. The new tests need a test-ffi
-  built from the new hogd.
+- hogd: the new tests pass in #4158's CI. Two contract tests fail there until
+  rollout step 4.
+- sdk_rs, on protocol-rs 0.40.0 and test-ffi 0.33.0: the SDK suite passes,
+  the three new storage tests included, as do clippy, rustdoc and the riscv32
+  build of the SDK.
