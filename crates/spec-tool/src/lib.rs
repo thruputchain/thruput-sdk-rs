@@ -62,21 +62,6 @@ fn spec_id_json(id: &ContractSpecId) -> serde_json::Value {
     })
 }
 
-/// A spec id rendered for a diagnostic, where a person is reading.
-///
-/// Not the joined form: a reader wants to see which segment is which, and
-/// `module_path` already leads with the crate, so the crate and major trail
-/// in parentheses rather than doubling up in the path.
-fn spec_id_lossy(id: &ContractSpecId) -> String {
-    format!(
-        "{}::{} ({}@{})",
-        spec_str_lossy(&id.module_path),
-        spec_str_lossy(&id.declared),
-        spec_str_lossy(&id.crate_name),
-        spec_str_lossy(&id.major),
-    )
-}
-
 /// Errors that can occur during spec canonicalization or rendering.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpecToolError {
@@ -507,7 +492,7 @@ fn canonicalize_spec_inner(
         if declarers.len() > 1 {
             let named = declarers
                 .iter()
-                .map(|declarer| spec_id_lossy(declarer))
+                .map(|declarer| declarer.to_string())
                 .collect::<Vec<_>>()
                 .join(" and ");
             return Err(SpecToolError::ConflictingInterfaceDeclarers(
@@ -653,11 +638,11 @@ fn canonicalize_spec_inner(
         .into_iter()
         .map(|name| {
             let defs = events.remove(&name).ok_or_else(|| {
-                SpecToolError::MissingEventDef(spec_id_lossy(&name))
+                SpecToolError::MissingEventDef(name.to_string())
             })?;
             if defs.len() > 1 {
                 return Err(SpecToolError::ConflictingEventDef(
-                    spec_id_lossy(&name),
+                    name.to_string(),
                 ));
             }
             Ok(defs.into_iter().next().unwrap())
@@ -682,8 +667,8 @@ fn canonicalize_spec_inner(
                     format!(
                         "{} and {} both hash to {}; they differ only in a module \
                      path, which the signature does not carry — rename one",
-                        spec_id_lossy(first),
-                        spec_id_lossy(&event.name),
+                        first,
+                        event.name,
                         sig.iter()
                             .map(|b| format!("{b:02x}"))
                             .collect::<String>(),
@@ -1034,7 +1019,7 @@ fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
     if event.topics.len() > max_user_topics {
         return Err(SpecToolError::InvalidRawFragment(format!(
             "event {} declares {} topics, but at most {max_user_topics} are allowed",
-            spec_id_lossy(&event.name),
+            event.name,
             event.topics.len(),
         )));
     }
@@ -1150,9 +1135,7 @@ fn resolve_reachable_type_defs(
                 ));
             }
             None => {
-                return Err(SpecToolError::MissingTypeDef(spec_id_lossy(
-                    &symbol,
-                )));
+                return Err(SpecToolError::MissingTypeDef(symbol.to_string()));
             }
         }
     }
@@ -1193,14 +1176,12 @@ fn collect_named_types(
         ContractType::Named { named } => {
             spec_id_str(named)?;
             let Some(candidates) = defs.get(named) else {
-                return Err(SpecToolError::MissingTypeDef(spec_id_lossy(
-                    named,
-                )));
+                return Err(SpecToolError::MissingTypeDef(named.to_string()));
             };
             if candidates.len() > 1 {
-                return Err(SpecToolError::ConflictingTypeDef(spec_id_lossy(
-                    named,
-                )));
+                return Err(SpecToolError::ConflictingTypeDef(
+                    named.to_string(),
+                ));
             }
             if !resolved.contains_key(named) {
                 resolved.insert(named.clone(), candidates[0].clone());

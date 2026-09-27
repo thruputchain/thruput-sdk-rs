@@ -18,17 +18,18 @@ fn s(value: &str) -> ContractSpecString {
 
 /// A spec id for a test fixture: only `declared` varies, so a fixture reads
 /// the way it used to while still carrying a well-formed id.
-/// How a fixture id renders in a diagnostic, matching spec-tool's
-/// `spec_id_lossy`. Spelled out here rather than imported so a change to the
-/// rendering has to be made deliberately in both places.
+/// How a fixture id renders in a diagnostic, matching groundhog-spec's
+/// `Display` for `ContractSpecId`. Spelled out here rather than rendered
+/// through it so a change to the rendering has to be made deliberately in both
+/// places.
 fn id_str(declared: &str) -> String {
     format!("testcrate::{declared} (testcrate@0)")
 }
 
 /// A declarer id: the trait `declared` in crate `krate`. Declarers differ by
 /// crate here, which is what the collision fixtures turn on.
-/// How a declarer renders in a diagnostic, matching spec-tool's
-/// `spec_id_lossy`.
+/// How a declarer renders in a diagnostic, matching groundhog-spec's `Display`
+/// for `ContractSpecId`.
 fn declarer_str(krate: &str, declared: &str) -> String {
     format!("{krate}::{declared} ({krate}@0.1)")
 }
