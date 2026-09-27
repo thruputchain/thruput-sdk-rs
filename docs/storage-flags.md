@@ -120,12 +120,14 @@ re-reading the pair and rewriting it with `ExclusiveLock`. They can call
 
 1. protocol #190 (merged), released in protocol-rs 0.40.0.
 2. hogd #4158 (merged), released as test-ffi 0.33.0.
-3. sdk_rs: this branch, on protocol-rs 0.40.0 and test-ffi 0.33.0.
-   `syscall_misc_tests` in `integration_test/contracts` still passes flags to
-   the raw write syscalls, so it has to drop them before this branch's
-   integration build passes.
-4. Rebuild hogd's integration-test contracts with the new SDK, so their
-   exclusive writes lock again. Until then `airdrop_faucet` and
+3. integration_test_contracts #58 (merged) drops the flags argument from the
+   raw write syscalls in `syscall_misc_tests`, along with its three
+   invalid-write-flags methods.
+4. sdk_rs: this branch, on protocol-rs 0.40.0 and test-ffi 0.33.0, with
+   `integration_test/contracts` at #58.
+5. Rebuild hogd's integration-test contracts with the new SDK, so their
+   exclusive writes lock again, and move its `integration_test_contracts`
+   submodule to #58 at the same time. Until then `airdrop_faucet` and
    `payment_channel` take no lock, and a hogd test for each fails.
 
 ## Deferred
@@ -148,7 +150,8 @@ re-reading the pair and rewriting it with `ExclusiveLock`. They can call
 - protocol: `generate_syscalls_doc.py` validates the new yaml, and
   `scripts/xdrformat -c` passes.
 - hogd: the new tests pass in #4158's CI. Two contract tests fail there until
-  rollout step 4.
+  rollout step 5.
 - sdk_rs, on protocol-rs 0.40.0 and test-ffi 0.33.0: the SDK suite passes,
   the three new storage tests included, as do clippy, rustdoc and the riscv32
-  build of the SDK.
+  build of the SDK. With `integration_test/contracts` at #58, the integration
+  contracts build for riscv32 and their tests pass.
