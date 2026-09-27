@@ -3,7 +3,8 @@
 An alternative to [hogd #4156](https://github.com/groundhogchain/hogd/pull/4156),
 written against the allowance design in
 [sdk_rs #482](https://github.com/groundhogchain/sdk_rs/pull/482). The protocol
-side is [protocol #190](https://github.com/groundhogchain/protocol/pull/190).
+side is [protocol #190](https://github.com/groundhogchain/protocol/pull/190)
+and the host side [hogd #4158](https://github.com/groundhogchain/hogd/pull/4158).
 
 ## The problem
 
@@ -47,18 +48,12 @@ exclusivity rollback needs stays until commit.
 Each flag syscall costs `kStorageAccessCost`, the same frame walk a write
 pays.
 
-### ABI version
+### Compatibility
 
-The three writes change layout, and a guest built against the old layout
-passes flags they no longer read. Its locks would disappear without an error,
-so hogd moves `kArtifactSyscallAbiVersion` to 2 and refuses to load v1
-artifacts.
-
-The version is stamped by the lowerer (`rv32-lower`, `groundhog` CLI), not by
-the SDK. A lowerer that stamps v2 will also stamp it on an ELF built with an old
-SDK. The SDK should record its syscall ABI in the ELF (a section like
-`groundhog_rv32_entrypoints`) and the lowerer should copy it into the header,
-or refuse an ELF without it. Neither is part of this change.
+The syscall ABI version stays at 1, and artifacts built against the old write
+layout still load. They pass a flags argument that the three writes no longer
+read, so their exclusive writes take no lock until the contract is rebuilt
+with this SDK.
 
 ### SDK
 
@@ -123,19 +118,18 @@ concurrent one under last-write-wins flags.
 | Releasing a lock deliberately | Not possible | Rewrite without the flag | `ClearStorageFlags` |
 | Contracts not using the SDK | Covered | Must reissue themselves | Covered once they set the flag |
 | Extra cost | None | A second write when a lock would drop | One syscall per exclusive write |
-| ABI | Unchanged | Outputs added to 15, 17, 18 | Flags removed from 15, 17, 18; syscalls 36 to 38 added |
+| Syscalls | Unchanged | Outputs added to 15, 17, 18 | Flags removed from 15, 17, 18; syscalls 36 to 38 added |
 
 ## Rollout
 
-1. protocol #190.
-2. hogd: host semantics, ABI v2 and tests (branch
-   `geoph/amazing-edison-nhzhz9`), then a test-ffi release.
+1. protocol #190 (merged).
+2. hogd #4158: host semantics and tests, then a test-ffi release.
 3. A `groundhog-xdr` generated from the new `syscalls.yaml`. This branch does
    not build against 0.39.0.
 4. sdk_rs: bump `groundhog-xdr` and the test-ffi pin (`groundhog-sys` uses
    0.32.2), then this branch.
-5. A lowerer and CLI that stamp syscall ABI v2, and a rebuild of hogd's
-   integration-test contracts and RV32 fixtures with the new SDK.
+5. Rebuild hogd's integration-test contracts with the new SDK, so their
+   exclusive writes lock again.
 
 ## Deferred
 
@@ -155,11 +149,11 @@ concurrent one under last-write-wins flags.
 - protocol: `generate_syscalls_doc.py` validates the new yaml, and
   `scripts/xdrformat -c` passes.
 - hogd: not built or run here (no private submodules, RV32 contracts or
-  google-benchmark). Every changed translation unit that does not include a
-  generated contract header or benchmark header passes `-fsyntax-only` against
-  headers generated from the new protocol, including the new tests. clang-tidy
-  is clean on `syscall_storage_flags.cc`. The new format fingerprints were
-  computed from `artifact.h` and pinned.
+  google-benchmark); hogd #4158's CI is the first build. Every changed
+  translation unit that does not include a generated contract header or
+  benchmark header passes `-fsyntax-only` against headers generated from the
+  new protocol, including the new tests. clang-tidy is clean on
+  `syscall_storage_flags.cc`.
 - sdk_rs, against a local `groundhog-xdr` carrying the new yaml: clippy is
   clean for the SDK, native-exec and the ERC20 examples, including the riscv32
   guest build of `erc20`, and rustfmt has nothing to change in the touched
