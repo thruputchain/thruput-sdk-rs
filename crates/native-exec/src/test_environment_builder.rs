@@ -252,7 +252,6 @@ mod tests {
     };
     use crate::test_helpers::Named;
     use groundhog_xdr::network_config::ConfigParamID;
-    use groundhog_xdr::storage_item::StorageDeltaFlags;
     use groundhog_xdr::syscalls::{raw_BytestringSet, raw_SHA256Update};
     use groundhog_xdr::types::{ContractAddress, StorageKeyContractData};
 
@@ -393,22 +392,13 @@ mod tests {
             tx.call(&ContractAddress::named("bytestring_cap"))
                 .run(move || {
                     assert!(
-                        raw_BytestringSet(
-                            &key,
-                            &[0u8; 64],
-                            StorageDeltaFlags::None.0,
-                        )
-                        .is_ok(),
+                        raw_BytestringSet(&key, &[0u8; 64]).is_ok(),
                         "a bytestring at the cap must still be admitted",
                     );
                     assert!(
-                        raw_BytestringSet(
-                            &key,
-                            &[0u8; 65],
-                            StorageDeltaFlags::None.0,
-                        )
-                        .unwrap_err()
-                        .is_invalid_input(),
+                        raw_BytestringSet(&key, &[0u8; 65])
+                            .unwrap_err()
+                            .is_invalid_input(),
                         "one byte over must not be",
                     );
                 })

@@ -921,7 +921,6 @@ fn deployment_contract_size(contract: &Contract) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use groundhog_xdr::storage_item::StorageDeltaFlags;
     use xdrs::BytesM;
 
     const TEST_ADDR: ContractAddress = ContractAddress::new([0x11; 32]);
@@ -957,12 +956,8 @@ mod tests {
 
         let result = env.transact(|tx| {
             tx.call(&TEST_ADDR).run(|| {
-                groundhog_xdr::syscalls::raw_BytestringSet(
-                    &key,
-                    b"hello",
-                    StorageDeltaFlags::None.0,
-                )
-                .unwrap();
+                groundhog_xdr::syscalls::raw_BytestringSet(&key, b"hello")
+                    .unwrap();
             })
         });
         result.assert_success();
@@ -1007,12 +1002,8 @@ mod tests {
 
         let result = env.transact(|tx| {
             tx.call(&TEST_ADDR).run(|| {
-                groundhog_xdr::syscalls::raw_BytestringSet(
-                    &key,
-                    b"hello",
-                    StorageDeltaFlags::None.0,
-                )
-                .unwrap();
+                groundhog_xdr::syscalls::raw_BytestringSet(&key, b"hello")
+                    .unwrap();
             })
         });
         result.assert_success();

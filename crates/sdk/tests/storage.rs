@@ -266,6 +266,60 @@ contract_test!(test_exclusive_propagation {
     }
 });
 
+contract_test!(test_exclusive_write_keeps_its_lock {
+    use sdk::StorageFlags;
+
+    let mut map: Map<u32, Value<u32>> = Keypath::default().into();
+    let slot: u32 = 5;
+
+    // Building or reading a handle requests nothing.
+    assert_eq!(map.at(&slot).flags(), StorageFlags::None);
+    map.at_mut_exclusive(&slot).set(&1);
+    assert_eq!(map.at(&slot).flags(), StorageFlags::ExclusiveLock);
+
+    // Writes and deletes through ordinary handles keep the lock.
+    map.at_mut(&slot).set(&2);
+    map.at_mut(&slot).delete();
+    map.at_mut(&slot).set(&3);
+    assert_eq!(map.at(&slot).flags(), StorageFlags::ExclusiveLock);
+
+    // Clearing drops the lock, not the write.
+    map.at_mut(&slot).clear_flags();
+    assert_eq!(map.at(&slot).flags(), StorageFlags::None);
+    assert_eq!(map.at(&slot).get(), 3);
+});
+
+contract_test!(test_set_flags_needs_a_pending_write {
+    use sdk::StorageFlags;
+    use sdk::sys_result::flags::set_storage_flags;
+
+    let mut value: Value<u32> = Keypath::default().child(&1u32).into();
+
+    // Nothing written yet: flags have nothing to attach to, and clearing
+    // does nothing.
+    assert!(set_storage_flags(value.key(), StorageFlags::ExclusiveLock).is_err());
+    value.clear_flags();
+    assert_eq!(value.flags(), StorageFlags::None);
+
+    value.set(&7);
+    value.set_flags(StorageFlags::ExclusiveLock);
+    // set_flags adds: adding None removes nothing.
+    value.set_flags(StorageFlags::None);
+    assert_eq!(value.flags(), StorageFlags::ExclusiveLock);
+});
+
+contract_test!(test_exclusive_delete_locks_the_deletion {
+    use sdk::StorageFlags;
+
+    let mut count: NNInt = Keypath::default().child(&2u32).into();
+    count.set(4);
+    assert_eq!(count.flags(), StorageFlags::None);
+    count.delete_exclusive();
+    assert_eq!(count.flags(), StorageFlags::ExclusiveLock);
+    count.inc(1);
+    assert_eq!(count.flags(), StorageFlags::ExclusiveLock);
+});
+
 contract_test!(test_value_set_exclusive {
     let mut val: Value<u32> = Keypath::default().into();
 

@@ -6,7 +6,6 @@ use crate::sys_exn::rcq::*;
 use crate::xdr::*;
 use core::fmt::Debug;
 use core::marker::PhantomData;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// A retro-causal queue.
 ///
@@ -182,13 +181,8 @@ impl<S> super::sealed::Sealed for RCQ<S> {}
 impl<S> super::node::StorageType for RCQ<S> {}
 
 impl<T> super::deletable::Deletable for RCQ<T> {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.key.is_exclusive() {
-            StorageDeltaFlags::ExclusiveLock
-        } else {
-            StorageDeltaFlags::None
-        };
-        let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
-        crate::sys_exn::delete::delete_with_flags(self.key(), effective);
+    fn delete_internal(&mut self, exclusive: bool) {
+        let exclusive = exclusive || self.key.is_exclusive();
+        crate::sys_exn::delete::delete(self.key(), exclusive);
     }
 }
