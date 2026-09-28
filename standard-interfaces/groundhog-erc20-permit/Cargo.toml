@@ -1,6 +1,6 @@
 [package]
 name = "groundhog-erc20-permit-if"
-version = "0.1.38"
+version = "0.1.39"
 edition.workspace = true
 publish.workspace = true
 authors = ["Groundhog Team"]
@@ -12,8 +12,8 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 dev = ["sdk/dev", "dep:thiserror", "groundhog-erc20-if/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.39.1" }
-groundhog-erc20-if = { path = "../groundhog-erc20", registry = "groundhog", version = "=0.1.38" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.39.2" }
+groundhog-erc20-if = { path = "../groundhog-erc20", registry = "groundhog", version = "=0.1.39" }
 thiserror = { workspace = true, optional = true }
 
 [lib]
