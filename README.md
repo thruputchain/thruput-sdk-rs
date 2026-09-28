@@ -1,3 +1,5 @@
+# Groundhog Rust SDK
+
 This SDK facilitates writing contracts in Rust.
 
 ## Contract Author Quickstart
@@ -84,10 +86,10 @@ dev = ["sdk/dev"]
 # `sdk` is declared per target: it needs `std` on the host and forbids it on
 # the guest, and Cargo resolves features per platform.
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-sdk = { version = "0.34.0", registry = "groundhog" }
+sdk = { version = "=0.40.0", registry = "groundhog" }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { version = "0.34.0", registry = "groundhog", features = ["std"] }
+sdk = { version = "=0.40.0", registry = "groundhog", features = ["std"] }
 
 # Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
 # keeping the library itself no_std for guest builds.

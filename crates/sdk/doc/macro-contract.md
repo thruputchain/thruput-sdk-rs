@@ -115,6 +115,7 @@ during macro expansion, so mismatches are rejected at compile time rather than
 inherited automatically.
 
 `version = "0.3.0"` overrides the version used for entrypoint identifiers. When
-implementing a separately versioned trait interface, repeat that version on the
-impl if you need the impl's entrypoint IDs to match the trait's explicit
-version.
+implementing a `#[contract]` trait from another crate, the impl must carry
+`#[contract(version = "<that crate's version>")]` unless the implementing crate
+already shares the interface crate's major version; only the major component is
+compared, and a mismatch is rejected at compile time.

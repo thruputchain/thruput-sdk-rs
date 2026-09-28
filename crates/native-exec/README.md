@@ -1,6 +1,6 @@
-# native_exec Build Configuration
+# groundhog-native-exec Build Configuration
 
-The `native_exec` crate provides Rust bindings to the hogd test_ffi library,
+The `groundhog-native-exec` crate provides Rust bindings to the hogd test_ffi library,
 linked in through the `groundhog-sys` crate. `groundhog-sys`'s build script
 obtains the library in one of three ways, selected by environment variables.
 
