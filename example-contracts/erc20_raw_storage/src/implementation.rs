@@ -128,11 +128,8 @@ impl ERC20 for Token {
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         if exclusive {
             // Add the lock without replacing the pending delta.
-            let (set, add) = sdk::sys_exn::nnint_internal::get_values(&key);
-            sdk::sys_exn::nnint_internal::set_add(
+            sdk::sys_exn::flags::set_storage_flags(
                 &key,
-                set,
-                add,
                 StorageDeltaFlags::ExclusiveLock,
             );
         }

@@ -13,14 +13,14 @@ entrypoints = []
 dev = ["sdk/dev", "dep:thiserror", "groundhog-erc20-if/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.38.0" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.39.1" }
 groundhog-erc20-if.workspace = true
 groundhog-erc20-metadata-if.workspace = true
 heapless.workspace = true
 thiserror = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.38.0", features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.39.1", features = ["std"] }
 
 [lib]
 doctest = false

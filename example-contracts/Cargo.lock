@@ -326,6 +326,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "erc20_issuer"
+version = "0.4.0"
+dependencies = [
+ "ed25519-dalek",
+ "erc20_issuer",
+ "groundhog-domain-separator",
+ "groundhog-erc20-controls-if",
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "groundhog-erc20-permit-if",
+ "groundhog-signed-op-if",
+ "permit_wallet",
+ "sdk",
+]
+
+[[package]]
 name = "erc20_low_level"
 version = "0.4.0"
 dependencies = [
@@ -522,6 +538,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "groundhog-erc20-controls-if"
+version = "0.1.0"
+dependencies = [
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "heapless",
+ "sdk",
+ "thiserror",
+]
+
+[[package]]
 name = "groundhog-erc20-if"
 version = "0.1.38"
 dependencies = [
@@ -613,16 +640,6 @@ dependencies = [
 [[package]]
 name = "groundhog-rv32-runtime"
 version = "0.39.1"
-
-[[package]]
-name = "groundhog-sep41-if"
-version = "0.1.0"
-dependencies = [
- "groundhog-erc20-if",
- "heapless",
- "sdk",
- "thiserror",
-]
 
 [[package]]
 name = "groundhog-serde_arrays"
@@ -1147,16 +1164,6 @@ name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
-
-[[package]]
-name = "sep41"
-version = "0.4.0"
-dependencies = [
- "groundhog-erc20-if",
- "groundhog-sep41-if",
- "sdk",
- "sep41",
-]
 
 [[package]]
 name = "serde"
