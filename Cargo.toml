@@ -64,7 +64,7 @@ groundhog-erc20-controls-if = { path = "standard-interfaces/groundhog-erc20-cont
 # Additionally, these independent workspaces need updating to the new
 # SDK and interface versions:
 #    example-contracts/
-#    example_contracts/multi_root_collision/
+#    example-contracts/multi_root_collision/
 #    example-contracts/cross_crate_collision/ (3 manifests: alpha, beta, wrapper)
 #    integration_test/
 #
