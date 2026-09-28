@@ -3,6 +3,10 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
+
+#[path = "build/download.rs"]
+mod download;
 
 #[cfg(feature = "source-build")]
 const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
@@ -200,11 +204,6 @@ fn stage_shared_lib(
 
     if src != dst {
         fs::copy(&src, &dst)?;
-        println!(
-            "cargo:warning=Staged {} to {}",
-            src.display(),
-            dst.display()
-        );
     }
 
     Ok(stage_dir)
@@ -232,10 +231,6 @@ fn find_prebuilt_bindings(
     }
 
     fs::copy(&bindings_src, &bindings_dst)?;
-    println!(
-        "cargo:warning=Copied bindings.rs from tarball to: {}",
-        bindings_dst.display()
-    );
 
     Ok(())
 }
@@ -279,14 +274,9 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
                 dst.display()
             )
         })?;
-        println!(
-            "cargo:warning=Copied {} to {} for rpath resolution",
-            src.display(),
-            dst.display()
-        );
     } else {
         println!(
-            "cargo:warning=Shared library not found at {} — rpath resolution may fail at runtime",
+            "cargo:warning=Shared library not found at {}; rpath resolution may fail at runtime",
             src.display()
         );
     }
@@ -345,9 +335,17 @@ fn resolve_build_method() -> Result<BuildMethod, Box<dyn std::error::Error>> {
     .into())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
+    // Print with `Display` rather than returning the error: the multi-line
+    // messages below render as one `\n`-escaped line under `Debug`.
+    if let Err(e) = run() {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let target = env::var("TARGET").unwrap();
-    println!("cargo:warning=TARGET is '{target}'");
 
     if target.starts_with("riscv32") {
         return Err(format!("native_exec does not build for {target}").into());
@@ -365,7 +363,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             run_prebuilt_download(&out_dir)?;
         }
         BuildMethod::CustomLib(dir) => {
-            println!("cargo:warning=Using custom library directory");
             let lib_path = PathBuf::from(&dir);
             find_prebuilt_bindings(&lib_path, &out_dir)?;
             use_prebuilt_lib(&dir, &out_dir)?;
@@ -404,11 +401,6 @@ fn run_prebuilt_download(
 
     let arch = target_arch();
     let os = target_os();
-    println!(
-        "cargo:warning=Platform {arch}-{os} supports prebuilt libraries, downloading...",
-    );
-    println!("cargo:warning=Using hardcoded version: {TEST_FFI_VERSION}");
-
     download_and_extract(out_dir, &arch, &os, TEST_FFI_VERSION)
 }
 
@@ -684,61 +676,6 @@ fn use_prebuilt_lib(
     Ok(())
 }
 
-/// Download a file with retry and exponential backoff.
-///
-/// Downloads to a `.tmp` file first and atomically renames on success, so
-/// a partial download never corrupts the cache.
-fn download_with_retry(
-    url: &str,
-    dest: &Path,
-    max_retries: u32,
-) -> Result<(), String> {
-    let tmp = dest.with_extension("tmp");
-    if tmp.exists() {
-        let _ = fs::remove_file(&tmp);
-    }
-
-    let mut wait_secs = 5;
-    for attempt in 0..=max_retries {
-        let mut cmd = Command::new("curl");
-        cmd.arg("--fail").arg("-L").arg("-o").arg(&tmp).arg(url);
-
-        let status = cmd.status();
-
-        match status {
-            Ok(s) if s.success() && tmp.exists() => {
-                // Atomic rename
-                fs::rename(&tmp, dest)
-                    .map_err(|e| format!("rename failed: {e}"))?;
-                return Ok(());
-            }
-            Ok(s) => {
-                let _ = fs::remove_file(&tmp);
-                if attempt < max_retries {
-                    let code = s.code().unwrap_or(-1);
-                    let next = attempt + 1;
-                    println!(
-                        "cargo:warning=download attempt {next} failed (exit {code}), retrying in {wait_secs}s...",
-                    );
-                    std::thread::sleep(std::time::Duration::from_secs(
-                        wait_secs,
-                    ));
-                    wait_secs *= 2;
-                }
-            }
-            Err(e) => {
-                let _ = fs::remove_file(&tmp);
-                return Err(format!(
-                    "curl not found or failed to execute: {e}"
-                ));
-            }
-        }
-    }
-
-    let total = max_retries + 1;
-    Err(format!("download failed after {total} attempts: {url}"))
-}
-
 /// Download a file if not already cached, using URL-based invalidation.
 fn ensure_cached_download(
     url: &str,
@@ -753,10 +690,6 @@ fn ensure_cached_download(
             .unwrap_or(false);
 
     if cache_valid {
-        println!(
-            "cargo:warning={label} cache hit at {}, skipping download",
-            dest.display()
-        );
         return Ok(());
     }
 
@@ -766,8 +699,15 @@ fn ensure_cached_download(
 
     println!("cargo:warning=Downloading {label} from: {url}");
 
-    download_with_retry(url, dest, 3)
-        .map_err(|e| format!("{label} download failed: {e}"))?;
+    download::download_with_retry(
+        Path::new("curl"),
+        url,
+        dest,
+        TEST_FFI_VERSION,
+        3,
+        Duration::from_secs(5),
+    )
+    .map_err(|e| format!("{label} download failed: {e}"))?;
 
     fs::write(&sum_path, url)
         .map_err(|e| format!("failed to write {label} cache sum: {e}"))?;
@@ -813,7 +753,6 @@ fn verify_checksum(
         )
         .into());
     }
-    println!("cargo:warning=Checksum verified: {actual}");
     Ok(())
 }
 
@@ -922,11 +861,6 @@ fn download_and_extract(
         )
         .into());
     }
-
-    println!(
-        "cargo:warning=Extracted library to: {}",
-        extract_dir.display()
-    );
 
     let lib_found = extract_dir.join("libtest_ffi.so").exists()
         || extract_dir.join("libtest_ffi.dylib").exists()
