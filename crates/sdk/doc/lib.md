@@ -411,8 +411,10 @@ Other useful modules and types:
 `#[contract]` on a *trait* defines a reusable interface; `#[contract]` on an
 impl of that trait exports an implementation. Callers depend on the interface
 crate and get the same generated client either way. That is how the standard
-interfaces in `standard-interfaces/` (`groundhog-erc20`,
-`groundhog-erc20-metadata`, `groundhog-erc721`, `groundhog-signed-op`) are consumed.
+interfaces in `standard-interfaces/` (the `groundhog-*-if` crates:
+`groundhog-erc20-if`, `groundhog-erc20-metadata-if`, `groundhog-erc20-pausable-if`,
+`groundhog-erc20-permit-if`, `groundhog-erc721-if`, `groundhog-erc165-if`,
+`groundhog-access-control-if`, `groundhog-signed-op-if`) are consumed.
 
 Every `#[contract]` trait also carries an [`InterfaceId`] as
 `Trait::INTERFACE_ID`, derived from its name and major version, and every
