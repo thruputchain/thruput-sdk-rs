@@ -674,15 +674,17 @@ fn use_prebuilt_lib(
 
 /// curl's exit status for an HTTP error response (`--fail` on a 4xx/5xx).
 ///
-/// The server answered, so retrying returns the same answer. Every other
+/// Paired with the `%{http_code}` curl writes to stdout to tell a definitive
+/// client error (404, 403) from a transient one (429, 408, 5xx). Every other
 /// non-zero exit (DNS, connect, timeout, TLS, reset) is treated as transient.
 const CURL_EXIT_HTTP_ERROR: i32 = 22;
 
 /// Download a file with retry and exponential backoff.
 ///
 /// Downloads to a `.tmp` file first and atomically renames on success, so
-/// a partial download never corrupts the cache. An HTTP error response is
-/// reported immediately without retrying.
+/// a partial download never corrupts the cache. A definitive HTTP client
+/// error (a 4xx other than 408 or 429) is reported immediately without
+/// retrying; rate limiting, server errors, and transport failures retry.
 fn download_with_retry(
     url: &str,
     dest: &Path,
@@ -698,30 +700,46 @@ fn download_with_retry(
     let reason = loop {
         attempt += 1;
         let mut cmd = Command::new("curl");
-        cmd.arg("--fail").arg("-L").arg("-o").arg(&tmp).arg(url);
+        cmd.arg("--fail")
+            .arg("-L")
+            .arg("-o")
+            .arg(&tmp)
+            .arg("-w")
+            .arg("%{http_code}")
+            .arg(url)
+            .stderr(std::process::Stdio::inherit());
 
-        let status = cmd.status();
-
-        match status {
-            Ok(s) if s.success() && tmp.exists() => {
+        match cmd.output() {
+            Ok(out) if out.status.success() && tmp.exists() => {
                 // Atomic rename
                 fs::rename(&tmp, dest)
                     .map_err(|e| format!("rename failed: {e}"))?;
                 return Ok(());
             }
-            Ok(s) => {
+            Ok(out) => {
                 let _ = fs::remove_file(&tmp);
-                let code = s.code().unwrap_or(-1);
-                if code == CURL_EXIT_HTTP_ERROR {
+                let code = out.status.code().unwrap_or(-1);
+                let http_status = String::from_utf8_lossy(&out.stdout)
+                    .trim()
+                    .parse::<u16>()
+                    .unwrap_or(0);
+                let definitive = code == CURL_EXIT_HTTP_ERROR
+                    && (400..500).contains(&http_status)
+                    && !matches!(http_status, 408 | 429);
+                if definitive {
                     break format!(
-                        "the server returned an HTTP error (curl exit {code}); \
-                         not retrying"
+                        "the server returned HTTP {http_status}; not retrying"
                     );
                 }
                 if attempt > max_retries {
-                    break format!(
-                        "gave up after {attempt} attempts (last curl exit {code})"
-                    );
+                    break match http_status {
+                        0 => format!(
+                            "gave up after {attempt} attempts (last curl exit {code})"
+                        ),
+                        _ => format!(
+                            "gave up after {attempt} attempts (last HTTP {http_status})"
+                        ),
+                    };
                 }
                 println!(
                     "cargo:warning=download attempt {attempt} failed (exit {code}), retrying in {wait_secs}s...",
@@ -731,9 +749,7 @@ fn download_with_retry(
             }
             Err(e) => {
                 let _ = fs::remove_file(&tmp);
-                return Err(format!(
-                    "curl not found or failed to execute: {e}"
-                ));
+                break format!("curl not found or failed to execute: {e}");
             }
         }
     };
