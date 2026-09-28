@@ -75,9 +75,7 @@ fn spec(
 
 #[test]
 fn names_the_codegen_can_bind_raise_nothing() {
-    // Same names in two crates or two modules, a type named after a crate,
-    // and declarations beside modules of their own name that hold nothing
-    // they would clash with.
+    // Overlapping names the codegen still binds.
     let spec = spec(
         "Demo",
         vec![

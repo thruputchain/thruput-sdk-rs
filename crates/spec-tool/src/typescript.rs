@@ -1,28 +1,16 @@
-//! Spec names the CLI's TypeScript codegen cannot bind.
-//!
-//! `groundhog codegen ts` nests each declared type and event under the path
-//! its id maps to, `crate.vMAJOR.module.Name`, and keeps enum variants and
-//! event descriptors in one object per crate. Some names cannot be written
-//! that way. The contract still builds and deploys, so [`binding_warnings`]
-//! reports them when the spec is finalized, before anyone asks for bindings.
-//! The rules mirror the codegen's; change the two together.
+//! Spec names `groundhog codegen ts` cannot bind, found before anyone asks
+//! for bindings. The rules mirror the codegen's; change the two together.
 
 use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, btree_map::Entry};
 
-use crate::{
-    ContractSpec, ContractSpecId, ContractTypeDef, spec_id_lossy,
-    spec_str_lossy,
-};
+use crate::{ContractSpec, ContractSpecId, ContractTypeDef, spec_str_lossy};
 
 /// The prefix the codegen keeps for the names it declares itself.
 const RESERVED_PREFIX: &str = "__gh_";
 
-/// Reasons `groundhog codegen ts` would refuse `spec`, one message each.
-///
-/// A message names the declarations involved, the way the other spec
-/// diagnostics do, and what to rename. It reads as the tail of "cannot
-/// generate TypeScript bindings: …", which is how the codegen reports it.
+/// Reasons `groundhog codegen ts` would refuse `spec`, each worded to follow
+/// "cannot generate TypeScript bindings: " as the codegen's own errors are.
 pub fn binding_warnings(spec: &ContractSpec) -> Vec<String> {
     let declared = declarations(spec);
     let mut warnings = Vec::new();
@@ -123,14 +111,14 @@ fn declarations(spec: &ContractSpec) -> Vec<Declaration<'_>> {
             _ => continue,
         };
         out.push(Declaration {
-            label: format!("{word} {}", spec_id_lossy(id)),
+            label: format!("{word} {id}"),
             path: TsPath::of(id),
             kind,
         });
     }
     for event in spec.events.iter() {
         out.push(Declaration {
-            label: format!("event {}", spec_id_lossy(&event.name)),
+            label: format!("event {}", event.name),
             path: TsPath::of(&event.name),
             kind: Kind::Event,
         });
@@ -193,9 +181,8 @@ fn interface_warnings(name: &str, out: &mut Vec<String>) {
     }
 }
 
-/// Each type, each event and each event's filter type takes a name in its
-/// namespace, and no two can share one: an enum renamed after an event beside
-/// it, say, or a struct named like an event's filter type.
+/// Types, events and events' filter types each need their own name in their
+/// namespace.
 fn namespace_collision_warnings(
     declared: &[Declaration],
     out: &mut Vec<String>,
@@ -234,9 +221,8 @@ fn namespace_collision_warnings(
     }
 }
 
-/// A named type is written from its crate's root down, and TypeScript
-/// resolves that first segment to the nearest namespace of that name, so a
-/// module named after a crate would take over references to its types.
+/// A module named after a crate would capture the references the bindings
+/// write from that crate's root.
 fn crate_shadowing_warnings(declared: &[Declaration], out: &mut Vec<String>) {
     let crates: BTreeSet<&str> = declared
         .iter()
@@ -259,10 +245,8 @@ fn crate_shadowing_warnings(declared: &[Declaration], out: &mut Vec<String>) {
     }
 }
 
-/// Each value sits in its crate's object under its path, so an enum or event
-/// beside a module of its own name shares that object with the module's
-/// values. An enum's variants can, unless a key repeats; an event's
-/// descriptor cannot hold them at all.
+/// Enum variants and event descriptors share one object per path with the
+/// values of the module of their name, so keys can clash.
 fn value_clash_warnings(declared: &[Declaration], out: &mut Vec<String>) {
     for decl in declared {
         let at: Vec<String> = decl.path.segments().cloned().collect();
