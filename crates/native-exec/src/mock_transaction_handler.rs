@@ -1445,4 +1445,56 @@ mod tests {
              the parent frame as a contract fault",
         ));
     }
+
+    // Invoke flags reach the frame with their bits intact: a child opened
+    // ReadOnly refuses the write that the same child, opened without flags,
+    // makes.
+    #[test]
+    fn read_only_invoke_flag_refuses_writes_in_the_frame() {
+        let env = TestEnvironment::new(None);
+        env.setup_grant_storage_tokens(&child_addr(), 1_000_000_000);
+        let mut handler = MockTransactionHandler::new(env);
+        let key =
+            groundhog_xdr::types::StorageKeyContractData::new([0x5A; 32]);
+        let read_only = groundhog_xdr::invoke_flag::InvokeFlag::ReadOnly
+            .0
+            .cast_unsigned();
+
+        let result = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build()
+            .execute(|frame| {
+                for (flags, admitted) in [(read_only, false), (0, true)] {
+                    let child = frame
+                        .open_child_frame(child_addr())
+                        .with_invoke_flags(flags)
+                        .build();
+                    child.execute(|_| {
+                        let res = groundhog_xdr::syscalls::raw_BytestringSet(
+                            &key, b"x",
+                        );
+                        if admitted {
+                            res.unwrap();
+                        } else {
+                            assert!(res.unwrap_err().is_invalid_input());
+                        }
+                        FrameAction::Close
+                    });
+                    // A failed assertion above faults the child rather than
+                    // failing the test, so check how it closed.
+                    assert_eq!(
+                        child.result().output().status_code(),
+                        InvocationFrameStatusCode::Return,
+                        "flags {flags:#x}",
+                    );
+                }
+                FrameAction::Close
+            })
+            .result();
+        assert_eq!(
+            result.output().status_code(),
+            InvocationFrameStatusCode::Return
+        );
+    }
 }
