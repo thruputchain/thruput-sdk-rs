@@ -11,18 +11,20 @@
 //! These routines are thin wrappers around VM syscalls. They return
 //! [`Result<T, E>`](core::result::Result) where `E` is a
 //! [`SysErr`](crate::sys::SysErr) containing an error code in the case of a
-//! syscall failure.
+//! syscall failure. The syscalls carry flags as the unsigned
+//! [`StorageDeltaFlagSet`]; these wrappers convert to and from
+//! [`StorageDeltaFlags`] without changing the bits.
 
 use crate::sys::{self, SysResult as Result};
 use crate::types::StorageKey;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
+use groundhog_xdr::storage_item::{StorageDeltaFlagSet, StorageDeltaFlags};
 
 /// Returns the flags the current transaction requests for `key`, as seen by
 /// the current call frame. A key with no pending write has none.
 pub fn storage_flags(key: &StorageKey) -> Result<StorageDeltaFlags> {
-    let mut out = StorageDeltaFlags::None.0;
+    let mut out: StorageDeltaFlagSet = 0;
     sys::raw_GetStorageFlags(key, &mut out)?;
-    Ok(StorageDeltaFlags(out))
+    Ok(StorageDeltaFlags(out.cast_signed()))
 }
 
 /// Adds `flags` (a bitwise OR) to the flags the current transaction requests
@@ -38,7 +40,7 @@ pub fn set_storage_flags(
     key: &StorageKey,
     flags: StorageDeltaFlags,
 ) -> Result {
-    sys::raw_SetStorageFlags(key, flags.0)
+    sys::raw_SetStorageFlags(key, flags.0.cast_unsigned())
 }
 
 /// Removes every flag the current transaction requests for `key`, as seen by
