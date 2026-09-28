@@ -46,15 +46,16 @@ use groundhog_erc20_if::{Amount, ERC20Error};
 use sdk::signer::Signed;
 use sdk::{ContractAddress, contract};
 
-/// The body an owner signs to grant a spender up to `amount`: the payload of
-/// the signed operation their wallet verifies, which the wallet turns into a
-/// [`PermitGrant`].
+/// What an owner approves to grant a spender up to `amount`: the request a
+/// wallet validates and turns into a [`PermitGrant`].
 ///
 /// The token contract never sees this type; it is the contract between the
-/// owner, their wallet and any off-chain signer. Its `TYPE_DEF` goes into the
-/// signed-operation preimage, so a client that reproduces these fields in a
-/// different order, or under a different name, produces a signature no permit
-/// wallet will accept.
+/// owner, their wallet and any off-chain signer. The body the owner actually
+/// signs is the wallet's own type carrying this one (in the example
+/// `permit_wallet`, a variant of its `WalletRequest` enum), and that type's
+/// `TYPE_DEF` goes into the signed-operation preimage. It covers these fields,
+/// so a client that reproduces them in a different order, or under a
+/// different name, produces a signature the wallet will not accept.
 ///
 /// `token` is load-bearing. The preimage binds the network and the *verifying
 /// contract* — the wallet — but says nothing about which token the approval
@@ -87,12 +88,13 @@ pub struct PermitGrant {
     pub amount: Amount,
 }
 
-/// The body an owner signs to revoke a spender's standing allowance: the
-/// counterpart of [`PermitRequest`], turned into a [`ClearAllowanceGrant`].
+/// What an owner approves to revoke a spender's standing allowance: the
+/// counterpart of [`PermitRequest`], turned into a [`ClearAllowanceGrant`] and
+/// signed the same way, inside the wallet's own body type.
 ///
 /// A separate type rather than a [`PermitRequest`] with a zero amount, so the
-/// signed `TYPE_DEF` says which operation the owner approved: a grant signed
-/// to raise an allowance can never be redeemed to clear one, or the reverse.
+/// signed body says which operation the owner approved: a grant signed to
+/// raise an allowance can never be redeemed to clear one, or the reverse.
 /// `token` is load-bearing for the same reason it is in [`PermitRequest`].
 #[sdk::contract_type]
 pub struct ClearAllowanceRequest {
