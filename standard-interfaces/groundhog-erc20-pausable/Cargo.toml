@@ -1,6 +1,6 @@
 [package]
 name = "groundhog-erc20-pausable-if"
-version = "0.1.40"
+version = "0.1.41"
 edition.workspace = true
 publish.workspace = true
 authors = ["Groundhog Team"]
@@ -12,11 +12,11 @@ repository = "https://github.com/groundhogchain/sdk_rs"
 dev = ["sdk/dev", "dep:thiserror"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.40.0" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.41.0" }
 thiserror = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.40.0", features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.41.0", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
