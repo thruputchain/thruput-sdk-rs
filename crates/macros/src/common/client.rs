@@ -139,7 +139,7 @@ pub fn generate(
                         address: self.address.clone(),
                         config: ::sdk::invoke_config::InvokeConfig {
                                 flags: self.config.flags
-                                    | ::sdk::invoke_config::InvokeFlag::TryInvoke.0,
+                                    | ::sdk::invoke_config::InvokeFlag::TryInvoke.0.cast_unsigned(),
                                 .. self.config
                         },
                     }
@@ -153,7 +153,7 @@ pub fn generate(
                         address: self.address.clone(),
                         config: ::sdk::invoke_config::InvokeConfig {
                                 flags: self.config.flags
-                                    | ::sdk::invoke_config::InvokeFlag::ReadOnly.0,
+                                    | ::sdk::invoke_config::InvokeFlag::ReadOnly.0.cast_unsigned(),
                                 .. self.config
                         },
                     }

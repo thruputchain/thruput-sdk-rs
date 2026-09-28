@@ -42,7 +42,7 @@ enum MockInvocationFrameState {
 pub struct MockInvocationFrameConfig<'a> {
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     invocation: groundhog_xdr::transaction::Invocation,
-    invoke_flags: i32,
+    invoke_flags: groundhog_xdr::invoke_flag::InvokeFlagSet,
 
     root_handler: *mut c_void,
     // when we build the frame, the new frame will be emplaced into this value
@@ -87,7 +87,10 @@ impl<'a> MockInvocationFrameConfig<'a> {
     /// Set the frame's invoke flags, a bitset of
     /// [`InvokeFlag`](groundhog_xdr::invoke_flag::InvokeFlag) values
     /// (default: none).
-    pub fn with_invoke_flags(mut self, invoke_flags: i32) -> Self {
+    pub fn with_invoke_flags(
+        mut self,
+        invoke_flags: groundhog_xdr::invoke_flag::InvokeFlagSet,
+    ) -> Self {
         self.invoke_flags = invoke_flags;
         self
     }
@@ -166,7 +169,7 @@ impl MockInvocationFrame {
     fn new(
         root_handler: *mut c_void,
         serialized_invocation: &[u8],
-        invoke_flags: i32,
+        invoke_flags: groundhog_xdr::invoke_flag::InvokeFlagSet,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
     ) -> Self {
