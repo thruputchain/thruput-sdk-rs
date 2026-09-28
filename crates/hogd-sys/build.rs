@@ -272,7 +272,7 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
         })?;
     } else {
         println!(
-            "cargo:warning=Shared library not found at {} — rpath resolution may fail at runtime",
+            "cargo:warning=Shared library not found at {}; rpath resolution may fail at runtime",
             src.display()
         );
     }
@@ -673,18 +673,13 @@ fn use_prebuilt_lib(
 }
 
 /// curl's exit status for an HTTP error response (`--fail` on a 4xx/5xx).
-///
-/// Paired with the `%{http_code}` curl writes to stdout to tell a definitive
-/// client error (404, 403) from a transient one (429, 408, 5xx). Every other
-/// non-zero exit (DNS, connect, timeout, TLS, reset) is treated as transient.
 const CURL_EXIT_HTTP_ERROR: i32 = 22;
 
 /// Download a file with retry and exponential backoff.
 ///
 /// Downloads to a `.tmp` file first and atomically renames on success, so
-/// a partial download never corrupts the cache. A definitive HTTP client
-/// error (a 4xx other than 408 or 429) is reported immediately without
-/// retrying; rate limiting, server errors, and transport failures retry.
+/// a partial download never corrupts the cache. A definitive 4xx response
+/// (other than 408 or 429) is not retried.
 fn download_with_retry(
     url: &str,
     dest: &Path,
