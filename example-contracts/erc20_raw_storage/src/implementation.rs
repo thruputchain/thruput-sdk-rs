@@ -27,8 +27,6 @@ fn get_allowance_key(
     owner: &ContractAddress,
     spender: &ContractAddress,
 ) -> StorageKey {
-    debug_assert!(owner != spender, "no allowance needed on spending self");
-
     (b"allowance", owner, spender).hash().into()
 }
 
@@ -63,8 +61,6 @@ fn add_to_allowance(
 ) {
     non_negative_int_try_strict_inc(&get_allowance_key(owner, spender), diff)
         .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-
-    log_approval_event(owner, spender, diff);
 }
 
 #[storage]
@@ -91,7 +87,7 @@ impl ERC20 for Token {
         add_to_balance(&from, -diff);
         add_to_balance(to, diff);
 
-        log_transfer_event(&from, to, amount);
+        TransferEvent::new(&from, to, amount_to_diff(amount)).log();
     }
 
     fn transfer_from(
@@ -107,7 +103,7 @@ impl ERC20 for Token {
         add_to_balance(owner, -diff);
         add_to_balance(recipient, diff);
 
-        log_transfer_event(owner, recipient, amount);
+        TransferEvent::new(owner, recipient, amount_to_diff(amount)).log();
     }
 
     fn allowance(
@@ -123,11 +119,36 @@ impl ERC20 for Token {
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        diff: Difference,
+        difference: Difference,
+        exclusive: bool,
     ) {
-        let caller = get_caller();
+        let owner = get_caller();
+        let key = get_allowance_key(&owner, spender);
+        non_negative_int_try_strict_inc(&key, difference)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+        if exclusive {
+            sdk::sys_exn::flags::set_storage_flags(
+                &key,
+                StorageDeltaFlags::ExclusiveLock,
+            );
+        }
+        AllowanceChangeEvent::new(&owner, spender, difference).log();
+    }
 
-        add_to_allowance(&caller, spender, diff);
+    fn clear_allowance(&mut self, spender: &ContractAddress) {
+        let owner = get_caller();
+        let remaining = amount_to_diff(self.allowance(&owner, spender));
+        delete_exclusive(&get_allowance_key(&owner, spender));
+        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
+    }
+
+    fn clear_balance(&mut self) {
+        let key = get_balance_key(&get_caller());
+        let balance = non_negative_int_try_get(&key)
+            .none_if_missing()
+            .unwrap_or(0);
+        ensure(balance == 0, ERC20Error::BalanceNotZero);
+        delete_exclusive(&key);
     }
 
     fn get_balance_of(&self, addr: &ContractAddress) -> Amount {
@@ -147,7 +168,7 @@ impl ERC20 for Token {
         add_to_balance(recipient, diff);
         add_to_total_supply(diff);
 
-        log_mint_event(recipient, amount);
+        MintEvent::new(recipient, amount_to_diff(amount)).log();
     }
 
     fn burn(&mut self, loser: &ContractAddress, amount: Amount) {
@@ -157,7 +178,7 @@ impl ERC20 for Token {
         add_to_balance(loser, -diff);
         add_to_total_supply(-diff);
 
-        log_burn_event(loser, amount);
+        BurnEvent::new(loser, amount_to_diff(amount)).log();
     }
 
     fn total_supply(&self) -> Amount {

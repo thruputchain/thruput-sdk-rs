@@ -283,3 +283,9 @@ When running tests:
 - Set `TEST_FFI_TRACE=1` to see interactions with the test executor. When
   reporting a bug, it's helpful to include a trace captured with
   `TEST_FFI_TRACE=1`.
+
+## Stellar token reference
+
+The [ERC20 issuer example](example-contracts/erc20_issuer/README.md) adds optional
+holder authorization and clawback. [Stellar integration notes](docs/sep41-reference-token.md)
+cover semantic differences and bridge boundaries.

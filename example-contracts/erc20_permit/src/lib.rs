@@ -8,8 +8,8 @@
 //! about who is approving is trusted.
 //!
 //! The spending paths sit side by side deliberately. `transfer_from_signed`
-//! moves up to the granted amount and writes nothing, which is what the auth
-//! token was already: a capability good for one use. `increase_allowance_signed`
+//! moves up to the granted amount without writing an allowance. The auth token
+//! is a capability good for one use. `increase_allowance_signed`
 //! turns a grant into a standing allowance for spenders that draw later or
 //! through `transfer_from`, and `clear_allowance_signed` takes one back.
 

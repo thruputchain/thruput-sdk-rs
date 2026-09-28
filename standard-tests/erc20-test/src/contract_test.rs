@@ -93,25 +93,38 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     client.burn(other, amt);
     m.burn(other, amt);
 
-    // Approve spending by "other"
-    let amt = 17;
-    client.adjust_allowance(other, amt);
-    m.adjust_allowance(other, amt);
-
+    // Exercise positive, negative, and zero changes at the amount boundary.
+    for difference in [i128::MAX, -(i128::MAX - 7), 10, -4, 0] {
+        client.adjust_allowance(other, difference, false);
+        m.adjust_allowance(other, difference);
+        m.check_allowances(&client);
+    }
     #[cfg(not(feature = "no_check_aborts"))]
-    // Withdraw too much approval
-    assert_eq!(
-        client
-            .try_adjust_allowance(other, -20)
-            .unwrap_err()
-            .try_as(),
-        Some(ERC20Error::TooLarge),
-    );
-
-    // Withdraw some approval
-    let amt = 10;
-    client.adjust_allowance(other, -amt);
-    m.adjust_allowance(other, -amt);
+    {
+        assert_eq!(
+            client
+                .try_adjust_allowance(other, -14, false)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::TooLarge),
+        );
+        assert_eq!(
+            client
+                .try_adjust_allowance(other, i128::MAX, false)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::TooLarge),
+        );
+        assert_eq!(
+            client.try_clear_balance().unwrap_err().try_as(),
+            Some(ERC20Error::BalanceNotZero),
+        );
+    }
+    for _ in 0..2 {
+        client.clear_allowance(other);
+        m.clear_allowance(other);
+        m.check_allowances(&client);
+    }
 
     // Check client state against the model
     m.check(&client);
@@ -147,25 +160,10 @@ pub fn erc20_funded_test(
     client.transfer(other, amt);
     m.transfer(other, amt);
 
-    // Approve spending by "other"
-    let amt = 17;
-    client.adjust_allowance(other, amt);
-    m.adjust_allowance(other, amt);
-
-    #[cfg(not(feature = "no_check_aborts"))]
-    // Withdraw too much approval
-    assert_eq!(
-        client
-            .try_adjust_allowance(other, -20)
-            .unwrap_err()
-            .try_as(),
-        Some(ERC20Error::TooLarge),
-    );
-
-    // Withdraw some approval
-    let amt = 10;
-    client.adjust_allowance(other, -amt);
-    m.adjust_allowance(other, -amt);
+    client.adjust_allowance(other, 17, false);
+    m.adjust_allowance(other, 17);
+    client.adjust_allowance(other, -10, false);
+    m.adjust_allowance(other, -10);
 
     // Check client state against the model
     m.check(&client);

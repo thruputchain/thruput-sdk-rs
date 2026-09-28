@@ -1,17 +1,8 @@
-//! ERC20 Events
+//! Groundhog token events.
 //!
-//! See [EIP-20] for `Transfer` and `Approval`:
-//!
-//! `event Transfer(address indexed _from, address indexed _to, uint256 _value)`
-//! `event Approval(address indexed _owner, address indexed _spender, uint256 _value)`
-//!
-//! Supply changes have their own events here, [`MintEvent`] and
-//! [`BurnEvent`], where Ethereum overloads `Transfer` with the zero address
-//! as `_from` or `_to`. On Groundhog the zero address is an address like
-//! any other, so a transfer involving it is exactly that, and a mint or
-//! burn says so by name.
-//!
-//! [EIP-20]: https://eips.ethereum.org/EIPS/eip-20#events
+//! [`AllowanceChangeEvent`] carries a signed delta, not an absolute approval.
+//! Supply changes use [`MintEvent`] and [`BurnEvent`]; a [`TransferEvent`]
+//! involving the zero address is still an ordinary transfer.
 
 use core::fmt;
 use groundhog_xdr::standard_asset_events as stdevt;
@@ -19,21 +10,6 @@ use sdk::{
     ContractAddress, EmittedEvent, Event, ReadXDR, WriteXDR, hex_encode,
     log_event,
 };
-
-pub fn log_transfer_event(
-    from: &ContractAddress,
-    to: &ContractAddress,
-    amount: u128,
-) {
-    // The event carries `amount` as i128 (matching the standard
-    // `stdevt::TransferEvent`). `amount_to_diff` rejects values above
-    // `i128::MAX` with `ERC20Error::TooLarge` — the same bound a transfer
-    // already enforces — so the conversion to the standard form is infallible.
-    let event =
-        TransferEvent::new(from, to, crate::error::amount_to_diff(amount));
-
-    log_event(&event);
-}
 
 /// An event emitted when ERC20 tokens are transferred between addresses.
 /// Supply changes are [`MintEvent`] and [`BurnEvent`], not transfers.
@@ -45,12 +21,17 @@ pub struct TransferEvent<'a> {
     pub to: &'a ContractAddress,
     /// The transferred amount. Always non-negative; typed `i128` to match the
     /// standard [`stdevt::TransferEvent`], and bounded to `i128::MAX` on-chain
-    /// (see [`log_transfer_event`]). For in-range values the CXS encoding is
+    /// by the token implementation. For in-range values the CXS encoding is
     /// identical to the previous `u128`.
     pub amount: i128,
 }
 
 impl<'a> TransferEvent<'a> {
+    /// Emit this event.
+    pub fn log(&self) {
+        log_event(self);
+    }
+
     pub fn new(
         from: &'a ContractAddress,
         to: &'a ContractAddress,
@@ -112,22 +93,11 @@ impl<'a> fmt::Display for TransferEvent<'a> {
 
 // ----------------------------------------------------------------------
 
-pub fn log_approval_event(
-    owner: &ContractAddress,
-    spender: &ContractAddress,
-    amount: i128,
-) {
-    let event = ApprovalEvent::new(owner, spender, amount);
-
-    log_event(&event);
-}
-
-/// An event emitted when spending approval has been adjusted
-/// by `owner` for `spender`.  *Note*: Contrary to traditional
-/// ERC20 semantics, `amount` is the (signed) _difference_ in
-/// tokens approved to spend.
+/// Signed delta from an explicit allowance change, including signed grants and
+/// clearing. Spending emits only its token movement; query `allowance` for the
+/// remaining value.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
-pub struct ApprovalEvent<'a> {
+pub struct AllowanceChangeEvent<'a> {
     #[topic]
     pub owner: &'a ContractAddress,
     #[topic]
@@ -135,7 +105,12 @@ pub struct ApprovalEvent<'a> {
     pub difference: i128,
 }
 
-impl<'a> ApprovalEvent<'a> {
+impl<'a> AllowanceChangeEvent<'a> {
+    /// Emit this event.
+    pub fn log(&self) {
+        log_event(self);
+    }
+
     pub fn new(
         owner: &'a ContractAddress,
         spender: &'a ContractAddress,
@@ -149,7 +124,7 @@ impl<'a> ApprovalEvent<'a> {
     }
 }
 
-impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
+impl<'a> TryFrom<EmittedEvent<'a>> for AllowanceChangeEvent<'a> {
     type Error = &'static str;
 
     fn try_from(
@@ -157,7 +132,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
     ) -> core::result::Result<Self, Self::Error> {
         let sig = event.topic(0).ok_or("No event signature")?;
 
-        if sig != ApprovalEvent::SIGNATURE {
+        if sig != AllowanceChangeEvent::SIGNATURE {
             return Err("Unexpected event signature");
         }
 
@@ -172,25 +147,25 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalEvent<'a> {
         let difference: i128 = sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
-        Ok(ApprovalEvent::new(owner, spender, difference))
+        Ok(AllowanceChangeEvent::new(owner, spender, difference))
     }
 }
 
-impl<'a> From<&ApprovalEvent<'a>> for stdevt::ApprovalEvent {
-    fn from(val: &ApprovalEvent<'a>) -> Self {
-        stdevt::ApprovalEvent {
+impl<'a> From<&AllowanceChangeEvent<'a>> for StdAllowanceChangeEvent {
+    fn from(val: &AllowanceChangeEvent<'a>) -> Self {
+        StdAllowanceChangeEvent {
             owner_address: *val.owner,
             spender_address: *val.spender,
-            amount: val.difference.into(),
+            difference: val.difference,
         }
     }
 }
 
-impl<'a> fmt::Display for ApprovalEvent<'a> {
+impl<'a> fmt::Display for AllowanceChangeEvent<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "APPROVE({}, {}, diff:{:?})",
+            "ALLOWANCE_CHANGE({}, {}, difference:{:?})",
             hex_encode(self.owner),
             hex_encode(self.spender),
             self.difference
@@ -199,11 +174,6 @@ impl<'a> fmt::Display for ApprovalEvent<'a> {
 }
 
 // ----------------------------------------------------------------------
-
-/// Log that `amount` tokens were created into `to`.
-pub fn log_mint_event(to: &ContractAddress, amount: u128) {
-    log_event(&MintEvent::new(to, crate::error::amount_to_diff(amount)));
-}
 
 /// An event emitted when tokens are created.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
@@ -216,6 +186,11 @@ pub struct MintEvent<'a> {
 }
 
 impl<'a> MintEvent<'a> {
+    /// Emit this event.
+    pub fn log(&self) {
+        log_event(self);
+    }
+
     pub fn new(to: &'a ContractAddress, amount: i128) -> Self {
         Self { to, amount }
     }
@@ -257,11 +232,6 @@ impl<'a> fmt::Display for MintEvent<'a> {
 
 // ----------------------------------------------------------------------
 
-/// Log that `amount` tokens were destroyed from `from`.
-pub fn log_burn_event(from: &ContractAddress, amount: u128) {
-    log_event(&BurnEvent::new(from, crate::error::amount_to_diff(amount)));
-}
-
 /// An event emitted when tokens are destroyed.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct BurnEvent<'a> {
@@ -273,6 +243,11 @@ pub struct BurnEvent<'a> {
 }
 
 impl<'a> BurnEvent<'a> {
+    /// Emit this event.
+    pub fn log(&self) {
+        log_event(self);
+    }
+
     pub fn new(from: &'a ContractAddress, amount: i128) -> Self {
         Self { from, amount }
     }
@@ -317,7 +292,7 @@ impl<'a> fmt::Display for BurnEvent<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ERC20Event<'a> {
     Transfer(TransferEvent<'a>),
-    Approval(ApprovalEvent<'a>),
+    AllowanceChange(AllowanceChangeEvent<'a>),
     Mint(MintEvent<'a>),
     Burn(BurnEvent<'a>),
 }
@@ -334,8 +309,8 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ERC20Event<'a> {
             TransferEvent::SIGNATURE => {
                 Ok(ERC20Event::Transfer(event.try_into()?))
             }
-            ApprovalEvent::SIGNATURE => {
-                Ok(ERC20Event::Approval(event.try_into()?))
+            AllowanceChangeEvent::SIGNATURE => {
+                Ok(ERC20Event::AllowanceChange(event.try_into()?))
             }
             MintEvent::SIGNATURE => Ok(ERC20Event::Mint(event.try_into()?)),
             BurnEvent::SIGNATURE => Ok(ERC20Event::Burn(event.try_into()?)),
@@ -350,7 +325,7 @@ impl<'a> fmt::Display for ERC20Event<'a> {
 
         match self {
             ERC20Event::Transfer(e) => e.fmt(f),
-            ERC20Event::Approval(e) => e.fmt(f),
+            ERC20Event::AllowanceChange(e) => e.fmt(f),
             ERC20Event::Mint(e) => e.fmt(f),
             ERC20Event::Burn(e) => e.fmt(f),
         }
@@ -397,18 +372,29 @@ impl<'a> From<&BurnEvent<'a>> for StdBurnEvent {
 #[repr(i32)]
 pub enum StdERC20Event {
     Transfer(stdevt::TransferEvent),
-    Approval(stdevt::ApprovalEvent),
     Mint(StdMintEvent),
     Burn(StdBurnEvent),
+    AllowanceChange(StdAllowanceChangeEvent),
 }
 
 impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
     fn from(val: &ERC20Event<'a>) -> StdERC20Event {
         match val {
             ERC20Event::Transfer(e) => StdERC20Event::Transfer(e.into()),
-            ERC20Event::Approval(e) => StdERC20Event::Approval(e.into()),
+            ERC20Event::AllowanceChange(e) => {
+                StdERC20Event::AllowanceChange(e.into())
+            }
             ERC20Event::Mint(e) => StdERC20Event::Mint(e.into()),
             ERC20Event::Burn(e) => StdERC20Event::Burn(e.into()),
         }
     }
+}
+
+/// Owned representation of a signed allowance adjustment.
+#[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
+#[xdrs(crate = "::sdk::__xdrs")]
+pub struct StdAllowanceChangeEvent {
+    pub owner_address: ContractAddress,
+    pub spender_address: ContractAddress,
+    pub difference: i128,
 }

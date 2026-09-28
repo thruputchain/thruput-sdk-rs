@@ -26,7 +26,14 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 ///
 /// # Error contract
 ///
-/// Implementations must throw exactly these [`ERC20Error`]s:
+/// These operations use the following [`ERC20Error`]s. Optional policy
+/// extensions may reject an operation with additional errors, as with
+/// `ERC20Pausable` and `ERC20Authorization`. Clients expose those through
+/// their unknown-error path.
+///
+/// The basic reference uses one administrator for mint and burn. Issuer
+/// extensions may delegate mint authority and restrict administrator burns:
+/// possession of the role does not bypass the token's policy.
 ///
 /// - [`ERC20Error::AlreadyInitialized`] — `initialize` called twice.
 /// - [`ERC20Error::MustBeContractOwner`] — `mint`/`burn` called by anyone
@@ -34,10 +41,12 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 /// - [`ERC20Error::TooLarge`] — an operation would drive a balance or
 ///   allowance below zero (overdraft), or an `Amount` doesn't fit in
 ///   [`Difference`].
+/// - [`ERC20Error::BalanceNotZero`] — `clear_balance` called with a nonzero
+///   balance.
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, ApprovalEvent, MintEvent, BurnEvent)
+    emits(TransferEvent, AllowanceChangeEvent, MintEvent, BurnEvent)
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -59,14 +68,35 @@ pub trait ERC20 {
         amount: Amount,
     );
 
-    /// Adjust allowance for `spender` by `amount` (positive or negative).
-    /// Throws [`ERC20Error::TooLarge`] if the resulting allowance would be
-    /// negative.
+    /// Add `difference` to the caller's allowance for `spender` and emit
+    /// [`AllowanceChangeEvent`]. Negative differences reduce the allowance.
+    /// A result outside `0..=i128::MAX` throws [`ERC20Error::TooLarge`].
+    ///
+    /// With `exclusive=false`, adjustments may merge with concurrent spending
+    /// and adjustments within the allowance bounds. With `exclusive=true`,
+    /// this transaction conflicts with other writers to the same pair,
+    /// including when `difference` is zero. Later writes in this transaction
+    /// preserve that lock. Different pairs remain independent.
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        diff: Difference,
+        difference: Difference,
+        exclusive: bool,
     );
+
+    /// Revoke the caller's allowance for `spender` and delete its storage entry.
+    /// Missing entries are allowed. Deletion conflicts with concurrent writes,
+    /// including grants and spending. Emit [`AllowanceChangeEvent`] with the
+    /// negative remaining allowance (zero for a missing entry).
+    /// Implementations SHOULD refund the released storage cost to the caller.
+    fn clear_allowance(&mut self, spender: &ContractAddress);
+
+    /// Delete the caller's empty balance entry, leaving supply unchanged.
+    /// Throw [`ERC20Error::BalanceNotZero`] for a nonzero balance. Missing
+    /// entries are allowed. Deletion conflicts with concurrent balance writes.
+    /// Do not delete holder authorization or emit a token movement event.
+    /// Implementations SHOULD refund the released storage cost to the caller.
+    fn clear_balance(&mut self);
 
     /// Get `spender`'s allowance of `owner`'s tokens
     fn allowance(

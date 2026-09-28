@@ -72,6 +72,7 @@ env:
   INTERFACE_PACKAGES: >-
     groundhog-erc20-if
     groundhog-erc20-metadata-if
+    groundhog-erc20-controls-if
     groundhog-erc20-pausable-if
     groundhog-signed-op-if
     groundhog-signed-op
@@ -244,7 +245,7 @@ jobs:
         with:
           packages: ${{ env.INTERFACE_PACKAGES }}
           # The implementation components exact-pin their interface crates,
-          # and groundhog-erc20-permit-if exact-pins groundhog-erc20-if — all
+          # and the permit and issuer interfaces exact-pin groundhog-erc20-if — all
           # workspace path deps here, so their offline packaging needs those
           # pre-vendored (after the primaries they depend on).
           vendor-workspace-deps:
@@ -261,6 +262,7 @@ jobs:
             groundhog-rv32-runtime
             sdk
             groundhog-erc20-if
+            groundhog-erc20-metadata-if
             groundhog-signed-op-if
             groundhog-access-control-if
           # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
@@ -296,6 +298,18 @@ jobs:
         with:
           packages: groundhog-erc20-if
           tag-prefix: 'groundhog-erc20-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag groundhog-erc20-controls-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-token-controls-if
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-erc20-controls-if
+          tag-prefix: 'groundhog-erc20-controls-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: groundhog
@@ -453,6 +467,18 @@ jobs:
           packages: groundhog-erc20-metadata-if
           git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-metadata-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '20'
+
+      - name: Publish groundhog-erc20-controls-if
+        if: ${{ inputs.dry_run == false && steps.tag-token-controls-if.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-erc20-controls-if
+          git-tag: ${{ steps.tag-token-controls-if.outputs.tag }}
+          tag-prefix: 'groundhog-erc20-controls-if-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'

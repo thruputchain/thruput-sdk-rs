@@ -1,10 +1,10 @@
 //! An implementation of ERC20
 
 use crate::interface::*;
-use sdk::storage::{Balance, Map, Value};
+use sdk::storage::{Balance, Deletable, Map, Value};
 use sdk::*;
 
-type Allowance = Balance;
+type Allowance = sdk::storage::NNInt;
 
 #[sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
@@ -74,12 +74,16 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
-        self.allowances.at(owner).at(spender).get()
+        self.allowances
+            .at(owner)
+            .at(spender)
+            .try_get()
+            .none_if_missing()
+            .unwrap_or(0) as Amount
     }
 
     // Adjust allowance for owner and spender, from zero if empty.
-    // Returns resulting allowance.
-    fn _adjust_allowance(
+    fn _spend_allowance(
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
@@ -87,16 +91,9 @@ impl TokenContract {
     ) {
         let mut owner_allowances = self.allowances.at_mut(owner);
         let mut allowance = owner_allowances.at_mut(spender);
-        let result = if diff >= 0 {
-            // Allowances are not bounded by total supply, so increase them
-            // strictly to preserve the interface's immediate TooLarge error.
-            allowance.try_increase(diff as u128)
-        } else {
-            allowance.try_decrease(diff.unsigned_abs())
-        };
-        result.unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-
-        log_approval_event(owner, spender, diff);
+        allowance
+            .try_strict_inc(diff)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
     fn _increase_total_supply(&mut self, amount: Amount) {
@@ -143,7 +140,7 @@ impl ERC20 for TokenContract {
         self._decrease_balance(&owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        log_transfer_event(&owner, receiver, amount);
+        TransferEvent::new(&owner, receiver, amount_to_diff(amount)).log();
     }
 
     fn transfer_from(
@@ -155,21 +152,47 @@ impl ERC20 for TokenContract {
         let spender = get_caller();
 
         let diff = amount_to_diff(amount);
-        self._adjust_allowance(owner, &spender, -diff);
+        self._spend_allowance(owner, &spender, -diff);
         self._decrease_balance(owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        log_transfer_event(owner, receiver, amount);
+        TransferEvent::new(owner, receiver, amount_to_diff(amount)).log();
     }
 
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        diff: Difference,
+        difference: Difference,
+        exclusive: bool,
     ) {
         let owner = get_caller();
+        let mut allowances = self.allowances.at_mut(&owner);
+        let mut allowance = if exclusive {
+            allowances.at_mut_exclusive(spender)
+        } else {
+            allowances.at_mut(spender)
+        };
+        allowance
+            .try_strict_inc(difference)
+            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+        AllowanceChangeEvent::new(&owner, spender, difference).log();
+    }
 
-        self._adjust_allowance(&owner, spender, diff);
+    fn clear_allowance(&mut self, spender: &ContractAddress) {
+        let owner = get_caller();
+        let remaining = amount_to_diff(self.allowance(&owner, spender));
+        self.allowances
+            .at_mut(&owner)
+            .at_mut(spender)
+            .delete_exclusive();
+        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
+    }
+
+    fn clear_balance(&mut self) {
+        let owner = get_caller();
+        let mut balance = self.balances.at_mut(&owner);
+        ensure(balance.get() == 0, ERC20Error::BalanceNotZero);
+        balance.delete_exclusive();
     }
 
     fn allowance(
@@ -201,7 +224,7 @@ impl ERC20 for TokenContract {
         self._increase_total_supply(amount);
         self._lazy_increase_balance(receiver, amount);
 
-        log_mint_event(receiver, amount);
+        MintEvent::new(receiver, amount_to_diff(amount)).log();
     }
 
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
@@ -214,7 +237,7 @@ impl ERC20 for TokenContract {
         self._decrease_balance(owner, amount);
         self._decrease_total_supply(amount);
 
-        log_burn_event(owner, amount);
+        BurnEvent::new(owner, amount_to_diff(amount)).log();
     }
 
     fn total_supply(&self) -> Amount {

@@ -109,7 +109,7 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     // allowance throws TooLarge, and a sufficient one is debited.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
-            ERC20Client::new(token).adjust_allowance(&SPENDER, 5);
+            ERC20Client::new(token).adjust_allowance(&SPENDER, 5, false);
         })
     });
     result.assert_success();

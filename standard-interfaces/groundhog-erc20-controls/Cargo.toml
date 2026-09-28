@@ -1,0 +1,31 @@
+[package]
+name = "groundhog-erc20-controls-if"
+version = "0.1.0"
+edition.workspace = true
+publish.workspace = true
+authors = ["Groundhog Team"]
+license = "MIT OR Apache-2.0"
+description = "Optional issuer controls and holder burns for Groundhog ERC20 tokens"
+repository = "https://github.com/groundhogchain/sdk_rs"
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "dep:thiserror", "groundhog-erc20-if/dev"]
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.40.0" }
+groundhog-erc20-if.workspace = true
+groundhog-erc20-metadata-if.workspace = true
+heapless.workspace = true
+thiserror = { workspace = true, optional = true }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.40.0", features = ["std"] }
+
+[lib]
+doctest = false
+
+[[bin]]
+name = "groundhog-erc20-controls-if"
+path = "src/main.rs"
+required-features = ["entrypoints"]
