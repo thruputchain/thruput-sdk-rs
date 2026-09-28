@@ -18,17 +18,18 @@ fn s(value: &str) -> ContractSpecString {
 
 /// A spec id for a test fixture: only `declared` varies, so a fixture reads
 /// the way it used to while still carrying a well-formed id.
-/// How a fixture id renders in a diagnostic, matching spec-tool's
-/// `spec_id_lossy`. Spelled out here rather than imported so a change to the
-/// rendering has to be made deliberately in both places.
+/// How a fixture id renders in a diagnostic, matching groundhog-spec's
+/// `Display` for `ContractSpecId`. Spelled out here rather than rendered
+/// through it so a change to the rendering has to be made deliberately in both
+/// places.
 fn id_str(declared: &str) -> String {
     format!("testcrate::{declared} (testcrate@0)")
 }
 
 /// A declarer id: the trait `declared` in crate `krate`. Declarers differ by
 /// crate here, which is what the collision fixtures turn on.
-/// How a declarer renders in a diagnostic, matching spec-tool's
-/// `spec_id_lossy`.
+/// How a declarer renders in a diagnostic, matching groundhog-spec's `Display`
+/// for `ContractSpecId`.
 fn declarer_str(krate: &str, declared: &str) -> String {
     format!("{krate}::{declared} ({krate}@0.1)")
 }
@@ -1372,6 +1373,33 @@ fn canonicalize_spec_resolves_type_defs_referenced_by_events() {
     assert_eq!(
         canonicalize_spec(&missing),
         Err(SpecToolError::MissingTypeDef(id_str("Payload")))
+    );
+}
+
+/// Every other fixture id has a `module_path` equal to its crate name, so none
+/// of them can tell those two segments apart in a diagnostic. This one is
+/// declared in a nested module of a crate whose package name is not its Rust
+/// ident, and the whole rendering is spelled out.
+#[test]
+fn diagnostic_keeps_nested_module_path_and_crate_apart() {
+    let nested = ContractSpecId {
+        crate_name: s("my-token"),
+        major: s("0.1"),
+        module_path: s("my_token::types"),
+        declared: s("Payload"),
+    };
+    let mut missing = base_interface_fragments();
+    missing.push(SpecFragment::ExportedSpecEvent {
+        event_def: event_def(
+            "MintEvent",
+            ContractType::Named { named: nested },
+        ),
+    });
+    assert_eq!(
+        canonicalize_spec(&missing),
+        Err(SpecToolError::MissingTypeDef(
+            "my_token::types::Payload (my-token@0.1)".to_owned()
+        ))
     );
 }
 

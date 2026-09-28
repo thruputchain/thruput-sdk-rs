@@ -4,8 +4,11 @@ use groundhog_erc20_if::{
     Amount, Difference, ERC20, ERC20Error, amount_to_diff, log_approval_event,
     log_burn_event, log_mint_event, log_transfer_event,
 };
-use groundhog_erc20_permit_if::{ERC20Permit, ERC20PermitError, PermitGrant};
+use groundhog_erc20_permit_if::{
+    ClearAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
+};
 use sdk::signer::Signed;
+use sdk::storage::deletable::Deletable;
 use sdk::storage::{Balance, Map, Value};
 use sdk::*;
 
@@ -157,12 +160,31 @@ impl ERC20 for PermitToken {
 }
 
 // The owner of a grant is whoever minted it. `consume` reports that address
-// from the runtime, so it is the one fact about a permit the submitter cannot
+// from the runtime, so it is the one fact about a grant the submitter cannot
 // choose; the grant's payload says the rest. Reaching this contract at all
 // already proves the grant was minted for it.
 #[contract(version = "0.1.0")]
 impl ERC20Permit for PermitToken {
-    fn permit(&mut self, grant: Signed<PermitGrant>) {
+    fn transfer_from_signed(
+        &mut self,
+        grant: Signed<PermitGrant>,
+        receiver: &ContractAddress,
+        amount: Amount,
+    ) {
+        let (grant, owner) = grant.consume();
+        // The grant names who may spend it and how much; the caller must be
+        // them, asking for no more. No allowance is written, so this is the
+        // whole authorization check.
+        if get_caller() != grant.spender {
+            throw(ERC20PermitError::NotSpender);
+        }
+        if amount > grant.amount {
+            throw(ERC20PermitError::ExceedsGrant);
+        }
+        self._move(&owner, receiver, amount);
+    }
+
+    fn increase_allowance_signed(&mut self, grant: Signed<PermitGrant>) {
         let (grant, owner) = grant.consume();
         self._adjust_allowance(
             &owner,
@@ -171,17 +193,15 @@ impl ERC20Permit for PermitToken {
         );
     }
 
-    fn transfer_from_signed(
-        &mut self,
-        grant: Signed<PermitGrant>,
-        receiver: &ContractAddress,
-    ) {
+    fn clear_allowance_signed(&mut self, grant: Signed<ClearAllowanceGrant>) {
         let (grant, owner) = grant.consume();
-        // The grant names who may spend it; the caller must be them. No
-        // allowance is written, so this is the whole authorization check.
-        if get_caller() != grant.spender {
-            throw(ERC20PermitError::NotSpender);
-        }
-        self._move(&owner, receiver, grant.amount);
+        let mut owner_allowances = self.allowances.at_mut(&owner);
+        let mut allowance = owner_allowances.at_mut(&grant.spender);
+        let cleared = allowance.get();
+        // Delete rather than zero, freeing the entry's storage, and lock it so
+        // no other transaction's write to the pair lands in the same block.
+        allowance.delete_exclusive();
+
+        log_approval_event(&owner, &grant.spender, -amount_to_diff(cleared));
     }
 }

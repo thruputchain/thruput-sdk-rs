@@ -80,8 +80,8 @@ fully deleted. It provides three methods:
 
 - **`delete(&mut self)`**: delete using the keypath's own locking semantics
 - **`delete_exclusive(&mut self)`**: delete with an exclusive lock
-- **`delete_internal(&mut self, flags)`**: low-level propagation hook used by
-  derived impls
+- **`delete_internal(&mut self, exclusive: bool)`**: low-level propagation
+  hook used by derived impls
 
 ### Which types are `Deletable`?
 

@@ -14,12 +14,16 @@ cd my-contract
 groundhog build          # compiles and lowers the rv32 artifact
 ```
 
-Installing the CLI goes through the private Groundhog registry today, which
-is what this repository's own scripts do (`scripts/ci.sh`,
-`scripts/scaffold-smoke.sh`):
+Installing the CLI goes through the private Groundhog registry today. Install
+the version `scripts/groundhog-cli-version.sh` pins, which is what this
+repository's own scripts do (`scripts/ci.sh`, `scripts/scaffold-smoke.sh`):
+the CLI and the SDK share the raw contract-spec wire format, and an unpinned
+install picks the latest stable CLI release, which can lag a format bump this
+checkout has already shipped.
 
 ```shell
-cargo install groundhog-cli --registry groundhog --locked
+. scripts/groundhog-cli-version.sh
+cargo install groundhog-cli --version "=$GROUNDHOG_CLI_VERSION" --registry groundhog --locked
 ```
 
 `cargo install` resolves configuration from the directory you run it in, so
@@ -31,9 +35,7 @@ export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/a
 export CARGO_REGISTRIES_GROUNDHOG_TOKEN=...
 ```
 
-CI additionally installs the exact version pinned in
-`scripts/groundhog-cli-version.sh`. There is no public install path yet —
-distribution is tracked in
+There is no public install path yet — distribution is tracked in
 [groundhogchain/packaging#86](https://github.com/groundhogchain/packaging/issues/86).
 
 Polished examples and tutorials are maintained outside this repository:

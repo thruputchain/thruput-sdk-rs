@@ -3,7 +3,6 @@ use crate::exn::nnint_overflow;
 use crate::sys_exn::nnint::*;
 use crate::sys_exn::nnint_internal as nnint;
 use core::fmt::Debug;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// A stored integer with a **commit-time floor**, not a call-time
 /// non-negativity invariant.
@@ -57,10 +56,6 @@ impl NNInt {
         non_negative_int_try_get(self.key.get())
     }
 
-    fn flags(&self) -> StorageDeltaFlags {
-        self.key.flags()
-    }
-
     /// Set the value, clearing accumulated [`inc`](Self::inc)s this transaction.
     ///
     /// A negative `set_value` is allowed: the commit-time floor becomes that
@@ -68,7 +63,12 @@ impl NNInt {
     /// lower. A non-negative `set_value` keeps the floor at `0`. (At commit,
     /// `value >= min(set_value, 0)` must hold.) See the [type docs](NNInt).
     pub fn set(&mut self, set_value: i128) {
-        nnint::set_add(self.key.get(), Some(set_value), 0, self.flags());
+        nnint::set_add(
+            self.key.get(),
+            Some(set_value),
+            0,
+            self.key.is_exclusive(),
+        );
     }
 
     /// Increment by an amount (without querying the current value).
@@ -82,7 +82,7 @@ impl NNInt {
         let (s, a) = nnint::get_values(key);
         let add_value =
             a.checked_add(increment).unwrap_or_else(|| nnint_overflow());
-        nnint::set_add(key, s, add_value, self.flags());
+        nnint::set_add(key, s, add_value, self.key.is_exclusive());
     }
 
     /// Increment by an amount, throwing in case of a negative result.
@@ -124,16 +124,22 @@ impl NNInt {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
 
-        nnint::try_set_add(key, Some(s), add_value, self.flags())
+        nnint::try_set_add(key, Some(s), add_value, self.key.is_exclusive())
     }
 }
 
 impl super::sealed::Sealed for NNInt {}
 impl super::node::StorageType for NNInt {}
 
+impl super::flags::Flaggable for NNInt {
+    fn storage_key(&self) -> &crate::types::StorageKey {
+        self.key.get()
+    }
+}
+
 impl super::deletable::Deletable for NNInt {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let effective = StorageDeltaFlags(flags.0 | self.flags().0);
-        crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
+    fn delete_internal(&mut self, exclusive: bool) {
+        let exclusive = exclusive || self.key.is_exclusive();
+        crate::sys_exn::delete::delete(self.key.get(), exclusive);
     }
 }

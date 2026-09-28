@@ -7,12 +7,11 @@
 //! minter address, which the runtime supplies. Nothing the submitter asserts
 //! about who is approving is trusted.
 //!
-//! The two spending paths sit side by side deliberately. `permit` writes an
-//! allowance, matching ERC-2612 and whatever already speaks `transfer_from`.
-//! `transfer_from_signed` moves the tokens and writes nothing, which is what
-//! the auth token was already: a capability good for one use. Ethereum has no
-//! way to hand one over, so allowances are its substitute; here the allowance
-//! is the lossy step.
+//! The spending paths sit side by side deliberately. `transfer_from_signed`
+//! moves up to the granted amount and writes nothing, which is what the auth
+//! token was already: a capability good for one use. `increase_allowance_signed`
+//! turns a grant into a standing allowance for spenders that draw later or
+//! through `transfer_from`, and `clear_allowance_signed` takes one back.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
@@ -22,7 +21,7 @@ mod implementation;
 
 pub use groundhog_erc20_if::{ERC20, ERC20Client, ERC20Error};
 pub use groundhog_erc20_permit_if::{
-    ERC20Permit, ERC20PermitClient, ERC20PermitError, PermitGrant,
-    PermitRequest,
+    ClearAllowanceGrant, ClearAllowanceRequest, ERC20Permit,
+    ERC20PermitClient, ERC20PermitError, PermitGrant, PermitRequest,
 };
 pub use implementation::PermitToken;
