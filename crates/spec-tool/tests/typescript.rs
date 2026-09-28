@@ -54,6 +54,11 @@ fn event(name: ContractSpecId) -> ContractEventDef {
     }
 }
 
+/// A spec holding only an interface named `interface`.
+fn spec_named(interface: &str) -> ContractSpec {
+    spec(interface, vec![], vec![])
+}
+
 fn spec(
     interface: &str,
     type_defs: Vec<ContractTypeDef>,
@@ -87,10 +92,33 @@ fn names_the_codegen_can_bind_raise_nothing() {
             enum_def(id("demo", "demo", "status"), &["Active"]),
             enum_def(id("demo", "demo::status", "Mode"), &["On"]),
             struct_def(id("demo", "demo::Transfer", "Detail")),
+            // A module named after a crate whose types the bindings use.
+            struct_def(id("other", "other", "Thing")),
+            struct_def(id("demo", "demo::other", "Holder")),
         ],
         vec![event(id("demo", "demo", "Transfer"))],
     );
     assert_eq!(binding_warnings(&spec), Vec::<String>::new());
+}
+
+#[test]
+fn names_the_codegen_escapes_raise_nothing() {
+    // Reserved words and `globalThis` take a `$` wherever they land, and so
+    // do crates named after the bindings' own `spec` and `decodeEvent`.
+    let spec = spec(
+        "default",
+        vec![
+            struct_def(id("demo", "demo::default", "Config")),
+            struct_def(id("demo", "demo::globalThis", "Uint8Array")),
+            struct_def(id("demo", "demo", "string")),
+            struct_def(id("spec", "spec", "Thing")),
+        ],
+        vec![event(id("decodeEvent", "decodeEvent", "Ping"))],
+    );
+    assert_eq!(binding_warnings(&spec), Vec::<String>::new());
+    for name in ["globalThis", "spec", "string", "__proto__"] {
+        assert_eq!(binding_warnings(&spec_named(name)), Vec::<String>::new());
+    }
 }
 
 #[test]
@@ -144,42 +172,36 @@ fn an_event_beside_a_module_holding_a_value() {
 }
 
 #[test]
-fn a_reserved_word_in_a_path() {
-    // `default` is a valid Rust module name and a reserved word in
-    // TypeScript.
+fn an_invalid_identifier_in_a_path() {
+    // A type may take any name through `#[contract_type(name = "...")]`.
     let spec = spec(
         "Demo",
-        vec![struct_def(id("demo", "demo::default", "Config"))],
+        vec![struct_def(id("demo", "demo::default", "Has-Dash"))],
         vec![],
     );
     assert_eq!(
         binding_warnings(&spec),
         vec![
-            "struct demo::default::Config (demo@1) would be \
-             \"demo.v1.default.Config\" in the generated TypeScript, where \
-             \"default\" is not a valid identifier. Rename it."
+            "struct demo::default::Has-Dash (demo@1) would be \
+             \"demo.v1.$default.Has-Dash\" in the generated TypeScript, \
+             where \"Has-Dash\" is not a valid identifier. Rename it."
         ]
     );
 }
 
 #[test]
-fn global_this_anywhere_in_a_path() {
-    for module in ["demo::globalThis", "demo::globalThis::inner"] {
-        let spec = spec(
-            "Demo",
-            vec![struct_def(id("demo", module, "Config"))],
-            vec![],
-        );
-        assert_eq!(
-            binding_warnings(&spec),
-            vec![format!(
-                "struct {module}::Config (demo@1) has \"globalThis\" in its \
-                 generated TypeScript path, where it would shadow the global \
-                 object the bindings reach built-in types through. Rename \
-                 the module or type."
-            )]
-        );
-    }
+fn a_dollar_sign_in_a_name() {
+    // The bindings escape names with `$`, so a name with one could collide
+    // with an escaped one.
+    let spec =
+        spec("Demo", vec![struct_def(id("demo", "demo", "A$b"))], vec![]);
+    assert_eq!(
+        binding_warnings(&spec),
+        vec![
+            "struct demo::A$b (demo@1) has \"$\" in its name, which the \
+             generated TypeScript keeps for the names it escapes. Rename it."
+        ]
+    );
 }
 
 #[test]
@@ -214,42 +236,18 @@ fn interface_names_the_codegen_declares_at_top_level() {
              without that prefix.",
         ),
         (
-            "globalThis",
-            "interface \"globalThis\" would shadow the global object the \
-             bindings reach built-in types through. Rename it.",
+            "Tok$n",
+            "interface \"Tok$n\" has \"$\" in its name, which the generated \
+             TypeScript keeps for the names it escapes. Rename it.",
         ),
         (
-            "string",
-            "interface \"string\" is not a valid TypeScript identifier. \
+            "erc20.v1",
+            "interface \"erc20.v1\" is not a valid TypeScript identifier. \
              Rename it.",
         ),
     ] {
-        assert_eq!(binding_warnings(&spec(name, vec![], vec![])), [warning]);
+        assert_eq!(binding_warnings(&spec_named(name)), [warning]);
     }
-}
-
-#[test]
-fn a_module_named_after_a_crate_whose_types_the_bindings_use() {
-    // Inside `demo.v1.other`, a reference written `other.v1.Thing` would
-    // resolve to the module.
-    let spec = spec(
-        "Demo",
-        vec![
-            struct_def(id("other", "other", "Thing")),
-            struct_def(id("demo", "demo::other", "Holder")),
-        ],
-        vec![],
-    );
-    assert_eq!(
-        binding_warnings(&spec),
-        vec![
-            "struct demo::other::Holder (demo@1) has \"other\" in its \
-             generated TypeScript path, which is also the name of a crate \
-             whose types the bindings write as \"other.…\". Inside that \
-             namespace the name would resolve to the module instead. Rename \
-             the module."
-        ]
-    );
 }
 
 #[test]

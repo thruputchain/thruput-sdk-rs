@@ -21,7 +21,6 @@ pub fn binding_warnings(spec: &ContractSpec) -> Vec<String> {
         interface_warnings(&spec_str_lossy(&iface.name), &mut warnings);
     }
     namespace_collision_warnings(&declared, &mut warnings);
-    crate_shadowing_warnings(&declared, &mut warnings);
     value_clash_warnings(&declared, &mut warnings);
     warnings
 }
@@ -33,13 +32,14 @@ struct TsPath {
 }
 
 impl TsPath {
-    /// The crate's `-` becomes `_`, the major nests as `vMAJOR`, and the
-    /// module path drops its leading crate segment, as the codegen maps it.
+    /// The crate's `-` becomes `_`, the major nests as `vMAJOR`, the module
+    /// path drops its leading crate segment, and each name is escaped, as the
+    /// codegen maps it.
     fn of(id: &ContractSpecId) -> Self {
         let krate = spec_str_lossy(&id.crate_name).replace('-', "_");
         let major = spec_str_lossy(&id.major).replace('.', "_");
         let module_path = spec_str_lossy(&id.module_path);
-        let mut namespaces = vec![krate.clone(), format!("v{major}")];
+        let mut namespaces = vec![escape_root(&krate), format!("v{major}")];
         let mut segments = module_path
             .split("::")
             .filter(|segment| !segment.is_empty())
@@ -47,10 +47,10 @@ impl TsPath {
         if segments.peek() == Some(&krate.as_str()) {
             segments.next();
         }
-        namespaces.extend(segments.map(str::to_owned));
+        namespaces.extend(segments.map(escape));
         TsPath {
             namespaces,
-            name: spec_str_lossy(&id.declared).into_owned(),
+            name: escape(&spec_str_lossy(&id.declared)),
         }
     }
 
@@ -76,6 +76,7 @@ enum Kind<'a> {
 
 /// A declared type or event and the path the bindings give it.
 struct Declaration<'a> {
+    id: &'a ContractSpecId,
     label: String,
     path: TsPath,
     kind: Kind<'a>,
@@ -111,6 +112,7 @@ fn declarations(spec: &ContractSpec) -> Vec<Declaration<'_>> {
             _ => continue,
         };
         out.push(Declaration {
+            id,
             label: format!("{word} {id}"),
             path: TsPath::of(id),
             kind,
@@ -118,6 +120,7 @@ fn declarations(spec: &ContractSpec) -> Vec<Declaration<'_>> {
     }
     for event in spec.events.iter() {
         out.push(Declaration {
+            id: &event.name,
             label: format!("event {}", event.name),
             path: TsPath::of(&event.name),
             kind: Kind::Event,
@@ -127,6 +130,17 @@ fn declarations(spec: &ContractSpec) -> Vec<Declaration<'_>> {
 }
 
 fn path_warnings(decl: &Declaration, out: &mut Vec<String>) {
+    let id = decl.id;
+    if [&id.crate_name, &id.major, &id.module_path, &id.declared]
+        .into_iter()
+        .any(|part| spec_str_lossy(part).contains('$'))
+    {
+        out.push(format!(
+            "{} has \"$\" in its name, which the generated TypeScript keeps \
+             for the names it escapes. Rename it.",
+            decl.label
+        ));
+    }
     let path = &decl.path;
     if let Some(segment) = path.segments().find(|s| !is_ts_identifier(s)) {
         out.push(format!(
@@ -134,14 +148,6 @@ fn path_warnings(decl: &Declaration, out: &mut Vec<String>) {
              \"{segment}\" is not a valid identifier. Rename it.",
             decl.label,
             path.qualified()
-        ));
-    }
-    if path.segments().any(|segment| segment == "globalThis") {
-        out.push(format!(
-            "{} has \"globalThis\" in its generated TypeScript path, where \
-             it would shadow the global object the bindings reach built-in \
-             types through. Rename the module or type.",
-            decl.label
         ));
     }
     if let Some(segment) =
@@ -156,21 +162,20 @@ fn path_warnings(decl: &Declaration, out: &mut Vec<String>) {
     }
 }
 
-/// An interface's name is declared at the top level of the bindings, and so
-/// are the exception, event and method types named after it.
+/// An interface's name is declared at the top level of the bindings, where
+/// its methods and types nest under it.
 fn interface_warnings(name: &str, out: &mut Vec<String>) {
-    if !is_ts_identifier(name) {
+    if name.contains('$') {
+        out.push(format!(
+            "interface \"{name}\" has \"$\" in its name, which the generated \
+             TypeScript keeps for the names it escapes. Rename it."
+        ));
+    }
+    if !is_ts_identifier(&escape_root(name)) {
         out.push(format!(
             "interface \"{name}\" is not a valid TypeScript identifier. \
              Rename it."
         ));
-    }
-    if name == "globalThis" {
-        out.push(
-            "interface \"globalThis\" would shadow the global object the \
-             bindings reach built-in types through. Rename it."
-                .to_owned(),
-        );
     }
     if name.starts_with(RESERVED_PREFIX) {
         out.push(format!(
@@ -217,30 +222,6 @@ fn namespace_collision_warnings(
                     slot.insert(source);
                 }
             }
-        }
-    }
-}
-
-/// A module named after a crate would capture the references the bindings
-/// write from that crate's root.
-fn crate_shadowing_warnings(declared: &[Declaration], out: &mut Vec<String>) {
-    let crates: BTreeSet<&str> = declared
-        .iter()
-        .filter(|decl| !matches!(decl.kind, Kind::Event))
-        .map(|decl| decl.path.namespaces[0].as_str())
-        .collect();
-    for decl in declared {
-        if let Some(module) = decl.path.namespaces[1..]
-            .iter()
-            .find(|segment| crates.contains(segment.as_str()))
-        {
-            out.push(format!(
-                "{} has \"{module}\" in its generated TypeScript path, which \
-                 is also the name of a crate whose types the bindings write \
-                 as \"{module}.…\". Inside that namespace the name would \
-                 resolve to the module instead. Rename the module.",
-                decl.label
-            ));
         }
     }
 }
@@ -299,9 +280,44 @@ fn value_clash_warnings(declared: &[Declaration], out: &mut Vec<String>) {
     }
 }
 
+/// A spec name as the bindings declare it. A reserved word or `__proto__`
+/// cannot name a namespace, a type or a value object's key, and a declaration
+/// named `globalThis` would capture the built-in types written through it, so
+/// each takes a leading `$`, which no spec name may contain.
+fn escape(name: &str) -> String {
+    if is_ts_reserved_word(name) || ["__proto__", "globalThis"].contains(&name)
+    {
+        format!("${name}")
+    } else {
+        name.to_owned()
+    }
+}
+
+/// [`escape`] for a crate or interface name, which the bindings declare at
+/// top level beside their own `spec` and `decodeEvent`.
+fn escape_root(name: &str) -> String {
+    if ["spec", "decodeEvent"].contains(&name) {
+        format!("${name}")
+    } else {
+        escape(name)
+    }
+}
+
 /// Whether the codegen can declare `name`: an ASCII identifier that is not
-/// a reserved word in TypeScript, or `__proto__`.
+/// a reserved word in TypeScript.
 fn is_ts_identifier(name: &str) -> bool {
+    let mut chars = name.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    (first == '_' || first == '$' || first.is_ascii_alphabetic())
+        && chars.all(|ch| ch == '_' || ch == '$' || ch.is_ascii_alphanumeric())
+        && !is_ts_reserved_word(name)
+}
+
+/// Whether `name` is a word the codegen cannot declare a namespace, type or
+/// strict-mode binding by: a reserved word, or a type TypeScript predefines.
+fn is_ts_reserved_word(name: &str) -> bool {
     const RESERVED: &[&str] = &[
         "arguments",
         "any",
@@ -366,12 +382,5 @@ fn is_ts_identifier(name: &str) -> bool {
         "with",
         "yield",
     ];
-    let mut chars = name.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-    (first == '_' || first == '$' || first.is_ascii_alphabetic())
-        && chars.all(|ch| ch == '_' || ch == '$' || ch.is_ascii_alphanumeric())
-        && !RESERVED.contains(&name)
-        && name != "__proto__"
+    RESERVED.contains(&name)
 }
