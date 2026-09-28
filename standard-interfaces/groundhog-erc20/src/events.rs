@@ -93,8 +93,9 @@ impl<'a> fmt::Display for TransferEvent<'a> {
 
 // ----------------------------------------------------------------------
 
-/// Signed change made by `adjust_allowance` or `clear_allowance`. Spending emits
-/// only its token movement; query `allowance` for the remaining value.
+/// Signed delta from an explicit allowance change, including signed grants and
+/// clearing. Spending emits only its token movement; query `allowance` for the
+/// remaining value.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct AllowanceChangeEvent<'a> {
     #[topic]

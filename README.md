@@ -286,7 +286,6 @@ When running tests:
 
 ## Stellar token reference
 
-The [ERC20 issuer reference token](example-contracts/erc20_issuer/README.md) provides
-mergeable allowance adjustments, signed spending and optional issuer controls.
-See its [spec and work plan](docs/sep41-reference-token.md) for Groundhog
-adaptations, verification and Quickbridge integration work.
+The [ERC20 issuer example](example-contracts/erc20_issuer/README.md) adds optional
+holder authorization and clawback. [Stellar integration notes](docs/sep41-reference-token.md)
+cover semantic differences and bridge boundaries.

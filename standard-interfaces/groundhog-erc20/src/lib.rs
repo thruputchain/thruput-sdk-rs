@@ -75,7 +75,8 @@ pub trait ERC20 {
     /// With `exclusive=false`, adjustments may merge with concurrent spending
     /// and adjustments within the allowance bounds. With `exclusive=true`,
     /// this transaction conflicts with other writers to the same pair,
-    /// including when `difference` is zero. Different pairs remain independent.
+    /// including when `difference` is zero. Later writes in this transaction
+    /// preserve that lock. Different pairs remain independent.
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,

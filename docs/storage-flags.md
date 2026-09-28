@@ -99,11 +99,12 @@ map.at_mut(&key).clear_flags();         // no longer
 
 ## Allowances in #482
 
-The token examples retain exclusivity through a nested `transfer_from` after an
-exclusive `adjust_allowance`, a regrant after `clear_allowance` and a credit
-after `clear_balance`. The SDK-based examples use exclusive handles;
-`erc20_low_level` and `erc20_raw_storage` call `set_storage_flags` after a
-successful increment. Ordinary adjustments leave the flags unchanged.
+#482 is not part of this change. On top of it, #482's SDK-based tokens keep
+their locks with no code changes: a nested `transfer_from` after an exclusive
+`adjust_allowance`, a regrant after `clear_allowance` and a credit after
+`clear_balance`. Its `erc20_low_level` and `erc20_raw_storage` add a lock by
+re-reading the pair and rewriting it with `ExclusiveLock`. They can call
+`set_storage_flags` after the increment instead.
 
 ## Compared with the other approaches
 

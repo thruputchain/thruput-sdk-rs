@@ -245,7 +245,7 @@ jobs:
         with:
           packages: ${{ env.INTERFACE_PACKAGES }}
           # The implementation components exact-pin their interface crates,
-          # and the permit and SEP-41 interfaces exact-pin groundhog-erc20-if — all
+          # and the permit and issuer interfaces exact-pin groundhog-erc20-if — all
           # workspace path deps here, so their offline packaging needs those
           # pre-vendored (after the primaries they depend on).
           vendor-workspace-deps:

@@ -121,7 +121,9 @@ pub struct ClearAllowanceGrant {
 ///
 /// # Error contract
 ///
-/// Implementations must throw exactly these:
+/// These operations use the following errors. Optional issuer policies may
+/// reject an operation with additional errors, exposed through the client's
+/// unknown-error path.
 ///
 /// - [`ERC20PermitError::NotSpender`] — `transfer_from_signed` called by
 ///   anyone other than the grant's `spender`.

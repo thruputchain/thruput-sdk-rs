@@ -3,8 +3,8 @@
 
 //! Optional controls for the standard Groundhog ERC20 interface.
 //! These extensions support Stellar issuer policy without introducing a second
-//! transfer or allowance interface. They do not implement Soroban's ABI or
-//! the identity registry and compliance system described by ERC-3643.
+//! transfer or allowance interface. Authorization follows Groundhog's caller
+//! model, not Soroban's authorization tree.
 
 mod error;
 mod events;
@@ -29,6 +29,7 @@ pub struct Policy {
 
 /// Configuration of the issuer reference. Deploy and initialize atomically.
 /// The caller becomes admin and may replace the minter, including with itself.
+/// Role changes reach other transactions in the next block.
 #[contract(client = ERC20AdminClient, throws(ERC20ControlsError, ERC20Error), emits(SetAdminEvent, SetMinterEvent))]
 pub trait ERC20Admin {
     fn initialize(
