@@ -283,3 +283,10 @@ When running tests:
 - Set `TEST_FFI_TRACE=1` to see interactions with the test executor. When
   reporting a bug, it's helpful to include a trace captured with
   `TEST_FFI_TRACE=1`.
+
+## Stellar token reference
+
+The [ERC20 issuer reference token](example-contracts/erc20_issuer/README.md) provides
+mergeable allowance adjustments, signed spending and optional issuer controls.
+See its [spec and work plan](docs/sep41-reference-token.md) for Groundhog
+adaptations, verification and Quickbridge integration work.

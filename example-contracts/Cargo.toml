@@ -7,6 +7,7 @@ members = [
     "complex-storage",
     "counter",
     "erc20",
+    "erc20_issuer",
     "erc20_permit",
     "erc20_pausable",
     "erc721",
@@ -105,6 +106,7 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
+groundhog-erc20-controls-if = { path = "../standard-interfaces/groundhog-erc20-controls", registry = "groundhog", version = "=0.1.0" }
 groundhog-erc165-if = { path = "../standard-interfaces/groundhog-erc165", registry = "groundhog", version = "=0.1.39" }
 sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.39.2" }
 groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.39.2" }

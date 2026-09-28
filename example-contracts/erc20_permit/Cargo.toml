@@ -1,6 +1,6 @@
 [package]
 name = "erc20_permit"
-description = "Example ERC20 accepting off-chain approvals via signed operations"
+description = "Example ERC20 with wallet-authorized bounded transfers and signed allowances"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

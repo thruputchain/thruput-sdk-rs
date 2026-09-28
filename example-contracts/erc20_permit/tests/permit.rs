@@ -74,9 +74,22 @@ fn setup() -> sdk::TestEnvironmentHandle {
 
     permit_wallet::register_mock_contract(&env)
         .deploy_contract_to(&wallet_address());
-    let token = erc20_permit::register_mock_contract(&env);
-    token.deploy_contract_to(&token_address());
-    token.deploy_contract_to(&other_token_address());
+    if let Some(path) = std::env::var_os("ERC20_PERMIT_RV32_ARTIFACT") {
+        let contract = sdk::types::Contract::kRv32 {
+            rv32_contract: sdk::types::contract::ContractBlob {
+                data: BytesM(
+                    std::fs::read(path).expect("read permit RV32 artifact"),
+                ),
+            },
+        };
+        env.setup_create_contract(&contract);
+        env.setup_create_deployment(&token_address(), &contract);
+        env.setup_create_deployment(&other_token_address(), &contract);
+    } else {
+        let token = erc20_permit::register_mock_contract(&env);
+        token.deploy_contract_to(&token_address());
+        token.deploy_contract_to(&other_token_address());
+    }
 
     env.transact(|tx| {
         tx.call(&admin()).run(|| {
@@ -764,4 +777,133 @@ fn a_clear_conflicts_with_an_increase_in_the_same_block() {
     env.advance_block();
 
     assert_eq!(allowance(&env), 0, "only the clear landed");
+}
+
+fn submit_transfer(
+    env: &sdk::TestEnvironmentHandle,
+    op: Operation,
+    signature: Ed25519Signature,
+    amount: u128,
+) -> sdk::TransactResult {
+    env.transact(|tx| {
+        tx.call(&spender()).run(move || {
+            let grant = mint_grant(op, &signature);
+            ERC20PermitClient::new(&token_address()).transfer_from_signed(
+                grant,
+                &receiver(),
+                amount,
+            );
+        })
+    })
+}
+
+#[test]
+fn signed_transfer_preserves_an_existing_allowance() {
+    let env = setup();
+    env.transact(|tx| {
+        tx.call(&wallet_address()).run(|| {
+            ERC20Client::new(&token_address()).adjust_allowance(
+                &spender(),
+                100,
+                false,
+            );
+        })
+    })
+    .assert_success();
+    env.advance_block();
+    let (op, signature) = alice_permit(&env);
+    let result = submit_transfer(&env, op, signature, GRANTED);
+    result.assert_success();
+    result.assert_event_count(1);
+    result.assert_raw_event(0, |event| {
+        let transfer = groundhog_erc20_if::TransferEvent::try_from(
+            sdk::EmittedEvent::from(event.raw()),
+        )
+        .unwrap();
+        assert_eq!(transfer.amount, GRANTED as i128);
+    });
+    env.advance_block();
+    assert_eq!(balance_of(&env, receiver()), GRANTED);
+    assert_eq!(allowance(&env), 100);
+}
+
+#[test]
+fn invalid_transfer_amounts_roll_back_without_consuming_the_operation() {
+    let env = setup();
+    let expiry = current_height(&env) + HORIZON;
+    for amount in [MINTED + 1, i128::MAX as u128 + 1] {
+        let request = WalletRequest::Permit(PermitRequest {
+            token: token_address(),
+            spender: spender(),
+            amount,
+        });
+        let (op, signature) =
+            sign(&ALICE_SEED, &wallet_address(), 0, expiry.clone(), &request);
+        let result = submit_transfer(&env, op, signature, amount);
+        assert_eq!(
+            result.assert_abort_as::<ERC20Error>(),
+            ERC20Error::TooLarge
+        );
+        result.assert_no_events();
+        env.advance_block();
+        assert_eq!(balance_of(&env, wallet_address()), MINTED);
+        assert_eq!(allowance(&env), 0);
+    }
+    let (op, signature) = alice_permit_until(expiry);
+    submit_transfer(&env, op, signature, GRANTED).assert_success();
+    env.advance_block();
+    assert_eq!(balance_of(&env, receiver()), GRANTED);
+}
+
+#[test]
+fn independent_signed_transfers_merge() {
+    let env = setup();
+    for nonce in [0, 1] {
+        submit_signed(&env, nonce, standard_request(), |op, signature| {
+            let grant = mint_grant(op, &signature);
+            ERC20PermitClient::new(&token_address()).transfer_from_signed(
+                grant,
+                &receiver(),
+                GRANTED,
+            );
+        })
+        .assert_success();
+    }
+    env.advance_block();
+    assert_eq!(balance_of(&env, receiver()), 2 * GRANTED);
+    assert_eq!(balance_of(&env, wallet_address()), MINTED - 2 * GRANTED);
+    assert_eq!(allowance(&env), 0);
+}
+
+#[test]
+fn a_transfer_signed_for_another_network_is_refused() {
+    let env = setup();
+    let expiry = current_height(&env) + HORIZON;
+    let (op, _) = alice_permit_until(expiry.clone());
+    let preimage = SignedOpPreimage {
+        network: sdk::types::NetworkHash::new(sdk::types::SHA256Hash::new(
+            [0; 32],
+        )),
+        verifying_contract: wallet_address(),
+        uniquifier: Uniquifier {
+            block_expiry_height: expiry,
+            nonce: 0,
+        },
+        body: &standard_request(),
+    }
+    .preimage()
+    .unwrap();
+    let signature = Ed25519Signature::from(
+        SigningKey::from_bytes(&ALICE_SEED)
+            .sign(&preimage)
+            .to_bytes(),
+    );
+    assert_wallet_refuses!(
+        &env,
+        op,
+        signature,
+        SignedOpError::InvalidSignature
+    );
+    env.advance_block();
+    assert_eq!(balance_of(&env, wallet_address()), MINTED);
 }

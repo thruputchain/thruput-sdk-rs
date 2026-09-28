@@ -6,7 +6,8 @@ extern crate alloc;
 use sdk::*;
 
 pub type Name = heapless::String<100>;
-pub type Symbol = heapless::String<10>;
+/// Includes the 12-character codes of classic Stellar assets.
+pub type Symbol = heapless::String<12>;
 
 #[sdk::contract]
 pub trait ERC20Metadata {

@@ -1,0 +1,42 @@
+[package]
+name = "erc20_issuer"
+description = "ERC20 reference token with optional issuer controls"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "groundhog-erc20-controls-if/dev", "groundhog-erc20-if/dev", "groundhog-erc20-permit-if/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[[bin]]
+name = "erc20_issuer"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk.workspace = true
+groundhog-erc20-controls-if.workspace = true
+groundhog-erc20-if.workspace = true
+groundhog-erc20-metadata-if.workspace = true
+groundhog-erc20-permit-if.workspace = true
+
+[dev-dependencies]
+groundhog-erc20-if = { workspace = true, features = ["dev"] }
+erc20_issuer = { path = ".", features = ["dev"] }
+
+permit_wallet = { path = "../permit_wallet", features = ["dev"] }
+groundhog-signed-op-if = { workspace = true, features = ["dev"] }
+groundhog-domain-separator = { workspace = true, features = ["std"] }
+ed25519-dalek.workspace = true

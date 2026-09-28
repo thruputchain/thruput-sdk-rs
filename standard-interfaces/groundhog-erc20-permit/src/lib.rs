@@ -157,13 +157,13 @@ pub trait ERC20Permit {
     ///
     /// Adds to the allowance rather than setting it, exactly as a positive
     /// [`ERC20::adjust_allowance`](groundhog_erc20_if::ERC20::adjust_allowance)
-    /// by the owner would, and emits the same approval event. Unlike
+    /// by the owner would, and emits the same allowance-change event. Unlike
     /// ERC-2612's `permit`, which overwrites, two grants for the same spender
     /// sum.
     fn increase_allowance_signed(&mut self, grant: Signed<PermitGrant>);
 
     /// Consume `grant` and delete its minter's allowance for the grant's
-    /// `spender`, emitting the approval event for the amount removed.
+    /// `spender`, emitting the allowance-change event for the amount removed.
     ///
     /// The entry is deleted rather than zeroed, freeing its storage, and
     /// deleted under an exclusive lock: another transaction in the same block

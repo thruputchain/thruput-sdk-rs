@@ -54,6 +54,7 @@ keywords = ["groundhog"]
 categories = ["blockchain"]
 
 [workspace.dependencies]
+groundhog-erc20-controls-if = { path = "standard-interfaces/groundhog-erc20-controls", registry = "groundhog", version = "=0.1.0" }
 # Groundhog crates from local repository
 #
 # These version numbers need to match the overall workspace package
