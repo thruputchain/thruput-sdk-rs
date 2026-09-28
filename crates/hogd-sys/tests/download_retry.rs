@@ -4,6 +4,10 @@
 //! in `build/download.rs` and is compiled into this test with `#[path]`.
 //! A fake `curl` script stands in for the real one and records how often it
 //! was invoked.
+//!
+//! The tests run one at a time: a child forked by one test inherits the
+//! write handle of a script another test is still writing, and executing
+//! that script then fails with `ETXTBSY`.
 
 #![cfg(unix)]
 
@@ -14,25 +18,33 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+static SERIAL: Mutex<()> = Mutex::new(());
 
 /// A temporary directory holding the fake curl, its call counter, and the
-/// download destination. Removed on drop.
+/// download destination. Removed on drop. Holds the serialization lock for
+/// its lifetime.
 struct Sandbox {
     dir: PathBuf,
+    _serial: MutexGuard<'static, ()>,
 }
 
 impl Sandbox {
     fn new() -> Self {
+        let serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!(
             "groundhog-sys-download-retry-{}-{id}",
             std::process::id()
         ));
         fs::create_dir_all(&dir).unwrap();
-        Self { dir }
+        Self {
+            dir,
+            _serial: serial,
+        }
     }
 
     /// Writes an executable `curl` that runs `body` with `$out` bound to the
