@@ -1,3 +1,8 @@
+if [ -z "${CI:-}" ]; then
+  echo "setup_cargo.sh wipes \$HOME/.cargo and is only for CI runners; set CI=1 to run it deliberately." >&2
+  exit 1
+fi
+
 set -ex
 echo 'setting up cargo'
 

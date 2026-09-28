@@ -202,8 +202,10 @@ There is no `U512`, and none is needed: Solidity has no type wider than
 
 A plain `git clone` is sufficient to build and test the SDK itself. The one
 submodule, `integration_test/contracts`, is a private test corpus, and
-`git submodule update --init` will fail without access to it. It is consumed
-by `./scripts/dev.sh test-itc` and by the integration block of
+`git submodule update --init` will fail without access to it. The submodule
+is optional and needs access to the `groundhogchain` GitHub organization, so
+clone without `--recursive` unless you have it. It is consumed by
+`./scripts/dev.sh test-itc` and by the integration block of
 `./scripts/ci.sh`; without the submodule, skip that block with
 `SKIP_INTEGRATION=1 ./scripts/ci.sh`.
 

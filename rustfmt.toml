@@ -1,8 +1,6 @@
 style_edition = "2024"
 edition = "2024"
 ignore = [
-    "/external/",
-    "/hogd/",
     "/integration_test/",
 ]
 max_width = 79
