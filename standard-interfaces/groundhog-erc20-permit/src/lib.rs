@@ -160,12 +160,13 @@ pub trait ERC20Permit {
     /// sum.
     fn increase_allowance_signed(&mut self, grant: Signed<PermitGrant>);
 
-    /// Consume `grant` and reduce its minter's allowance for the grant's
-    /// `spender` to zero, emitting the approval event for the amount removed.
+    /// Consume `grant` and delete its minter's allowance for the grant's
+    /// `spender`, emitting the approval event for the amount removed.
     ///
-    /// Clears what the allowance holds when this call executes. An increase
-    /// committed in the same block by another transaction is not visible to
-    /// it and survives; clearing is the owner revoking what they can see, not
-    /// a lock against later grants.
+    /// The entry is deleted rather than zeroed, freeing its storage, and
+    /// deleted under an exclusive lock: another transaction in the same block
+    /// that writes the same allowance conflicts at commit, so no concurrent
+    /// grant or spend can land beside the clear. A write later in the same
+    /// transaction still applies after it.
     fn clear_allowance_signed(&mut self, grant: Signed<ClearAllowanceGrant>);
 }

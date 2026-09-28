@@ -8,6 +8,7 @@ use groundhog_erc20_permit_if::{
     ClearAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
 };
 use sdk::signer::Signed;
+use sdk::storage::deletable::Deletable;
 use sdk::storage::{Balance, Map, Value};
 use sdk::*;
 
@@ -194,11 +195,13 @@ impl ERC20Permit for PermitToken {
 
     fn clear_allowance_signed(&mut self, grant: Signed<ClearAllowanceGrant>) {
         let (grant, owner) = grant.consume();
-        let current = self.allowances.at(&owner).at(&grant.spender).get();
-        self._adjust_allowance(
-            &owner,
-            &grant.spender,
-            -amount_to_diff(current),
-        );
+        let mut owner_allowances = self.allowances.at_mut(&owner);
+        let mut allowance = owner_allowances.at_mut(&grant.spender);
+        let cleared = allowance.get();
+        // Delete rather than zero, freeing the entry's storage, and lock it so
+        // no other transaction's write to the pair lands in the same block.
+        allowance.delete_exclusive();
+
+        log_approval_event(&owner, &grant.spender, -amount_to_diff(cleared));
     }
 }

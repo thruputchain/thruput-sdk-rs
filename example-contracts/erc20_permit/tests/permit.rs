@@ -734,3 +734,34 @@ fn a_grant_cannot_be_redeemed_for_a_different_operation() {
     assert_eq!(allowance(&env), 0);
     assert_eq!(balance_of(&env, receiver()), 0);
 }
+
+/// The clear deletes under an exclusive lock, so an increase submitted in the
+/// same block cannot land beside it: one of the two commits, the other fails
+/// at commit, and the allowance is never left holding the increase on top of
+/// a clear that did not see it.
+#[test]
+fn a_clear_conflicts_with_an_increase_in_the_same_block() {
+    let env = setup();
+    submit_signed(&env, 0, standard_request(), |op, signature| {
+        let grant = mint_grant::<PermitGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address())
+            .increase_allowance_signed(grant);
+    })
+    .assert_success();
+    env.advance_block();
+
+    submit_signed(&env, 1, clear_request(), |op, signature| {
+        let grant = mint_grant::<ClearAllowanceGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address()).clear_allowance_signed(grant);
+    })
+    .assert_success();
+    submit_signed(&env, 2, standard_request(), |op, signature| {
+        let grant = mint_grant::<PermitGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address())
+            .increase_allowance_signed(grant);
+    })
+    .assert_commit_failed_nondeterministically();
+    env.advance_block();
+
+    assert_eq!(allowance(&env), 0, "only the clear landed");
+}
