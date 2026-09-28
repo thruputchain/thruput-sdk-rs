@@ -1,8 +1,8 @@
 //! End-to-end permit: an owner signs off-chain, someone else submits.
 //!
 //! The submitter does two things in one frame: takes the signed operation to
-//! the owner's wallet, which mints a `PermitGrant` token, and passes that
-//! token down into the ERC20. The owner's balance lives at the wallet's
+//! the owner's wallet, which mints the grant token the request asks for, and
+//! passes that token down into the ERC20. The owner's balance lives at the wallet's
 //! address — the wallet *is* the account — so the identity the token acts on
 //! is the address that minted the grant, and the assertions below are about
 //! what a submitter can and cannot change about a signature they are merely
@@ -19,12 +19,12 @@
 
 use ed25519_dalek::{Signer, SigningKey};
 use erc20_permit::{
-    ERC20Client, ERC20PermitClient, ERC20PermitError, PermitGrant,
-    PermitRequest,
+    ClearAllowanceGrant, ClearAllowanceRequest, ERC20Client, ERC20Error,
+    ERC20PermitClient, ERC20PermitError, PermitGrant, PermitRequest,
 };
 use groundhog_domain_separator::SignedOp as SignedOpPreimage;
 use groundhog_signed_op_if::{Operation, SignedOpClient, SignedOpError};
-use permit_wallet::PermitWalletClient;
+use permit_wallet::{PermitWalletClient, WalletRequest};
 use sdk::signer::Signed;
 use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};
@@ -116,7 +116,7 @@ fn sign(
     verifying_contract: &ContractAddress,
     nonce: u64,
     expiry: BlockHeight,
-    body: &PermitRequest,
+    body: &WalletRequest,
 ) -> (Operation, Ed25519Signature) {
     let key = SigningKey::from_bytes(seed);
     let preimage = SignedOpPreimage {
@@ -141,12 +141,20 @@ fn sign(
 
 /// The permit Alice signs in most of these tests: `GRANTED` units of
 /// `token_address()`, spendable by `spender()`.
-fn standard_request() -> PermitRequest {
-    PermitRequest {
+fn standard_request() -> WalletRequest {
+    WalletRequest::Permit(PermitRequest {
         token: token_address(),
         spender: spender(),
         amount: GRANTED,
-    }
+    })
+}
+
+/// Alice's request to revoke `spender()`'s allowance on `token_address()`.
+fn clear_request() -> WalletRequest {
+    WalletRequest::ClearAllowance(ClearAllowanceRequest {
+        token: token_address(),
+        spender: spender(),
+    })
 }
 
 /// Alice's standard permit at nonce 0, valid through `expiry`.
@@ -173,17 +181,21 @@ fn alice_permit(
 
 /// The submitter's first step: take the operation to Alice's wallet and name
 /// the one token it mints as the grant. Runs inside a frame.
-fn mint_grant(
+///
+/// `T` is only what the submitter claims the grant is: the wallet returns it
+/// untyped, and the token contract decodes the payload when it consumes it.
+fn mint_grant<T: sdk::mintable::MintableType>(
     op: Operation,
     signature: &Ed25519Signature,
-) -> Signed<PermitGrant> {
+) -> Signed<T> {
     SignedOpClient::new(&wallet_address())
         .execute_signed_op(op, signature)
         .assume()
 }
 
 /// Submit `op` as `spender()`: mint the grant at the wallet, then pass it into
-/// `token_address()`'s `permit` — the whole permit flow, in one frame.
+/// `token_address()`'s `increase_allowance_signed` — the whole flow, in one
+/// frame.
 fn submit_permit(
     env: &sdk::TestEnvironmentHandle,
     op: Operation,
@@ -191,8 +203,9 @@ fn submit_permit(
 ) -> sdk::TransactResult {
     env.transact(|tx| {
         tx.call(&spender()).run(move || {
-            let grant = mint_grant(op, &signature);
-            ERC20PermitClient::new(&token_address()).permit(grant);
+            let grant = mint_grant::<PermitGrant>(op, &signature);
+            ERC20PermitClient::new(&token_address())
+                .increase_allowance_signed(grant);
         })
     })
 }
@@ -262,7 +275,7 @@ fn rotate_owner_as(
 }
 
 #[test]
-fn permit_records_an_allowance_the_spender_can_draw_on() {
+fn increase_allowance_signed_records_an_allowance_the_spender_can_draw_on() {
     let env = setup();
     let (op, signature) = alice_permit(&env);
 
@@ -297,8 +310,11 @@ fn transfer_from_signed_moves_the_balance_and_leaves_no_allowance() {
     env.transact(|tx| {
         tx.call(&spender()).run(move || {
             let grant = mint_grant(op, &signature);
-            ERC20PermitClient::new(&token_address())
-                .transfer_from_signed(grant, &receiver());
+            ERC20PermitClient::new(&token_address()).transfer_from_signed(
+                grant,
+                &receiver(),
+                GRANTED,
+            );
         })
     })
     .assert_success();
@@ -322,7 +338,7 @@ fn only_the_named_spender_may_redeem_a_grant_directly() {
         tx.call(&receiver()).run(move || {
             let grant = mint_grant(op, &signature);
             let result = ERC20PermitClient::new(&token_address())
-                .try_transfer_from_signed(grant, &receiver());
+                .try_transfer_from_signed(grant, &receiver(), GRANTED);
             assert_eq!(
                 result.unwrap_err().try_as(),
                 Some(ERC20PermitError::NotSpender),
@@ -545,11 +561,176 @@ fn a_grant_minted_for_one_token_cannot_be_consumed_at_another() {
 
     let result = env.transact(|tx| {
         tx.call(&spender()).run(move || {
-            let grant = mint_grant(op, &signature);
-            ERC20PermitClient::new(&other_token_address()).permit(grant);
+            let grant = mint_grant::<PermitGrant>(op, &signature);
+            ERC20PermitClient::new(&other_token_address())
+                .increase_allowance_signed(grant);
         })
     });
     // Refused by `ConsumeAuthToken` inside the other token's frame — the
     // check lives in the runtime, not in either contract's code.
     result.assert_abort();
+}
+
+/// Submit a signed `body` from Alice at `nonce` as `spender()`, redeeming it
+/// through `redeem` inside the same frame.
+fn submit_signed<F>(
+    env: &sdk::TestEnvironmentHandle,
+    nonce: u64,
+    body: WalletRequest,
+    redeem: F,
+) -> sdk::TransactResult
+where
+    F: FnOnce(Operation, Ed25519Signature) + std::panic::UnwindSafe + 'static,
+{
+    let (op, signature) = sign(
+        &ALICE_SEED,
+        &wallet_address(),
+        nonce,
+        current_height(env) + HORIZON,
+        &body,
+    );
+    env.transact(|tx| tx.call(&spender()).run(move || redeem(op, signature)))
+}
+
+/// A grant is a ceiling, not an exact amount: the spender moves what it needs,
+/// and the unused remainder goes nowhere.
+#[test]
+fn transfer_from_signed_moves_up_to_the_granted_amount() {
+    let env = setup();
+    submit_signed(&env, 0, standard_request(), |op, signature| {
+        let grant = mint_grant(op, &signature);
+        ERC20PermitClient::new(&token_address()).transfer_from_signed(
+            grant,
+            &receiver(),
+            GRANTED - 50,
+        );
+    })
+    .assert_success();
+    env.advance_block();
+
+    assert_eq!(balance_of(&env, receiver()), GRANTED - 50);
+    assert_eq!(balance_of(&env, wallet_address()), MINTED - GRANTED + 50);
+    assert_eq!(allowance(&env), 0, "the remainder is not kept as allowance");
+}
+
+#[test]
+fn transfer_from_signed_refuses_more_than_the_grant() {
+    let env = setup();
+    submit_signed(&env, 0, standard_request(), |op, signature| {
+        let grant = mint_grant(op, &signature);
+        let result = ERC20PermitClient::new(&token_address())
+            .try_transfer_from_signed(grant, &receiver(), GRANTED + 1);
+        assert_eq!(
+            result.unwrap_err().try_as(),
+            Some(ERC20PermitError::ExceedsGrant),
+        );
+    })
+    .assert_success();
+    env.advance_block();
+
+    assert_eq!(balance_of(&env, receiver()), 0);
+}
+
+/// Within the grant, the owner's balance still bounds the transfer.
+#[test]
+fn transfer_from_signed_is_bounded_by_the_owners_balance() {
+    let env = setup();
+    let body = WalletRequest::Permit(PermitRequest {
+        token: token_address(),
+        spender: spender(),
+        amount: MINTED + 1,
+    });
+    submit_signed(&env, 0, body, |op, signature| {
+        let grant = mint_grant(op, &signature);
+        let result = ERC20PermitClient::new(&token_address())
+            .try_transfer_from_signed(grant, &receiver(), MINTED + 1);
+        assert_eq!(result.unwrap_err().try_as(), Some(ERC20Error::TooLarge));
+    })
+    .assert_success();
+    env.advance_block();
+
+    assert_eq!(balance_of(&env, wallet_address()), MINTED);
+}
+
+/// Two grants for the same spender sum: the method increases, it never sets.
+#[test]
+fn increase_allowance_signed_adds_to_the_existing_allowance() {
+    let env = setup();
+    for nonce in [0, 1] {
+        submit_signed(&env, nonce, standard_request(), |op, signature| {
+            let grant = mint_grant::<PermitGrant>(op, &signature);
+            ERC20PermitClient::new(&token_address())
+                .increase_allowance_signed(grant);
+        })
+        .assert_success();
+        env.advance_block();
+    }
+
+    assert_eq!(allowance(&env), 2 * GRANTED);
+}
+
+#[test]
+fn clear_allowance_signed_revokes_a_standing_allowance() {
+    let env = setup();
+    submit_signed(&env, 0, standard_request(), |op, signature| {
+        let grant = mint_grant::<PermitGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address())
+            .increase_allowance_signed(grant);
+    })
+    .assert_success();
+    env.advance_block();
+    assert_eq!(allowance(&env), GRANTED);
+
+    submit_signed(&env, 1, clear_request(), |op, signature| {
+        let grant = mint_grant::<ClearAllowanceGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address()).clear_allowance_signed(grant);
+    })
+    .assert_success();
+    env.advance_block();
+    assert_eq!(allowance(&env), 0);
+
+    // The revoked allowance can no longer be drawn on.
+    env.transact(|tx| {
+        tx.call(&spender()).run(|| {
+            let result = ERC20Client::new(&token_address()).try_transfer_from(
+                &wallet_address(),
+                &receiver(),
+                1,
+            );
+            assert_eq!(
+                result.unwrap_err().try_as(),
+                Some(ERC20Error::TooLarge)
+            );
+        })
+    })
+    .assert_success();
+}
+
+/// The signed body names the operation, and the grant's payload follows it: a
+/// grant signed to raise an allowance cannot be redeemed to clear one, and a
+/// clear cannot be redeemed as a transfer. The token contract refuses to
+/// decode the payload as the other type, so the call aborts.
+#[test]
+fn a_grant_cannot_be_redeemed_for_a_different_operation() {
+    let env = setup();
+    submit_signed(&env, 0, standard_request(), |op, signature| {
+        let grant = mint_grant::<ClearAllowanceGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address()).clear_allowance_signed(grant);
+    })
+    .assert_abort();
+    env.advance_block();
+
+    submit_signed(&env, 1, clear_request(), |op, signature| {
+        let grant = mint_grant::<PermitGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address()).transfer_from_signed(
+            grant,
+            &receiver(),
+            0,
+        );
+    })
+    .assert_abort();
+    env.advance_block();
+
+    assert_eq!(allowance(&env), 0);
+    assert_eq!(balance_of(&env, receiver()), 0);
 }

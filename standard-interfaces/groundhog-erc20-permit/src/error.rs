@@ -12,4 +12,11 @@ pub enum ERC20PermitError {
     /// owner authorized.
     #[cfg_attr(feature = "dev", error("Caller is not the authorized spender"))]
     NotSpender = 1,
+
+    /// `transfer_from_signed` was asked to move more than the grant allows.
+    #[cfg_attr(
+        feature = "dev",
+        error("Requested amount exceeds the signed grant")
+    )]
+    ExceedsGrant = 2,
 }
