@@ -1,13 +1,14 @@
 use crate::common::*;
 use crate::*;
 use sdk::block::get_block_height;
-use sdk::storage::{Map, NNInt, Node, Value};
+use sdk::storage::{Deletable, Map, NNInt, Node, Value};
 use sdk::*;
 
 pub(crate) type Allowances =
     Map<ContractAddress, Map<ContractAddress, Node<Allowance>>>;
 
 #[sdk::storage]
+#[derive(sdk::Deletable)]
 pub(crate) struct Allowance {
     amount: NNInt,
     expiry: Value<u32>,
@@ -98,8 +99,12 @@ impl SEP41 for TokenContract {
         );
         let mut allowances = self.allowances.at_mut(from);
         let mut grant = allowances.at_mut_exclusive(spender);
-        grant.amount.set(amount);
-        grant.expiry.set(&live_until_ledger);
+        if amount == 0 {
+            grant.delete_exclusive();
+        } else {
+            grant.amount.set(amount);
+            grant.expiry.set(&live_until_ledger);
+        }
         SEP41ApprovalEvent::new(from, spender, amount, live_until_ledger)
             .log();
     }

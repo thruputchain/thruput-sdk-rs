@@ -1,12 +1,9 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 
-//! SEP-0041 token semantics over Groundhog's ABI and caller authorization.
-//! This is not the Soroban ABI: addresses are Groundhog contract addresses,
-//! muxed addresses are unsupported, and events use Groundhog encoding.
-//! The reference is a separate token profile with expiring grants. It reuses
-//! native ERC20 balance and issuer-policy code, not its allowance entrypoints.
-//! Cross-chain authorization and expiry synchronization are outside this interface.
+//! SEP-41 token operations using Groundhog's ABI and caller authorization.
+//! See the [compatibility notes](https://github.com/groundhogchain/sdk_rs/blob/main/docs/sep41-reference-token.md)
+//! for differences from Soroban.
 
 mod error;
 mod events;

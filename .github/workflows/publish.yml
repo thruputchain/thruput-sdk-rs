@@ -72,12 +72,12 @@ env:
   INTERFACE_PACKAGES: >-
     groundhog-erc20-if
     groundhog-erc20-metadata-if
-    groundhog-sep41-if
     groundhog-erc20-controls-if
     groundhog-erc20-pausable-if
     groundhog-signed-op-if
     groundhog-signed-op
     groundhog-erc20-permit-if
+    groundhog-sep41-if
     groundhog-erc165-if
     groundhog-erc721-if
     groundhog-access-control-if
@@ -246,9 +246,9 @@ jobs:
         with:
           packages: ${{ env.INTERFACE_PACKAGES }}
           # The implementation components exact-pin their interface crates,
-          # and token extensions exact-pin the ERC20 and metadata interfaces — all
-          # workspace path deps here, so their offline packaging needs those
-          # pre-vendored (after the primaries they depend on).
+          # and token extensions exact-pin the ERC20 and metadata interfaces.
+          # Offline packaging needs those workspace dependencies pre-vendored
+          # after the primaries they depend on.
           vendor-workspace-deps:
             groundhog-storage-cost
             groundhog-event

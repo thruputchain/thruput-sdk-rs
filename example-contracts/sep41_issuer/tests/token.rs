@@ -98,6 +98,28 @@ fn erc_error(result: TransactResult, expected: ERC20Error) {
     result.assert_no_events();
 }
 
+// Match TokenContract's allowance slot and its amount/expiry fields so these
+// checks distinguish deletion from a getter that defaults to zero.
+fn assert_allowance_storage(env: &TestEnvironmentHandle, present: bool) {
+    let result = env.transact(|tx| {
+        tx.call(&BOB).run(|| {
+            use sdk::storage::{Keypath, StorageDomain};
+            let path = Keypath::root(TokenContract::DOMAIN)
+                .child(&5u32)
+                .child(&ALICE)
+                .child(&SPENDER);
+            [path.child(&0u32).into_key(), path.child(&1u32).into_key()]
+        })
+    });
+    result.assert_success();
+    for key in result.assert_return_as::<[StorageKey; 2]>() {
+        assert_eq!(
+            env.get_snapshot_storage_item(&TOKEN, &key).is_some(),
+            present
+        );
+    }
+}
+
 #[test]
 fn metadata_and_balances_use_the_initialized_sep41_token() {
     let env = setup();
@@ -210,9 +232,21 @@ fn past_expiry_rejects_new_grants_but_allows_zero_revocation() {
         SEP41Error::InvalidExpiration,
     );
     state(&env, 100, 0, 20);
-    call(&env, &ALICE, || sep().approve(&ALICE, &SPENDER, 0, past))
-        .assert_success();
+    assert_allowance_storage(&env, true);
+    let result =
+        call(&env, &ALICE, || sep().approve(&ALICE, &SPENDER, 0, past));
+    result.assert_success();
+    result.assert_event_count(1);
+    result.assert_raw_event(0, |e| {
+        let event =
+            SEP41ApprovalEvent::try_from(EmittedEvent::from(e.raw())).unwrap();
+        assert_eq!(event.from, &ALICE);
+        assert_eq!(event.spender, &SPENDER);
+        assert_eq!(event.amount, 0);
+        assert_eq!(event.live_until_ledger, past);
+    });
     env.advance_block();
+    assert_allowance_storage(&env, false);
     state(&env, 100, 0, 0);
     erc_error(
         call(&env, &SPENDER, || {
@@ -220,6 +254,26 @@ fn past_expiry_rejects_new_grants_but_allows_zero_revocation() {
         }),
         ERC20Error::TooLarge,
     );
+}
+
+#[test]
+fn zero_approval_accepts_missing_and_repeatedly_cleared_allowances() {
+    let env = setup();
+    for previously_granted in [false, true] {
+        if previously_granted {
+            approve(&env, 20, u32::MAX);
+            assert_allowance_storage(&env, true);
+        }
+        for _ in 0..2 {
+            let result =
+                call(&env, &ALICE, || sep().approve(&ALICE, &SPENDER, 0, 0));
+            result.assert_success();
+            result.assert_event_count(1);
+            env.advance_block();
+            assert_allowance_storage(&env, false);
+            state(&env, 100, 0, 0);
+        }
+    }
 }
 
 fn unknown_method(result: TransactResult) {
@@ -426,6 +480,44 @@ fn caught_recipient_policy_failure_restores_allowance() {
 }
 
 #[test]
+fn caught_revocation_failure_restores_both_allowance_cells_and_events() {
+    let env = setup();
+    approve(&env, 20, u32::MAX);
+    let entrypoint = sdk::contract::ContractEntrypointID::from_u64(0x1234);
+    env.register_mock(|contract| {
+        contract.register_method(entrypoint, || {
+            sep().approve(&ALICE, &SPENDER, 0, 0);
+            assert_eq!(sep().allowance(&ALICE, &SPENDER), 0);
+            throw(SEP41Error::InvalidExpiration);
+        });
+    })
+    .deploy_contract_to(&ALICE);
+    let result = call(&env, &BOB, || {
+        let error = sdk::call::try_call_raw_with::<(), (), _>(
+            &ALICE,
+            entrypoint,
+            u64::MAX,
+            &(),
+            0,
+            |error| error.try_as::<SEP41Error>(),
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            sdk::call::RawCallError::Exception(Some(
+                SEP41Error::InvalidExpiration
+            ))
+        ));
+        assert_eq!(sep().allowance(&ALICE, &SPENDER), 20);
+    });
+    result.assert_success();
+    result.assert_no_events();
+    env.advance_block();
+    assert_allowance_storage(&env, true);
+    state(&env, 100, 0, 20);
+}
+
+#[test]
 fn same_transaction_replacement_spending_and_replacement_keep_exclusivity() {
     let env = setup();
     call(&env, &ALICE, || sep().approve(&ALICE, &ALICE, 50, u32::MAX))
@@ -434,6 +526,8 @@ fn same_transaction_replacement_spending_and_replacement_keep_exclusivity() {
     call(&env, &ALICE, || {
         sep().approve(&ALICE, &ALICE, 30, u32::MAX);
         sep().transfer_from(&ALICE, &ALICE, &BOB, 10);
+        sep().approve(&ALICE, &ALICE, 0, 0);
+        assert_eq!(sep().allowance(&ALICE, &ALICE), 0);
         sep().approve(&ALICE, &ALICE, 7, u32::MAX);
         assert_eq!(sep().allowance(&ALICE, &ALICE), 7);
     })
@@ -452,12 +546,14 @@ fn same_transaction_replacement_spending_and_replacement_keep_exclusivity() {
 
 #[test]
 fn replacement_and_spending_conflict_in_both_commit_orders() {
-    for replacement_first in [false, true] {
+    for (amount, replacement_first) in
+        [(0, false), (0, true), (20, false), (20, true)]
+    {
         let env = setup();
         approve(&env, 50, u32::MAX);
         let replace = || {
             call(&env, &ALICE, || {
-                sep().approve(&ALICE, &SPENDER, 20, u32::MAX)
+                sep().approve(&ALICE, &SPENDER, amount, u32::MAX)
             })
         };
         let spend = || {
@@ -474,7 +570,8 @@ fn replacement_and_spending_conflict_in_both_commit_orders() {
         second.assert_commit_failed_nondeterministically();
         env.advance_block();
         if replacement_first {
-            state(&env, 100, 0, 20);
+            state(&env, 100, 0, amount);
+            assert_allowance_storage(&env, amount != 0);
         } else {
             state(&env, 90, 10, 40);
         }
@@ -575,23 +672,31 @@ fn changing_only_expiry_conflicts_with_spending_in_both_commit_orders() {
 
 #[test]
 fn regrant_after_expiry_replaces_the_expired_remaining_amount() {
-    let env = setup();
-    let deadline = height(&env) + 1;
-    approve(&env, 50, deadline);
-    call(&env, &SPENDER, || {
-        sep().transfer_from(&SPENDER, &ALICE, &BOB, 10)
-    })
-    .assert_success();
-    env.advance_block();
-    state(&env, 90, 10, 0);
-    approve(&env, 7, u32::MAX);
-    state(&env, 90, 10, 7);
-    call(&env, &SPENDER, || {
-        sep().transfer_from(&SPENDER, &ALICE, &BOB, 7)
-    })
-    .assert_success();
-    env.advance_block();
-    state(&env, 83, 17, 0);
+    for clear_expired in [false, true] {
+        let env = setup();
+        let deadline = height(&env) + 1;
+        approve(&env, 50, deadline);
+        call(&env, &SPENDER, || {
+            sep().transfer_from(&SPENDER, &ALICE, &BOB, 10)
+        })
+        .assert_success();
+        env.advance_block();
+        state(&env, 90, 10, 0);
+        assert_allowance_storage(&env, true);
+        if clear_expired {
+            approve(&env, 0, 0);
+            assert_allowance_storage(&env, false);
+        }
+        approve(&env, 7, u32::MAX);
+        assert_allowance_storage(&env, true);
+        state(&env, 90, 10, 7);
+        call(&env, &SPENDER, || {
+            sep().transfer_from(&SPENDER, &ALICE, &BOB, 7)
+        })
+        .assert_success();
+        env.advance_block();
+        state(&env, 83, 17, 0);
+    }
 }
 
 #[test]

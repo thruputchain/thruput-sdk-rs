@@ -11,7 +11,8 @@ ERC20 keeps delta grants and optional exclusivity. SEP-41 `approve` replaces
 an absolute amount and inclusive expiry, measured in Groundhog blocks.
 Replacement exclusively writes the grant; ordinary spends can commute within
 the remaining amount. A spender can still consume an old grant before its
-replacement executes.
+replacement executes. Zero approval deletes the grant's storage, including an
+expired grant; expiry alone does not delete it.
 
 Each deployment has one allowance mechanism. The SEP-41 profile has no native
 ERC20 or permit spending entrypoints. Both profiles compile the same balance,
