@@ -114,8 +114,12 @@ uses a custom interface name. The impl's exported entrypoint names are fixed
 during macro expansion, so mismatches are rejected at compile time rather than
 inherited automatically.
 
-`version = "0.3.0"` overrides the version used for entrypoint identifiers. When
-implementing a `#[contract]` trait from another crate, the impl must carry
-`#[contract(version = "<that crate's version>")]` unless the implementing crate
-already shares the interface crate's major version; only the major component is
-compared, and a mismatch is rejected at compile time.
+`version = "0.3.0"` overrides the version used for entrypoint identifiers. It
+defaults to the crate's own version, for traits and impls alike. When
+implementing a `#[contract]` trait from another crate, the impl's version must
+share the trait's major version, so carry `#[contract(version = "...")]` on the
+impl with the trait's version unless the implementing crate's own version
+already has the same major. The trait's version is the one its
+`#[contract(version = "...")]` declares, or its crate's version when it declares
+none. Only the major component is compared, and a mismatch is rejected at
+compile time.
