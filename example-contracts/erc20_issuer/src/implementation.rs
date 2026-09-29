@@ -3,6 +3,8 @@ use sdk::signer::Signed;
 use sdk::storage::{Balance, Deletable, Map, NNInt, Value};
 use sdk::*;
 
+mod sep41;
+
 #[sdk::storage]
 pub struct TokenContract {
     settings: Value<Settings>,
@@ -12,6 +14,8 @@ pub struct TokenContract {
     balances: Map<ContractAddress, Balance>,
     allowances: Map<ContractAddress, Map<ContractAddress, NNInt>>,
     supply: Balance,
+    sep41_allowances: Map<ContractAddress, Map<ContractAddress, NNInt>>,
+    sep41_expirations: Map<ContractAddress, Map<ContractAddress, Value<u32>>>,
 }
 
 #[contract_type]

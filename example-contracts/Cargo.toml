@@ -113,6 +113,7 @@ groundhog-contract-util = { path = "../crates/contract-util", registry = "ground
 groundhog-domain-separator = { path = "../crates/domain-separator", registry = "groundhog", version = "=0.41.2", default-features = false }
 
 groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.42" }
+groundhog-sep41-if = { path = "../standard-interfaces/groundhog-sep41", registry = "groundhog", version = "=0.1.42" }
 groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.42" }
 groundhog-erc20-pausable-if = { path = "../standard-interfaces/groundhog-erc20-pausable", registry = "groundhog", version = "=0.1.42" }
 groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-control", registry = "groundhog", version = "=0.1.42" }

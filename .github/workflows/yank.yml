@@ -24,6 +24,7 @@ on:
         options:
           - workspace
           - groundhog-erc20-if
+          - groundhog-sep41-if
           - groundhog-erc20-metadata-if
           - groundhog-erc20-pausable-if
           - groundhog-signed-op-if
