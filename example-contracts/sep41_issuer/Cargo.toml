@@ -1,0 +1,39 @@
+[package]
+name = "sep41_issuer"
+description = "SEP-41 reference token with optional issuer controls"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "groundhog-erc20-controls-if/dev", "groundhog-erc20-if/dev", "groundhog-sep41-if/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[[bin]]
+name = "sep41_issuer"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk.workspace = true
+groundhog-erc20-controls-if.workspace = true
+groundhog-erc20-if.workspace = true
+groundhog-erc20-metadata-if.workspace = true
+groundhog-sep41-if.workspace = true
+
+[dev-dependencies]
+groundhog-erc20-metadata-if = { workspace = true, features = ["dev"] }
+groundhog-erc20-permit-if = { workspace = true, features = ["dev"] }
+groundhog-erc20-if = { workspace = true, features = ["dev"] }
+sep41_issuer = { path = ".", features = ["dev"] }

@@ -158,6 +158,13 @@ jobs:
           ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
         run: cargo test -p erc20_issuer --locked
 
+      - name: Test SEP-41 token through RV32
+        if: matrix.name == 'examples-test'
+        working-directory: example-contracts
+        env:
+          SEP41_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/sep41_issuer.rv32a
+        run: cargo test -p sep41_issuer --locked
+
   # Main pushes only, off the PR critical path. Self-contained: rebuilds the
   # rv32 example artifacts and the full integration block (metrics.sh's
   # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize

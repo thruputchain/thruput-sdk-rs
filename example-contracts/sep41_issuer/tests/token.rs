@@ -1,6 +1,11 @@
-use erc20_issuer::*;
+use groundhog_erc20_if::ERC20Client;
+use groundhog_erc20_metadata_if::ERC20MetadataClient;
+use groundhog_erc20_permit_if::{
+    ClearAllowanceGrant, ERC20PermitClient, PermitGrant,
+};
 use groundhog_sep41_if::{SEP41ApprovalEvent, SEP41Client, SEP41Error};
 use sdk::*;
+use sep41_issuer::*;
 
 const TOKEN: ContractAddress = ContractAddress::new([0x30; 32]);
 const ADMIN: ContractAddress = ContractAddress::new([0x31; 32]);
@@ -10,8 +15,8 @@ const SPENDER: ContractAddress = ContractAddress::new([0x34; 32]);
 fn sep() -> SEP41Client {
     SEP41Client::new(&TOKEN)
 }
-fn native() -> ERC20Client {
-    ERC20Client::new(&TOKEN)
+fn issuer() -> IssuerClient {
+    IssuerClient::new(&TOKEN)
 }
 fn call(
     env: &TestEnvironmentHandle,
@@ -22,7 +27,7 @@ fn call(
 }
 fn setup() -> TestEnvironmentHandle {
     let env = TestEnvironment::no_cost();
-    if let Some(path) = std::env::var_os("ISSUER_TOKEN_RV32_ARTIFACT") {
+    if let Some(path) = std::env::var_os("SEP41_TOKEN_RV32_ARTIFACT") {
         let contract = sdk::types::Contract::kRv32 {
             rv32_contract: sdk::types::contract::ContractBlob {
                 data: sdk::xdr::BytesM(
@@ -33,7 +38,7 @@ fn setup() -> TestEnvironmentHandle {
         env.setup_create_contract(&contract);
         env.setup_create_deployment(&TOKEN, &contract);
     } else {
-        erc20_issuer::register_mock_contract(&env).deploy_contract_to(&TOKEN);
+        sep41_issuer::register_mock_contract(&env).deploy_contract_to(&TOKEN);
     }
     call(&env, &ADMIN, || {
         ERC20AdminClient::new(&TOKEN).initialize(
@@ -47,7 +52,7 @@ fn setup() -> TestEnvironmentHandle {
                 clawback_enabled: true,
             },
         );
-        native().mint(&ALICE, 100);
+        issuer().mint(&ALICE, 100);
     })
     .assert_success();
     env.advance_block();
@@ -80,8 +85,7 @@ fn state(
         assert_eq!(sep().balance(&ALICE), alice);
         assert_eq!(sep().balance(&BOB), bob);
         assert_eq!(sep().allowance(&ALICE, &SPENDER), allowance);
-        assert_eq!(native().get_balance_of(&ALICE), alice as u128);
-        assert_eq!(native().get_balance_of(&BOB), bob as u128);
+        assert_eq!(issuer().total_supply(), alice + bob);
     })
     .assert_success();
 }
@@ -95,7 +99,7 @@ fn erc_error(result: TransactResult, expected: ERC20Error) {
 }
 
 #[test]
-fn metadata_and_balances_share_the_initialized_native_token() {
+fn metadata_and_balances_use_the_initialized_sep41_token() {
     let env = setup();
     call(&env, &BOB, || {
         assert_eq!(sep().name().as_str(), "Reference Token");
@@ -218,33 +222,120 @@ fn past_expiry_rejects_new_grants_but_allows_zero_revocation() {
     );
 }
 
+fn unknown_method(result: TransactResult) {
+    assert_eq!(
+        result.assert_abort_as::<sdk::exn::LibraryExn>(),
+        sdk::exn::LibraryExn::UnknownMethod
+    );
+    result.assert_no_events();
+}
+
 #[test]
-fn native_and_sep_allowances_are_independent() {
+fn native_entrypoints_cannot_grant_spend_or_modify_the_sep41_token() {
     let env = setup();
-    call(&env, &ALICE, || {
-        native().adjust_allowance(&SPENDER, 40, false);
-        sep().approve(&ALICE, &SPENDER, 25, u32::MAX);
-    })
-    .assert_success();
+    approve(&env, 25, u32::MAX);
+    let native = ERC20Client::new(&TOKEN);
+    let metadata = ERC20MetadataClient::new(&TOKEN);
+    let burn = ERC20BurnClient::new(&TOKEN);
+    for result in [
+        call(&env, &ALICE, || {
+            native.adjust_allowance(&SPENDER, 40, false)
+        }),
+        call(&env, &ALICE, || native.clear_allowance(&SPENDER)),
+        call(&env, &SPENDER, || native.transfer_from(&ALICE, &BOB, 10)),
+        call(&env, &ALICE, || native.transfer(&BOB, 10)),
+        call(&env, &ALICE, || native.clear_balance()),
+        call(&env, &BOB, || {
+            native.allowance(&ALICE, &SPENDER);
+        }),
+        call(&env, &BOB, || {
+            native.get_balance_of(&ALICE);
+        }),
+        call(&env, &ALICE, || {
+            native.get_balance();
+        }),
+        call(&env, &ADMIN, || native.initialize(&ADMIN)),
+        call(&env, &ADMIN, || native.mint(&ALICE, 1)),
+        call(&env, &ADMIN, || native.burn(&ALICE, 1)),
+        call(&env, &BOB, || {
+            native.total_supply();
+        }),
+        call(&env, &ALICE, || burn.burn(1)),
+        call(&env, &SPENDER, || burn.burn_from(&ALICE, 1)),
+        call(&env, &ADMIN, || {
+            metadata.initialize(&ADMIN, None, None, None)
+        }),
+        call(&env, &BOB, || {
+            metadata.name();
+        }),
+        call(&env, &BOB, || {
+            metadata.symbol();
+        }),
+        call(&env, &BOB, || {
+            metadata.decimals();
+        }),
+    ] {
+        unknown_method(result);
+    }
     env.advance_block();
+    state(&env, 100, 0, 25);
     call(&env, &SPENDER, || {
-        native().transfer_from(&ALICE, &BOB, 10);
-        sep().transfer_from(&SPENDER, &ALICE, &BOB, 5);
-        assert_eq!(native().allowance(&ALICE, &SPENDER), 30);
-        assert_eq!(sep().allowance(&ALICE, &SPENDER), 20);
+        sep().transfer_from(&SPENDER, &ALICE, &BOB, 5)
     })
     .assert_success();
     env.advance_block();
-    call(&env, &ALICE, || {
-        native().clear_allowance(&SPENDER);
-        assert_eq!(sep().allowance(&ALICE, &SPENDER), 20);
-        native().adjust_allowance(&SPENDER, 7, false);
-        sep().approve(&ALICE, &SPENDER, 0, 0);
-        assert_eq!(native().allowance(&ALICE, &SPENDER), 7);
-    })
-    .assert_success();
+    state(&env, 95, 5, 20);
+}
+
+#[test]
+fn native_permit_entrypoints_cannot_bypass_expiring_approval() {
+    use sdk::mintable::{AuthTokenPreimage, MintableType};
+    use sdk::signer::mint_auth_token;
+    type GrantData = <PermitGrant as MintableType>::Preimage;
+    type ClearData = <ClearAllowanceGrant as MintableType>::Preimage;
+    let env = setup();
+    let expiry = height(&env) + 1;
+    approve(&env, 25, expiry);
     env.advance_block();
-    state(&env, 85, 15, 0);
+    state(&env, 100, 0, 0);
+    for increase in [false, true] {
+        unknown_method(call(&env, &ALICE, || {
+            let grant = mint_auth_token::<PermitGrant>(
+                sdk::block::get_block_height(),
+                AuthTokenPreimage {
+                    consumer: TOKEN,
+                    data: GrantData {
+                        spender: ALICE,
+                        amount: 40,
+                    },
+                },
+            );
+            let permit = ERC20PermitClient::new(&TOKEN);
+            if increase {
+                permit.increase_allowance_signed(grant);
+            } else {
+                permit.transfer_from_signed(grant, &BOB, 5);
+            }
+        }));
+    }
+    unknown_method(call(&env, &ALICE, || {
+        let grant = mint_auth_token::<ClearAllowanceGrant>(
+            sdk::block::get_block_height(),
+            AuthTokenPreimage {
+                consumer: TOKEN,
+                data: ClearData { spender: SPENDER },
+            },
+        );
+        ERC20PermitClient::new(&TOKEN).clear_allowance_signed(grant);
+    }));
+    env.advance_block();
+    state(&env, 100, 0, 0);
+    erc_error(
+        call(&env, &SPENDER, || {
+            sep().transfer_from(&SPENDER, &ALICE, &BOB, 1)
+        }),
+        ERC20Error::TooLarge,
+    );
 }
 
 #[test]
@@ -270,7 +361,7 @@ fn transfer_and_burn_emit_only_the_canonical_movement_events() {
     });
     env.advance_block();
     state(&env, 85, 10, 15);
-    call(&env, &BOB, || assert_eq!(native().total_supply(), 95))
+    call(&env, &BOB, || assert_eq!(issuer().total_supply(), 95))
         .assert_success();
 }
 
@@ -441,5 +532,95 @@ fn zero_spending_without_a_grant_does_not_create_spending_power() {
         }),
         ERC20Error::TooLarge,
     );
+    state(&env, 100, 0, 0);
+}
+
+#[test]
+fn changing_only_expiry_conflicts_with_spending_in_both_commit_orders() {
+    for approval_first in [false, true] {
+        let env = setup();
+        approve(&env, 50, u32::MAX);
+        let deadline = height(&env) + 1;
+        let change_expiry = || {
+            call(&env, &ALICE, || {
+                sep().approve(&ALICE, &SPENDER, 50, deadline)
+            })
+        };
+        let spend = || {
+            call(&env, &SPENDER, || {
+                sep().transfer_from(&SPENDER, &ALICE, &BOB, 10)
+            })
+        };
+        let (first, second) = if approval_first {
+            (change_expiry(), spend())
+        } else {
+            (spend(), change_expiry())
+        };
+        first.assert_success();
+        second.assert_commit_failed_nondeterministically();
+        env.advance_block();
+        if approval_first {
+            state(&env, 100, 0, 50);
+        } else {
+            state(&env, 90, 10, 40);
+        }
+        env.advance_block();
+        if approval_first {
+            state(&env, 100, 0, 0);
+        } else {
+            state(&env, 90, 10, 40);
+        }
+    }
+}
+
+#[test]
+fn regrant_after_expiry_replaces_the_expired_remaining_amount() {
+    let env = setup();
+    let deadline = height(&env) + 1;
+    approve(&env, 50, deadline);
+    call(&env, &SPENDER, || {
+        sep().transfer_from(&SPENDER, &ALICE, &BOB, 10)
+    })
+    .assert_success();
+    env.advance_block();
+    state(&env, 90, 10, 0);
+    approve(&env, 7, u32::MAX);
+    state(&env, 90, 10, 7);
+    call(&env, &SPENDER, || {
+        sep().transfer_from(&SPENDER, &ALICE, &BOB, 7)
+    })
+    .assert_success();
+    env.advance_block();
+    state(&env, 83, 17, 0);
+}
+
+#[test]
+fn issuer_mint_checks_authority_holder_policy_and_signed_bounds() {
+    let env = setup();
+    erc_error(
+        call(&env, &BOB, || issuer().mint(&BOB, 1)),
+        ERC20Error::MustBeContractOwner,
+    );
+    for amount in [-1, i128::MIN] {
+        sep_error(
+            call(&env, &ADMIN, || issuer().mint(&ALICE, amount)),
+            SEP41Error::NegativeAmount,
+        );
+    }
+    erc_error(
+        call(&env, &ADMIN, || issuer().mint(&ALICE, i128::MAX)),
+        ERC20Error::TooLarge,
+    );
+    call(&env, &ADMIN, || {
+        ERC20AuthorizationClient::new(&TOKEN).set_authorized(&BOB, false)
+    })
+    .assert_success();
+    env.advance_block();
+    let result = call(&env, &ADMIN, || issuer().mint(&BOB, 1));
+    assert_eq!(
+        result.assert_abort_as::<ERC20ControlsError>(),
+        ERC20ControlsError::HolderNotAuthorized
+    );
+    result.assert_no_events();
     state(&env, 100, 0, 0);
 }

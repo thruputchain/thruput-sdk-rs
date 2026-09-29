@@ -1,7 +1,7 @@
 # Stellar asset reference token
 
-`example-contracts/erc20_issuer` exposes Groundhog ERC20 and `groundhog-sep41-if`
-over the same balances, supply and issuer policy. The latter follows
+`example-contracts/erc20_issuer` implements native Groundhog ERC20.
+`example-contracts/sep41_issuer` is a separate deployment profile following
 [SEP-0041 v0.5.2](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
 token operations using Groundhog's ABI and caller authorization.
 
@@ -13,17 +13,17 @@ Replacement exclusively writes the grant; ordinary spends can commute within
 the remaining amount. A spender can still consume an old grant before its
 replacement executes.
 
-The two interfaces have **independent grants**. Clearing or expiring a SEP-41
-grant does not revoke a separate ERC20 grant, and neither interface can spend
-the other's grant. This keeps the native interface unchanged without allowing
-it to bypass SEP-41 expiry. Applications should choose one allowance interface.
+Each deployment has one allowance mechanism. The SEP-41 profile has no native
+ERC20 or permit spending entrypoints. Both profiles compile the same balance,
+supply and issuer-policy source; they do not share on-chain state.
 
 ## Compatibility boundaries
 
 - Explicit authorizers must equal the Groundhog caller. Soroban authorization
   trees and muxed addresses are not supported.
 - Metadata uses Groundhog's bounded name and symbol types. Initialize through
-  `ERC20AdminClient::initialize` to supply it.
+  `ERC20AdminClient::initialize` to supply it. The SEP-41 example exposes mint
+  and supply queries through its local `IssuerClient`, outside SEP-41.
 - Movements use canonical Groundhog events; approvals use `SEP41ApprovalEvent`.
   These are not Soroban event encodings. Clawback still emits a canonical burn
   plus a contextual clawback event; count one supply change.

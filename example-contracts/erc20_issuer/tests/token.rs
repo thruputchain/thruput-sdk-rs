@@ -613,3 +613,48 @@ fn clearing_a_frozen_zero_balance_preserves_authorization_metadata() {
         ERC20ControlsError::HolderNotAuthorized,
     );
 }
+
+#[test]
+fn sep41_entrypoints_cannot_grant_or_spend_native_allowances() {
+    use groundhog_sep41_if::SEP41Client;
+    let env = setup();
+    mint(&env, 100);
+    adjust(&env, 25);
+    let sep = SEP41Client::new(&TOKEN);
+    for result in [
+        call(&env, &ALICE, || sep.approve(&ALICE, &SPENDER, 50, u32::MAX)),
+        call(&env, &SPENDER, || {
+            sep.transfer_from(&SPENDER, &ALICE, &BOB, 5)
+        }),
+        call(&env, &ALICE, || sep.transfer(&ALICE, &BOB, 5)),
+        call(&env, &ALICE, || sep.burn(&ALICE, 5)),
+        call(&env, &SPENDER, || sep.burn_from(&SPENDER, &ALICE, 5)),
+        call(&env, &BOB, || {
+            sep.allowance(&ALICE, &SPENDER);
+        }),
+        call(&env, &BOB, || {
+            sep.balance(&ALICE);
+        }),
+        call(&env, &BOB, || {
+            sep.name();
+        }),
+        call(&env, &BOB, || {
+            sep.symbol();
+        }),
+        call(&env, &BOB, || {
+            sep.decimals();
+        }),
+    ] {
+        assert_eq!(
+            result.assert_abort_as::<sdk::exn::LibraryExn>(),
+            sdk::exn::LibraryExn::UnknownMethod
+        );
+        result.assert_no_events();
+    }
+    env.advance_block();
+    state(&env, 100, 0, 25, 100);
+    call(&env, &SPENDER, || token().transfer_from(&ALICE, &BOB, 5))
+        .assert_success();
+    env.advance_block();
+    state(&env, 95, 5, 20, 100);
+}

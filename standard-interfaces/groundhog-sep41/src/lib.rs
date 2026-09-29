@@ -4,9 +4,9 @@
 //! SEP-0041 token semantics over Groundhog's ABI and caller authorization.
 //! This is not the Soroban ABI: addresses are Groundhog contract addresses,
 //! muxed addresses are unsupported, and events use Groundhog encoding.
-//! Allowances are separate from native ERC20 delta grants; balances and issuer
-//! policy are shared. No cross-chain authorization or expiry synchronization
-//! is implied.
+//! The reference is a separate token profile with expiring grants. It reuses
+//! native ERC20 balance and issuer-policy code, not its allowance entrypoints.
+//! Cross-chain authorization and expiry synchronization are outside this interface.
 
 mod error;
 mod events;

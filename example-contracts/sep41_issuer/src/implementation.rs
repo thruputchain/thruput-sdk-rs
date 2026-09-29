@@ -1,6 +1,17 @@
-use super::*;
-use groundhog_sep41_if::{SEP41, SEP41ApprovalEvent, SEP41Error};
+use crate::common::*;
+use crate::*;
 use sdk::block::get_block_height;
+use sdk::storage::{Map, NNInt, Node, Value};
+use sdk::*;
+
+pub(crate) type Allowances =
+    Map<ContractAddress, Map<ContractAddress, Node<Allowance>>>;
+
+#[sdk::storage]
+pub(crate) struct Allowance {
+    amount: NNInt,
+    expiry: Value<u32>,
+}
 
 fn unsigned_amount(amount: i128) -> Amount {
     ensure(amount >= 0, SEP41Error::NegativeAmount);
@@ -12,14 +23,15 @@ fn require_caller(address: &ContractAddress) {
 }
 
 impl TokenContract {
-    fn sep41_live(
+    fn allowance_is_live(
         &self,
         from: &ContractAddress,
         spender: &ContractAddress,
     ) -> bool {
-        self.sep41_expirations
+        self.allowances
             .at(from)
             .at(spender)
+            .expiry
             .try_get()
             .none_if_missing()
             .is_some_and(|deadline| {
@@ -27,7 +39,7 @@ impl TokenContract {
             })
     }
 
-    fn spend_sep41(
+    fn spend_allowance(
         &mut self,
         from: &ContractAddress,
         spender: &ContractAddress,
@@ -37,12 +49,13 @@ impl TokenContract {
         if amount == 0 {
             return;
         }
-        ensure(self.sep41_live(from, spender), ERC20Error::TooLarge);
+        ensure(self.allowance_is_live(from, spender), ERC20Error::TooLarge);
         // Approval exclusively replaces this same key, so a changed deadline
         // cannot race a spend that read the old deadline.
-        self.sep41_allowances
+        self.allowances
             .at_mut(from)
             .at_mut(spender)
+            .amount
             .try_strict_inc(-amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
@@ -56,12 +69,13 @@ impl SEP41 for TokenContract {
         spender: &ContractAddress,
     ) -> i128 {
         self.settings();
-        if !self.sep41_live(from, spender) {
+        if !self.allowance_is_live(from, spender) {
             return 0;
         }
-        self.sep41_allowances
+        self.allowances
             .at(from)
             .at(spender)
+            .amount
             .try_get()
             .none_if_missing()
             .unwrap_or(0)
@@ -82,14 +96,10 @@ impl SEP41 for TokenContract {
                 || get_block_height() <= i64::from(live_until_ledger).into(),
             SEP41Error::InvalidExpiration,
         );
-        self.sep41_allowances
-            .at_mut(from)
-            .at_mut_exclusive(spender)
-            .set(amount);
-        self.sep41_expirations
-            .at_mut(from)
-            .at_mut_exclusive(spender)
-            .set(&live_until_ledger);
+        let mut allowances = self.allowances.at_mut(from);
+        let mut grant = allowances.at_mut_exclusive(spender);
+        grant.amount.set(amount);
+        grant.expiry.set(&live_until_ledger);
         SEP41ApprovalEvent::new(from, spender, amount, live_until_ledger)
             .log();
     }
@@ -118,7 +128,7 @@ impl SEP41 for TokenContract {
     ) {
         require_caller(spender);
         let value = unsigned_amount(amount);
-        self.spend_sep41(from, spender, amount);
+        self.spend_allowance(from, spender, amount);
         self.move_tokens(from, to, value);
     }
 
@@ -138,7 +148,7 @@ impl SEP41 for TokenContract {
         require_caller(spender);
         let value = unsigned_amount(amount);
         self.require_holder(from);
-        self.spend_sep41(from, spender, amount);
+        self.spend_allowance(from, spender, amount);
         self.destroy(from, value);
     }
 
@@ -158,5 +168,18 @@ impl SEP41 for TokenContract {
         self.settings()
             .symbol
             .unwrap_or_else(|| throw(SEP41Error::MetadataUnavailable))
+    }
+}
+
+// Issuance is deliberately outside SEP-41's transfer/allowance interface.
+#[contract(client = IssuerClient, throws(SEP41Error, ERC20Error, ERC20ControlsError), emits(MintEvent))]
+impl TokenContract {
+    pub fn mint(&mut self, to: &ContractAddress, amount: i128) {
+        self.mint_tokens(to, unsigned_amount(amount));
+    }
+
+    pub fn total_supply(&self) -> i128 {
+        self.settings();
+        self.supply.get() as i128
     }
 }

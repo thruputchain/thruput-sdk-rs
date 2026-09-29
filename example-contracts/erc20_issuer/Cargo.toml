@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "groundhog-erc20-controls-if/dev", "groundhog-erc20-if/dev", "groundhog-erc20-permit-if/dev", "groundhog-sep41-if/dev"]
+dev = ["sdk/dev", "groundhog-erc20-controls-if/dev", "groundhog-erc20-if/dev", "groundhog-erc20-permit-if/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -31,9 +31,9 @@ groundhog-erc20-controls-if.workspace = true
 groundhog-erc20-if.workspace = true
 groundhog-erc20-metadata-if.workspace = true
 groundhog-erc20-permit-if.workspace = true
-groundhog-sep41-if.workspace = true
 
 [dev-dependencies]
+groundhog-sep41-if = { workspace = true, features = ["dev"] }
 groundhog-erc20-if = { workspace = true, features = ["dev"] }
 erc20_issuer = { path = ".", features = ["dev"] }
 

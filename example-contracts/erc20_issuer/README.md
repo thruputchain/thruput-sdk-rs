@@ -1,7 +1,7 @@
 # ERC20 issuer reference
 
-Groundhog ERC20 with optional issuer controls and a SEP-41 interface. Both
-interfaces share balances and policy; their allowance grants are independent.
+Groundhog ERC20 with optional issuer controls in `groundhog-erc20-controls-if`.
+The separate `sep41_issuer` example reuses its balance and policy code.
 Deploy and initialize atomically with `ERC20AdminClient::initialize`: its caller
 becomes admin, and the supplied address becomes minter. See the
 [Stellar integration notes](../../docs/sep41-reference-token.md) for policy and
@@ -17,7 +17,7 @@ ERC20_PERMIT_RV32_ARTIFACT="$PWD/../target/groundhog/erc20_issuer.rv32a" \
   cargo test -p erc20_issuer --locked
 ```
 
-Both artifact variables are needed: the token/SEP-41 and permit suites select
+Both artifact variables are needed: the token and permit suites select
 their guests separately. Tests disable resource charges; wallets run natively.
 
 To export events for CLI tests, set `ISSUER_TOKEN_CLI_EVENTS_OUT=/tmp/events.json`

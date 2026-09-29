@@ -5,5 +5,11 @@ pub use groundhog_erc20_controls_if::*;
 pub use groundhog_erc20_if::*;
 pub use groundhog_erc20_metadata_if::*;
 pub use groundhog_erc20_permit_if::*;
+type Allowances = sdk::storage::Map<
+    sdk::ContractAddress,
+    sdk::storage::Map<sdk::ContractAddress, sdk::storage::NNInt>,
+>;
+#[path = "../../issuer_common.rs"]
+mod common;
 mod implementation;
-pub use implementation::TokenContract;
+pub use common::TokenContract;

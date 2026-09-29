@@ -8,6 +8,7 @@ members = [
     "counter",
     "erc20",
     "erc20_issuer",
+    "sep41_issuer",
     "erc20_permit",
     "erc20_pausable",
     "erc721",

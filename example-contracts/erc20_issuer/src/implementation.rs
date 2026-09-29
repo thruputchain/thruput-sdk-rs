@@ -1,66 +1,10 @@
+use crate::common::*;
 use crate::*;
 use sdk::signer::Signed;
-use sdk::storage::{Balance, Deletable, Map, NNInt, Value};
+use sdk::storage::Deletable;
 use sdk::*;
 
-mod sep41;
-
-#[sdk::storage]
-pub struct TokenContract {
-    settings: Value<Settings>,
-    administrator: Value<ContractAddress>,
-    mint_authority: Value<ContractAddress>,
-    authorizations: Map<ContractAddress, Value<bool>>,
-    balances: Map<ContractAddress, Balance>,
-    allowances: Map<ContractAddress, Map<ContractAddress, NNInt>>,
-    supply: Balance,
-    sep41_allowances: Map<ContractAddress, Map<ContractAddress, NNInt>>,
-    sep41_expirations: Map<ContractAddress, Map<ContractAddress, Value<u32>>>,
-}
-
-#[contract_type]
-struct Settings {
-    pub name: Option<Name>,
-    pub symbol: Option<Symbol>,
-    pub decimals: Option<u32>,
-    pub policy: Policy,
-}
-
 impl TokenContract {
-    fn settings(&self) -> Settings {
-        self.settings
-            .try_get()
-            .none_if_missing()
-            .unwrap_or_else(|| throw(ERC20ControlsError::NotInitialized))
-    }
-    fn require_admin(&self) {
-        ensure(
-            get_caller() == self.admin(),
-            ERC20ControlsError::Unauthorized,
-        );
-    }
-    fn require_holder(&self, id: &ContractAddress) {
-        ensure(self.authorized(id), ERC20ControlsError::HolderNotAuthorized);
-    }
-    fn init(
-        &mut self,
-        administrator: &ContractAddress,
-        minter: &ContractAddress,
-        settings: &Settings,
-    ) {
-        ensure(
-            self.settings.try_get().none_if_missing().is_none(),
-            ERC20Error::AlreadyInitialized,
-        );
-        ensure(
-            !settings.policy.clawback_enabled
-                || settings.policy.auth_revocable,
-            ERC20ControlsError::InvalidPolicy,
-        );
-        self.settings.set_exclusive(settings);
-        self.administrator.set_exclusive(administrator);
-        self.mint_authority.set_exclusive(minter);
-    }
     fn open_policy() -> Policy {
         Policy {
             auth_required: false,
@@ -89,55 +33,6 @@ impl TokenContract {
             .at_mut(spender)
             .delete_exclusive();
         AllowanceChangeEvent::new(owner, spender, -remaining).log();
-    }
-    fn debit(&mut self, from: &ContractAddress, amount: Amount) {
-        amount_to_diff(amount);
-        self.balances
-            .at_mut(from)
-            .try_decrease(amount)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-    }
-    fn credit(&mut self, to: &ContractAddress, amount: Amount) {
-        // Checked supply and conservation bound each holder's balance.
-        self.balances
-            .at_mut(to)
-            .try_lazy_increase(amount)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-    }
-    fn move_tokens(
-        &mut self,
-        from: &ContractAddress,
-        to: &ContractAddress,
-        amount: Amount,
-    ) {
-        self.require_holder(from);
-        self.require_holder(to);
-        self.debit(from, amount);
-        self.credit(to, amount);
-        TransferEvent::new(from, to, amount_to_diff(amount)).log();
-    }
-    fn destroy(&mut self, from: &ContractAddress, amount: Amount) {
-        self.debit(from, amount);
-        self.supply
-            .try_decrease(amount)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-        BurnEvent::new(from, amount_to_diff(amount)).log();
-    }
-    fn forced_burn(&mut self, from: &ContractAddress, amount: Amount) {
-        ensure(
-            get_caller() == self.admin(),
-            ERC20Error::MustBeContractOwner,
-        );
-        ensure(
-            self.settings().policy.clawback_enabled,
-            ERC20ControlsError::OperationDisabled,
-        );
-        self.destroy(from, amount);
-        ClawbackEvent {
-            from,
-            amount: amount_to_diff(amount),
-        }
-        .log();
     }
 }
 
@@ -222,17 +117,7 @@ impl ERC20 for TokenContract {
         self.move_tokens(owner, receiver, amount);
     }
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
-        ensure(
-            get_caller() == self.minter(),
-            ERC20Error::MustBeContractOwner,
-        );
-        self.require_holder(receiver);
-        amount_to_diff(amount);
-        self.supply
-            .try_increase(amount)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-        self.credit(receiver, amount);
-        MintEvent::new(receiver, amount_to_diff(amount)).log();
+        self.mint_tokens(receiver, amount);
     }
     fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
         self.forced_burn(owner, amount);
@@ -271,88 +156,6 @@ impl ERC20Metadata for TokenContract {
     }
     fn decimals(&self) -> Option<u32> {
         self.settings().decimals
-    }
-}
-
-#[contract(version = "0.1.0")]
-impl ERC20Admin for TokenContract {
-    fn initialize(
-        &mut self,
-        minter: &ContractAddress,
-        name: Name,
-        symbol: Symbol,
-        decimals: u32,
-        policy: Policy,
-    ) {
-        self.init(
-            &get_caller(),
-            minter,
-            &Settings {
-                name: Some(name),
-                symbol: Some(symbol),
-                decimals: Some(decimals),
-                policy,
-            },
-        );
-    }
-    fn admin(&self) -> ContractAddress {
-        self.settings();
-        self.administrator.get()
-    }
-    fn set_admin(&mut self, new_admin: &ContractAddress) {
-        self.require_admin();
-        let admin = self.admin();
-        self.administrator.set_exclusive(new_admin);
-        SetAdminEvent {
-            admin: &admin,
-            new_admin,
-        }
-        .log();
-    }
-    fn minter(&self) -> ContractAddress {
-        self.settings();
-        self.mint_authority.get()
-    }
-    fn set_minter(&mut self, new_minter: &ContractAddress) {
-        self.require_admin();
-        let minter = self.minter();
-        self.mint_authority.set_exclusive(new_minter);
-        SetMinterEvent {
-            minter: &minter,
-            new_minter,
-        }
-        .log();
-    }
-    fn policy(&self) -> Policy {
-        self.settings().policy
-    }
-}
-
-#[contract(version = "0.1.0")]
-impl ERC20Authorization for TokenContract {
-    fn authorized(&self, id: &ContractAddress) -> bool {
-        let policy = self.settings().policy;
-        self.authorizations
-            .at(id)
-            .try_get()
-            .none_if_missing()
-            .unwrap_or(!policy.auth_required)
-    }
-    fn set_authorized(&mut self, id: &ContractAddress, authorize: bool) {
-        self.require_admin();
-        ensure(
-            authorize || self.settings().policy.auth_revocable,
-            ERC20ControlsError::OperationDisabled,
-        );
-        self.authorizations.at_mut(id).set_exclusive(&authorize);
-        SetAuthorizedEvent { id, authorize }.log();
-    }
-}
-
-#[contract(version = "0.1.0")]
-impl ERC20Clawback for TokenContract {
-    fn clawback(&mut self, from: &ContractAddress, amount: Amount) {
-        self.forced_burn(from, amount);
     }
 }
 
