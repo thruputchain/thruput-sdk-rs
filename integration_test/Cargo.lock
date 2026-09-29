@@ -357,7 +357,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-xdr",
  "sdk",

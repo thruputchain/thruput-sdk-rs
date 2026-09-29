@@ -83,6 +83,24 @@ pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
                  crates' policy: compatible with any sdk patch release, so \
                  they deliberately do not pin the SDK in lockstep",
     },
+    OperatorException {
+        manifest_prefix: "standard-impls/",
+        dep: "groundhog-domain-separator",
+        op: Op::Caret,
+        reason: "same policy as the components' sdk pin: an exact pin on a \
+                 workspace-line crate strands the published component the \
+                 moment an SDK patch release moves that line without \
+                 republishing it",
+    },
+    OperatorException {
+        manifest_prefix: "standard-impls/",
+        dep: "groundhog-contract-spec",
+        op: Op::Caret,
+        reason: "same policy as the components' sdk pin: an exact pin on a \
+                 workspace-line crate strands the published component the \
+                 moment an SDK patch release moves that line without \
+                 republishing it",
+    },
 ];
 
 /// Packages allowed to write a literal `version` instead of inheriting the
