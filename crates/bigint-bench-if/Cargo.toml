@@ -5,10 +5,13 @@ edition.workspace = true
 # Benchmark-harness interface; nothing outside this repo consumes it, so it has
 # no reason to take up a version line on the registry.
 publish = false
-authors = ["Groundhog Team"]
-license = "MIT OR Apache-2.0"
+authors.workspace = true
+license.workspace = true
 description = "Interface for the big-integer benchmark contract"
-repository = "https://github.com/groundhogchain/sdk_rs"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 sdk = { workspace = true }
