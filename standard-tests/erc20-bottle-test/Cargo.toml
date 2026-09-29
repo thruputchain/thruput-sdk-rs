@@ -3,10 +3,13 @@ name = "erc20-bottle-test"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
-authors = ["Groundhog Team"]
-license = "MIT OR Apache-2.0"
+authors.workspace = true
+license.workspace = true
 description = "ERC20 Bottle-test"
-repository = "https://github.com/groundhogchain/sdk_rs"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 sdk = { workspace = true }

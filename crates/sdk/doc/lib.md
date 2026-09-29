@@ -86,22 +86,18 @@ dev = ["sdk/dev"]
 [lib]
 crate-type = ["rlib"]
 
-# The rv32 artifact. The bin name must stay the snake_case package name:
-# `groundhog build` looks for the ELF at `release/<snake_name>`. src/main.rs
-# is a `#![no_std] #![no_main]` wrapper whose `extern crate my_contract;`
-# force-links the rlib so the entrypoint records reach the binary.
+# The rv32 artifact. `groundhog build -p my-contract` derives
+# `--bin my-contract` from the package name, so this name must match it.
+# src/main.rs is a `#![no_std] #![no_main]` wrapper whose `extern crate
+# my_contract;` force-links the rlib so the entrypoint records reach the
+# binary.
 [[bin]]
-name = "my_contract"
+name = "my-contract"
 path = "src/main.rs"
 required-features = ["entrypoints"]
 
-# `sdk` is declared per target: it needs `std` on the host and forbids it on
-# the guest, and Cargo resolves features per platform.
-[target.'cfg(target_arch = "riscv32")'.dependencies]
-sdk = { version = "=0.40.0", registry = "groundhog" }
-
-[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { version = "=0.40.0", registry = "groundhog", features = ["std"] }
+[dependencies]
+sdk = { workspace = true }
 
 [dev-dependencies]
 my-contract = { path = ".", features = ["dev"] }
@@ -415,14 +411,15 @@ Other useful modules and types:
 `#[contract]` on a *trait* defines a reusable interface; `#[contract]` on an
 impl of that trait exports an implementation. Callers depend on the interface
 crate and get the same generated client either way. That is how the standard
-interfaces in `standard-interfaces/` (`groundhog-erc20-if`,
-`groundhog-erc20-metadata-if`, `groundhog-erc721-if`, `groundhog-signed-op-if`,
-and the rest of the `-if` crates there) are consumed.
+interfaces in `standard-interfaces/` (the `groundhog-*-if` crates:
+`groundhog-erc20-if`, `groundhog-erc20-metadata-if`, `groundhog-erc20-pausable-if`,
+`groundhog-erc20-permit-if`, `groundhog-erc721-if`, `groundhog-erc165-if`,
+`groundhog-access-control-if`, `groundhog-signed-op-if`) are consumed.
 
 Every `#[contract]` trait also carries an [`InterfaceId`] as
 `Trait::INTERFACE_ID`, derived from its name and major version, and every
 `#[contract]` impl block leaves a record of its interface's id in the
-contract's [interface table](mod@interface_table). `groundhog-erc165-if` is the
+contract's [interface table](mod@interface_table). `groundhog-erc165` is the
 query surface: `impl_erc165!()` adds a `supports_interface` entrypoint
 answered by `implements!(id)` from the impls that actually linked. A
 contract without it carries no table in its deployed image.

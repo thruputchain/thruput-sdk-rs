@@ -1,5 +1,3 @@
-# Groundhog Rust SDK
-
 This SDK facilitates writing contracts in Rust.
 
 ## Contract Author Quickstart
@@ -16,7 +14,7 @@ cd my-contract
 groundhog build          # compiles and lowers the rv32 artifact
 ```
 
-Installing the CLI goes through the private Groundhog registry today. Install
+Installing the CLI from source goes through the Groundhog Cargo registry. Install
 the version `scripts/groundhog-cli-version.sh` pins, which is what this
 repository's own scripts do (`scripts/ci.sh`, `scripts/scaffold-smoke.sh`):
 the CLI and the SDK share the raw contract-spec wire format, and an unpinned
@@ -37,8 +35,9 @@ export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/a
 export CARGO_REGISTRIES_GROUNDHOG_TOKEN=...
 ```
 
-There is no public install path yet — distribution is tracked in
-[groundhogchain/packaging#86](https://github.com/groundhogchain/packaging/issues/86).
+Prebuilt client bundles that pair the CLI with a matching `hog-devnode` are
+described in [Getting Started](https://docs.groundhog.dev/start/getting-started/);
+the version pin above applies to those too.
 
 Polished examples and tutorials are maintained outside this repository:
 the [developer docs](https://docs.groundhog.dev/start/getting-started/) walk
@@ -86,10 +85,10 @@ dev = ["sdk/dev"]
 # `sdk` is declared per target: it needs `std` on the host and forbids it on
 # the guest, and Cargo resolves features per platform.
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-sdk = { version = "=0.40.0", registry = "groundhog" }
+sdk = { version = "=0.38.0", registry = "groundhog" }  # the pinned CLI's exact SDK version
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { version = "=0.40.0", registry = "groundhog", features = ["std"] }
+sdk = { version = "=0.38.0", registry = "groundhog", features = ["std"] }
 
 # Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
 # keeping the library itself no_std for guest builds.

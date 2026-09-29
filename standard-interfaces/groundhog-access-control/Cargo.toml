@@ -1,22 +1,25 @@
 [package]
 name = "groundhog-access-control-if"
-version = "0.1.40"
+version = "0.1.42"
 edition.workspace = true
 publish.workspace = true
-authors = ["Groundhog Team"]
-license = "MIT OR Apache-2.0"
+authors.workspace = true
+license.workspace = true
 description = "Role-based access control standard interface for Groundhog smart contracts"
-repository = "https://github.com/groundhogchain/sdk_rs"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [features]
 dev = ["sdk/dev", "dep:thiserror"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.40.0" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.41.0" }
 thiserror = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.40.0", features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.41.0", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
