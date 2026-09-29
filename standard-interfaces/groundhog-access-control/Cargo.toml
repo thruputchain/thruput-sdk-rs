@@ -1,6 +1,6 @@
 [package]
 name = "groundhog-access-control-if"
-version = "0.1.41"
+version = "0.1.42"
 edition.workspace = true
 publish.workspace = true
 authors = ["Groundhog Team"]

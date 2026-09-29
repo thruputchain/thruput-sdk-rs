@@ -357,7 +357,7 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "groundhog-access-control"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-access-control-if",
  "sdk",
@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-access-control-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "sdk",
  "thiserror",
@@ -405,14 +405,14 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc165-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "sdk",
 ]
 
 [[package]]
 name = "groundhog-erc20-controls-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-xdr",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-metadata-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-erc20-metadata-if",
  "groundhog-xdr",
@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-pausable-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "sdk",
  "thiserror",
@@ -452,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-permit-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -461,7 +461,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc721-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-erc721-if",
  "heapless",
@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-signed-op"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-domain-separator",
@@ -542,7 +542,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-signed-op-if"
-version = "0.1.41"
+version = "0.1.42"
 dependencies = [
  "sdk",
  "thiserror",
