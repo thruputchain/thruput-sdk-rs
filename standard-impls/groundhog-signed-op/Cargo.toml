@@ -14,7 +14,7 @@ dev = ["sdk/dev", "groundhog-signed-op-if/dev"]
 [dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.41.0", features = ["alloc"] }
 groundhog-signed-op-if = { path = "../../standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.41" }
-groundhog-domain-separator = { path = "../../crates/domain-separator", registry = "groundhog", version = "=0.41.0", default-features = false, features = ["alloc"] }
+groundhog-domain-separator = { path = "../../crates/domain-separator", registry = "groundhog", version = "=0.41.1", default-features = false, features = ["alloc"] }
 groundhog-contract-spec = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
