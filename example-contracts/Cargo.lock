@@ -282,6 +282,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
+name = "erc165_single_query"
+version = "0.4.0"
+dependencies = [
+ "erc165_single_query",
+ "sdk",
+]
+
+[[package]]
 name = "erc20"
 version = "0.4.0"
 dependencies = [
@@ -357,6 +365,7 @@ name = "erc20_pausable"
 version = "0.4.0"
 dependencies = [
  "counter",
+ "erc165_single_query",
  "erc20_pausable",
  "groundhog-access-control",
  "groundhog-access-control-if",
@@ -1347,6 +1356,7 @@ dependencies = [
 name = "spec_named_types"
 version = "0.4.0"
 dependencies = [
+ "heapless",
  "sdk",
  "spec_named_types",
 ]

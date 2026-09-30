@@ -23,6 +23,16 @@ pub enum Envelope {
     Single(Payload) = 4,
 }
 
+/// Named only as the element of a bounded `heapless::Vec`: the spec spells
+/// the vector with its bound and the element by name, and publishes the
+/// element's definition.
+#[contract_type]
+pub struct Tally {
+    pub total: u32,
+}
+
+pub type Tallies = heapless::Vec<Tally, 4>;
+
 pub type PayloadPair = (Payload, Option<Payload>);
 pub type Byte = u8;
 pub type Blob = Vec<Byte>;
@@ -100,5 +110,9 @@ impl SpecNamedTypesContract {
 
     pub fn echo_blob_envelope(envelope: BlobEnvelope) -> BlobEnvelope {
         envelope
+    }
+
+    pub fn echo_tallies(tallies: Tallies) -> Tallies {
+        tallies
     }
 }

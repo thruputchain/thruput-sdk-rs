@@ -51,3 +51,6 @@ erc20_pausable = { path = ".", features = ["dev"] }
 # implement, and a contract that does not implement ERC-165.
 groundhog-signed-op-if = { workspace = true, features = ["dev"] }
 counter = { path = "../counter", features = ["dev"] }
+# A contract with the single-query ERC-165 only, for the list probes'
+# fallback.
+erc165_single_query = { path = "../erc165_single_query", features = ["dev"] }
