@@ -120,6 +120,9 @@ free function; otherwise those declarations use their crate's own version.
 Entrypoint IDs use the semver major line (including the minor component for
 `0.x` versions).
 
-For compatibility, explicit `interface` and `version` arguments on a trait
-impl are accepted as assertions: the name and semver major must match the
-trait. A mismatch is rejected at compile time; the trait remains authoritative.
+`version` is not allowed on trait impls, even if it matches the trait. Remove
+the argument to inherit the trait's version.
+
+For compatibility, an explicit `interface` argument on a trait impl is accepted
+as an assertion that the name matches the trait. A mismatch is rejected at
+compile time; the trait remains authoritative.

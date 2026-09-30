@@ -93,32 +93,19 @@ pub fn generate(
         }
     });
 
-    // For trait impls, emit compile-time assertions that the impl-side
-    // entrypoint metadata matches the trait definition.
+    // Resolve trait metadata and check an explicit interface-name assertion.
     let trait_metadata_assertions = if let (Some(trait_path), Some(self_ty)) =
         (contract.trait_path(), contract.self_ty())
     {
         let iface_name = contract
             .interface_name()
             .expect("trait impls always resolve an interface name");
-        let iface_major =
-            contract_util::semver::major_version_from_string(&iface_vers);
         let check_name = config.interface.is_some();
-        let check_version = config.version.is_some();
         let iface_name_prefix = "Interface name mismatch: impl-side name is ";
         let iface_name_suffix = ". Omit the impl-side interface override to inherit the trait's name.";
         let iface_name_suffix_lit =
             LitByteStr::new(iface_name_suffix.as_bytes(), Span::call_site());
         let iface_name_suffix_len = iface_name_suffix.len();
-        // Build the diagnostic in const-eval via sdk::internal::const_iface_version_mismatch_diagnostic_bytes,
-        // then panic! with str::from_utf8.
-        let prefix = format!(
-            "Major version mismatch: the major version specified in #[contract(version = ...)] \
-             is '{iface_major}' (from version '{iface_vers}'), but it does not match the trait's "
-        );
-        let suffix = ". Omit the impl-side version override to inherit the trait's version.";
-        let suffix_lit = LitByteStr::new(suffix.as_bytes(), Span::call_site());
-        let suffix_len = suffix.len();
         let name_assertion = check_name.then(|| quote! {
             const _: () = {
                 const TRAIT_INTERFACE: &str =
@@ -144,41 +131,12 @@ pub fn generate(
                 }
             };
         });
-        let version_assertion = check_version.then(|| quote! {
-            const _: () = {
-                const TRAIT_MAJOR: &str =
-                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION;
-                const TRAIT_FULL_VERSION: &str =
-                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION;
-                const PREFIX: &str = #prefix;
-
-                const SUFFIX: &[u8; #suffix_len] = &#suffix_lit;
-
-                const FULL: [u8; {
-                    PREFIX.len() + 11 + TRAIT_MAJOR.len() + TRAIT_FULL_VERSION.len() + SUFFIX.len()
-                }] = ::sdk::internal::const_iface_version_mismatch_diagnostic_bytes::<
-                    { PREFIX.len() },
-                    { TRAIT_MAJOR.len() },
-                    { TRAIT_FULL_VERSION.len() },
-                    { SUFFIX.len() },
-                    {
-                        PREFIX.len() + 11 + TRAIT_MAJOR.len() + TRAIT_FULL_VERSION.len()
-                            + SUFFIX.len()
-                    },
-                >(PREFIX, TRAIT_MAJOR, TRAIT_FULL_VERSION, SUFFIX);
-
-                if !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
-                    panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
-                }
-            };
-        });
         quote! {
             // Resolve the inherited identity even when guest entrypoints are
             // disabled. This also keeps a private contract type live when
             // its generated entrypoint wrappers are all cfg'd out.
             const _: ::sdk::InterfaceId = <#self_ty as #trait_path>::INTERFACE_ID;
             #name_assertion
-            #version_assertion
         }
     } else {
         quote! {}

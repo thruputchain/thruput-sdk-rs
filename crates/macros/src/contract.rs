@@ -140,20 +140,10 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             let iface_vers = config
                 .version_string()
                 .unwrap_or_else(contract::interface_vers_default);
-            let iface_major =
-                groundhog_contract_util::semver::major_version_from_string(
-                    &iface_vers,
-                );
-
-            // Add the version consts on the trait (one `parse_quote!` per item — syn parses a
-            // single `TraitItem`; two `const`s in one block panics with "unexpected token").
+            // Add the interface metadata as separate trait items.
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_NAME: &'static str = #iface_name;
-            });
-            stripped.items.push(parse_quote! {
-                #[doc(hidden)]
-                const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -341,6 +331,12 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
         }
         syn::Item::Impl(item) => {
             if item.trait_.is_some() {
+                if let Some(version) = &config.version {
+                    return Err(syn::Error::new(
+                        version.span(),
+                        "`version` on a trait impl is not allowed; remove it to inherit the trait's version",
+                    ));
+                }
                 for impl_item in &item.items {
                     if let syn::ImplItem::Const(assoc) = impl_item
                         && (assoc

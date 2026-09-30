@@ -1,0 +1,11 @@
+error: `version` on a trait impl is not allowed; remove it to inherit the trait's version
+  --> tests/compile-fail/trait_impl_version_override.rs:12:22
+   |
+12 | #[contract(version = "1.2.3")]
+   |                      ^^^^^^^
+
+error: `version` on a trait impl is not allowed; remove it to inherit the trait's version
+  --> tests/compile-fail/trait_impl_version_override.rs:21:22
+   |
+21 | #[contract(version = "9.0.0")]
+   |                      ^^^^^^^

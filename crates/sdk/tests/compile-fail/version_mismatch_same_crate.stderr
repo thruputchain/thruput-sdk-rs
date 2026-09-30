@@ -1,5 +1,0 @@
-error[E0080]: evaluation panicked: Major version mismatch: the major version specified in #[contract(version = ...)] is '99' (from version '99.0.0'), but it does not match the trait's '0.0.0', from '0.0.0'. Omit the impl-side version override to inherit the trait's version.
-  --> tests/compile-fail/version_mismatch_same_crate.rs:12:1
-   |
-12 | #[contract(version = "99.0.0")]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ evaluation of `_` failed here

@@ -170,8 +170,8 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// Trait implementations inherit the trait's interface name, version, and
 /// entrypoint IDs, including when the trait comes from another crate or is
 /// imported under an alias. A plain `#[contract] impl Trait for Contract`
-/// is sufficient. Explicit `interface` and `version` arguments on the impl
-/// are optional assertions: the name and semver major must match the trait.
+/// is sufficient. `version` is not allowed on trait impls. An explicit
+/// `interface` argument is an optional assertion that the name matches the trait.
 /// For trait definitions, bare impls, and free functions, the version still
 /// defaults to the declaring crate's `CARGO_PKG_VERSION`.
 ///
