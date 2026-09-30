@@ -90,7 +90,7 @@ struct CounterContract {
     value: sdk::storage::Value<u32>,
 }
 
-#[contract(version = "1.2.3")]
+#[contract]
 impl Counter for CounterContract {
     fn get(&self) -> u32 {
         self.value.try_get().none_if_missing().unwrap_or(0)

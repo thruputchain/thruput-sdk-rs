@@ -2,7 +2,7 @@ use super::common;
 use common::client;
 use common::config::Config;
 use common::contract;
-use common::contract::{ConfiguredContract, ContractSrc};
+use common::contract::{ConfiguredContract, ContractSrc, Method};
 use common::exports;
 use common::spec_reg;
 use common::strip::*;
@@ -159,6 +159,17 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
             });
+            for method in contract.methods_sorted() {
+                let sig = method.sig();
+                let ident =
+                    common::entrypoint::trait_entrypoint_ident(&sig.ident);
+                let id = common::entrypoint::method_id_tokens(&contract, sig);
+                stripped.items.push(parse_quote! {
+                    #[doc(hidden)]
+                    #[allow(non_upper_case_globals)]
+                    const #ident: u64 = #id;
+                });
+            }
             // The trait's own spec id, pinned to the interface version like an
             // exception's is pinned to its declared one. The interface key
             // (name, version) is all the wire carries and two unrelated traits
@@ -282,6 +293,8 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
 
             let mut out = stripped.into_token_stream();
 
+            out.extend(exports::generate_trait_guard_macro(item, config));
+
             // A module-level anchor const (the trait isn't dyn-compatible, so
             // its associated `__GROUNDHOG_IFACE_*` consts aren't reachable as
             // `<dyn Trait>::…`). `export_interface_spec!` references this by
@@ -327,6 +340,22 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             Ok(out)
         }
         syn::Item::Impl(item) => {
+            if item.trait_.is_some() {
+                for impl_item in &item.items {
+                    if let syn::ImplItem::Const(assoc) = impl_item
+                        && (assoc
+                            .ident
+                            .to_string()
+                            .starts_with("__GROUNDHOG_")
+                            || assoc.ident == "INTERFACE_ID")
+                    {
+                        return Err(syn::Error::new_spanned(
+                            &assoc.ident,
+                            "contract interface metadata is defined by the trait and cannot be overridden",
+                        ));
+                    }
+                }
+            }
             validate_no_generics(
                 &item.generics,
                 false,

@@ -51,7 +51,9 @@ pub fn generate(
 
     // Collect methods and check for entrypoint ID collisions
     let methods: Vec<_> = contract.methods_sorted().into_iter().collect();
-    check_entrypoint_collisions(iface_name, &iface_vers, &methods)?;
+    if contract.trait_path().is_none() {
+        check_entrypoint_collisions(iface_name, &iface_vers, &methods)?;
+    }
 
     let mut exports = TokenStream::new();
     for method in &methods {
@@ -79,7 +81,12 @@ pub fn generate(
     // that does not enable `entrypoints` exports nothing, so it must not
     // advertise anything either.
     let interface_record = contract.self_ty().map(|_| {
-        let id_lit = interface_id_literal(iface_name, &iface_vers);
+        let id_lit = if let Some(trait_path) = contract.trait_path() {
+            let self_ty = contract.self_ty();
+            quote!(<#self_ty as #trait_path>::INTERFACE_ID)
+        } else {
+            interface_id_literal(iface_name, &iface_vers)
+        };
         quote! {
             #[cfg(any(not(target_arch = "riscv32"), feature = "entrypoints"))]
             ::sdk::__interface_record!(#id_lit);
@@ -96,8 +103,10 @@ pub fn generate(
             .expect("trait impls always resolve an interface name");
         let iface_major =
             contract_util::semver::major_version_from_string(&iface_vers);
+        let check_name = config.interface.is_some();
+        let check_version = config.version.is_some();
         let iface_name_prefix = "Interface name mismatch: impl-side name is ";
-        let iface_name_suffix = ". Repeat #[contract(interface = ...)] on the impl to match the trait definition.";
+        let iface_name_suffix = ". Omit the impl-side interface override to inherit the trait's name.";
         let iface_name_suffix_lit =
             LitByteStr::new(iface_name_suffix.as_bytes(), Span::call_site());
         let iface_name_suffix_len = iface_name_suffix.len();
@@ -107,8 +116,7 @@ pub fn generate(
             "Major version mismatch: the major version specified in #[contract(version = ...)] \
              is '{iface_major}' (from version '{iface_vers}'), but it does not match the trait's "
         );
-        let suffix = " (if not specified: requested version defaults to the current crate's \
-             version). Check the trait definition and Cargo.toml to see the trait's major version.";
+        let suffix = ". Omit the impl-side version override to inherit the trait's version.";
         let suffix_lit = LitByteStr::new(suffix.as_bytes(), Span::call_site());
         let suffix_len = suffix.len();
         quote! {
@@ -131,7 +139,7 @@ pub fn generate(
                     },
                 >(PREFIX, #iface_name, TRAIT_INTERFACE, SUFFIX);
 
-                if !::sdk::internal::const_str_eq(#iface_name, TRAIT_INTERFACE) {
+                if #check_name && !::sdk::internal::const_str_eq(#iface_name, TRAIT_INTERFACE) {
                     panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
                 }
             };
@@ -158,7 +166,7 @@ pub fn generate(
                     },
                 >(PREFIX, TRAIT_MAJOR, TRAIT_FULL_VERSION, SUFFIX);
 
-                if !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
+                if #check_version && !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
                     panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
                 }
             };
@@ -379,12 +387,11 @@ pub fn generate_method(
     let entrypoint = entrypoint_sig.id();
 
     let export_name = entrypoint_export_name(entrypoint);
-    let export_docstr = format!(" {} = {}", export_name, entrypoint_sig);
-    let link_name = contract_util::entrypoint_link_name(
-        iface_name,
-        &iface_vers,
-        &entrypoint_sig.method_sig,
-    );
+    let export_docstr = if contract.and_then(|c| c.trait_path()).is_some() {
+        format!("Entrypoint for trait method `{ident}`.")
+    } else {
+        format!(" {} = {}", export_name, entrypoint_sig)
+    };
 
     let extern_name = format_ident!("{}_extern", ident);
     let internal_name = contract
@@ -531,12 +538,22 @@ pub fn generate_method(
     // Include method info in debugging context (when enabled)
     let wrapped_call = {
         let method_name = ident.to_string();
-        let iface = match iface_name {
-            Some(iface) => quote! { Some(#iface) },
-            None => quote! { None },
+        let (iface, version) = if let Some((trait_path, self_ty)) =
+            contract.and_then(|c| Some((c.trait_path()?, c.self_ty()?)))
+        {
+            (
+                quote!(Some(<#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME)),
+                quote!(<#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION),
+            )
+        } else {
+            let iface = match iface_name {
+                Some(iface) => quote!(Some(#iface)),
+                None => quote!(None),
+            };
+            (iface, quote!(#iface_vers))
         };
         let call_info = quote! {
-            ::sdk::internal::HandlingMethod::new(#iface, #iface_vers, #method_name)
+            ::sdk::internal::HandlingMethod::new(#iface, #version, #method_name)
         };
 
         quote! {
@@ -559,38 +576,25 @@ pub fn generate_method(
     // the `groundhog_rv32_entrypoints` input section, which the rv32-runtime
     // linker script brackets and `_start`'s dispatcher scans at runtime,
     // instead of exporting a per-method symbol.
-    let method_id_u64 = u64::from_be_bytes(*entrypoint);
-    let method_id_lit = proc_macro2::Literal::u64_suffixed(method_id_u64);
+    let method_id_lit = if let Some(contract) = contract {
+        method_id_tokens(contract, sig)
+    } else {
+        let id = u64::from_be_bytes(*entrypoint);
+        quote!(#id)
+    };
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
-    let id_guard_ident = format_ident!("__GH_RV32_ENTRY_ID_GUARD_{}", ident);
-    let link_guard_ident =
-        format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
-    let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
-    // Crate-scoped guard names for the host-side (every-target) guards
-    // below. Expansion-time env read, same as `interface_vers_default`:
-    // cargo sets CARGO_PKG_NAME/CARGO_PKG_VERSION for the rustc invocation
-    // compiling the contract crate, which is the process this macro expands
-    // in. The version is part of the scope because one host binary can
-    // legitimately link two semver-distinct instances of one contract
-    // package (e.g. a migration test pinning an old release), so the version
-    // must be part of the scope. Cargo can also link same-name, same-version
-    // packages from distinct sources, but it does not expose that source
-    // PackageId to proc macros; those rare instances share this guard scope.
-    // Encode both available components as hex because characters such as
-    // `@`, `-`, and `[]` have special meaning in ELF linker version scripts.
-    let crate_scope = encoded_crate_scope(
-        &std::env::var("CARGO_PKG_NAME")
-            .unwrap_or_else(|_| "unknown-crate".to_string()),
-        &std::env::var("CARGO_PKG_VERSION")
-            .unwrap_or_else(|_| "0.0.0".to_string()),
-    );
-    let scoped_link_guard_name = format!("{link_name}__crate__{crate_scope}");
-    let scoped_id_guard_name =
-        format!("{id_guard_name}__crate__{crate_scope}");
-    let scoped_link_guard_ident =
-        format_ident!("__GH_ENTRY_NAME_GUARD_CRATE_{}", ident);
-    let scoped_id_guard_ident =
-        format_ident!("__GH_ENTRY_ID_GUARD_CRATE_{}", ident);
+    let crate_scope = invoking_crate_scope();
+    let guards =
+        if let Some(trait_path) = contract.and_then(|c| c.trait_path()) {
+            quote!(#trait_path!(#ident, #crate_scope);)
+        } else {
+            generate_entrypoint_guards(
+                sig,
+                iface_name,
+                &iface_vers,
+                quote!(#crate_scope),
+            )
+        };
     Ok(quote! {
 
         #[doc=#export_docstr]
@@ -599,6 +603,63 @@ pub fn generate_method(
             #internal_name()
         }
 
+        #guards
+
+        // rv32 guest dispatch: place this method's Entrypoint record in the
+        // dispatch-table input section. Naming is owned by the SDK end-to-end:
+        // this macro emits the section, the rv32-runtime linker script
+        // (link/groundhog-rv32.ld) KEEPs and brackets it, and
+        // rv32-runtime/src/start.rs walks it. `#[used]` keeps the static
+        // through codegen/LTO; KEEP() covers --gc-sections.
+        #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
+        #[used]
+        #[unsafe(link_section = "groundhog_rv32_entrypoints")]
+        #[allow(non_upper_case_globals)]
+        static #rv32_entry_static: ::sdk::__rv32::Entrypoint =
+            ::sdk::__rv32::Entrypoint {
+                method_id: #method_id_lit,
+                wrapper: #extern_name,
+            };
+
+        #inline
+        #[allow(non_snake_case)]
+        pub fn #internal_name() {
+            #wrapped_call
+        }
+    })
+}
+
+/// Literal linker symbols are supplied by the interface declaration. The
+/// implementing crate supplies its scope, so host tests can link multiple
+/// implementations while duplicates inside one contract still fail codegen.
+fn generate_entrypoint_guards(
+    sig: &syn::Signature,
+    iface_name: Option<&str>,
+    iface_vers: &str,
+    crate_scope: TokenStream,
+) -> TokenStream {
+    let ident = &sig.ident;
+    let entrypoint_sig =
+        contract_util::EntrypointSignature::new(iface_name, iface_vers, sig);
+    let export_name = entrypoint_export_name(entrypoint_sig.id());
+    let link_name = contract_util::entrypoint_link_name(
+        iface_name,
+        iface_vers,
+        &entrypoint_sig.method_sig,
+    );
+    let id_guard_ident = format_ident!("__GH_RV32_ENTRY_ID_GUARD_{}", ident);
+    let link_guard_ident =
+        format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
+    let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
+    let scoped_link_guard_name =
+        quote!(concat!(#link_name, "__crate__", #crate_scope));
+    let scoped_id_guard_name =
+        quote!(concat!(#id_guard_name, "__crate__", #crate_scope));
+    let scoped_link_guard_ident =
+        format_ident!("__GH_ENTRY_NAME_GUARD_CRATE_{}", ident);
+    let scoped_id_guard_ident =
+        format_ident!("__GH_ENTRY_ID_GUARD_CRATE_{}", ident);
+    quote! {
         // rv32 duplicate-entrypoint guards: two zero-sized symbols per
         // method (symtab-only — neither reaches the lowered image) so a
         // colliding dispatch ID fails the build instead of producing two
@@ -664,28 +725,73 @@ pub fn generate_method(
         #[allow(non_upper_case_globals)]
         static #scoped_id_guard_ident: () = ();
 
-        // rv32 guest dispatch: place this method's Entrypoint record in the
-        // dispatch-table input section. Naming is owned by the SDK end-to-end:
-        // this macro emits the section, the rv32-runtime linker script
-        // (link/groundhog-rv32.ld) KEEPs and brackets it, and
-        // rv32-runtime/src/start.rs walks it. `#[used]` keeps the static
-        // through codegen/LTO; KEEP() covers --gc-sections.
-        #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
-        #[used]
-        #[unsafe(link_section = "groundhog_rv32_entrypoints")]
-        #[allow(non_upper_case_globals)]
-        static #rv32_entry_static: ::sdk::__rv32::Entrypoint =
-            ::sdk::__rv32::Entrypoint {
-                method_id: #method_id_lit,
-                wrapper: #extern_name,
-            };
+    }
+}
 
-        #inline
-        #[allow(non_snake_case)]
-        pub fn #internal_name() {
-            #wrapped_call
+fn invoking_crate_scope() -> String {
+    encoded_crate_scope(
+        &std::env::var("CARGO_PKG_NAME")
+            .unwrap_or_else(|_| "unknown-crate".to_string()),
+        &std::env::var("CARGO_PKG_VERSION")
+            .unwrap_or_else(|_| "0.0.0".to_string()),
+    )
+}
+
+/// Re-export in the trait's macro namespace: `use path::Trait as Alias`
+/// imports both, so an impl can invoke the helper through its actual trait
+/// path without guessing a companion name in the dependency's module.
+pub fn generate_trait_guard_macro(
+    item: &syn::ItemTrait,
+    config: &Config,
+) -> TokenStream {
+    use quote::ToTokens;
+    use sha2::{Digest, Sha256};
+
+    let contract = ConfiguredContract::new(config.clone(), item);
+    let iface_name = contract.interface_name();
+    let iface_vers = contract.defaulted_interface_vers();
+    let ident = &item.ident;
+    let vis = &item.vis;
+    // macro_export places the implementation name at the crate root. Include
+    // its span's expansion context as well as its source location: two traits
+    // emitted by the same macro template have equal source locations but
+    // distinct contexts. Callers only see the alias, never this helper name;
+    // it is not part of the ABI or any emitted linker symbol.
+    let key = format!(
+        "{:?}:{}:{}:{}",
+        ident.span(),
+        item.to_token_stream(),
+        iface_name.as_deref().unwrap_or_default(),
+        iface_vers
+    );
+    let hash = Sha256::digest(key.as_bytes())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let helper = format_ident!("__groundhog_entrypoint_guards_{}", hash);
+    let rules = contract.methods_sorted().into_iter().map(|method| {
+        let sig = method.sig();
+        let method_ident = &sig.ident;
+        let guards = generate_entrypoint_guards(
+            sig,
+            iface_name.as_deref(),
+            &iface_vers,
+            quote!($scope),
+        );
+        quote! {
+            (#method_ident, $scope:literal) => {
+                const _: () = { #guards };
+            };
         }
-    })
+    });
+    quote! {
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #helper { #(#rules)* }
+        #[doc(hidden)]
+        #[allow(unused_imports)]
+        #vis use #helper as #ident;
+    }
 }
 
 pub fn generate_free_function_bundle(
@@ -894,8 +1000,9 @@ mod tests {
             &super::super::contract::interface_vers_default(),
             &contract_util::NormalizedMethodSignature::new("ping"),
         );
-        let scoped_guard = format!("{link_name}__crate__{crate_scope}");
-        assert!(generated.contains(&scoped_guard), "{generated}");
+        assert!(generated.contains(&link_name), "{generated}");
+        assert!(generated.contains(&crate_scope), "{generated}");
+        assert!(generated.contains("concat !"), "{generated}");
         assert!(
             generated.contains("__GH_ENTRY_NAME_GUARD_CRATE_"),
             "{generated}"
