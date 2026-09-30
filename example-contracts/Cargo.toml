@@ -44,6 +44,8 @@ members = [
     "recursive_type",
     "versioned_callee",
     "versioned_caller",
+    "versioned_interface",
+    "versioned_impl",
     "imported_error_type",
     "imported_error_callee",
     "imported_error_caller",

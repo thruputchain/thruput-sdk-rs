@@ -117,8 +117,9 @@ on the impl.
 
 `version = "0.3.0"` overrides the version on a trait definition, bare impl, or
 free function; otherwise those declarations use their crate's own version.
-Entrypoint IDs use the semver major line (including the minor component for
-`0.x` versions).
+Entrypoint IDs use the version through its first nonzero component: `1.2.3`
+uses `1`, `0.2.3` uses `0.2`, and `0.0.3` uses `0.0.3`. For `0.0.0`, the
+entire version string is used, including any prerelease or build suffix.
 
 `version` is not allowed on trait impls, even if it matches the trait. Remove
 the argument to inherit the trait's version.

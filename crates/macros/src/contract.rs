@@ -103,6 +103,11 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 }
             }
             let contract = ConfiguredContract::new(config.clone(), item);
+            exports::check_entrypoint_collisions(
+                contract.interface_name().as_deref(),
+                &contract.defaulted_interface_vers(),
+                &contract.methods_sorted().into_iter().collect::<Vec<_>>(),
+            )?;
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
@@ -338,15 +343,19 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                     ));
                 }
                 for impl_item in &item.items {
-                    if let syn::ImplItem::Const(assoc) = impl_item
-                        && (assoc
-                            .ident
-                            .to_string()
-                            .starts_with("__GROUNDHOG_")
-                            || assoc.ident == "INTERFACE_ID")
+                    let ident = match impl_item {
+                        syn::ImplItem::Const(item) => &item.ident,
+                        syn::ImplItem::Fn(item) => &item.sig.ident,
+                        syn::ImplItem::Type(item) => &item.ident,
+                        _ => continue,
+                    };
+                    let name = ident.to_string();
+                    let name = name.strip_prefix("r#").unwrap_or(&name);
+                    if name.starts_with("__GROUNDHOG_")
+                        || matches!(name, "INTERFACE_ID" | "__mock")
                     {
                         return Err(syn::Error::new_spanned(
-                            &assoc.ident,
+                            ident,
                             "contract interface metadata is defined by the trait and cannot be overridden",
                         ));
                     }
@@ -492,6 +501,52 @@ mod tests {
             "{msg}"
         );
         assert!(msg.len() < 200, "error must not dump the AST: {msg}");
+    }
+
+    #[test]
+    fn trait_declarations_check_entrypoint_collisions() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Duplicate {
+                fn ping();
+                fn ping();
+            }
+        };
+        let err = apply_with_config(&item, &parse_config("")).unwrap_err();
+        assert!(err.to_string().contains("Entrypoint ID collision"));
+    }
+
+    #[test]
+    fn trait_impl_rejects_reserved_functions_and_types() {
+        for reserved in [
+            syn::parse_quote!(
+                fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    0
+                }
+            ),
+            syn::parse_quote!(
+                fn __mock() {}
+            ),
+            syn::parse_quote!(
+                fn r#__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    0
+                }
+            ),
+            syn::parse_quote!(
+                type __GROUNDHOG_IFACE_NAME = u32;
+            ),
+        ] {
+            let mut item: syn::ItemImpl = syn::parse_quote! {
+                impl Interface for Contract {}
+            };
+            item.items.push(reserved);
+            let err =
+                apply_with_config(&syn::Item::Impl(item), &parse_config(""))
+                    .unwrap_err();
+            assert_eq!(
+                err.to_string(),
+                "contract interface metadata is defined by the trait and cannot be overridden"
+            );
+        }
     }
 
     #[test]
