@@ -151,7 +151,7 @@ pub fn delete_allowance(spender: &ContractAddress) {
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
-pub fn clear_balance() {
+pub fn delete_balance() {
     let key = get_balance_key(&get_caller());
     let balance = non_negative_int_try_get(&key)
         .none_if_missing()

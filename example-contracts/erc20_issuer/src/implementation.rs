@@ -236,7 +236,7 @@ impl ERC20 for TokenContract {
         self.delete(&get_caller(), spender);
     }
 
-    fn clear_balance(&mut self) {
+    fn delete_balance(&mut self) {
         self.settings();
         let owner = get_caller();
         let mut balance = self.balances.at_mut(&owner);

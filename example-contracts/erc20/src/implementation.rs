@@ -222,7 +222,7 @@ impl ERC20 for TokenContract {
         AllowanceChangeEvent::new(&owner, spender, -remaining).log();
     }
 
-    fn clear_balance(&mut self) {
+    fn delete_balance(&mut self) {
         let owner = get_caller();
         let mut balance = self.balances.at_mut(&owner);
         ensure(balance.get() == 0, ERC20Error::BalanceNotZero);

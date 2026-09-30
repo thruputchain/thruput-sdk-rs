@@ -41,7 +41,7 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 /// - [`ERC20Error::TooLarge`] — an operation would drive a balance or
 ///   allowance below zero (overdraft), spend an expired allowance, or an
 ///   `Amount` doesn't fit in [`Difference`].
-/// - [`ERC20Error::BalanceNotZero`] — `clear_balance` called with a nonzero
+/// - [`ERC20Error::BalanceNotZero`] — `delete_balance` called with a nonzero
 ///   balance.
 #[contract(
     client = ERC20Client,
@@ -110,7 +110,7 @@ pub trait ERC20 {
     /// entries are allowed. Deletion conflicts with concurrent balance writes.
     /// Do not delete holder authorization or emit a token movement event.
     /// Implementations SHOULD refund the released storage cost to the caller.
-    fn clear_balance(&mut self);
+    fn delete_balance(&mut self);
 
     /// Get `spender`'s allowance of `owner`'s tokens, or zero once expired
     fn allowance(

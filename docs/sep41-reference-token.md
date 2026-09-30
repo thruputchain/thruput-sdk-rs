@@ -47,8 +47,8 @@ both a canonical burn and contextual clawback event; count one supply change.
 Bridge destinations, deadlines and replay protection need their own signed
 operation and records. See the [bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
 
-The delete methods and `clear_balance` free storage but do not yet route
-released collateral to the caller ([GH-431](https://linear.app/grndhg/issue/GH-431)). Tests disable
+The delete methods free storage but do not yet route released collateral to
+the caller ([GH-431](https://linear.app/grndhg/issue/GH-431)). Tests disable
 resource charges. Native HOG and RPC/CLI adoption are separate follow-ups in
 [GH-414](https://linear.app/grndhg/issue/GH-414); the native-HOG conformance test
 remains disabled until its entrypoints match.

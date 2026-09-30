@@ -169,7 +169,7 @@ impl ERC20 for Token {
         AllowanceChangeEvent::new(&owner, spender, -remaining).log();
     }
 
-    fn clear_balance(&mut self) {
+    fn delete_balance(&mut self) {
         let key = get_balance_key(&get_caller());
         let balance = non_negative_int_try_get(&key)
             .none_if_missing()

@@ -95,7 +95,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
             Some(ERC20Error::TooLarge),
         );
         assert_eq!(
-            client.try_clear_balance().unwrap_err().try_as(),
+            client.try_delete_balance().unwrap_err().try_as(),
             Some(ERC20Error::BalanceNotZero),
         );
     }

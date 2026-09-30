@@ -162,7 +162,7 @@ impl ERC20 for PermitToken {
         self._delete_allowance(&get_caller(), spender);
     }
 
-    fn clear_balance(&mut self) {
+    fn delete_balance(&mut self) {
         let owner = get_caller();
         let mut balance = self.balances.at_mut(&owner);
         ensure(balance.get() == 0, ERC20Error::BalanceNotZero);

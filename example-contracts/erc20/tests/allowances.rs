@@ -345,7 +345,7 @@ fn clearing_removes_allowance_and_zero_balance_storage_and_accepts_missing_cells
         env.get_snapshot_storage_item(&TOKEN, &balance_key)
             .is_some()
     );
-    let rejected = call(&env, &OWNER, || client().clear_balance());
+    let rejected = call(&env, &OWNER, || client().delete_balance());
     assert_eq!(
         rejected.assert_abort_as::<groundhog_erc20_if::ERC20Error>(),
         groundhog_erc20_if::ERC20Error::BalanceNotZero
@@ -359,7 +359,7 @@ fn clearing_removes_allowance_and_zero_balance_storage_and_accepts_missing_cells
     );
     call(&env, &OWNER, || {
         client().delete_allowance(&SPENDER);
-        client().clear_balance();
+        client().delete_balance();
     })
     .assert_success();
     env.advance_block();
@@ -373,7 +373,7 @@ fn clearing_removes_allowance_and_zero_balance_storage_and_accepts_missing_cells
     );
     call(&env, &OWNER, || {
         client().delete_allowance(&SPENDER);
-        client().clear_balance();
+        client().delete_balance();
         assert_eq!(client().get_balance(), 0);
         assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
         assert_eq!(client().total_supply(), 100);
@@ -382,7 +382,7 @@ fn clearing_removes_allowance_and_zero_balance_storage_and_accepts_missing_cells
 }
 
 #[test]
-fn clearing_zero_balance_conflicts_with_concurrent_credit_in_both_orders() {
+fn deleting_zero_balance_conflicts_with_concurrent_credit_in_both_orders() {
     for clear_first in [false, true] {
         for existing_zero in [false, true] {
             let env = setup();
@@ -394,7 +394,7 @@ fn clearing_zero_balance_conflicts_with_concurrent_credit_in_both_orders() {
                     .assert_success();
                 env.advance_block();
             }
-            let clear = || call(&env, &OTHER, || client().clear_balance());
+            let clear = || call(&env, &OTHER, || client().delete_balance());
             let credit =
                 || call(&env, &OWNER, || client().transfer(&OTHER, 10));
             let (first, second) = if clear_first {
@@ -520,7 +520,7 @@ fn clear_exclusivity_survives_regrant() {
     }
 }
 #[test]
-fn balance_clear_exclusivity_survives_later_credit() {
+fn balance_delete_exclusivity_survives_later_credit() {
     for clear_first in [true, false] {
         let env = setup();
         call(&env, &OWNER, || client().adjust_allowance(&OTHER, 10))
@@ -528,7 +528,7 @@ fn balance_clear_exclusivity_survives_later_credit() {
         env.advance_block();
         let clear = || {
             call(&env, &OTHER, || {
-                client().clear_balance();
+                client().delete_balance();
                 client().transfer_from(&OWNER, &OTHER, 1);
             })
         };

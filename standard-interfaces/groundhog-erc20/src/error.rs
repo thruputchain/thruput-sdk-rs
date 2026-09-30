@@ -13,7 +13,7 @@ pub enum ERC20Error {
     #[cfg_attr(feature = "dev", error("Provided amount too large"))]
     TooLarge = 3,
 
-    #[cfg_attr(feature = "dev", error("Balance must be zero before clearing"))]
+    #[cfg_attr(feature = "dev", error("Balance must be zero before deleting"))]
     BalanceNotZero = 4,
 
     #[cfg_attr(feature = "dev", error("Internal error"))]

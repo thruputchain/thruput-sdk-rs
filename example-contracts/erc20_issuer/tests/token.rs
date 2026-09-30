@@ -582,12 +582,12 @@ fn clearing_a_frozen_zero_balance_preserves_authorization_metadata() {
         .assert_success();
     env.advance_block();
     erc_error(
-        call(&env, &ALICE, || token().clear_balance()),
+        call(&env, &ALICE, || token().delete_balance()),
         ERC20Error::BalanceNotZero,
     );
     call(&env, &ADMIN, || clawback().clawback(&ALICE, 10)).assert_success();
     env.advance_block();
-    let cleared = call(&env, &ALICE, || token().clear_balance());
+    let cleared = call(&env, &ALICE, || token().delete_balance());
     cleared.assert_success();
     cleared.assert_no_events();
     env.advance_block();
@@ -598,7 +598,7 @@ fn clearing_a_frozen_zero_balance_preserves_authorization_metadata() {
         assert_eq!(metadata.name().unwrap().as_str(), "Reference Token");
         assert_eq!(metadata.symbol().unwrap().as_str(), "ABCDEFGHIJKL");
         assert_eq!(metadata.decimals(), Some(7));
-        token().clear_balance();
+        token().delete_balance();
     })
     .assert_success();
     error(
