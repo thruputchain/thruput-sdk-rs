@@ -488,36 +488,31 @@ pub fn generate_method(
             &mut __gh_auth_token_ids,
         );
 
-        // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
-        // contract_call_decode then fills in Signer handles from the auth
-        // token ID list). They are bound outside the block below and stay
-        // bound through the return, so a result borrowing a `&T`
-        // parameter's decoded value (`RefArg::get(&wire)`) outlives the
-        // call. Their destructors never run, since the return does not come
-        // back; decoded args own only memory.
-        let mut __args =
-            ::sdk::call::contract_call_decode(
-                __gh_calldata.as_ref(),
-                __gh_auth_token_ids.as_slice(),
-            )
-                .unwrap_or_else(|e|
-                    ::sdk::exn::decoding_args_throw(&e));
-
-        // Destructure into named args
-        let (#arg_names) = __args;
-
         let __gh_res = {
 
             // Load contract state
             #load_state
 
+            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
+            // contract_call_decode then fills in Signer handles from the auth
+            // token ID list)
+            let mut __args =
+                ::sdk::call::contract_call_decode(
+                    __gh_calldata.as_ref(),
+                    __gh_auth_token_ids.as_slice(),
+                )
+                    .unwrap_or_else(|e|
+                        ::sdk::exn::decoding_args_throw(&e));
+
+            // Destructure into named args
+            let (#arg_names) = __args;
+
             // Call the method implementation (passing the contract state, if any,
             // and the args)
             #invoke
 
-            // Make sure any storage nodes are fully dropped (and written to
-            // environment) here, in place, before the terminal return, which
-            // runs no destructors afterward.
+            // Make sure any storage nodes are fully dropped (and written to environment).
+            // Not technically necessary, given that the storage is wrapped in a Node<T>.
         };
 
         // Return the result to the VM
