@@ -4,7 +4,10 @@
 
 use erc721::{NftAdminClient, NftError};
 use erc721_receiver::{Delivery, REJECT_DATA, ReceiverClient, ReceiverError};
-use groundhog_erc165_if::{ERC165Client, try_probe_interface};
+use groundhog_erc165_if::{
+    ERC165Client, InterfaceIds, InterfaceSupport, try_probe_interface,
+    try_probe_interfaces,
+};
 use groundhog_erc721_if::{
     ApprovalEvent, ApprovalForAllEvent, BurnEvent, CONTRACT_ADDR_ZERO,
     ERC721Client, ERC721Entrypoints, ERC721Error, ERC721MetadataClient,
@@ -600,6 +603,24 @@ fn supports_interface_reports_the_token_interfaces() {
                         ERC721ReceiverEntrypoints::INTERFACE_ID
                     ),
                     Ok(false)
+                );
+
+                // The same three, asked as one list.
+                let query = InterfaceIds::from_slice(&[
+                    ERC721Entrypoints::INTERFACE_ID,
+                    ERC721MetadataEntrypoints::INTERFACE_ID,
+                    ERC721ReceiverEntrypoints::INTERFACE_ID,
+                ])
+                .unwrap();
+                assert_eq!(
+                    erc165.supports_interfaces(query.clone()),
+                    InterfaceSupport::from_slice(&[true, true, false])
+                        .unwrap()
+                );
+                assert_eq!(
+                    try_probe_interfaces(&receiver, &query),
+                    Ok(InterfaceSupport::from_slice(&[false, false, false])
+                        .unwrap())
                 );
             })
         });

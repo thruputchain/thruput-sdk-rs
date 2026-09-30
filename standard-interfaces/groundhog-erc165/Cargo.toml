@@ -16,6 +16,7 @@ dev = ["sdk/dev"]
 
 [dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.41.0" }
+heapless = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.41.0", features = ["std"] }

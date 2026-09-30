@@ -12,7 +12,8 @@ use groundhog_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
 use groundhog_erc165_if::{
-    ERC165Client, probe_interface, try_probe_interface,
+    ERC165Client, InterfaceIds, InterfaceSupport, probe_interface,
+    probe_interfaces, try_probe_interface, try_probe_interfaces,
 };
 use sdk::call::CallError;
 use sdk::*;
@@ -362,6 +363,89 @@ fn supports_interface_reports_derived_claims() {
                 ContractAddress::new([0x78; 32]);
             assert_eq!(
                 try_probe_interface(&EMPTY_ADDR, erc20),
+                Err(CallError::Invalid)
+            );
+        })
+    });
+    result.assert_success();
+}
+
+/// ERC-165 as a list: `supports_interfaces` answers every queried id in
+/// query order (duplicates and unknown ids included), agrees with
+/// `supports_interface` id by id, and the list probes fold a target
+/// without the entrypoint into all-`false`.
+#[test]
+fn supports_interfaces_answers_each_queried_id_in_order() {
+    use erc20_pausable::{
+        AccessControl, ERC20, ERC20Metadata, ERC20Pausable,
+        PausableTokenContract as Token,
+    };
+
+    hash_ident! { static BARE_NONCE: SHA256Hash; }
+
+    let env = TestEnvironment::no_cost();
+    let addr = deploy_and_init(&env);
+    // A real contract that does not implement ERC-165.
+    let bare_hash = *counter::register_mock_contract(&env).as_hash();
+
+    let result = env.transact(|tx| {
+        tx.call(&OTHER).run(move || {
+            let bare_addr = deploy_contract(&BARE_NONCE, &bare_hash);
+            let erc165 = ERC165Client::new(&addr);
+
+            let query = InterfaceIds::from_slice(&[
+                <Token as ERC20>::INTERFACE_ID,
+                groundhog_signed_op_if::SignedOpEntrypoints::INTERFACE_ID,
+                <Token as ERC20Metadata>::INTERFACE_ID,
+                [0xff; 8],
+                <Token as ERC20Pausable>::INTERFACE_ID,
+                <Token as AccessControl>::INTERFACE_ID,
+                groundhog_erc165_if::ERC165Entrypoints::INTERFACE_ID,
+                // A repeated id is answered again.
+                <Token as ERC20>::INTERFACE_ID,
+            ])
+            .unwrap();
+            let expected = InterfaceSupport::from_slice(&[
+                true, false, true, false, true, true, true, true,
+            ])
+            .unwrap();
+
+            // The list answer is the single answers, in query order.
+            assert_eq!(erc165.supports_interfaces(query.clone()), expected);
+            for (id, supported) in query.iter().zip(&expected) {
+                assert_eq!(erc165.supports_interface(*id), *supported);
+            }
+            assert_eq!(
+                try_probe_interfaces(&addr, &query),
+                Ok(expected.clone())
+            );
+            assert_eq!(probe_interfaces(&addr, &query), expected);
+
+            // An empty query gets an empty answer.
+            let empty = InterfaceIds::new();
+            assert_eq!(
+                erc165.supports_interfaces(empty.clone()),
+                InterfaceSupport::new()
+            );
+            assert_eq!(
+                try_probe_interfaces(&addr, &empty),
+                Ok(InterfaceSupport::new())
+            );
+
+            // A target without ERC-165 is "no" for every id, not an error.
+            let all_no: InterfaceSupport =
+                query.iter().map(|_| false).collect();
+            assert_eq!(
+                try_probe_interfaces(&bare_addr, &query),
+                Ok(all_no.clone())
+            );
+            assert_eq!(probe_interfaces(&bare_addr, &query), all_no);
+
+            // No contract at all is a real failure, not a "no".
+            const EMPTY_ADDR: ContractAddress =
+                ContractAddress::new([0x78; 32]);
+            assert_eq!(
+                try_probe_interfaces(&EMPTY_ADDR, &query),
                 Err(CallError::Invalid)
             );
         })

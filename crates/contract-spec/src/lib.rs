@@ -248,15 +248,31 @@ impl<const MAX: u32> ContractTypeRefSpec for xdr_common::BytesM<MAX> {
     };
 }
 
-/// Bounded bytes with no allocator: the same wire shape as `BytesM<N>`, and
-/// the same spec, but decodable in a no-`alloc` guest.
-impl<const N: usize> ContractTypeRefSpec for heapless::Vec<u8, N> {
+/// Bounded vector with no allocator: the same wire shape and spec as
+/// `VecM<T, N>` (for `u8`, as `BytesM<N>`), but decodable in a no-`alloc`
+/// guest.
+impl<T, const N: usize> ContractTypeRefSpec for heapless::Vec<T, N>
+where
+    T: ContractTypeRefSpec,
+{
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: &view::ContractTypeView::U8,
+            element: &type_ref::<T>(),
             max_len: N as u32,
         }),
     };
+
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(
+        target_arch = "riscv32",
+        unsafe(link_section = "groundhogspecanchortextv0")
+    )]
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 impl<T, const N: usize> ContractTypeRefSpec for [T; N]
