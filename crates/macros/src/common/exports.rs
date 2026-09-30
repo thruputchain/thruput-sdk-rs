@@ -172,7 +172,14 @@ pub fn generate(
                 }
             };
         });
-        quote! { #name_assertion #version_assertion }
+        quote! {
+            // Resolve the inherited identity even when guest entrypoints are
+            // disabled. This also keeps a private contract type live when
+            // its generated entrypoint wrappers are all cfg'd out.
+            const _: ::sdk::InterfaceId = <#self_ty as #trait_path>::INTERFACE_ID;
+            #name_assertion
+            #version_assertion
+        }
     } else {
         quote! {}
     };
@@ -760,12 +767,13 @@ pub fn generate_trait_guard_macro(
     let ident = &item.ident;
     let vis = &item.vis;
     // macro_export places the implementation name at the crate root. Include
-    // its span's expansion context as well as its source location: two traits
-    // emitted by the same macro template have equal source locations but
-    // distinct contexts. Callers only see the alias, never this helper name;
+    // this invocation's expansion context as well as the trait's span: another
+    // macro can emit multiple traits with identical names and cloned spans.
+    // Callers only see the alias, never this helper name;
     // it is not part of the ABI or any emitted linker symbol.
     let key = format!(
-        "{:?}:{}:{}:{}",
+        "{:?}:{:?}:{}:{}:{}",
+        Span::call_site(),
         ident.span(),
         item.to_token_stream(),
         iface_name.as_deref().unwrap_or_default(),
