@@ -2,4 +2,4 @@ error: contract interface metadata is defined by the trait and cannot be overrid
   --> tests/compile-fail/trait_metadata_override.rs:12:11
    |
 12 |     const __GROUNDHOG_ENTRYPOINT_ping: u64 = 0;
-   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^

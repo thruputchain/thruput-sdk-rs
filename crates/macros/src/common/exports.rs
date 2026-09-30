@@ -119,7 +119,7 @@ pub fn generate(
         let suffix = ". Omit the impl-side version override to inherit the trait's version.";
         let suffix_lit = LitByteStr::new(suffix.as_bytes(), Span::call_site());
         let suffix_len = suffix.len();
-        quote! {
+        let name_assertion = check_name.then(|| quote! {
             const _: () = {
                 const TRAIT_INTERFACE: &str =
                     <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
@@ -139,11 +139,12 @@ pub fn generate(
                     },
                 >(PREFIX, #iface_name, TRAIT_INTERFACE, SUFFIX);
 
-                if #check_name && !::sdk::internal::const_str_eq(#iface_name, TRAIT_INTERFACE) {
+                if !::sdk::internal::const_str_eq(#iface_name, TRAIT_INTERFACE) {
                     panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
                 }
             };
-
+        });
+        let version_assertion = check_version.then(|| quote! {
             const _: () = {
                 const TRAIT_MAJOR: &str =
                     <#self_ty as #trait_path>::__GROUNDHOG_IFACE_MAJOR_VERSION;
@@ -166,11 +167,12 @@ pub fn generate(
                     },
                 >(PREFIX, TRAIT_MAJOR, TRAIT_FULL_VERSION, SUFFIX);
 
-                if #check_version && !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
+                if !::sdk::internal::const_str_eq(#iface_major, TRAIT_MAJOR) {
                     panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
                 }
             };
-        }
+        });
+        quote! { #name_assertion #version_assertion }
     } else {
         quote! {}
     };
@@ -382,15 +384,26 @@ pub fn generate_method(
             .unwrap_or_else(super::contract::interface_vers_default)
     };
 
-    let entrypoint_sig =
-        contract_util::EntrypointSignature::new(iface_name, &iface_vers, sig);
-    let entrypoint = entrypoint_sig.id();
-
-    let export_name = entrypoint_export_name(entrypoint);
-    let export_docstr = if contract.and_then(|c| c.trait_path()).is_some() {
-        format!("Entrypoint for trait method `{ident}`.")
+    let (method_id_lit, export_docstr) = if let Some(contract) =
+        contract.filter(|c| c.trait_path().is_some())
+    {
+        (
+            method_id_tokens(contract, sig),
+            format!("Entrypoint for trait method `{ident}`."),
+        )
     } else {
-        format!(" {} = {}", export_name, entrypoint_sig)
+        let entrypoint_sig = contract_util::EntrypointSignature::new(
+            iface_name,
+            &iface_vers,
+            sig,
+        );
+        let entrypoint = entrypoint_sig.id();
+        let id = u64::from_be_bytes(*entrypoint);
+        let export_name = entrypoint_export_name(entrypoint);
+        (
+            quote!(#id),
+            format!(" {} = {}", export_name, entrypoint_sig),
+        )
     };
 
     let extern_name = format_ident!("{}_extern", ident);
@@ -576,12 +589,6 @@ pub fn generate_method(
     // the `groundhog_rv32_entrypoints` input section, which the rv32-runtime
     // linker script brackets and `_start`'s dispatcher scans at runtime,
     // instead of exporting a per-method symbol.
-    let method_id_lit = if let Some(contract) = contract {
-        method_id_tokens(contract, sig)
-    } else {
-        let id = u64::from_be_bytes(*entrypoint);
-        quote!(#id)
-    };
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
     let crate_scope = invoking_crate_scope();
     let guards =
@@ -652,9 +659,9 @@ fn generate_entrypoint_guards(
         format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
     let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
     let scoped_link_guard_name =
-        quote!(concat!(#link_name, "__crate__", #crate_scope));
+        quote!(::core::concat!(#link_name, "__crate__", #crate_scope));
     let scoped_id_guard_name =
-        quote!(concat!(#id_guard_name, "__crate__", #crate_scope));
+        quote!(::core::concat!(#id_guard_name, "__crate__", #crate_scope));
     let scoped_link_guard_ident =
         format_ident!("__GH_ENTRY_NAME_GUARD_CRATE_{}", ident);
     let scoped_id_guard_ident =

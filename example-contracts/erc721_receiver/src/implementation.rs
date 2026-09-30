@@ -28,7 +28,7 @@ pub enum ReceiverError {
     Refused = 1,
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC721Receiver for Receiver {
     fn on_erc721_received(
         &mut self,

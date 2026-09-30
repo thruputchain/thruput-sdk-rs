@@ -109,17 +109,17 @@ Each exported contract entrypoint is named with an identifier derived from:
 For bare impls, omitting `interface = "..."` uses the self type name for this
 metadata by default.
 
-For trait impls, repeat that `interface = "..."` on the impl when the trait
-uses a custom interface name. The impl's exported entrypoint names are fixed
-during macro expansion, so mismatches are rejected at compile time rather than
-inherited automatically.
+For trait impls, a plain `#[contract]` inherits the interface name, full
+version, and entrypoint IDs from the trait, including across crates and through
+trait aliases or re-exports. The implementing crate's version does not affect
+that interface's identity. There is no need to repeat `interface` or `version`
+on the impl.
 
-`version = "0.3.0"` overrides the version used for entrypoint identifiers. It
-defaults to the crate's own version, for traits and impls alike. When
-implementing a `#[contract]` trait from another crate, the impl's version must
-share the trait's major version, so carry `#[contract(version = "...")]` on the
-impl with the trait's version unless the implementing crate's own version
-already has the same major. The trait's version is the one its
-`#[contract(version = "...")]` declares, or its crate's version when it declares
-none. Only the major component is compared, and a mismatch is rejected at
-compile time.
+`version = "0.3.0"` overrides the version on a trait definition, bare impl, or
+free function; otherwise those declarations use their crate's own version.
+Entrypoint IDs use the semver major line (including the minor component for
+`0.x` versions).
+
+For compatibility, explicit `interface` and `version` arguments on a trait
+impl are accepted as assertions: the name and semver major must match the
+trait. A mismatch is rejected at compile time; the trait remains authoritative.

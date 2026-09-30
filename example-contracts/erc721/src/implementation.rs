@@ -159,7 +159,7 @@ impl NftContract {
 
 // The ERC721 core. Every method takes the caller from the frame, never
 // from an argument, so authorization cannot be spoofed.
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC721 for NftContract {
     fn balance_of(&self, owner: &ContractAddress) -> u64 {
         self.balances
@@ -246,7 +246,7 @@ impl ERC721 for NftContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC721Metadata for NftContract {
     fn name(&self) -> Name {
         self.config.get().name

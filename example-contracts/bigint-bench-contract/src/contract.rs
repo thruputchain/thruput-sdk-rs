@@ -11,7 +11,7 @@ use sdk::contract;
 #[derive(Default)]
 struct Bench;
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl BigIntBench for Bench {
     fn run(iters: u32, a_hi: u128, a_lo: u128, b_hi: u128, b_lo: u128) -> u64 {
         let a = Selected::from_hi_lo(a_hi, a_lo);
