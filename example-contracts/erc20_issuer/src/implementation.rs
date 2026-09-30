@@ -105,11 +105,12 @@ impl TokenContract {
         spender: &ContractAddress,
         amount: Amount,
     ) {
+        check_amount(amount);
         ensure(
             amount == 0 || self.allowance_is_live(owner, spender),
             ERC20Error::TooLarge,
         );
-        self.adjust(owner, spender, -amount_to_diff(amount));
+        self.adjust(owner, spender, -amount);
     }
     // The stored amount, whether or not it has expired.
     fn stored_allowance(
@@ -133,7 +134,7 @@ impl TokenContract {
         spender: &ContractAddress,
     ) -> Difference {
         self.settings();
-        let removed = amount_to_diff(self.stored_allowance(owner, spender));
+        let removed = self.stored_allowance(owner, spender);
         self.allowances
             .at_mut(owner)
             .at_mut(spender)
@@ -145,7 +146,7 @@ impl TokenContract {
         AllowanceDeleteEvent::new(owner, spender, removed).log();
     }
     fn debit(&mut self, from: &ContractAddress, amount: Amount) {
-        amount_to_diff(amount);
+        check_amount(amount);
         self.balances
             .at_mut(from)
             .try_decrease(amount)
@@ -168,14 +169,14 @@ impl TokenContract {
         self.require_holder(to);
         self.debit(from, amount);
         self.credit(to, amount);
-        TransferEvent::new(from, to, amount_to_diff(amount)).log();
+        TransferEvent::new(from, to, amount).log();
     }
     fn destroy(&mut self, from: &ContractAddress, amount: Amount) {
         self.debit(from, amount);
         self.supply
             .try_decrease(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-        BurnEvent::new(from, amount_to_diff(amount)).log();
+        BurnEvent::new(from, amount).log();
     }
     fn forced_burn(&mut self, from: &ContractAddress, amount: Amount) {
         ensure(
@@ -187,11 +188,7 @@ impl TokenContract {
             ERC20ControlsError::OperationDisabled,
         );
         self.destroy(from, amount);
-        ClawbackEvent {
-            from,
-            amount: amount_to_diff(amount),
-        }
-        .log();
+        ClawbackEvent { from, amount }.log();
     }
 }
 
@@ -269,12 +266,12 @@ impl ERC20 for TokenContract {
             ERC20Error::MustBeContractOwner,
         );
         self.require_holder(receiver);
-        amount_to_diff(amount);
+        check_amount(amount);
         self.supply
             .try_increase(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         self.credit(receiver, amount);
-        MintEvent::new(receiver, amount_to_diff(amount)).log();
+        MintEvent::new(receiver, amount).log();
     }
     fn total_supply(&self) -> Amount {
         self.settings();
@@ -444,7 +441,7 @@ impl ERC20Permit for TokenContract {
 
     fn increase_allowance_signed(&mut self, grant: Signed<PermitGrant>) {
         let (grant, owner) = grant.consume();
-        let difference = amount_to_diff(grant.amount);
+        let difference = check_amount(grant.amount);
         self.adjust(&owner, &grant.spender, difference);
         AllowanceChangeEvent::new(&owner, &grant.spender, difference).log();
     }

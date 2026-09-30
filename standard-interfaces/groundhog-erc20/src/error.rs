@@ -1,4 +1,5 @@
-use sdk::throw;
+use crate::Amount;
+use sdk::ensure;
 
 #[sdk::contract_exception]
 #[non_exhaustive]
@@ -16,10 +17,15 @@ pub enum ERC20Error {
     #[cfg_attr(feature = "dev", error("Balance must be zero before deleting"))]
     BalanceNotZero = 4,
 
+    #[cfg_attr(feature = "dev", error("Amount must be non-negative"))]
+    NegativeAmount = 5,
+
     #[cfg_attr(feature = "dev", error("Internal error"))]
     Internal = 100,
 }
 
-pub fn amount_to_diff(n: u128) -> i128 {
-    n.try_into().unwrap_or_else(|_| throw(ERC20Error::TooLarge))
+/// Return `amount`, throwing [`ERC20Error::NegativeAmount`] if it is negative.
+pub fn check_amount(amount: Amount) -> Amount {
+    ensure(amount >= 0, ERC20Error::NegativeAmount);
+    amount
 }

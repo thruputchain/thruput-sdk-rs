@@ -123,7 +123,7 @@ impl TokenContract {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Difference {
-        let removed = amount_to_diff(self._stored_allowance(owner, spender));
+        let removed = self._stored_allowance(owner, spender);
         self.allowances
             .at_mut(owner)
             .at_mut(spender)
@@ -183,12 +183,13 @@ impl ERC20 for TokenContract {
     }
 
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
+        check_amount(amount);
         let owner = get_caller();
 
         self._decrease_balance(&owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        TransferEvent::new(&owner, receiver, amount_to_diff(amount)).log();
+        TransferEvent::new(&owner, receiver, amount).log();
     }
 
     fn transfer_from(
@@ -199,12 +200,12 @@ impl ERC20 for TokenContract {
     ) {
         let spender = get_caller();
 
-        let diff = amount_to_diff(amount);
+        let diff = check_amount(amount);
         self._spend_allowance(owner, &spender, -diff);
         self._decrease_balance(owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        TransferEvent::new(owner, receiver, amount_to_diff(amount)).log();
+        TransferEvent::new(owner, receiver, amount).log();
     }
 
     fn adjust_allowance(
@@ -253,6 +254,7 @@ impl ERC20 for TokenContract {
     }
 
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
+        check_amount(amount);
         let caller = get_caller();
         ensure(
             caller == self._administrator(),
@@ -264,7 +266,7 @@ impl ERC20 for TokenContract {
         self._increase_total_supply(amount);
         self._lazy_increase_balance(receiver, amount);
 
-        MintEvent::new(receiver, amount_to_diff(amount)).log();
+        MintEvent::new(receiver, amount).log();
     }
 
     fn total_supply(&self) -> Amount {

@@ -34,8 +34,8 @@ use sdk::*;
 const ALICE_SEED: [u8; 32] = [0x11; 32];
 const MALLORY_SEED: [u8; 32] = [0x22; 32];
 
-const MINTED: u128 = 1_000;
-const GRANTED: u128 = 250;
+const MINTED: i128 = 1_000;
+const GRANTED: i128 = 250;
 
 /// How many blocks past signing a happy-path permit stays valid: enough to
 /// survive the `advance_block`s a test needs to observe its own effects.
@@ -243,17 +243,17 @@ macro_rules! assert_wallet_refuses {
     }};
 }
 
-fn balance_of(env: &sdk::TestEnvironmentHandle, who: ContractAddress) -> u128 {
+fn balance_of(env: &sdk::TestEnvironmentHandle, who: ContractAddress) -> i128 {
     let result = env.transact(|tx| {
         tx.call(&admin()).run(move || {
             ERC20Client::new(&token_address()).get_balance_of(&who)
         })
     });
     result.assert_success();
-    result.assert_return_as::<u128>()
+    result.assert_return_as::<i128>()
 }
 
-fn allowance(env: &sdk::TestEnvironmentHandle) -> u128 {
+fn allowance(env: &sdk::TestEnvironmentHandle) -> i128 {
     let result = env.transact(|tx| {
         tx.call(&admin()).run(|| {
             ERC20Client::new(&token_address())
@@ -261,7 +261,7 @@ fn allowance(env: &sdk::TestEnvironmentHandle) -> u128 {
         })
     });
     result.assert_success();
-    result.assert_return_as::<u128>()
+    result.assert_return_as::<i128>()
 }
 
 fn wallet_owner(env: &sdk::TestEnvironmentHandle) -> Ed25519PublicKey {
@@ -786,7 +786,7 @@ fn submit_transfer(
     env: &sdk::TestEnvironmentHandle,
     op: Operation,
     signature: Ed25519Signature,
-    amount: u128,
+    amount: i128,
 ) -> sdk::TransactResult {
     env.transact(|tx| {
         tx.call(&spender()).run(move || {
@@ -831,7 +831,10 @@ fn signed_transfer_preserves_an_existing_allowance() {
 fn invalid_transfer_amounts_roll_back_without_consuming_the_operation() {
     let env = setup();
     let expiry = current_height(&env) + HORIZON;
-    for amount in [MINTED + 1, i128::MAX as u128 + 1] {
+    for (amount, error) in [
+        (MINTED + 1, ERC20Error::TooLarge),
+        (-1, ERC20Error::NegativeAmount),
+    ] {
         let request = WalletRequest::Permit(PermitRequest {
             token: token_address(),
             spender: spender(),
@@ -840,10 +843,7 @@ fn invalid_transfer_amounts_roll_back_without_consuming_the_operation() {
         let (op, signature) =
             sign(&ALICE_SEED, &wallet_address(), 0, expiry.clone(), &request);
         let result = submit_transfer(&env, op, signature, amount);
-        assert_eq!(
-            result.assert_abort_as::<ERC20Error>(),
-            ERC20Error::TooLarge
-        );
+        assert_eq!(result.assert_abort_as::<ERC20Error>(), error);
         result.assert_no_events();
         env.advance_block();
         assert_eq!(balance_of(&env, wallet_address()), MINTED);

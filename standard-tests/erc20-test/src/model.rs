@@ -8,7 +8,7 @@ use sdk::*;
 #[derive(Default, Clone)]
 pub struct Model {
     pub contract_owner: Option<ContractAddress>,
-    pub total_supply: u128,
+    pub total_supply: Amount,
     pub balances: Map<ContractAddress, Amount>,
     pub allowances: Map<(ContractAddress, ContractAddress), Amount>,
     pub events: Vec<StdERC20Event>,
@@ -49,7 +49,7 @@ impl Model {
     ) {
         let owner = self.get_caller();
         let allowance = self.allowances.entry((owner, *spender)).or_insert(0);
-        *allowance = allowance.checked_add_signed(difference).unwrap();
+        *allowance = allowance.checked_add(difference).unwrap();
         let event = ERC20Event::AllowanceChange(AllowanceChangeEvent::new(
             &owner, spender, difference,
         ));
@@ -60,9 +60,7 @@ impl Model {
         let owner = self.get_caller();
         let old = self.allowances.insert((owner, *spender), 0).unwrap_or(0);
         let event = ERC20Event::AllowanceDelete(AllowanceDeleteEvent::new(
-            &owner,
-            spender,
-            i128::try_from(old).unwrap(),
+            &owner, spender, old,
         ));
         self.events.push((&event).into());
     }
@@ -73,7 +71,7 @@ impl Model {
         amount: Amount,
     ) {
         let owner = self.get_caller();
-        let diff: Difference = amount.try_into().unwrap();
+        let diff: Difference = amount;
 
         self.adjust_balance(&owner, -diff);
         self.adjust_balance(receiver, diff);
@@ -84,23 +82,21 @@ impl Model {
     fn adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
         let bal = self.balances.entry(*owner).or_insert(0);
 
-        *bal = (*bal).checked_add_signed(diff).unwrap();
+        *bal = (*bal).checked_add(diff).unwrap();
     }
 
     fn log_transfer_event(
         &mut self,
         from: &ContractAddress,
         to: &ContractAddress,
-        amount: u128,
+        amount: Amount,
     ) {
-        let amount = i128::try_from(amount).expect("model amount fits i128");
         let event = ERC20Event::Transfer(TransferEvent::new(from, to, amount));
 
         self.events.push((&event).into());
     }
 
-    fn log_mint_event(&mut self, to: &ContractAddress, amount: u128) {
-        let amount = i128::try_from(amount).expect("model amount fits i128");
+    fn log_mint_event(&mut self, to: &ContractAddress, amount: Amount) {
         let event = ERC20Event::Mint(MintEvent::new(to, amount));
 
         self.events.push((&event).into());

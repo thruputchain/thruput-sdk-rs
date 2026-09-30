@@ -81,12 +81,12 @@ pub fn initialize(owner: &ContractAddress) {
 #[contract(interface = "ERC20", version = "0.1.0")]
 pub fn transfer(to: &ContractAddress, amount: Amount) {
     let from = get_caller();
-    let diff = amount_to_diff(amount);
+    let diff = check_amount(amount);
 
     add_to_balance(&from, -diff);
     add_to_balance(to, diff);
 
-    TransferEvent::new(&from, to, amount_to_diff(amount)).log();
+    TransferEvent::new(&from, to, amount).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -96,13 +96,13 @@ pub fn transfer_from(
     amount: Amount,
 ) {
     let spender = get_caller();
-    let diff = amount_to_diff(amount);
+    let diff = check_amount(amount);
 
     add_to_allowance(owner, &spender, -diff);
     add_to_balance(owner, -diff);
     add_to_balance(recipient, diff);
 
-    TransferEvent::new(owner, recipient, amount_to_diff(amount)).log();
+    TransferEvent::new(owner, recipient, amount).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
@@ -117,7 +117,7 @@ pub fn adjust_allowance(spender: &ContractAddress, difference: Difference) {
 #[contract(interface = "ERC20", version = "0.1.0")]
 pub fn delete_allowance(spender: &ContractAddress) {
     let owner = get_caller();
-    let remaining = amount_to_diff(allowance(&owner, spender));
+    let remaining = allowance(&owner, spender);
     delete_exclusive(&get_allowance_key(&owner, spender));
     AllowanceDeleteEvent::new(&owner, spender, remaining).log();
 }
@@ -158,11 +158,11 @@ pub fn get_balance() -> Amount {
 pub fn mint(recipient: &ContractAddress, amount: Amount) {
     ensure_caller_is_owner();
 
-    let diff = amount_to_diff(amount);
+    let diff = check_amount(amount);
     add_to_balance(recipient, diff);
     add_to_total_supply(diff);
 
-    MintEvent::new(recipient, amount_to_diff(amount)).log();
+    MintEvent::new(recipient, amount).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]

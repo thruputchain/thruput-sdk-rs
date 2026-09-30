@@ -75,7 +75,7 @@ fn absolute_sets_conflict_with_spending_in_both_orders() {
             call(&env, &OWNER, || {
                 assert_eq!(
                     client().allowance(&OWNER, &SPENDER),
-                    if adjustment_first { target as u128 } else { 40 }
+                    if adjustment_first { target } else { 40 }
                 );
                 assert_eq!(
                     client().get_balance_of(&OTHER),
@@ -147,7 +147,7 @@ fn adjustment_emits_delta_at_the_amount_bound() {
     let env = setup();
     let result = call(&env, &OWNER, || {
         client().adjust_allowance(&SPENDER, i128::MAX - 50);
-        assert_eq!(client().allowance(&OWNER, &SPENDER), i128::MAX as u128);
+        assert_eq!(client().allowance(&OWNER, &SPENDER), i128::MAX);
     });
     result.assert_success();
     result.assert_event_count(1);
@@ -463,10 +463,7 @@ fn combined_adjustments_reject_overflow_and_overdraft() {
         .assert_commit_failed_nondeterministically();
         env.advance_block();
         call(&env, &OWNER, || {
-            assert_eq!(
-                client().allowance(&OWNER, &SPENDER),
-                (50 + difference) as u128
-            );
+            assert_eq!(client().allowance(&OWNER, &SPENDER), 50 + difference);
         })
         .assert_success();
     }

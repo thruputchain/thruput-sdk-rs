@@ -9,7 +9,11 @@ pub use events::*;
 
 use sdk::{BlockHeight, ContractAddress, contract};
 
-pub type Amount = u128;
+/// A token amount: a balance, allowance, supply or transfer. Always in
+/// `0..=i128::MAX`, the range of the storage cells that hold it; operations
+/// reject a negative amount with [`ERC20Error::NegativeAmount`].
+pub type Amount = i128;
+/// A signed change to an [`Amount`], as in `adjust_allowance`.
 pub type Difference = i128;
 
 /// The all-zero address.
@@ -36,11 +40,11 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 /// `ERC20Burn`, forced destruction in `ERC20Clawback`.
 ///
 /// - [`ERC20Error::AlreadyInitialized`] — `initialize` called twice.
+/// - [`ERC20Error::NegativeAmount`] — an [`Amount`] argument is negative.
 /// - [`ERC20Error::MustBeContractOwner`] — `mint` called by anyone other than
 ///   the administrator.
 /// - [`ERC20Error::TooLarge`] — an operation would drive a balance or
-///   allowance below zero (overdraft), or an `Amount` doesn't fit in
-///   [`Difference`].
+///   allowance below zero (overdraft) or above `i128::MAX`.
 /// - [`ERC20Error::BalanceNotZero`] — `delete_balance` called with a nonzero
 ///   balance.
 #[contract(

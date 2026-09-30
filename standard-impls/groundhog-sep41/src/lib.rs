@@ -10,7 +10,7 @@ pub use error::*;
 use groundhog_erc20_controls_if::{ERC20BurnClient, ERC20BurnEntrypoints};
 use groundhog_erc20_if::{
     Amount, ERC20AllowanceExpiryClient, ERC20AllowanceExpiryEntrypoints,
-    ERC20Client, ERC20Entrypoints,
+    ERC20Client, ERC20Entrypoints, check_amount,
 };
 use groundhog_erc20_metadata_if::{
     ERC20MetadataClient, ERC20MetadataEntrypoints, Name, Symbol,
@@ -63,9 +63,8 @@ impl<'a> SEP41View<'a> {
         &self,
         from: &ContractAddress,
         spender: &ContractAddress,
-    ) -> i128 {
-        // Implementations bound allowances to `0..=i128::MAX`.
-        ERC20Client::new(self.token).allowance(from, spender) as i128
+    ) -> Amount {
+        ERC20Client::new(self.token).allowance(from, spender)
     }
 
     /// Replace the caller's allowance for `spender` with `amount`, spendable
@@ -83,10 +82,10 @@ impl<'a> SEP41View<'a> {
     pub fn approve(
         &self,
         spender: &ContractAddress,
-        amount: i128,
+        amount: Amount,
         live_until_ledger: Option<BlockHeight>,
     ) {
-        Self::amount(amount);
+        check_amount(amount);
         let token = ERC20Client::new(self.token);
         match live_until_ledger {
             Some(until) if amount != 0 => {
@@ -104,14 +103,13 @@ impl<'a> SEP41View<'a> {
         }
     }
 
-    pub fn balance(&self, id: &ContractAddress) -> i128 {
-        // Implementations bound balances to `0..=i128::MAX`.
-        ERC20Client::new(self.token).get_balance_of(id) as i128
+    pub fn balance(&self, id: &ContractAddress) -> Amount {
+        ERC20Client::new(self.token).get_balance_of(id)
     }
 
     /// Transfer from the caller to `to`.
-    pub fn transfer(&self, to: &ContractAddress, amount: i128) {
-        ERC20Client::new(self.token).transfer(to, Self::amount(amount));
+    pub fn transfer(&self, to: &ContractAddress, amount: Amount) {
+        ERC20Client::new(self.token).transfer(to, amount);
     }
 
     /// Spend the caller's allowance to move `from`'s tokens to `to`.
@@ -119,23 +117,19 @@ impl<'a> SEP41View<'a> {
         &self,
         from: &ContractAddress,
         to: &ContractAddress,
-        amount: i128,
+        amount: Amount,
     ) {
-        ERC20Client::new(self.token).transfer_from(
-            from,
-            to,
-            Self::amount(amount),
-        );
+        ERC20Client::new(self.token).transfer_from(from, to, amount);
     }
 
     /// Destroy the caller's tokens.
-    pub fn burn(&self, amount: i128) {
-        ERC20BurnClient::new(self.token).burn(Self::amount(amount));
+    pub fn burn(&self, amount: Amount) {
+        ERC20BurnClient::new(self.token).burn(amount);
     }
 
     /// Spend the caller's allowance to destroy `from`'s tokens.
-    pub fn burn_from(&self, from: &ContractAddress, amount: i128) {
-        ERC20BurnClient::new(self.token).burn_from(from, Self::amount(amount));
+    pub fn burn_from(&self, from: &ContractAddress, amount: Amount) {
+        ERC20BurnClient::new(self.token).burn_from(from, amount);
     }
 
     /// Throws [`SEP41Error::MetadataUnavailable`] when unset, as do
@@ -164,10 +158,5 @@ impl<'a> SEP41View<'a> {
             return None;
         }
         Some(interfaces.iter().all(|id| probe_interface(self.token, *id)))
-    }
-
-    fn amount(amount: i128) -> Amount {
-        ensure(amount >= 0, SEP41Error::NegativeAmount);
-        amount as Amount
     }
 }

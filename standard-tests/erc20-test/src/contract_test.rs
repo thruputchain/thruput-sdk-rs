@@ -70,6 +70,22 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
             client.try_transfer(other, 1000).unwrap_err().try_as(),
             Some(ERC20Error::TooLarge),
         );
+        // Negative amounts
+        assert_eq!(
+            client.try_transfer(other, -1).unwrap_err().try_as(),
+            Some(ERC20Error::NegativeAmount),
+        );
+        assert_eq!(
+            client
+                .try_transfer_from(&owner, other, -1)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::NegativeAmount),
+        );
+        assert_eq!(
+            client.try_mint(&owner, -1).unwrap_err().try_as(),
+            Some(ERC20Error::NegativeAmount),
+        );
     }
 
     // Exercise positive, negative, and zero changes at the amount boundary.

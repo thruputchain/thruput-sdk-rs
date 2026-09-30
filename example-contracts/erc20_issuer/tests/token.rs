@@ -361,7 +361,7 @@ fn roles_are_separate_and_rotation_takes_effect_next_block() {
 #[test]
 fn range_supply_and_caught_failure_preserve_balances_and_allowance() {
     let env = setup();
-    mint(&env, i128::MAX as u128);
+    mint(&env, i128::MAX);
     erc_error(
         call(&env, &MINTER, || token().mint(&BOB, 1)),
         ERC20Error::TooLarge,
@@ -372,11 +372,11 @@ fn range_supply_and_caught_failure_preserve_balances_and_allowance() {
         ERC20Error::TooLarge,
     );
     call(&env, &SPENDER, || {
-        token().transfer_from(&ALICE, &BOB, i128::MAX as u128)
+        token().transfer_from(&ALICE, &BOB, i128::MAX)
     })
     .assert_success();
     env.advance_block();
-    call(&env, &BOB, || burn().burn(i128::MAX as u128)).assert_success();
+    call(&env, &BOB, || burn().burn(i128::MAX)).assert_success();
     env.advance_block();
     state(&env, 0, 0, 0, 0);
     adjust(&env, 100);
@@ -423,13 +423,7 @@ fn absolute_set_or_clearing_conflicts_with_same_block_spending() {
             second.assert_commit_failed_nondeterministically();
             env.advance_block();
             if adjustment_first {
-                state(
-                    &env,
-                    100,
-                    0,
-                    difference.map_or(0, |d| (50 + d) as u128),
-                    100,
-                );
+                state(&env, 100, 0, difference.map_or(0, |d| 50 + d), 100);
             } else {
                 state(&env, 90, 10, 40, 100);
             }
@@ -440,12 +434,12 @@ fn absolute_set_or_clearing_conflicts_with_same_block_spending() {
 #[test]
 fn supply_and_holder_limits_apply_to_combined_transactions() {
     let env = setup();
-    mint(&env, i128::MAX as u128 - 10);
+    mint(&env, i128::MAX - 10);
     call(&env, &MINTER, || token().mint(&ALICE, 6)).assert_success();
     call(&env, &MINTER, || token().mint(&BOB, 6))
         .assert_commit_failed_nondeterministically();
     env.advance_block();
-    state(&env, i128::MAX as u128 - 4, 0, 0, i128::MAX as u128 - 4);
+    state(&env, i128::MAX - 4, 0, 0, i128::MAX - 4);
     let env = setup();
     mint(&env, 10);
     call(&env, &ALICE, || token().transfer(&BOB, 6)).assert_success();

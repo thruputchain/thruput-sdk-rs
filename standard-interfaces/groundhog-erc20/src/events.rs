@@ -19,10 +19,7 @@ pub struct TransferEvent<'a> {
     pub from: &'a ContractAddress,
     #[topic]
     pub to: &'a ContractAddress,
-    /// The transferred amount. Always non-negative; typed `i128` to match the
-    /// standard [`stdevt::TransferEvent`], and bounded to `i128::MAX` on-chain
-    /// by the token implementation. For in-range values the CXS encoding is
-    /// identical to the previous `u128`.
+    /// The transferred [`Amount`](crate::Amount), always in `0..=i128::MAX`.
     pub amount: i128,
 }
 

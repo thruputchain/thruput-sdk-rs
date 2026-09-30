@@ -138,16 +138,22 @@ fn approve_rejects_negative_amounts_and_expired_approvals() {
     let env = setup();
     let ledger = current_ledger(&env);
     assert!(ledger > 0);
-    for (amount, live_until, expected) in [
-        (-1, ledger, SEP41Error::NegativeAmount),
-        (1, ledger - 1, SEP41Error::InvalidExpiration),
-    ] {
-        let result = call(&env, &ALICE, move || {
-            view().approve(&SPENDER, amount, Some(live_until.into()))
-        });
-        assert_eq!(result.assert_abort_as::<SEP41Error>(), expected);
-        result.assert_no_events();
-    }
+    let negative = call(&env, &ALICE, move || {
+        view().approve(&SPENDER, -1, Some(ledger.into()))
+    });
+    assert_eq!(
+        negative.assert_abort_as::<ERC20Error>(),
+        ERC20Error::NegativeAmount
+    );
+    negative.assert_no_events();
+    let expired = call(&env, &ALICE, move || {
+        view().approve(&SPENDER, 1, Some((ledger - 1).into()))
+    });
+    assert_eq!(
+        expired.assert_abort_as::<SEP41Error>(),
+        SEP41Error::InvalidExpiration
+    );
+    expired.assert_no_events();
 }
 
 #[test]
