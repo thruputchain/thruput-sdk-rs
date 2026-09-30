@@ -11,23 +11,28 @@ crate provides SEP-41's operations over any token implementing `ERC20`,
 `ERC20Burn` and `ERC20Metadata`. It runs in the holder's contract, so SEP-41's
 explicit authorizers are the Groundhog caller. `is_supported` asks the token's
 ERC-165 whether it implements all three, returning `None` for a token without
-ERC-165. `live_until_ledger` is a Groundhog `BlockHeight`.
+ERC-165.
 
-`approve` is `reset_allowance` with the expiry, then `adjust_allowance` with
-the amount, in one transaction. The reset's exclusive lock covers the
-re-grant, so a concurrent spend conflicts instead of landing beside it. Zero
-approval is `delete_allowance`. Expiry is inclusive and measured in Groundhog
-blocks, not Stellar ledgers.
+`approve` takes `live_until_ledger` as an optional Groundhog `BlockHeight`.
+With a deadline it is `reset_allowance` then `adjust_allowance`, which needs
+the optional `ERC20AllowanceExpiry` interface (`supports_expiry` probes it).
+Without one it is `delete_allowance` then `adjust_allowance`, which any `ERC20`
+supports, and the allowance never expires. Either way the first call's
+exclusive lock covers the re-grant, so a concurrent spend conflicts instead of
+landing beside it. Zero approval is `delete_allowance`. Expiry is inclusive
+and measured in Groundhog blocks, not Stellar ledgers.
 
 ## Semantic differences
 
 - Native allowances are signed deltas rather than absolute approvals. Deltas
   and spending can merge. An absolute set is `delete_allowance` followed by
   `adjust_allowance`; the delete keeps its lock through the re-grant.
-- `reset_allowance` zeroes an allowance and gives it an inclusive block
-  expiry; `delete_allowance` removes both. An expired allowance reads zero
-  and adjusting it does not make it spendable again until the next reset or
-  delete.
+- Expiry is optional. On tokens implementing `ERC20AllowanceExpiry`,
+  `reset_allowance` zeroes an allowance and gives it an inclusive block
+  expiry; `delete_allowance` removes both. An expired allowance reads zero,
+  rejects nonzero spends and is not revived by `adjust_allowance`.
+  Zero-amount spends succeed, as on Stellar and Ethereum. Deleting reports
+  the stored amount removed, even once expired.
 - Expiring a signed allowance increase does not expire the allowance it
   creates. Bounded signed transfers consume the whole grant even when
   spending less than its amount.

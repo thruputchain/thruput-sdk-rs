@@ -8,6 +8,9 @@ const OTHER: ContractAddress = ContractAddress::new([0x34; 32]);
 fn client() -> ERC20Client {
     ERC20Client::new(&TOKEN)
 }
+fn expiry() -> groundhog_erc20_if::ERC20AllowanceExpiryClient {
+    groundhog_erc20_if::ERC20AllowanceExpiryClient::new(&TOKEN)
+}
 fn call(
     env: &TestEnvironmentHandle,
     who: &ContractAddress,
@@ -555,7 +558,7 @@ fn current_height(env: &TestEnvironmentHandle) -> i64 {
 /// Replace the allowance with `amount`, spendable through `until`.
 fn grant_until(env: &TestEnvironmentHandle, amount: i128, until: i64) {
     call(env, &OWNER, move || {
-        client().reset_allowance(&SPENDER, until.into());
+        expiry().reset_allowance(&SPENDER, until.into());
         client().adjust_allowance(&SPENDER, amount);
     })
     .assert_success();
@@ -598,7 +601,7 @@ fn reset_zeroes_the_allowance_and_emits_the_removed_amount() {
     let env = setup();
     let height = current_height(&env);
     let result = call(&env, &OWNER, move || {
-        client().reset_allowance(&SPENDER, (height + 10).into());
+        expiry().reset_allowance(&SPENDER, (height + 10).into());
         assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
     });
     result.assert_success();
@@ -621,7 +624,7 @@ fn reset_conflicts_with_spending_in_both_orders() {
         let height = current_height(&env);
         let reset = || {
             call(&env, &OWNER, move || {
-                client().reset_allowance(&SPENDER, (height + 10).into());
+                expiry().reset_allowance(&SPENDER, (height + 10).into());
                 client().adjust_allowance(&SPENDER, 5);
             })
         };
@@ -674,4 +677,34 @@ fn adjusting_an_expired_allowance_does_not_revive_it_but_deleting_does() {
         client().transfer_from(&OWNER, &OTHER, 10);
     })
     .assert_success();
+}
+
+#[test]
+fn zero_amount_spends_succeed_after_expiry() {
+    let env = setup();
+    let height = current_height(&env);
+    grant_until(&env, 50, height);
+    call(&env, &SPENDER, || client().transfer_from(&OWNER, &OTHER, 0))
+        .assert_success();
+    assert_spend_rejected(&env);
+}
+
+#[test]
+fn delete_reports_the_stored_amount_even_after_expiry() {
+    let env = setup();
+    let height = current_height(&env);
+    grant_until(&env, 50, height);
+    let result = call(&env, &OWNER, || {
+        assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
+        client().delete_allowance(&SPENDER);
+    });
+    result.assert_success();
+    result.assert_event_count(1);
+    result.assert_raw_event(0, |raw| {
+        let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+            EmittedEvent::from(raw.raw()),
+        )
+        .unwrap();
+        assert_eq!(event.difference, -50);
+    });
 }

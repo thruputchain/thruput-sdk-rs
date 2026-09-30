@@ -60,7 +60,7 @@ fn current_ledger(env: &TestEnvironmentHandle) -> i64 {
 }
 fn approve(env: &TestEnvironmentHandle, amount: i128, live_until: i64) {
     call(env, &ALICE, move || {
-        view().approve(&SPENDER, amount, live_until.into())
+        view().approve(&SPENDER, amount, Some(live_until.into()))
     })
     .assert_success();
     env.advance_block();
@@ -78,7 +78,7 @@ fn operations_map_onto_the_native_interfaces() {
     let ledger = current_ledger(&env);
     call(&env, &ALICE, move || {
         view().transfer(&BOB, 10);
-        view().approve(&SPENDER, 30, (ledger + 10).into());
+        view().approve(&SPENDER, 30, Some((ledger + 10).into()));
         view().burn(10);
     })
     .assert_success();
@@ -143,7 +143,7 @@ fn approve_rejects_negative_amounts_and_expired_approvals() {
         (1, ledger - 1, SEP41Error::InvalidExpiration),
     ] {
         let result = call(&env, &ALICE, move || {
-            view().approve(&SPENDER, amount, live_until.into())
+            view().approve(&SPENDER, amount, Some(live_until.into()))
         });
         assert_eq!(result.assert_abort_as::<SEP41Error>(), expected);
         result.assert_no_events();
@@ -158,7 +158,7 @@ fn approve_conflicts_with_a_same_block_spend_in_both_orders() {
         approve(&env, 50, ledger + 10);
         let replace = || {
             call(&env, &ALICE, move || {
-                view().approve(&SPENDER, 5, (ledger + 10).into())
+                view().approve(&SPENDER, 5, Some((ledger + 10).into()))
             })
         };
         let spend =
@@ -191,6 +191,36 @@ fn is_supported_reads_the_tokens_erc165_claims() {
         assert_eq!(view().is_supported(), Some(true));
         assert_eq!(SEP41View::new(&NFT).is_supported(), Some(false));
         assert_eq!(SEP41View::new(&BARE).is_supported(), None);
+        assert_eq!(view().supports_expiry(), Some(true));
+        assert_eq!(SEP41View::new(&NFT).supports_expiry(), Some(false));
+        assert_eq!(SEP41View::new(&BARE).supports_expiry(), None);
+    })
+    .assert_success();
+}
+
+#[test]
+fn approval_without_a_deadline_never_expires() {
+    let env = setup();
+    call(&env, &ALICE, || view().approve(&SPENDER, 30, None)).assert_success();
+    for _ in 0..3 {
+        env.advance_block();
+    }
+    call(&env, &SPENDER, || {
+        view().transfer_from(&ALICE, &BOB, 10);
+        assert_eq!(view().allowance(&ALICE, &SPENDER), 20);
+    })
+    .assert_success();
+}
+
+#[test]
+fn zero_amount_burn_from_succeeds_after_expiry() {
+    let env = setup();
+    let ledger = current_ledger(&env);
+    approve(&env, 20, ledger);
+    assert_allowance(&env, 0);
+    call(&env, &SPENDER, || {
+        view().burn_from(&ALICE, 0);
+        view().transfer_from(&ALICE, &BOB, 0);
     })
     .assert_success();
 }

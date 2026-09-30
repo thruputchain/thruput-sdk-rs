@@ -8,11 +8,14 @@ mod error;
 pub use error::*;
 
 use groundhog_erc20_controls_if::{ERC20BurnClient, ERC20BurnEntrypoints};
-use groundhog_erc20_if::{Amount, ERC20Client, ERC20Entrypoints};
+use groundhog_erc20_if::{
+    Amount, ERC20AllowanceExpiryClient, ERC20AllowanceExpiryEntrypoints,
+    ERC20Client, ERC20Entrypoints,
+};
 use groundhog_erc20_metadata_if::{
     ERC20MetadataClient, ERC20MetadataEntrypoints, Name, Symbol,
 };
-use groundhog_erc165_if::{ERC165Entrypoints, probe_interface};
+use groundhog_erc165_if::{ERC165Entrypoints, InterfaceId, probe_interface};
 use sdk::{BlockHeight, ContractAddress, ensure, get_block_height, throw};
 
 /// SEP-41 token operations over any token implementing `ERC20`, `ERC20Burn`
@@ -40,18 +43,19 @@ impl<'a> SEP41View<'a> {
     /// Like any ERC-165 claim, this describes the token's code, so treat it
     /// as a dispatch hint rather than an authorization boundary.
     pub fn is_supported(&self) -> Option<bool> {
-        if !probe_interface(self.token, ERC165Entrypoints::INTERFACE_ID) {
-            return None;
-        }
-        Some(
-            [
-                ERC20Entrypoints::INTERFACE_ID,
-                ERC20BurnEntrypoints::INTERFACE_ID,
-                ERC20MetadataEntrypoints::INTERFACE_ID,
-            ]
-            .into_iter()
-            .all(|id| probe_interface(self.token, id)),
-        )
+        self.claims(&[
+            ERC20Entrypoints::INTERFACE_ID,
+            ERC20BurnEntrypoints::INTERFACE_ID,
+            ERC20MetadataEntrypoints::INTERFACE_ID,
+        ])
+    }
+
+    /// Whether the token reports implementing [`ERC20AllowanceExpiry`], which
+    /// `approve` needs for a deadline. Answers like [`Self::is_supported`].
+    ///
+    /// [`ERC20AllowanceExpiry`]: groundhog_erc20_if::ERC20AllowanceExpiry
+    pub fn supports_expiry(&self) -> Option<bool> {
+        self.claims(&[ERC20AllowanceExpiryEntrypoints::INTERFACE_ID])
     }
 
     /// `spender`'s remaining allowance of `from`'s tokens, or zero once expired.
@@ -65,32 +69,39 @@ impl<'a> SEP41View<'a> {
     }
 
     /// Replace the caller's allowance for `spender` with `amount`, spendable
-    /// through block `live_until_ledger` inclusive. A nonzero amount must not
-    /// already be expired. Zero revokes the allowance and deletes its storage,
-    /// whatever `live_until_ledger` says.
+    /// through block `live_until_ledger` inclusive, or with no expiry for
+    /// `None`. A deadline needs a token implementing [`ERC20AllowanceExpiry`]
+    /// and must not already have passed. Zero revokes the allowance and deletes
+    /// its storage, whatever `live_until_ledger` says.
     ///
     /// The reset or delete locks the allowance for the rest of the
     /// transaction, so a concurrent spend conflicts with the replacement
     /// instead of landing beside it. A spend in an earlier block may still
     /// consume the old allowance first.
+    ///
+    /// [`ERC20AllowanceExpiry`]: groundhog_erc20_if::ERC20AllowanceExpiry
     pub fn approve(
         &self,
         spender: &ContractAddress,
         amount: i128,
-        live_until_ledger: BlockHeight,
+        live_until_ledger: Option<BlockHeight>,
     ) {
         Self::amount(amount);
         let token = ERC20Client::new(self.token);
-        if amount == 0 {
-            token.delete_allowance(spender);
-            return;
+        match live_until_ledger {
+            Some(until) if amount != 0 => {
+                ensure(
+                    get_block_height() <= until,
+                    SEP41Error::InvalidExpiration,
+                );
+                ERC20AllowanceExpiryClient::new(self.token)
+                    .reset_allowance(spender, until);
+            }
+            _ => token.delete_allowance(spender),
         }
-        ensure(
-            get_block_height() <= live_until_ledger,
-            SEP41Error::InvalidExpiration,
-        );
-        token.reset_allowance(spender, live_until_ledger);
-        token.adjust_allowance(spender, amount);
+        if amount != 0 {
+            token.adjust_allowance(spender, amount);
+        }
     }
 
     pub fn balance(&self, id: &ContractAddress) -> i128 {
@@ -145,6 +156,14 @@ impl<'a> SEP41View<'a> {
         ERC20MetadataClient::new(self.token)
             .symbol()
             .unwrap_or_else(|| throw(SEP41Error::MetadataUnavailable))
+    }
+
+    // `None` when the token has no ERC-165; otherwise whether it claims all.
+    fn claims(&self, interfaces: &[InterfaceId]) -> Option<bool> {
+        if !probe_interface(self.token, ERC165Entrypoints::INTERFACE_ID) {
+            return None;
+        }
+        Some(interfaces.iter().all(|id| probe_interface(self.token, *id)))
     }
 
     fn amount(amount: i128) -> Amount {

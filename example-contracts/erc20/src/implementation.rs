@@ -90,6 +90,21 @@ impl TokenContract {
             .is_none_or(|until| get_block_height() <= until)
     }
 
+    // The stored amount, whether or not it has expired.
+    fn _stored_allowance(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Amount {
+        self.allowances
+            .at(owner)
+            .at(spender)
+            .amount
+            .try_get()
+            .none_if_missing()
+            .unwrap_or(0) as Amount
+    }
+
     fn _allowance(
         &self,
         owner: &ContractAddress,
@@ -98,13 +113,7 @@ impl TokenContract {
         if !self._allowance_is_live(owner, spender) {
             return 0;
         }
-        self.allowances
-            .at(owner)
-            .at(spender)
-            .amount
-            .try_get()
-            .none_if_missing()
-            .unwrap_or(0) as Amount
+        self._stored_allowance(owner, spender)
     }
 
     // Spend from a live allowance for owner and spender.
@@ -115,7 +124,7 @@ impl TokenContract {
         diff: Difference,
     ) {
         ensure(
-            self._allowance_is_live(owner, spender),
+            diff == 0 || self._allowance_is_live(owner, spender),
             ERC20Error::TooLarge,
         );
         self.allowances
@@ -198,23 +207,10 @@ impl ERC20 for TokenContract {
         AllowanceChangeEvent::new(&owner, spender, difference).log();
     }
 
-    fn reset_allowance(
-        &mut self,
-        spender: &ContractAddress,
-        until: BlockHeight,
-    ) {
-        // The delete's exclusive lock covers the expiry write.
-        self.delete_allowance(spender);
-        self.allowances
-            .at_mut(&get_caller())
-            .at_mut(spender)
-            .expiry
-            .set(&until);
-    }
-
     fn delete_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
-        let remaining = amount_to_diff(self.allowance(&owner, spender));
+        let remaining =
+            amount_to_diff(self._stored_allowance(&owner, spender));
         self.allowances
             .at_mut(&owner)
             .at_mut(spender)
@@ -263,6 +259,23 @@ impl ERC20 for TokenContract {
 
     fn total_supply(&self) -> Amount {
         self._total_supply()
+    }
+}
+
+#[contract(version = "0.1.0")]
+impl ERC20AllowanceExpiry for TokenContract {
+    fn reset_allowance(
+        &mut self,
+        spender: &ContractAddress,
+        until: BlockHeight,
+    ) {
+        // The delete's exclusive lock covers the expiry write.
+        self.delete_allowance(spender);
+        self.allowances
+            .at_mut(&get_caller())
+            .at_mut(spender)
+            .expiry
+            .set(&until);
     }
 }
 
