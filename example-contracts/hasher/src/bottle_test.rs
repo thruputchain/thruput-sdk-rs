@@ -9,7 +9,7 @@ pub struct BT {
     target_addr: Value<Option<ContractAddress>>,
 }
 
-#[contract(exports = "bottle_exports", version = "0.1.0")]
+#[contract(exports = "bottle_exports")]
 impl BottleTest for BT {
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         let nonce: SHA256Hash = [7; 32].into();

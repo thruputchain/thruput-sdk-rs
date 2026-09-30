@@ -1,5 +1,0 @@
-error[E0080]: evaluation panicked: Interface name mismatch: impl-side name is 'MyTrait' but the trait defines 'RenamedInterface'. Repeat #[contract(interface = ...)] on the impl to match the trait definition.
-  --> tests/compile-fail/trait_explicit_interface_impl_default_mismatch.rs:11:1
-   |
-11 | #[contract]
-   | ^^^^^^^^^^^ evaluation of `_` failed here

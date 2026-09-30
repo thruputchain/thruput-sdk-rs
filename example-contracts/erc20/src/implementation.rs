@@ -165,7 +165,7 @@ impl TokenContract {
 //
 // The `contract` macro provides an exported entrypoint for each method.
 //
-#[contract(version = "0.1.2")]
+#[contract]
 impl ERC20 for TokenContract {
     fn initialize(&mut self, administrator: &ContractAddress) {
         self._init(&Config {
@@ -274,7 +274,7 @@ impl ERC20 for TokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20AllowanceExpiry for TokenContract {
     fn reset_allowance(
         &mut self,
@@ -294,7 +294,7 @@ impl ERC20AllowanceExpiry for TokenContract {
 }
 
 #[cfg(feature = "metadata")]
-#[contract(version = "0.1.2")]
+#[contract]
 impl ERC20Metadata for TokenContract {
     fn initialize(
         &mut self,

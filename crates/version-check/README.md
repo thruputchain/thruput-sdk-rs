@@ -117,6 +117,12 @@ none short-circuits, so one run tells you everything that needs fixing.
 | `external-agreement` | Every manifest pinning the same external crate pins it identically. | Probably what we want. (Compares version requirements only, not features.) |
 | `publish-order` | Every in-repo dependency is vendored and published before its dependent in `.github/workflows/publish.yml`. | `cargo package` resolves dev-dependencies too, so a list out of order fails the release itself. The workflow is dispatched by hand, so the first run to exercise a new edge is usually a real release. |
 
+Multiple local releases of the same package are supported. Dependency pins
+and `sync` resolve the declared path, so a requirement cannot accidentally
+match a different release with the same name. Lockfiles may contain any of
+the local releases, but still reject unknown versions and registry sources.
+Publish lists require an unambiguous package name.
+
 ## Exceptions
 
 Deliberate deviations live in `src/policy.rs`, and every entry carries a

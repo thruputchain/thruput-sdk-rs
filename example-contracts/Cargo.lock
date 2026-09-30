@@ -1581,6 +1581,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "versioned_impl"
+version = "0.2.0"
+dependencies = [
+ "bottle-test-if",
+ "sdk",
+ "versioned_impl",
+ "versioned_interface 0.1.0",
+ "versioned_interface 0.2.0",
+]
+
+[[package]]
+name = "versioned_interface"
+version = "0.1.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
+name = "versioned_interface"
+version = "0.2.0"
+dependencies = [
+ "sdk",
+]
+
+[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

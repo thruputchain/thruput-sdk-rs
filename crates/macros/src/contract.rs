@@ -2,7 +2,7 @@ use super::common;
 use common::client;
 use common::config::Config;
 use common::contract;
-use common::contract::{ConfiguredContract, ContractSrc};
+use common::contract::{ConfiguredContract, ContractSrc, Method};
 use common::exports;
 use common::spec_reg;
 use common::strip::*;
@@ -103,6 +103,11 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 }
             }
             let contract = ConfiguredContract::new(config.clone(), item);
+            exports::check_entrypoint_collisions(
+                contract.interface_name().as_deref(),
+                &contract.defaulted_interface_vers(),
+                &contract.methods_sorted().into_iter().collect::<Vec<_>>(),
+            )?;
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
@@ -140,25 +145,26 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             let iface_vers = config
                 .version_string()
                 .unwrap_or_else(contract::interface_vers_default);
-            let iface_major =
-                groundhog_contract_util::semver::major_version_from_string(
-                    &iface_vers,
-                );
-
-            // Add the version consts on the trait (one `parse_quote!` per item — syn parses a
-            // single `TraitItem`; two `const`s in one block panics with "unexpected token").
+            // Add the interface metadata as separate trait items.
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_NAME: &'static str = #iface_name;
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
-            });
-            stripped.items.push(parse_quote! {
-                #[doc(hidden)]
                 const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
             });
+            for method in contract.methods_sorted() {
+                let sig = method.sig();
+                let ident =
+                    common::entrypoint::trait_entrypoint_ident(&sig.ident);
+                let id = common::entrypoint::method_id_tokens(&contract, sig);
+                stripped.items.push(parse_quote! {
+                    #[doc(hidden)]
+                    #[allow(non_upper_case_globals)]
+                    const #ident: u64 = #id;
+                });
+            }
             // The trait's own spec id, pinned to the interface version like an
             // exception's is pinned to its declared one. The interface key
             // (name, version) is all the wire carries and two unrelated traits
@@ -282,6 +288,8 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
 
             let mut out = stripped.into_token_stream();
 
+            out.extend(exports::generate_trait_guard_macro(item, config));
+
             // A module-level anchor const (the trait isn't dyn-compatible, so
             // its associated `__GROUNDHOG_IFACE_*` consts aren't reachable as
             // `<dyn Trait>::…`). `export_interface_spec!` references this by
@@ -327,6 +335,32 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             Ok(out)
         }
         syn::Item::Impl(item) => {
+            if item.trait_.is_some() {
+                if let Some(version) = &config.version {
+                    return Err(syn::Error::new(
+                        version.span(),
+                        "`version` on a trait impl is not allowed; remove it to inherit the trait's version",
+                    ));
+                }
+                for impl_item in &item.items {
+                    let ident = match impl_item {
+                        syn::ImplItem::Const(item) => &item.ident,
+                        syn::ImplItem::Fn(item) => &item.sig.ident,
+                        syn::ImplItem::Type(item) => &item.ident,
+                        _ => continue,
+                    };
+                    let name = ident.to_string();
+                    let name = name.strip_prefix("r#").unwrap_or(&name);
+                    if name.starts_with("__GROUNDHOG_")
+                        || matches!(name, "INTERFACE_ID" | "__mock")
+                    {
+                        return Err(syn::Error::new_spanned(
+                            ident,
+                            "contract interface metadata is defined by the trait and cannot be overridden",
+                        ));
+                    }
+                }
+            }
             validate_no_generics(
                 &item.generics,
                 false,
@@ -467,6 +501,52 @@ mod tests {
             "{msg}"
         );
         assert!(msg.len() < 200, "error must not dump the AST: {msg}");
+    }
+
+    #[test]
+    fn trait_declarations_check_entrypoint_collisions() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Duplicate {
+                fn ping();
+                fn ping();
+            }
+        };
+        let err = apply_with_config(&item, &parse_config("")).unwrap_err();
+        assert!(err.to_string().contains("Entrypoint ID collision"));
+    }
+
+    #[test]
+    fn trait_impl_rejects_reserved_functions_and_types() {
+        for reserved in [
+            syn::parse_quote!(
+                fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    0
+                }
+            ),
+            syn::parse_quote!(
+                fn __mock() {}
+            ),
+            syn::parse_quote!(
+                fn r#__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    0
+                }
+            ),
+            syn::parse_quote!(
+                type __GROUNDHOG_IFACE_NAME = u32;
+            ),
+        ] {
+            let mut item: syn::ItemImpl = syn::parse_quote! {
+                impl Interface for Contract {}
+            };
+            item.items.push(reserved);
+            let err =
+                apply_with_config(&syn::Item::Impl(item), &parse_config(""))
+                    .unwrap_err();
+            assert_eq!(
+                err.to_string(),
+                "contract interface metadata is defined by the trait and cannot be overridden"
+            );
+        }
     }
 
     #[test]

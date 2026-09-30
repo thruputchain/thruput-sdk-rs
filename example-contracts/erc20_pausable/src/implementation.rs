@@ -138,7 +138,7 @@ impl PausableTokenContract {
 // The ERC20 token core. Balance-changing operations additionally require
 // the token to be unpaused (allowance adjustments and reads stay
 // available), matching OpenZeppelin's ERC20Pausable.
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20 for PausableTokenContract {
     fn initialize(&mut self, administrator: &ContractAddress) {
         self._init(&Config {
@@ -247,7 +247,7 @@ impl ERC20 for PausableTokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Metadata for PausableTokenContract {
     fn initialize(
         &mut self,
@@ -277,7 +277,7 @@ impl ERC20Metadata for PausableTokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Pausable for PausableTokenContract {
     fn pause(&mut self) {
         let caller = get_caller();
@@ -311,7 +311,7 @@ impl ERC20Pausable for PausableTokenContract {
 // Pure delegation into the embedded component: the storage layout, the
 // admin checks, and the event emission all live in
 // `groundhog-access-control`.
-#[contract(version = "0.1.0")]
+#[contract]
 impl AccessControl for PausableTokenContract {
     fn has_role(&self, role: &Role, account: &ContractAddress) -> bool {
         self.access.has_role(role, account)

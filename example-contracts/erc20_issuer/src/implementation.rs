@@ -194,7 +194,7 @@ impl TokenContract {
 
 // Policy extensions can also throw ERC20ControlsError through the standard client's
 // unknown-error path, as with ERC20Pausable.
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20 for TokenContract {
     fn initialize(&mut self, administrator: &ContractAddress) {
         self.init(
@@ -279,7 +279,7 @@ impl ERC20 for TokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20AllowanceExpiry for TokenContract {
     fn reset_allowance(
         &mut self,
@@ -298,7 +298,7 @@ impl ERC20AllowanceExpiry for TokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Metadata for TokenContract {
     fn initialize(
         &mut self,
@@ -329,7 +329,7 @@ impl ERC20Metadata for TokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Admin for TokenContract {
     fn initialize(
         &mut self,
@@ -383,7 +383,7 @@ impl ERC20Admin for TokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Authorization for TokenContract {
     fn authorized(&self, id: &ContractAddress) -> bool {
         let policy = self.settings().policy;
@@ -404,14 +404,14 @@ impl ERC20Authorization for TokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Clawback for TokenContract {
     fn clawback(&mut self, from: &ContractAddress, amount: Amount) {
         self.forced_burn(from, amount);
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Burn for TokenContract {
     fn burn(&mut self, amount: Amount) {
         let owner = get_caller();
@@ -425,7 +425,7 @@ impl ERC20Burn for TokenContract {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Permit for TokenContract {
     fn transfer_from_signed(
         &mut self,

@@ -292,7 +292,7 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
         // An unparseable or multi-part requirement is left for a human, and the
         // closing verify still reports it.
         if req.sync {
-            let Some(local) = repo.locals.get(&edge.name) else {
+            let Some(local) = repo.local_for_edge(edge) else {
                 continue;
             };
             let Some(current) = edge.req.as_ref() else {
@@ -321,8 +321,7 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
 
         let in_interfaces = in_interface_family(&edge.manifest);
         let family = repo
-            .locals
-            .get(&edge.name)
+            .local_for_edge(edge)
             .and_then(|l| repo.manifest(&l.manifest))
             .and_then(|m| m.package.as_ref())
             .map(|p| p.spec.clone());

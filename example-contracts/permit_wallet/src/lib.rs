@@ -118,7 +118,7 @@ impl PermitWallet {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl SignedOp for PermitWallet {
     fn execute_signed_op(
         &mut self,
