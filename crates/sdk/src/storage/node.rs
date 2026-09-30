@@ -33,6 +33,7 @@ pub fn __field_from_keypath<T: From<Keypath>>(keypath: Keypath) -> T {
 /// each field handle constructed by `T::from` already carries the path it
 /// needs, so keeping the parent path would add an unused buffer and require an
 /// otherwise-unnecessary clone during construction.
+#[derive(Debug)]
 pub struct Node<T> {
     fields: T,
 }

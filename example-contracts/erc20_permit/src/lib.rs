@@ -11,7 +11,7 @@
 //! moves up to the granted amount without writing an allowance. The auth token
 //! is a capability good for one use. `increase_allowance_signed`
 //! turns a grant into a standing allowance for spenders that draw later or
-//! through `transfer_from`, and `clear_allowance_signed` takes one back.
+//! through `transfer_from`, and `delete_allowance_signed` takes one back.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
@@ -21,7 +21,7 @@ mod implementation;
 
 pub use groundhog_erc20_if::{ERC20, ERC20Client, ERC20Error};
 pub use groundhog_erc20_permit_if::{
-    ClearAllowanceGrant, ClearAllowanceRequest, ERC20Permit,
+    DeleteAllowanceGrant, DeleteAllowanceRequest, ERC20Permit,
     ERC20PermitClient, ERC20PermitError, PermitGrant, PermitRequest,
 };
 pub use implementation::PermitToken;

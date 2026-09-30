@@ -31,6 +31,7 @@ on:
           - groundhog-erc20-permit-if
           - groundhog-erc165-if
           - groundhog-erc721-if
+          - groundhog-sep41
           - groundhog-access-control-if
           - groundhog-access-control
       undo:

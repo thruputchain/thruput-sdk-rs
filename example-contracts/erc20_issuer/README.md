@@ -4,7 +4,7 @@ Groundhog ERC20 with optional issuer controls in `groundhog-erc20-controls-if`.
 Deploy and initialize atomically with `ERC20AdminClient::initialize`: its caller
 becomes admin, and the supplied address becomes minter. See the
 [Stellar integration notes](../../docs/sep41-reference-token.md) for policy and
-bridge boundaries.
+bridge boundaries. SEP-41 callers use `SEP41View` over this token.
 
 Run from `example-contracts/`:
 

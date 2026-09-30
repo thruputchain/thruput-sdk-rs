@@ -164,6 +164,12 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
                  interface crate",
     },
     Named {
+        name: "groundhog-sep41",
+        reason: "client component on the standard interfaces' independent \
+                 version line, released in lockstep with the ERC20 interface \
+                 crates it calls",
+    },
+    Named {
         name: "version-mismatch-helper",
         reason: "fixture that deliberately carries a fixed version to exercise \
                  the SDK's version-mismatch diagnostics",

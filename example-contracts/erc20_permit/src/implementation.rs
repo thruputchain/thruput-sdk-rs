@@ -1,11 +1,11 @@
 //! ERC20 state and signed grant entrypoints.
 
 use groundhog_erc20_if::{
-    AllowanceChangeEvent, Amount, BurnEvent, Difference, ERC20, ERC20Error,
-    MintEvent, TransferEvent, amount_to_diff,
+    AllowanceChangeEvent, AllowanceDeleteEvent, Amount, Difference, ERC20,
+    ERC20Error, MintEvent, TransferEvent, check_amount,
 };
 use groundhog_erc20_permit_if::{
-    ClearAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
+    DeleteAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
 };
 use sdk::signer::Signed;
 use sdk::storage::deletable::Deletable;
@@ -57,17 +57,17 @@ impl PermitToken {
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
-    fn _clear_allowance(
+    fn _delete_allowance(
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) {
-        let remaining = amount_to_diff(self.allowance(owner, spender));
+        let remaining = self.allowance(owner, spender);
         self.allowances
             .at_mut(owner)
             .at_mut(spender)
             .delete_exclusive();
-        AllowanceChangeEvent::new(owner, spender, -remaining).log();
+        AllowanceDeleteEvent::new(owner, spender, remaining).log();
     }
 
     fn _move(
@@ -76,10 +76,11 @@ impl PermitToken {
         receiver: &ContractAddress,
         amount: Amount,
     ) {
+        check_amount(amount);
         self._decrease_balance(owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        TransferEvent::new(owner, receiver, amount_to_diff(amount)).log();
+        TransferEvent::new(owner, receiver, amount).log();
     }
 }
 
@@ -103,8 +104,9 @@ impl ERC20 for PermitToken {
         receiver: &ContractAddress,
         amount: Amount,
     ) {
+        check_amount(amount);
         let spender = get_caller();
-        self._adjust_allowance(owner, &spender, -amount_to_diff(amount));
+        self._adjust_allowance(owner, &spender, -amount);
         self._move(owner, receiver, amount);
     }
 
@@ -112,26 +114,21 @@ impl ERC20 for PermitToken {
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
-        exclusive: bool,
     ) {
         let owner = get_caller();
         let mut allowances = self.allowances.at_mut(&owner);
-        let mut allowance = if exclusive {
-            allowances.at_mut_exclusive(spender)
-        } else {
-            allowances.at_mut(spender)
-        };
+        let mut allowance = allowances.at_mut(spender);
         allowance
             .try_strict_inc(difference)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         AllowanceChangeEvent::new(&owner, spender, difference).log();
     }
 
-    fn clear_allowance(&mut self, spender: &ContractAddress) {
-        self._clear_allowance(&get_caller(), spender);
+    fn delete_allowance(&mut self, spender: &ContractAddress) {
+        self._delete_allowance(&get_caller(), spender);
     }
 
-    fn clear_balance(&mut self) {
+    fn delete_balance(&mut self) {
         let owner = get_caller();
         let mut balance = self.balances.at_mut(&owner);
         ensure(balance.get() == 0, ERC20Error::BalanceNotZero);
@@ -161,6 +158,7 @@ impl ERC20 for PermitToken {
     }
 
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
+        check_amount(amount);
         ensure(
             get_caller() == self.administrator.get(),
             ERC20Error::MustBeContractOwner,
@@ -172,20 +170,7 @@ impl ERC20 for PermitToken {
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         self._lazy_increase_balance(receiver, amount);
 
-        MintEvent::new(receiver, amount_to_diff(amount)).log();
-    }
-
-    fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
-        ensure(
-            get_caller() == self.administrator.get(),
-            ERC20Error::MustBeContractOwner,
-        );
-        self._decrease_balance(owner, amount);
-        self.total_supply
-            .try_decrease(amount)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-
-        BurnEvent::new(owner, amount_to_diff(amount)).log();
+        MintEvent::new(receiver, amount).log();
     }
 
     fn total_supply(&self) -> Amount {
@@ -220,13 +205,16 @@ impl ERC20Permit for PermitToken {
 
     fn increase_allowance_signed(&mut self, grant: Signed<PermitGrant>) {
         let (grant, owner) = grant.consume();
-        let difference = amount_to_diff(grant.amount);
+        let difference = check_amount(grant.amount);
         self._adjust_allowance(&owner, &grant.spender, difference);
         AllowanceChangeEvent::new(&owner, &grant.spender, difference).log();
     }
 
-    fn clear_allowance_signed(&mut self, grant: Signed<ClearAllowanceGrant>) {
+    fn delete_allowance_signed(
+        &mut self,
+        grant: Signed<DeleteAllowanceGrant>,
+    ) {
         let (grant, owner) = grant.consume();
-        self._clear_allowance(&owner, &grant.spender);
+        self._delete_allowance(&owner, &grant.spender);
     }
 }

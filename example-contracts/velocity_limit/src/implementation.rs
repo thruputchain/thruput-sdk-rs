@@ -86,6 +86,6 @@ impl VelocityLimitedWithdrawal {
 
         let token =
             groundhog_erc20_if::ERC20Client::new(&self.config.get().token);
-        token.transfer(&receiver, amount as u128);
+        token.transfer(&receiver, amount);
     }
 }
