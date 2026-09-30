@@ -132,7 +132,7 @@ impl ERC20 for Token {
         let owner = get_caller();
         let remaining = amount_to_diff(self.allowance(&owner, spender));
         delete_exclusive(&get_allowance_key(&owner, spender));
-        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
+        AllowanceDeleteEvent::new(&owner, spender, remaining).log();
     }
 
     fn delete_balance(&mut self) {

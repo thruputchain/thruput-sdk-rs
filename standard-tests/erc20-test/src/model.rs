@@ -59,10 +59,10 @@ impl Model {
     pub fn delete_allowance(&mut self, spender: &ContractAddress) {
         let owner = self.get_caller();
         let old = self.allowances.insert((owner, *spender), 0).unwrap_or(0);
-        let event = ERC20Event::AllowanceChange(AllowanceChangeEvent::new(
+        let event = ERC20Event::AllowanceDelete(AllowanceDeleteEvent::new(
             &owner,
             spender,
-            -i128::try_from(old).unwrap(),
+            i128::try_from(old).unwrap(),
         ));
         self.events.push((&event).into());
     }

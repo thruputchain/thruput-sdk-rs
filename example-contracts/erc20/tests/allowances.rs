@@ -290,11 +290,11 @@ fn temporary_grant_nested_spend_and_clear_commit_atomically() {
     result.assert_success();
     result.assert_event_count(3);
     result.assert_raw_event(2, |raw| {
-        let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+        let event = groundhog_erc20_if::AllowanceDeleteEvent::try_from(
             EmittedEvent::from(raw.raw()),
         )
         .unwrap();
-        assert_eq!(event.difference, -3);
+        assert_eq!(event.removed, 3);
     });
     env.advance_block();
     call(&env, &OWNER, || {
@@ -473,7 +473,7 @@ fn combined_adjustments_reject_overflow_and_overdraft() {
 }
 
 #[test]
-fn clearing_emits_the_removed_amount_and_allows_regrant_in_one_transaction() {
+fn deleting_emits_the_removed_amount_and_allows_regrant_in_one_transaction() {
     let env = setup();
     let result = call(&env, &OWNER, || {
         client().delete_allowance(&SPENDER);
@@ -483,17 +483,24 @@ fn clearing_emits_the_removed_amount_and_allows_regrant_in_one_transaction() {
     });
     result.assert_success();
     result.assert_event_count(3);
-    for (index, difference) in [-50, 0, 12].into_iter().enumerate() {
+    for (index, removed) in [50, 0].into_iter().enumerate() {
         result.assert_raw_event(index, |raw| {
-            let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+            let event = groundhog_erc20_if::AllowanceDeleteEvent::try_from(
                 EmittedEvent::from(raw.raw()),
             )
             .unwrap();
             assert_eq!(event.owner, &OWNER);
             assert_eq!(event.spender, &SPENDER);
-            assert_eq!(event.difference, difference);
+            assert_eq!(event.removed, removed);
         });
     }
+    result.assert_raw_event(2, |raw| {
+        let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+            EmittedEvent::from(raw.raw()),
+        )
+        .unwrap();
+        assert_eq!(event.difference, 12);
+    });
     env.advance_block();
     call(&env, &OWNER, || {
         assert_eq!(client().allowance(&OWNER, &SPENDER), 12);
@@ -607,11 +614,14 @@ fn reset_zeroes_the_allowance_and_emits_the_removed_amount() {
     result.assert_success();
     result.assert_event_count(1);
     result.assert_raw_event(0, |raw| {
-        let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+        let event = groundhog_erc20_if::AllowanceResetEvent::try_from(
             EmittedEvent::from(raw.raw()),
         )
         .unwrap();
-        assert_eq!(event.difference, -50);
+        assert_eq!(event.owner, &OWNER);
+        assert_eq!(event.spender, &SPENDER);
+        assert_eq!(event.removed, 50);
+        assert_eq!(*event.until, height + 10);
     });
     env.advance_block();
     assert_spend_rejected(&env);
@@ -701,10 +711,10 @@ fn delete_reports_the_stored_amount_even_after_expiry() {
     result.assert_success();
     result.assert_event_count(1);
     result.assert_raw_event(0, |raw| {
-        let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+        let event = groundhog_erc20_if::AllowanceDeleteEvent::try_from(
             EmittedEvent::from(raw.raw()),
         )
         .unwrap();
-        assert_eq!(event.difference, -50);
+        assert_eq!(event.removed, 50);
     });
 }

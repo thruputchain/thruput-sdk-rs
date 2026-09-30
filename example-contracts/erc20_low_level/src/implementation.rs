@@ -119,7 +119,7 @@ pub fn delete_allowance(spender: &ContractAddress) {
     let owner = get_caller();
     let remaining = amount_to_diff(allowance(&owner, spender));
     delete_exclusive(&get_allowance_key(&owner, spender));
-    AllowanceChangeEvent::new(&owner, spender, -remaining).log();
+    AllowanceDeleteEvent::new(&owner, spender, remaining).log();
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]

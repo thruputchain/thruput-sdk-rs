@@ -165,7 +165,7 @@ pub trait ERC20Permit {
     fn increase_allowance_signed(&mut self, grant: Signed<PermitGrant>);
 
     /// Consume `grant` and delete its minter's allowance for the grant's
-    /// `spender`, emitting the allowance-change event for the amount removed.
+    /// `spender`, emitting the delete event for the stored amount removed.
     ///
     /// The entry is deleted rather than zeroed, freeing its storage, and
     /// deleted under an exclusive lock: another transaction in the same block

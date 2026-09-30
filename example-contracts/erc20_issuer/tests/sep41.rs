@@ -224,3 +224,37 @@ fn zero_amount_burn_from_succeeds_after_expiry() {
     })
     .assert_success();
 }
+
+/// The event shapes a SEP-41 postprocessor rebuilds `approve` from: a reset or
+/// delete zeroes the allowance, and the change after it is the new amount.
+#[test]
+fn approve_emits_a_zeroing_event_then_the_amount() {
+    let env = setup();
+    let ledger = current_ledger(&env);
+    let result = call(&env, &ALICE, move || {
+        view().approve(&SPENDER, 30, Some((ledger + 10).into()));
+        view().approve(&SPENDER, 20, None);
+    });
+    result.assert_success();
+    result.assert_event_count(4);
+    result.assert_raw_event(0, |raw| {
+        let event =
+            AllowanceResetEvent::try_from(EmittedEvent::from(raw.raw()))
+                .unwrap();
+        assert_eq!((event.removed, *event.until), (0, ledger + 10));
+    });
+    result.assert_raw_event(2, |raw| {
+        let event =
+            AllowanceDeleteEvent::try_from(EmittedEvent::from(raw.raw()))
+                .unwrap();
+        assert_eq!(event.removed, 30);
+    });
+    for (index, amount) in [(1, 30), (3, 20)] {
+        result.assert_raw_event(index, |raw| {
+            let event =
+                AllowanceChangeEvent::try_from(EmittedEvent::from(raw.raw()))
+                    .unwrap();
+            assert_eq!(event.difference, amount);
+        });
+    }
+}

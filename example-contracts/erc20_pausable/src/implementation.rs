@@ -197,7 +197,7 @@ impl ERC20 for PausableTokenContract {
             .at_mut(&owner)
             .at_mut(spender)
             .delete_exclusive();
-        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
+        AllowanceDeleteEvent::new(&owner, spender, remaining).log();
     }
 
     fn delete_balance(&mut self) {

@@ -36,8 +36,12 @@ and measured in Groundhog blocks, not Stellar ledgers.
 - Expiring a signed allowance increase does not expire the allowance it
   creates. Bounded signed transfers consume the whole grant even when
   spending less than its amount.
-- Events are native: transfers, mints and burns map onto SEP-41's, but
-  approvals appear as allowance deltas, not SEP-41 approve events.
+- Events are native. Transfers, mints and burns map onto SEP-41's. There is
+  no approve event: a delete or reset event marks the allowance as exactly
+  zero, so a following allowance change in the same transaction gives the
+  absolute amount. Reset then change is `approve(amount, until)`, delete then
+  change is an approval without a deadline, and a delete alone is
+  `approve(0)`. Plain adjustments have no SEP-41 equivalent.
 - Authorization and role changes reach other transactions in the next block.
   A same-block transfer can still use the previous permissions.
 - Issuer policy is immutable and clawback eligibility is uniform. Stellar

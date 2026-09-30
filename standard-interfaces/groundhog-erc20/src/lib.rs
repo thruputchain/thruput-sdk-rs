@@ -46,7 +46,12 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, AllowanceChangeEvent, MintEvent)
+    emits(
+        TransferEvent,
+        AllowanceChangeEvent,
+        AllowanceDeleteEvent,
+        MintEvent
+    )
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -86,8 +91,8 @@ pub trait ERC20 {
     /// including any expiry from [`ERC20AllowanceExpiry`]. Missing entries are
     /// allowed. Deletion conflicts with concurrent writes, including grants and
     /// spending, and the lock holds for later writes in this transaction. Emit
-    /// [`AllowanceChangeEvent`] with the negative stored amount removed, even
-    /// if the allowance had expired (zero for a missing entry).
+    /// [`AllowanceDeleteEvent`] with the stored amount removed, even if the
+    /// allowance had expired (zero for a missing entry).
     /// Implementations SHOULD refund the released storage cost to the caller.
     fn delete_allowance(&mut self, spender: &ContractAddress);
 
@@ -132,13 +137,14 @@ pub trait ERC20 {
 #[contract(
     client = ERC20AllowanceExpiryClient,
     throws = ERC20Error,
-    emits(AllowanceChangeEvent)
+    emits(AllowanceResetEvent)
 )]
 pub trait ERC20AllowanceExpiry {
     /// Set the caller's allowance for `spender` to zero, spendable through
-    /// block `until` inclusive once `adjust_allowance` refills it. Locks and
-    /// emits like `delete_allowance`, so a following `adjust_allowance` sets
-    /// an absolute, expiring allowance.
+    /// block `until` inclusive once `adjust_allowance` refills it, and emit
+    /// [`AllowanceResetEvent`] with the stored amount removed. Locks like
+    /// `delete_allowance`, so a following `adjust_allowance` sets an absolute,
+    /// expiring allowance.
     fn reset_allowance(
         &mut self,
         spender: &ContractAddress,

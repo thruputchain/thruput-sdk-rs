@@ -125,14 +125,24 @@ impl TokenContract {
             .none_if_missing()
             .unwrap_or(0) as Amount
     }
-    fn delete(&mut self, owner: &ContractAddress, spender: &ContractAddress) {
+    // Delete the stored allowance under an exclusive lock, returning the
+    // amount removed.
+    fn remove(
+        &mut self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> Difference {
         self.settings();
-        let remaining = amount_to_diff(self.stored_allowance(owner, spender));
+        let removed = amount_to_diff(self.stored_allowance(owner, spender));
         self.allowances
             .at_mut(owner)
             .at_mut(spender)
             .delete_exclusive();
-        AllowanceChangeEvent::new(owner, spender, -remaining).log();
+        removed
+    }
+    fn delete(&mut self, owner: &ContractAddress, spender: &ContractAddress) {
+        let removed = self.remove(owner, spender);
+        AllowanceDeleteEvent::new(owner, spender, removed).log();
     }
     fn debit(&mut self, from: &ContractAddress, amount: Amount) {
         amount_to_diff(amount);
@@ -279,13 +289,15 @@ impl ERC20AllowanceExpiry for TokenContract {
         spender: &ContractAddress,
         until: BlockHeight,
     ) {
+        let owner = get_caller();
         // The delete's exclusive lock covers the expiry write.
-        self.delete_allowance(spender);
+        let removed = self.remove(&owner, spender);
         self.allowances
-            .at_mut(&get_caller())
+            .at_mut(&owner)
             .at_mut(spender)
             .expiry
             .set(&until);
+        AllowanceResetEvent::new(&owner, spender, removed, until).log();
     }
 }
 
