@@ -15,6 +15,7 @@ use quote::quote;
 use std::collections::HashMap;
 use syn::LitByteStr;
 use syn::parse::Result;
+use syn::spanned::Spanned;
 
 fn hex_symbol_component(value: &str) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
@@ -331,8 +332,13 @@ pub fn check_entrypoint_collisions(
 /// that. The wire type is inferred from the parameter type at the call.
 fn method_call_args(sig: &syn::Signature) -> TokenStream {
     let args = method_args(sig).map(|(ident, ty)| match ty {
+        // Spanned on the parameter type, so a type with no `RefArg` impl
+        // is reported at the parameter rather than at the attribute.
         syn::Type::Reference(reference) if reference.mutability.is_none() => {
-            quote!(::sdk::call::RefArg::get(&#ident))
+            let elem = &reference.elem;
+            quote::quote_spanned!(elem.span()=>
+                ::sdk::call::RefArg::get(&#ident)
+            )
         }
         _ => quote!(#ident),
     });

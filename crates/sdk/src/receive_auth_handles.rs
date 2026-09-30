@@ -66,6 +66,7 @@ impl_receive_noop!(
     i128,
     bool,
     (),
+    str,
     sdk::types::ContractAddress,
     sdk::types::BlockHeight,
     sdk::types::SHA256Hash,
@@ -126,7 +127,7 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for [T] {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: ReceiveAuthHandles + 'static, const MAX: u32> ReceiveAuthHandles
+impl<T: ReceiveAuthHandles, const MAX: u32> ReceiveAuthHandles
     for xdrs::VecM<T, MAX>
 {
     #[inline(always)]
