@@ -325,11 +325,8 @@ pub fn check_entrypoint_collisions(
     Ok(())
 }
 
-/// The decoded arguments as the method call passes them. An owned parameter
-/// passes its decoded value. A shared-reference parameter `&T` was decoded
-/// as `<T as RefArg>::Wire` (a view into the calldata buffer, or an owned
-/// value when `T` cannot be borrowed from it), and passes `&T` taken from
-/// that. The wire type is inferred from the parameter type at the call.
+/// The method call's arguments: owned params pass through; `&T` params pass
+/// `RefArg::get(&wire)`.
 fn method_call_args(sig: &syn::Signature) -> TokenStream {
     let args = method_args(sig).map(|(ident, ty)| match ty {
         // Spanned on the parameter type, so a type with no `RefArg` impl
@@ -491,31 +488,36 @@ pub fn generate_method(
             &mut __gh_auth_token_ids,
         );
 
+        // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
+        // contract_call_decode then fills in Signer handles from the auth
+        // token ID list). They are bound outside the block below and stay
+        // bound through the return, so a result borrowing a `&T`
+        // parameter's decoded value (`RefArg::get(&wire)`) outlives the
+        // call. Their destructors never run, since the return does not come
+        // back; decoded args own only memory.
+        let mut __args =
+            ::sdk::call::contract_call_decode(
+                __gh_calldata.as_ref(),
+                __gh_auth_token_ids.as_slice(),
+            )
+                .unwrap_or_else(|e|
+                    ::sdk::exn::decoding_args_throw(&e));
+
+        // Destructure into named args
+        let (#arg_names) = __args;
+
         let __gh_res = {
 
             // Load contract state
             #load_state
 
-            // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
-            // contract_call_decode then fills in Signer handles from the auth
-            // token ID list)
-            let mut __args =
-                ::sdk::call::contract_call_decode(
-                    __gh_calldata.as_ref(),
-                    __gh_auth_token_ids.as_slice(),
-                )
-                    .unwrap_or_else(|e|
-                        ::sdk::exn::decoding_args_throw(&e));
-
-            // Destructure into named args
-            let (#arg_names) = __args;
-
             // Call the method implementation (passing the contract state, if any,
             // and the args)
             #invoke
 
-            // Make sure any storage nodes are fully dropped (and written to environment).
-            // Not technically necessary, given that the storage is wrapped in a Node<T>.
+            // Make sure any storage nodes are fully dropped (and written to
+            // environment) here, in place, before the terminal return, which
+            // runs no destructors afterward.
         };
 
         // Return the result to the VM
@@ -898,10 +900,6 @@ mod tests {
 
     #[test]
     fn shared_reference_params_are_passed_through_ref_arg() {
-        // `&T` parameters decode as `<T as RefArg>::Wire` and are passed as
-        // `RefArg::get(&wire)`, so a type the calldata cannot be borrowed
-        // for (a length-prefixed vector) decodes into a local. Owned and
-        // `&mut` parameters keep the direct decoded value.
         let sig: syn::Signature = syn::parse_quote! {
             fn f(a: u32, b: &Ids, c: &mut Other, d: &[u8])
         };

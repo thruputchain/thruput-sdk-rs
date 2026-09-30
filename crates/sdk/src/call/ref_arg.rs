@@ -1,22 +1,7 @@
-//! How a contract method parameter declared as `&T` is decoded from calldata.
-//!
-//! A `&T` parameter decodes through [`RefArg`], which names what the
-//! entrypoint decodes (`Wire`) and how the method's `&T` is taken from it.
-//! Types whose wire form is their in-memory form borrow from the calldata
-//! buffer and copy nothing. Every other type decodes once into a local, the
-//! same single decode a by-value `T` gets, so a `&T` parameter never costs
-//! more than `T`. Each type is placed deliberately, never by a fallback that
-//! could copy a type that can be borrowed.
-//!
-//! - Borrowed: `[u8]`, `str`, `[u8; N]`, and the fixed-layout protocol types
-//!   (`ContractAddress`, `ContractEntrypointID`, `Ed25519PublicKey`,
-//!   `Ed25519Signature`, `SHA256Hash`).
-//! - Decoded into a local: every other by-value parameter type, via
-//!   [`OwnedRefArg`] (which `#[contract_type]` implements).
-//! - Slices `&[T]` of any other element: the elements decode into a local
-//!   vector (feature `alloc`). Byte-string elements (`&[&[u8]]`, `&[&str]`)
-//!   still borrow their bytes from calldata; only the list of references is
-//!   allocated.
+//! `&T` contract method parameters decode via [`RefArg`]: fixed-layout types
+//! borrow from the calldata buffer, everything else decodes into a local.
+//! Each type is placed by an explicit impl, never a fallback that could copy
+//! a borrowable type.
 
 use crate::ReceiveAuthHandles;
 use crate::xdr::ReadXDR;
