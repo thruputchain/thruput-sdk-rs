@@ -134,21 +134,15 @@ pub fn adjust_allowance(spender: &ContractAddress, difference: Difference) {
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
-pub fn set_allowance_expiry(
-    spender: &ContractAddress,
-    until: Option<BlockHeight>,
-) {
+pub fn reset_allowance(spender: &ContractAddress, until: BlockHeight) {
+    // The delete's exclusive lock covers the expiry write.
+    delete_allowance(spender);
     let key = get_allowance_expiry_key(&get_caller(), spender);
-    match until {
-        Some(until) => {
-            bytestring_set_exclusive(&key, &until.into_inner().to_be_bytes())
-        }
-        None => delete_exclusive(&key),
-    }
+    bytestring_set(&key, &until.into_inner().to_be_bytes());
 }
 
 #[contract(interface = "ERC20", version = "0.1.0")]
-pub fn clear_allowance(spender: &ContractAddress) {
+pub fn delete_allowance(spender: &ContractAddress) {
     let owner = get_caller();
     let remaining = amount_to_diff(allowance(&owner, spender));
     delete_exclusive(&get_allowance_key(&owner, spender));

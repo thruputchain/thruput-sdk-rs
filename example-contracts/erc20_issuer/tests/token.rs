@@ -89,7 +89,7 @@ fn adjust(env: &TestEnvironmentHandle, difference: i128) {
     env.advance_block();
 }
 fn clear(env: &TestEnvironmentHandle) {
-    call(env, &ALICE, || token().clear_allowance(&SPENDER)).assert_success();
+    call(env, &ALICE, || token().delete_allowance(&SPENDER)).assert_success();
     env.advance_block();
 }
 fn state(
@@ -403,7 +403,7 @@ fn absolute_set_or_clearing_conflicts_with_same_block_spending() {
             adjust(&env, 50);
             let grant = || {
                 call(&env, &ALICE, || {
-                    token().clear_allowance(&SPENDER);
+                    token().delete_allowance(&SPENDER);
                     if let Some(difference) = difference {
                         token().adjust_allowance(&SPENDER, 50 + difference);
                     }
@@ -460,7 +460,7 @@ fn independent_pairs_and_conflicting_absolute_sets() {
     let env = setup();
     let set = |owner: ContractAddress, spender: ContractAddress| {
         call(&env, &owner, move || {
-            token().clear_allowance(&spender);
+            token().delete_allowance(&spender);
             token().adjust_allowance(&spender, 10);
         })
     };

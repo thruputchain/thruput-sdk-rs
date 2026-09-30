@@ -108,7 +108,7 @@ impl TokenContract {
         ensure(self.allowance_is_live(owner, spender), ERC20Error::TooLarge);
         self.adjust(owner, spender, -amount_to_diff(amount));
     }
-    fn clear(&mut self, owner: &ContractAddress, spender: &ContractAddress) {
+    fn delete(&mut self, owner: &ContractAddress, spender: &ContractAddress) {
         self.settings();
         let remaining = amount_to_diff(self.allowance(owner, spender));
         self.allowances
@@ -218,23 +218,22 @@ impl ERC20 for TokenContract {
         AllowanceChangeEvent::new(&owner, spender, difference).log();
     }
 
-    fn set_allowance_expiry(
+    fn reset_allowance(
         &mut self,
         spender: &ContractAddress,
-        until: Option<BlockHeight>,
+        until: BlockHeight,
     ) {
-        self.settings();
-        let owner = get_caller();
-        let mut allowances = self.allowances.at_mut(&owner);
-        let mut allowance = allowances.at_mut(spender);
-        match until {
-            Some(until) => allowance.expiry.set_exclusive(&until),
-            None => allowance.expiry.delete_exclusive(),
-        }
+        // The delete's exclusive lock covers the expiry write.
+        self.delete_allowance(spender);
+        self.allowances
+            .at_mut(&get_caller())
+            .at_mut(spender)
+            .expiry
+            .set(&until);
     }
 
-    fn clear_allowance(&mut self, spender: &ContractAddress) {
-        self.clear(&get_caller(), spender);
+    fn delete_allowance(&mut self, spender: &ContractAddress) {
+        self.delete(&get_caller(), spender);
     }
 
     fn clear_balance(&mut self) {
@@ -424,8 +423,11 @@ impl ERC20Permit for TokenContract {
         AllowanceChangeEvent::new(&owner, &grant.spender, difference).log();
     }
 
-    fn clear_allowance_signed(&mut self, grant: Signed<ClearAllowanceGrant>) {
+    fn delete_allowance_signed(
+        &mut self,
+        grant: Signed<DeleteAllowanceGrant>,
+    ) {
         let (grant, owner) = grant.consume();
-        self.clear(&owner, &grant.spender);
+        self.delete(&owner, &grant.spender);
     }
 }

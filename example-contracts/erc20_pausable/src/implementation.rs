@@ -221,21 +221,21 @@ impl ERC20 for PausableTokenContract {
         AllowanceChangeEvent::new(&owner, spender, difference).log();
     }
 
-    fn set_allowance_expiry(
+    fn reset_allowance(
         &mut self,
         spender: &ContractAddress,
-        until: Option<BlockHeight>,
+        until: BlockHeight,
     ) {
-        let owner = get_caller();
-        let mut allowances = self.allowances.at_mut(&owner);
-        let mut allowance = allowances.at_mut(spender);
-        match until {
-            Some(until) => allowance.expiry.set_exclusive(&until),
-            None => allowance.expiry.delete_exclusive(),
-        }
+        // The delete's exclusive lock covers the expiry write.
+        self.delete_allowance(spender);
+        self.allowances
+            .at_mut(&get_caller())
+            .at_mut(spender)
+            .expiry
+            .set(&until);
     }
 
-    fn clear_allowance(&mut self, spender: &ContractAddress) {
+    fn delete_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
         let remaining = amount_to_diff(self.allowance(&owner, spender));
         self.allowances

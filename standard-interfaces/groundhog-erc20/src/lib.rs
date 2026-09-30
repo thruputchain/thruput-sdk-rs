@@ -76,26 +76,12 @@ pub trait ERC20 {
     ///
     /// Adjustments may merge with concurrent spending and adjustments within
     /// the allowance bounds. To set an absolute allowance, call
-    /// `clear_allowance` first in the same transaction: its exclusive lock
+    /// `delete_allowance` first in the same transaction: its exclusive lock
     /// covers this write too.
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
-    );
-
-    /// Set the last block, inclusive, at which `spender` may spend the
-    /// caller's allowance, or `None` for no expiry. After it, `allowance`
-    /// reads zero and spending throws [`ERC20Error::TooLarge`]; the amount
-    /// stays stored until `clear_allowance`. An allowance without an expiry
-    /// stores none. Emits no event.
-    ///
-    /// The write is exclusive. Transactions elsewhere in the same block may
-    /// still spend under the previous expiry.
-    fn set_allowance_expiry(
-        &mut self,
-        spender: &ContractAddress,
-        until: Option<BlockHeight>,
     );
 
     /// Revoke the caller's allowance for `spender` and delete its storage entry,
@@ -105,7 +91,19 @@ pub trait ERC20 {
     /// [`AllowanceChangeEvent`] with the negative remaining allowance (zero for
     /// a missing entry).
     /// Implementations SHOULD refund the released storage cost to the caller.
-    fn clear_allowance(&mut self, spender: &ContractAddress);
+    fn delete_allowance(&mut self, spender: &ContractAddress);
+
+    /// Set the caller's allowance for `spender` to zero, spendable through
+    /// block `until` inclusive once `adjust_allowance` refills it. After
+    /// `until`, `allowance` reads zero and spending throws
+    /// [`ERC20Error::TooLarge`] until the next delete or reset; adjusting does
+    /// not make it spendable again. Locks and emits like `delete_allowance`,
+    /// so a following `adjust_allowance` sets an absolute, expiring allowance.
+    fn reset_allowance(
+        &mut self,
+        spender: &ContractAddress,
+        until: BlockHeight,
+    );
 
     /// Delete the caller's empty balance entry, leaving supply unchanged.
     /// Throw [`ERC20Error::BalanceNotZero`] for a nonzero balance. Missing

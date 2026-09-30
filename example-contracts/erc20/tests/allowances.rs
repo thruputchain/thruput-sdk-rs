@@ -52,7 +52,7 @@ fn absolute_sets_conflict_with_spending_in_both_orders() {
             let env = setup();
             let adjust = || {
                 call(&env, &OWNER, || {
-                    client().clear_allowance(&SPENDER);
+                    client().delete_allowance(&SPENDER);
                     client().adjust_allowance(&SPENDER, target);
                 })
             };
@@ -89,7 +89,7 @@ fn absolute_sets_conflict_but_independent_spenders_can_commit() {
     let env = setup();
     let set = |spender: ContractAddress, amount| {
         call(&env, &OWNER, move || {
-            client().clear_allowance(&spender);
+            client().delete_allowance(&spender);
             client().adjust_allowance(&spender, amount);
         })
     };
@@ -128,7 +128,8 @@ fn partial_spends_merge_and_failed_spend_leaves_allowance_intact() {
         assert_eq!(client().allowance(&OWNER, &SPENDER), 1000);
     })
     .assert_success();
-    call(&env, &OWNER, || client().clear_allowance(&SPENDER)).assert_success();
+    call(&env, &OWNER, || client().delete_allowance(&SPENDER))
+        .assert_success();
     env.advance_block();
     call(&env, &SPENDER, || {
         assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
@@ -218,7 +219,7 @@ fn clearing_conflicts_with_concurrent_grants_and_spends_in_both_orders() {
         for grant in [false, true] {
             let env = setup();
             let clear =
-                || call(&env, &OWNER, || client().clear_allowance(&SPENDER));
+                || call(&env, &OWNER, || client().delete_allowance(&SPENDER));
             let change = || {
                 if grant {
                     call(&env, &OWNER, || {
@@ -258,7 +259,8 @@ fn clearing_conflicts_with_concurrent_grants_and_spends_in_both_orders() {
 #[test]
 fn temporary_grant_nested_spend_and_clear_commit_atomically() {
     let env = setup();
-    call(&env, &OWNER, || client().clear_allowance(&SPENDER)).assert_success();
+    call(&env, &OWNER, || client().delete_allowance(&SPENDER))
+        .assert_success();
     env.advance_block();
     let entrypoint = sdk::contract::ContractEntrypointID::from_u64(0x1234);
     let mock = env.register_mock(|contract| {
@@ -279,7 +281,7 @@ fn temporary_grant_nested_spend_and_clear_commit_atomically() {
             |error| panic!("spender failed: {error:?}"),
         )
         .unwrap();
-        client().clear_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
         assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
     });
     result.assert_success();
@@ -296,8 +298,8 @@ fn temporary_grant_nested_spend_and_clear_commit_atomically() {
         assert_eq!(client().get_balance(), 93);
         assert_eq!(client().get_balance_of(&OTHER), 7);
         assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
-        client().clear_allowance(&SPENDER);
-        client().clear_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
     })
     .assert_success();
 }
@@ -356,7 +358,7 @@ fn clearing_removes_allowance_and_zero_balance_storage_and_accepts_missing_cells
             .is_some()
     );
     call(&env, &OWNER, || {
-        client().clear_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
         client().clear_balance();
     })
     .assert_success();
@@ -370,7 +372,7 @@ fn clearing_removes_allowance_and_zero_balance_storage_and_accepts_missing_cells
             .is_none()
     );
     call(&env, &OWNER, || {
-        client().clear_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
         client().clear_balance();
         assert_eq!(client().get_balance(), 0);
         assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
@@ -422,7 +424,8 @@ fn clearing_zero_balance_conflicts_with_concurrent_credit_in_both_orders() {
 fn clearing_a_missing_allowance_conflicts_with_a_new_grant_in_both_orders() {
     for clear_first in [false, true] {
         let env = setup();
-        let clear = || call(&env, &OWNER, || client().clear_allowance(&OTHER));
+        let clear =
+            || call(&env, &OWNER, || client().delete_allowance(&OTHER));
         let grant =
             || call(&env, &OWNER, || client().adjust_allowance(&OTHER, 10));
         let (first, second) = if clear_first {
@@ -470,8 +473,8 @@ fn combined_adjustments_reject_overflow_and_overdraft() {
 fn clearing_emits_the_removed_amount_and_allows_regrant_in_one_transaction() {
     let env = setup();
     let result = call(&env, &OWNER, || {
-        client().clear_allowance(&SPENDER);
-        client().clear_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
         client().adjust_allowance(&SPENDER, 12);
         assert_eq!(client().allowance(&OWNER, &SPENDER), 12);
     });
@@ -501,7 +504,7 @@ fn clear_exclusivity_survives_regrant() {
         let env = setup();
         let clear = || {
             call(&env, &OWNER, || {
-                client().clear_allowance(&OTHER);
+                client().delete_allowance(&OTHER);
                 client().adjust_allowance(&OTHER, 50);
             })
         };
@@ -549,9 +552,11 @@ fn current_height(env: &TestEnvironmentHandle) -> i64 {
     *result.assert_return_as::<BlockHeight>()
 }
 
-fn expire_at(env: &TestEnvironmentHandle, until: Option<i64>) {
+/// Replace the allowance with `amount`, spendable through `until`.
+fn grant_until(env: &TestEnvironmentHandle, amount: i128, until: i64) {
     call(env, &OWNER, move || {
-        client().set_allowance_expiry(&SPENDER, until.map(BlockHeight::from))
+        client().reset_allowance(&SPENDER, until.into());
+        client().adjust_allowance(&SPENDER, amount);
     })
     .assert_success();
     env.advance_block();
@@ -574,7 +579,7 @@ fn assert_spend_rejected(env: &TestEnvironmentHandle) {
 fn expiry_is_inclusive_then_reads_zero_and_rejects_spending() {
     let env = setup();
     let height = current_height(&env);
-    expire_at(&env, Some(height + 1));
+    grant_until(&env, 50, height + 1);
     call(&env, &SPENDER, || {
         client().transfer_from(&OWNER, &OTHER, 10);
         assert_eq!(client().allowance(&OWNER, &SPENDER), 40);
@@ -589,30 +594,66 @@ fn expiry_is_inclusive_then_reads_zero_and_rejects_spending() {
 }
 
 #[test]
-fn setting_expiry_emits_nothing_and_removing_it_restores_the_amount() {
+fn reset_zeroes_the_allowance_and_emits_the_removed_amount() {
     let env = setup();
     let height = current_height(&env);
     let result = call(&env, &OWNER, move || {
-        client().set_allowance_expiry(&SPENDER, Some(height.into()))
+        client().reset_allowance(&SPENDER, (height + 10).into());
+        assert_eq!(client().allowance(&OWNER, &SPENDER), 0);
     });
     result.assert_success();
-    result.assert_no_events();
+    result.assert_event_count(1);
+    result.assert_raw_event(0, |raw| {
+        let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+            EmittedEvent::from(raw.raw()),
+        )
+        .unwrap();
+        assert_eq!(event.difference, -50);
+    });
     env.advance_block();
     assert_spend_rejected(&env);
-    expire_at(&env, None);
-    call(&env, &SPENDER, || {
-        assert_eq!(client().allowance(&OWNER, &SPENDER), 50);
-        client().transfer_from(&OWNER, &OTHER, 10);
-    })
-    .assert_success();
 }
 
 #[test]
-fn adjusting_an_expired_allowance_does_not_revive_it_but_clearing_does() {
+fn reset_conflicts_with_spending_in_both_orders() {
+    for reset_first in [false, true] {
+        let env = setup();
+        let height = current_height(&env);
+        let reset = || {
+            call(&env, &OWNER, move || {
+                client().reset_allowance(&SPENDER, (height + 10).into());
+                client().adjust_allowance(&SPENDER, 5);
+            })
+        };
+        let spend = || {
+            call(&env, &SPENDER, || {
+                client().transfer_from(&OWNER, &OTHER, 10)
+            })
+        };
+        let (first, second) = if reset_first {
+            (reset(), spend())
+        } else {
+            (spend(), reset())
+        };
+        first.assert_success();
+        second.assert_commit_failed_nondeterministically();
+        env.advance_block();
+        call(&env, &OWNER, || {
+            assert_eq!(
+                client().allowance(&OWNER, &SPENDER),
+                if reset_first { 5 } else { 40 }
+            )
+        })
+        .assert_success();
+    }
+}
+
+#[test]
+fn adjusting_an_expired_allowance_does_not_revive_it_but_deleting_does() {
     let env = setup();
     let expiry_key = storage_key(&env, 2, &OWNER, Some((&SPENDER, 1)));
     let height = current_height(&env);
-    expire_at(&env, Some(height));
+    grant_until(&env, 50, height);
     assert!(env.get_snapshot_storage_item(&TOKEN, &expiry_key).is_some());
     call(&env, &OWNER, || {
         client().adjust_allowance(&SPENDER, 10);
@@ -622,7 +663,7 @@ fn adjusting_an_expired_allowance_does_not_revive_it_but_clearing_does() {
     env.advance_block();
     assert_spend_rejected(&env);
     call(&env, &OWNER, || {
-        client().clear_allowance(&SPENDER);
+        client().delete_allowance(&SPENDER);
         client().adjust_allowance(&SPENDER, 10);
     })
     .assert_success();

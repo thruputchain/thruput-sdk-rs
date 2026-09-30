@@ -100,8 +100,8 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
         );
     }
     for _ in 0..2 {
-        client.clear_allowance(other);
-        m.clear_allowance(other);
+        client.delete_allowance(other);
+        m.delete_allowance(other);
         m.check_allowances(&client);
     }
 

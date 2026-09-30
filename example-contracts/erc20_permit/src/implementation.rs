@@ -5,7 +5,7 @@ use groundhog_erc20_if::{
     TransferEvent, amount_to_diff,
 };
 use groundhog_erc20_permit_if::{
-    ClearAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
+    DeleteAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
 };
 use sdk::block::get_block_height;
 use sdk::signer::Signed;
@@ -79,7 +79,7 @@ impl PermitToken {
             .is_none_or(|until| get_block_height() <= until)
     }
 
-    fn _clear_allowance(
+    fn _delete_allowance(
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
@@ -144,22 +144,22 @@ impl ERC20 for PermitToken {
         AllowanceChangeEvent::new(&owner, spender, difference).log();
     }
 
-    fn set_allowance_expiry(
+    fn reset_allowance(
         &mut self,
         spender: &ContractAddress,
-        until: Option<BlockHeight>,
+        until: BlockHeight,
     ) {
-        let owner = get_caller();
-        let mut allowances = self.allowances.at_mut(&owner);
-        let mut allowance = allowances.at_mut(spender);
-        match until {
-            Some(until) => allowance.expiry.set_exclusive(&until),
-            None => allowance.expiry.delete_exclusive(),
-        }
+        // The delete's exclusive lock covers the expiry write.
+        self.delete_allowance(spender);
+        self.allowances
+            .at_mut(&get_caller())
+            .at_mut(spender)
+            .expiry
+            .set(&until);
     }
 
-    fn clear_allowance(&mut self, spender: &ContractAddress) {
-        self._clear_allowance(&get_caller(), spender);
+    fn delete_allowance(&mut self, spender: &ContractAddress) {
+        self._delete_allowance(&get_caller(), spender);
     }
 
     fn clear_balance(&mut self) {
@@ -247,8 +247,11 @@ impl ERC20Permit for PermitToken {
         AllowanceChangeEvent::new(&owner, &grant.spender, difference).log();
     }
 
-    fn clear_allowance_signed(&mut self, grant: Signed<ClearAllowanceGrant>) {
+    fn delete_allowance_signed(
+        &mut self,
+        grant: Signed<DeleteAllowanceGrant>,
+    ) {
         let (grant, owner) = grant.consume();
-        self._clear_allowance(&owner, &grant.spender);
+        self._delete_allowance(&owner, &grant.spender);
     }
 }

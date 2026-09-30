@@ -38,10 +38,10 @@ impl<'a> SEP41View<'a> {
     /// already be expired. Zero revokes the allowance and deletes its storage,
     /// whatever `live_until_ledger` says.
     ///
-    /// The clear locks the allowance for the rest of the transaction, so a
-    /// concurrent spend conflicts with the replacement instead of landing
-    /// beside it. A spend in an earlier block may still consume the old
-    /// allowance first.
+    /// The reset or delete locks the allowance for the rest of the
+    /// transaction, so a concurrent spend conflicts with the replacement
+    /// instead of landing beside it. A spend in an earlier block may still
+    /// consume the old allowance first.
     pub fn approve(
         &self,
         spender: &ContractAddress,
@@ -49,17 +49,18 @@ impl<'a> SEP41View<'a> {
         live_until_ledger: u32,
     ) {
         Self::amount(amount);
+        let token = ERC20Client::new(self.token);
+        if amount == 0 {
+            token.delete_allowance(spender);
+            return;
+        }
         let until = BlockHeight::from(i64::from(live_until_ledger));
         ensure(
-            amount == 0 || get_block_height() <= until,
+            get_block_height() <= until,
             ERC20ControlsError::InvalidExpiration,
         );
-        let token = ERC20Client::new(self.token);
-        token.clear_allowance(spender);
-        if amount != 0 {
-            token.adjust_allowance(spender, amount);
-            token.set_allowance_expiry(spender, Some(until));
-        }
+        token.reset_allowance(spender, until);
+        token.adjust_allowance(spender, amount);
     }
 
     pub fn balance(&self, id: &ContractAddress) -> i128 {

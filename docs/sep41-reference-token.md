@@ -11,21 +11,21 @@ No token implements a SEP-41 interface. `SEP41View` in
 implementing `ERC20`, `ERC20Burn` and `ERC20Metadata`. It runs in the holder's
 contract, so SEP-41's explicit authorizers are the Groundhog caller.
 
-`approve` clears the allowance, re-grants the amount and sets its expiry in
-one transaction. The clear's exclusive lock covers the re-grant, so a
-concurrent spend conflicts instead of landing beside it. Zero approval only
-clears. Expiry is inclusive and measured in Groundhog blocks, not Stellar
-ledgers.
+`approve` is `reset_allowance` with the expiry, then `adjust_allowance` with
+the amount, in one transaction. The reset's exclusive lock covers the
+re-grant, so a concurrent spend conflicts instead of landing beside it. Zero
+approval is `delete_allowance`. Expiry is inclusive and measured in Groundhog
+blocks, not Stellar ledgers.
 
 ## Semantic differences
 
 - Native allowances are signed deltas rather than absolute approvals. Deltas
-  and spending can merge. An absolute set is `clear_allowance` followed by
-  `adjust_allowance`; the clear keeps its lock through the re-grant.
-- An allowance may carry an inclusive block expiry, set separately with
-  `set_allowance_expiry`. Setting it emits no event. An expired allowance
-  reads zero but keeps its amount until cleared, and adjusting it does not
-  make it spendable again.
+  and spending can merge. An absolute set is `delete_allowance` followed by
+  `adjust_allowance`; the delete keeps its lock through the re-grant.
+- `reset_allowance` zeroes an allowance and gives it an inclusive block
+  expiry; `delete_allowance` removes both. An expired allowance reads zero
+  and adjusting it does not make it spendable again until the next reset or
+  delete.
 - Expiring a signed allowance increase does not expire the allowance it
   creates. Bounded signed transfers consume the whole grant even when
   spending less than its amount.
@@ -47,8 +47,8 @@ both a canonical burn and contextual clawback event; count one supply change.
 Bridge destinations, deadlines and replay protection need their own signed
 operation and records. See the [bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
 
-The clear methods delete storage but do not yet route released collateral to
-the caller ([GH-431](https://linear.app/grndhg/issue/GH-431)). Tests disable
+The delete methods and `clear_balance` free storage but do not yet route
+released collateral to the caller ([GH-431](https://linear.app/grndhg/issue/GH-431)). Tests disable
 resource charges. Native HOG and RPC/CLI adoption are separate follow-ups in
 [GH-414](https://linear.app/grndhg/issue/GH-414); the native-HOG conformance test
 remains disabled until its entrypoints match.

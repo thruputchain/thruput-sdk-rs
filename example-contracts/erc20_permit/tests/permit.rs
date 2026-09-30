@@ -19,7 +19,7 @@
 
 use ed25519_dalek::{Signer, SigningKey};
 use erc20_permit::{
-    ClearAllowanceGrant, ClearAllowanceRequest, ERC20Client, ERC20Error,
+    DeleteAllowanceGrant, DeleteAllowanceRequest, ERC20Client, ERC20Error,
     ERC20PermitClient, ERC20PermitError, PermitGrant, PermitRequest,
 };
 use groundhog_domain_separator::SignedOp as SignedOpPreimage;
@@ -164,7 +164,7 @@ fn standard_request() -> WalletRequest {
 
 /// Alice's request to revoke `spender()`'s allowance on `token_address()`.
 fn clear_request() -> WalletRequest {
-    WalletRequest::ClearAllowance(ClearAllowanceRequest {
+    WalletRequest::DeleteAllowance(DeleteAllowanceRequest {
         token: token_address(),
         spender: spender(),
     })
@@ -683,7 +683,7 @@ fn increase_allowance_signed_adds_to_the_existing_allowance() {
 }
 
 #[test]
-fn clear_allowance_signed_revokes_a_standing_allowance() {
+fn delete_allowance_signed_revokes_a_standing_allowance() {
     let env = setup();
     submit_signed(&env, 0, standard_request(), |op, signature| {
         let grant = mint_grant::<PermitGrant>(op, &signature);
@@ -695,8 +695,9 @@ fn clear_allowance_signed_revokes_a_standing_allowance() {
     assert_eq!(allowance(&env), GRANTED);
 
     submit_signed(&env, 1, clear_request(), |op, signature| {
-        let grant = mint_grant::<ClearAllowanceGrant>(op, &signature);
-        ERC20PermitClient::new(&token_address()).clear_allowance_signed(grant);
+        let grant = mint_grant::<DeleteAllowanceGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address())
+            .delete_allowance_signed(grant);
     })
     .assert_success();
     env.advance_block();
@@ -727,8 +728,9 @@ fn clear_allowance_signed_revokes_a_standing_allowance() {
 fn a_grant_cannot_be_redeemed_for_a_different_operation() {
     let env = setup();
     submit_signed(&env, 0, standard_request(), |op, signature| {
-        let grant = mint_grant::<ClearAllowanceGrant>(op, &signature);
-        ERC20PermitClient::new(&token_address()).clear_allowance_signed(grant);
+        let grant = mint_grant::<DeleteAllowanceGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address())
+            .delete_allowance_signed(grant);
     })
     .assert_abort();
     env.advance_block();
@@ -764,8 +766,9 @@ fn a_clear_conflicts_with_an_increase_in_the_same_block() {
     env.advance_block();
 
     submit_signed(&env, 1, clear_request(), |op, signature| {
-        let grant = mint_grant::<ClearAllowanceGrant>(op, &signature);
-        ERC20PermitClient::new(&token_address()).clear_allowance_signed(grant);
+        let grant = mint_grant::<DeleteAllowanceGrant>(op, &signature);
+        ERC20PermitClient::new(&token_address())
+            .delete_allowance_signed(grant);
     })
     .assert_success();
     submit_signed(&env, 2, standard_request(), |op, signature| {

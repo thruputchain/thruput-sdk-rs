@@ -150,22 +150,18 @@ impl ERC20 for Token {
         AllowanceChangeEvent::new(&owner, spender, difference).log();
     }
 
-    fn set_allowance_expiry(
+    fn reset_allowance(
         &mut self,
         spender: &ContractAddress,
-        until: Option<BlockHeight>,
+        until: BlockHeight,
     ) {
+        // The delete's exclusive lock covers the expiry write.
+        self.delete_allowance(spender);
         let key = get_allowance_expiry_key(&get_caller(), spender);
-        match until {
-            Some(until) => bytestring_set_exclusive(
-                &key,
-                &until.into_inner().to_be_bytes(),
-            ),
-            None => delete_exclusive(&key),
-        }
+        bytestring_set(&key, &until.into_inner().to_be_bytes());
     }
 
-    fn clear_allowance(&mut self, spender: &ContractAddress) {
+    fn delete_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
         let remaining = amount_to_diff(self.allowance(&owner, spender));
         delete_exclusive(&get_allowance_key(&owner, spender));
