@@ -324,6 +324,21 @@ pub fn check_entrypoint_collisions(
     Ok(())
 }
 
+/// The decoded arguments as the method call passes them. An owned parameter
+/// passes its decoded value. A shared-reference parameter `&T` was decoded
+/// as `<T as RefArg>::Wire` (a view into the calldata buffer, or an owned
+/// value when `T` cannot be borrowed from it), and passes `&T` taken from
+/// that. The wire type is inferred from the parameter type at the call.
+fn method_call_args(sig: &syn::Signature) -> TokenStream {
+    let args = method_args(sig).map(|(ident, ty)| match ty {
+        syn::Type::Reference(reference) if reference.mutability.is_none() => {
+            quote!(::sdk::call::RefArg::get(&#ident))
+        }
+        _ => quote!(#ident),
+    });
+    quote! { #( #args ),* }
+}
+
 // Generate an exported function for:
 // - An impl or impl-trait method with self-parameter
 // - An impl or impl-trait associated function
@@ -396,6 +411,7 @@ pub fn generate_method(
             .unwrap_or(false);
 
     let arg_names = method_arg_name_list(method.sig());
+    let call_args = method_call_args(method.sig());
 
     // Load the stored contract state (when appropriate)
     let load_state = if is_method {
@@ -425,13 +441,13 @@ pub fn generate_method(
     // Trait methods always dispatch through the same resolved trait path.
     let invoke = if let Some((trait_path, self_ty)) = &trait_impl {
         let receiver = is_method.then(|| quote!(__gh_state,));
-        quote!(<#self_ty as #trait_path>::#ident(#receiver #arg_names))
+        quote!(<#self_ty as #trait_path>::#ident(#receiver #call_args))
     } else if is_method {
-        quote!(__gh_state.#ident(#arg_names))
+        quote!(__gh_state.#ident(#call_args))
     } else if let Some(self_ty) = self_ty {
-        quote!(#self_ty::#ident(#arg_names))
+        quote!(#self_ty::#ident(#call_args))
     } else {
-        quote!(#ident(#arg_names))
+        quote!(#ident(#call_args))
     };
 
     let log_guest_call = if cfg!(feature = "logging") {
@@ -872,6 +888,30 @@ mod tests {
         assert!(!generated.contains(".text.gh_"));
         assert!(!generated.contains("distributed_slice"));
         assert!(!generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
+    }
+
+    #[test]
+    fn shared_reference_params_are_passed_through_ref_arg() {
+        // `&T` parameters decode as `<T as RefArg>::Wire` and are passed as
+        // `RefArg::get(&wire)`, so a type the calldata cannot be borrowed
+        // for (a length-prefixed vector) decodes into a local. Owned and
+        // `&mut` parameters keep the direct decoded value.
+        let sig: syn::Signature = syn::parse_quote! {
+            fn f(a: u32, b: &Ids, c: &mut Other, d: &[u8])
+        };
+
+        let args = method_call_args(&sig).to_string();
+
+        assert_eq!(
+            args,
+            quote! {
+                a,
+                ::sdk::call::RefArg::get(&b),
+                c,
+                ::sdk::call::RefArg::get(&d)
+            }
+            .to_string()
+        );
     }
 
     #[test]
