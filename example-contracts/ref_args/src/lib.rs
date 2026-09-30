@@ -48,3 +48,6 @@ impl RefArgsContract {
         tag + u32::from(owner.as_ref()[0]) + lens as u32
     }
 }
+
+#[cfg(feature = "bottle-test")]
+mod bottle_test;
