@@ -83,7 +83,7 @@ impl PermitToken {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20 for PermitToken {
     fn initialize(&mut self, administrator: &ContractAddress) {
         if self.administrator.try_get().none_if_missing().is_some() {
@@ -197,7 +197,7 @@ impl ERC20 for PermitToken {
 // from the runtime, so it is the one fact about a grant the submitter cannot
 // choose; the grant's payload says the rest. Reaching this contract at all
 // already proves the grant was minted for it.
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20Permit for PermitToken {
     fn transfer_from_signed(
         &mut self,

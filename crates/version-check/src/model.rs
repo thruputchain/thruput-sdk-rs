@@ -106,7 +106,7 @@ pub struct Manifest {
     pub edges: Vec<Edge>,
 }
 
-/// An in-repo package, keyed by its declared name.
+/// One in-repo package release.
 #[derive(Debug)]
 pub struct Local {
     pub name: String,
@@ -127,9 +127,10 @@ pub struct Repo {
     pub root: PathBuf,
     pub manifests: Vec<Manifest>,
     pub lockfiles: Vec<Lockfile>,
-    /// In-repo packages by name. A package with an unresolvable version is
-    /// omitted here and reported by [`crate::checks`] instead.
-    pub locals: BTreeMap<String, Local>,
+    /// In-repo packages by name, retaining multiple local releases. A package
+    /// with an unresolvable version is omitted here and reported by
+    /// [`crate::checks`] instead.
+    pub locals: BTreeMap<String, Vec<Local>>,
     /// True when lockfiles were deliberately not read, so an empty `lockfiles`
     /// is a choice rather than a finding.
     pub lockfiles_ignored: bool,
@@ -177,20 +178,17 @@ impl Repo {
         }
         resolve_inherited_versions(&mut manifests);
 
-        let mut locals = BTreeMap::new();
+        let mut locals: BTreeMap<String, Vec<Local>> = BTreeMap::new();
         for m in &manifests {
             if let Some(pkg) = &m.package
                 && let Some(v) = &pkg.version
             {
-                locals.insert(
-                    pkg.name.clone(),
-                    Local {
-                        name: pkg.name.clone(),
-                        version: v.clone(),
-                        manifest: m.rel.clone(),
-                        dir: m.dir.clone(),
-                    },
-                );
+                locals.entry(pkg.name.clone()).or_default().push(Local {
+                    name: pkg.name.clone(),
+                    version: v.clone(),
+                    manifest: m.rel.clone(),
+                    dir: m.dir.clone(),
+                });
             }
         }
 
@@ -214,6 +212,24 @@ impl Repo {
 
     pub fn manifest(&self, rel: &str) -> Option<&Manifest> {
         self.manifests.iter().find(|m| m.rel == rel)
+    }
+
+    /// Resolve a local dependency by its declared path. Name-only lookup is
+    /// unambiguous only when the repository contains one matching package.
+    pub fn local_for_edge(&self, edge: &Edge) -> Option<&Local> {
+        let locals = self.locals.get(&edge.name)?;
+        if let Some(path) = &edge.path {
+            let source = self.manifest(&edge.manifest)?;
+            let target = fs::canonicalize(source.dir.join(path)).ok()?;
+            locals.iter().find(|local| {
+                fs::canonicalize(&local.dir).is_ok_and(|dir| dir == target)
+            })
+        } else {
+            match locals.as_slice() {
+                [local] => Some(local),
+                _ => None,
+            }
+        }
     }
 
     /// Nearest ancestor workspace root for `rel` (excluding `rel` itself).

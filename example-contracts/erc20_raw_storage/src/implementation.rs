@@ -66,7 +66,7 @@ fn add_to_allowance(
 #[storage]
 pub struct Token;
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl ERC20 for Token {
     fn initialize(&mut self, contract_owner: &ContractAddress) {
         let key = get_owner_key();

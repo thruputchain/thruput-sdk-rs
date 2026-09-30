@@ -37,7 +37,7 @@ const ASYMMETRIC: i128 = -0x0DEA_DBEE_F001_1223_3445_5667_7889_9AAB;
 /// truncation in the guest-side encode shows up rather than cancelling.
 const UNSIGNED: u128 = 0xDEAD_BEEF_0011_2233_4455_6677_8899_AABB;
 
-#[contract(exports = "bottle_exports", version = "0.1.0")]
+#[contract(exports = "bottle_exports")]
 impl BottleTest for BT {
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         let nonce: SHA256Hash = [7; 32].into();

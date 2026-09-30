@@ -98,11 +98,23 @@ fn check_list(repo: &Repo, list: &PackageList, out: &mut Vec<Violation>) {
 
     for (at, (name, line)) in list.entries.iter().enumerate() {
         let where_ = format!("{WORKFLOW}:{line}");
-        let Some(local) = repo.locals.get(name) else {
+        let Some(locals) = repo.locals.get(name) else {
             out.push(violation(
                 where_,
                 format!(
                     "`{name}` in `{}` is not an in-repo package",
+                    list.key
+                ),
+                Vec::new(),
+            ));
+            continue;
+        };
+        let [local] = locals.as_slice() else {
+            out.push(violation(
+                where_,
+                format!(
+                    "`{name}` in `{}` matches multiple local packages; \
+                     publish lists require a unique package name",
                     list.key
                 ),
                 Vec::new(),

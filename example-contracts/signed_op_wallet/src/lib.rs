@@ -67,7 +67,7 @@ impl SignedOpWallet {
     }
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl SignedOp for SignedOpWallet {
     fn execute_signed_op(
         &mut self,

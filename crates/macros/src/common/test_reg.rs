@@ -103,17 +103,8 @@ pub fn generate_free_function_registry_fragment(
         )
     };
 
-    let iface_name = contract.interface_name();
-    let iface_name = iface_name.as_deref();
-    let iface_vers = contract.defaulted_interface_vers();
-
-    let registration = generate_method_qualified(
-        &contract,
-        iface_name,
-        &iface_vers,
-        item,
-        &exports_mod_ident,
-    )?;
+    let registration =
+        generate_method_qualified(&contract, item, &exports_mod_ident)?;
 
     Ok(quote! {
         const _: () = {
@@ -145,15 +136,9 @@ fn build_registrations(
         config.internal_exports_mod_ident(&effective_interface_name);
     let mut registrations = TokenStream::new();
 
-    let iface_name = contract.interface_name();
-    let iface_name = iface_name.as_deref();
-    let iface_vers = contract.defaulted_interface_vers();
-
     for method in contract.methods_sorted() {
         registrations.extend(generate_method_qualified(
             &contract,
-            iface_name,
-            &iface_vers,
             &method,
             &exports_mod_ident,
         )?);
@@ -165,16 +150,15 @@ fn build_registrations(
 /// Generate a registration call with module-qualified names (for trait impl form).
 fn generate_method_qualified(
     src: &impl ContractSrc,
-    iface_name: Option<&str>,
-    iface_vers: &str,
     method: &impl Method,
     exports_mod: &syn::Ident,
 ) -> Result<TokenStream> {
     let sig = method.sig();
     let ident = &sig.ident;
     let internal_name = src.make_internal_name(ident);
-    let entrypoint_id = contract_entrypoint_id(iface_name, iface_vers, sig);
-    let entrypoint = entrypoint_literal(entrypoint_id);
+    let id = method_id_tokens(src, sig);
+    let entrypoint =
+        quote!(::sdk::contract::ContractEntrypointID::from_u64(#id));
 
     Ok(quote! {
         contract.register_method(#entrypoint, #exports_mod::#internal_name);

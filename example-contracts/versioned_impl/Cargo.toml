@@ -1,0 +1,30 @@
+[package]
+name = "versioned_impl"
+description = "One contract implementing two versions of the same imported interface crate"
+version = "0.2.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "adder_v1/dev", "adder_v2/dev"]
+bottle-test = ["dep:bottle-test-if"]
+
+[lib]
+doctest = false
+test = false
+
+[[bin]]
+name = "versioned_impl"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk = { workspace = true }
+adder_v1 = { package = "versioned_interface", version = "=0.1.0", path = "../versioned_interface" }
+adder_v2 = { package = "versioned_interface", version = "=0.2.0", path = "../versioned_interface_v2" }
+bottle-test-if = { workspace = true, optional = true }
+
+[dev-dependencies]
+versioned_impl = { path = ".", features = ["dev"] }

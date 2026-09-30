@@ -185,3 +185,19 @@ fn a_missing_workflow_beside_its_directory_is_reported() {
     assert_eq!(found.len(), 1, "{found:#?}");
     assert!(found[0].contains("unreadable"), "{found:#?}");
 }
+
+#[test]
+fn a_publish_list_rejects_an_ambiguous_package_name() {
+    let dir = tempfile::tempdir().unwrap();
+    fixture(dir.path(), &["leaf", "mid", "top"]);
+    write(
+        dir.path(),
+        "another-leaf/Cargo.toml",
+        "[package]\nname = \"leaf\"\nversion = \"0.1.0\"\n",
+    );
+    assert!(
+        violations(dir.path())
+            .iter()
+            .any(|v| v.contains("matches multiple local packages"))
+    );
+}

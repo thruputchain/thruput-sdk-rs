@@ -77,12 +77,7 @@ macro_rules! impl_erc165 {
         #[doc(hidden)]
         pub struct __GroundhogErc165;
 
-        // The version pins this impl to the interface crate's major line
-        // (like every impl of a standard interface), not to the invoking
-        // crate's version. Bump it with the crate's major version; the
-        // interface-version mismatch diagnostic catches a stale value at
-        // the first call site.
-        #[::sdk::contract(version = "0.1.0")]
+        #[::sdk::contract]
         impl $crate::ERC165 for __GroundhogErc165 {
             fn supports_interface(interface_id: $crate::InterfaceId) -> bool {
                 $crate::implements!(interface_id)
