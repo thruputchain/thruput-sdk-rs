@@ -17,19 +17,26 @@
 
 use crate::interface::*;
 use groundhog_access_control::AccessControlState;
-use sdk::storage::{Balance, Deletable, Map, Value};
+use sdk::block::get_block_height;
+use sdk::storage::{Balance, Deletable, Map, NNInt, Node, Value};
 use sdk::*;
 
-type Allowance = sdk::storage::NNInt;
-
 hash_ident! { pub static PAUSER_ROLE: SHA256Hash; }
+
+#[sdk::storage]
+#[derive(sdk::Deletable)]
+#[cfg_attr(feature = "dev", derive(Debug))]
+pub struct Allowance {
+    amount: NNInt,
+    expiry: Value<BlockHeight>,
+}
 
 #[sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct PausableTokenContract {
     config: Value<Config>,
     balances: Map<ContractAddress, Balance>,
-    allowances: Map<ContractAddress, Map<ContractAddress, Allowance>>,
+    allowances: Map<ContractAddress, Map<ContractAddress, Node<Allowance>>>,
     total_supply: Balance,
     paused: Value<bool>,
     access: AccessControlState,
@@ -97,29 +104,52 @@ impl PausableTokenContract {
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
+    fn _allowance_is_live(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> bool {
+        self.allowances
+            .at(owner)
+            .at(spender)
+            .expiry
+            .try_get()
+            .none_if_missing()
+            .is_none_or(|until| get_block_height() <= until)
+    }
+
     fn _allowance(
         &self,
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
+        if !self._allowance_is_live(owner, spender) {
+            return 0;
+        }
         self.allowances
             .at(owner)
             .at(spender)
+            .amount
             .try_get()
             .none_if_missing()
             .unwrap_or(0) as Amount
     }
 
-    // Adjust allowance for owner and spender, from zero if empty.
+    // Spend from a live allowance for owner and spender.
     fn _spend_allowance(
         &mut self,
         owner: &ContractAddress,
         spender: &ContractAddress,
         diff: Difference,
     ) {
-        let mut owner_allowances = self.allowances.at_mut(owner);
-        let mut allowance = owner_allowances.at_mut(spender);
-        allowance
+        ensure(
+            self._allowance_is_live(owner, spender),
+            ERC20Error::TooLarge,
+        );
+        self.allowances
+            .at_mut(owner)
+            .at_mut(spender)
+            .amount
             .try_strict_inc(diff)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
@@ -127,12 +157,6 @@ impl PausableTokenContract {
     fn _increase_total_supply(&mut self, amount: Amount) {
         self.total_supply
             .try_increase(amount)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-    }
-
-    fn _decrease_total_supply(&mut self, amount: Amount) {
-        self.total_supply
-            .try_decrease(amount)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
@@ -186,19 +210,29 @@ impl ERC20 for PausableTokenContract {
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
-        exclusive: bool,
     ) {
         let owner = get_caller();
-        let mut allowances = self.allowances.at_mut(&owner);
-        let mut allowance = if exclusive {
-            allowances.at_mut_exclusive(spender)
-        } else {
-            allowances.at_mut(spender)
-        };
-        allowance
+        self.allowances
+            .at_mut(&owner)
+            .at_mut(spender)
+            .amount
             .try_strict_inc(difference)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         AllowanceChangeEvent::new(&owner, spender, difference).log();
+    }
+
+    fn set_allowance_expiry(
+        &mut self,
+        spender: &ContractAddress,
+        until: Option<BlockHeight>,
+    ) {
+        let owner = get_caller();
+        let mut allowances = self.allowances.at_mut(&owner);
+        let mut allowance = allowances.at_mut(spender);
+        match until {
+            Some(until) => allowance.expiry.set_exclusive(&until),
+            None => allowance.expiry.delete_exclusive(),
+        }
     }
 
     fn clear_allowance(&mut self, spender: &ContractAddress) {
@@ -249,20 +283,6 @@ impl ERC20 for PausableTokenContract {
         self._lazy_increase_balance(receiver, amount);
 
         MintEvent::new(receiver, amount_to_diff(amount)).log();
-    }
-
-    fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
-        self._require_not_paused();
-        let caller = get_caller();
-        ensure(
-            caller == self._administrator(),
-            ERC20Error::MustBeContractOwner,
-        );
-
-        self._decrease_balance(owner, amount);
-        self._decrease_total_supply(amount);
-
-        BurnEvent::new(owner, amount_to_diff(amount)).log();
     }
 
     fn total_supply(&self) -> Amount {

@@ -3,16 +3,19 @@
 
 //! Optional controls for the standard Groundhog ERC20 interface.
 //! These extensions support Stellar issuer policy without introducing a second
-//! transfer or allowance interface. Authorization follows Groundhog's caller
+//! transfer or allowance interface; [`SEP41View`] layers SEP-41 on top as client
+//! code. Authorization follows Groundhog's caller
 //! model, not Soroban's authorization tree.
 
 mod error;
 mod events;
+mod sep41;
 pub use error::*;
 pub use events::*;
 use groundhog_erc20_if::{Amount, ERC20Error};
 pub use groundhog_erc20_metadata_if::{Name, Symbol};
 use sdk::{ContractAddress, contract, contract_type};
+pub use sep41::SEP41View;
 
 /// Policy fixed at initialization. `clawback_enabled` requires
 /// `auth_revocable`. SAC trustline history and cross-chain policy
@@ -58,9 +61,9 @@ pub trait ERC20Authorization {
     fn set_authorized(&mut self, id: &ContractAddress, authorize: bool);
 }
 
-/// Optional forced destruction. Both this operation and ERC20's administrator
-/// `burn` must honor the same immutable clawback policy. Frozen balances may
-/// be clawed back. Emit one BurnEvent and one contextual ClawbackEvent.
+/// Optional forced destruction, the only way to destroy tokens without the
+/// holder's consent. Honors the immutable clawback policy. Frozen balances
+/// may be clawed back. Emit one BurnEvent and one contextual ClawbackEvent.
 #[contract(client = ERC20ClawbackClient, throws(ERC20ControlsError, ERC20Error), emits(BurnEvent, ClawbackEvent))]
 pub trait ERC20Clawback {
     fn clawback(&mut self, from: &ContractAddress, amount: Amount);

@@ -53,11 +53,11 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// hogd's `precompile_native_token.cc`):
 ///
 /// - `initialize` always faults: the genesis root plays the reference's
-///   stored contract owner, so there is nothing to initialize. `mint` and
-///   `burn` follow the reference's owner check, with the genesis root as
+///   stored contract owner, so there is nothing to initialize. `mint`
+///   follows the reference's owner check, with the genesis root as
 ///   the owner: any other caller gets the reference's
 ///   [`groundhog_erc20_if::ERC20Error::MustBeContractOwner`] rejection.
-/// - `total_supply` tracks mints and burns; nothing is pre-minted in the
+/// - `total_supply` tracks mints; nothing is pre-minted in the
 ///   test environment, so the supply is exactly what this test mints.
 ///
 /// An overdraft `transfer` used to be a third divergence: the balance check
@@ -92,7 +92,7 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     env.advance_block();
 
     // Run the standard ERC20 test subset that applies to a pre-funded token
-    // without mint/burn, and check the emitted events against the model.
+    // without mint, and check the emitted events against the model.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let model = erc20_funded_test(token, BALANCE, TOTAL_SUPPLY);
@@ -109,7 +109,7 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     // allowance throws TooLarge, and a sufficient one is debited.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
-            ERC20Client::new(token).adjust_allowance(&SPENDER, 5, false);
+            ERC20Client::new(token).adjust_allowance(&SPENDER, 5);
         })
     });
     result.assert_success();
@@ -147,17 +147,13 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     });
     result.assert_fault();
 
-    // mint/burn follow the reference's owner check with the genesis root as
-    // the owner: any other caller gets the typed rejection.
+    // mint follows the reference's owner check with the genesis root as the
+    // owner: any other caller gets the typed rejection.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let client = ERC20Client::new(token);
             assert_eq!(
                 client.try_mint(&caller, 1).unwrap_err().try_as(),
-                Some(ERC20Error::MustBeContractOwner),
-            );
-            assert_eq!(
-                client.try_burn(&caller, 1).unwrap_err().try_as(),
                 Some(ERC20Error::MustBeContractOwner),
             );
         })

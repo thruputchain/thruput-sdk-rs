@@ -83,7 +83,7 @@ fn mint(env: &TestEnvironmentHandle, amount: Amount) {
 }
 fn adjust(env: &TestEnvironmentHandle, difference: i128) {
     call(env, &ALICE, || {
-        token().adjust_allowance(&SPENDER, difference, false)
+        token().adjust_allowance(&SPENDER, difference)
     })
     .assert_success();
     env.advance_block();
@@ -202,9 +202,7 @@ fn invalid_policy_and_uninitialized_calls_leave_no_state() {
 fn adjustment_partial_spends_clear_and_standard_events() {
     let env = setup();
     mint(&env, 100);
-    let r = call(&env, &ALICE, || {
-        token().adjust_allowance(&SPENDER, 60, false)
-    });
+    let r = call(&env, &ALICE, || token().adjust_allowance(&SPENDER, 60));
     r.assert_success();
     r.assert_event_count(1);
     r.assert_raw_event(0, |e| {
@@ -303,7 +301,7 @@ fn required_authorization_checks_both_holders_and_rolls_back_allowance() {
 }
 
 #[test]
-fn disabled_clawback_cannot_be_bypassed_by_erc20_burn() {
+fn disabled_clawback_blocks_forced_destruction() {
     let env = setup_with(Policy {
         auth_required: false,
         auth_revocable: false,
@@ -313,7 +311,6 @@ fn disabled_clawback_cannot_be_bypassed_by_erc20_burn() {
     for r in [
         call(&env, &ADMIN, || auth().set_authorized(&ALICE, false)),
         call(&env, &ADMIN, || clawback().clawback(&ALICE, 1)),
-        call(&env, &ADMIN, || token().burn(&ALICE, 1)),
     ] {
         error(r, ERC20ControlsError::OperationDisabled);
     }
@@ -330,7 +327,7 @@ fn roles_are_separate_and_rotation_takes_effect_next_block() {
         ERC20Error::MustBeContractOwner,
     );
     erc_error(
-        call(&env, &MINTER, || token().burn(&ALICE, 0)),
+        call(&env, &MINTER, || clawback().clawback(&ALICE, 0)),
         ERC20Error::MustBeContractOwner,
     );
     for r in [
@@ -371,9 +368,7 @@ fn range_supply_and_caught_failure_preserve_balances_and_allowance() {
     );
     adjust(&env, i128::MAX);
     erc_error(
-        call(&env, &ALICE, || {
-            token().adjust_allowance(&SPENDER, 1, false)
-        }),
+        call(&env, &ALICE, || token().adjust_allowance(&SPENDER, 1)),
         ERC20Error::TooLarge,
     );
     call(&env, &SPENDER, || {
@@ -400,18 +395,18 @@ fn range_supply_and_caught_failure_preserve_balances_and_allowance() {
 }
 
 #[test]
-fn exclusive_adjustment_or_clearing_conflicts_with_same_block_spending() {
+fn absolute_set_or_clearing_conflicts_with_same_block_spending() {
     for difference in [None, Some(-10), Some(0), Some(10)] {
         for adjustment_first in [false, true] {
             let env = setup();
             mint(&env, 100);
             adjust(&env, 50);
             let grant = || {
-                call(&env, &ALICE, || match difference {
-                    Some(difference) => {
-                        token().adjust_allowance(&SPENDER, difference, true)
+                call(&env, &ALICE, || {
+                    token().clear_allowance(&SPENDER);
+                    if let Some(difference) = difference {
+                        token().adjust_allowance(&SPENDER, 50 + difference);
                     }
-                    None => token().clear_allowance(&SPENDER),
                 })
             };
             let spend = || {
@@ -461,20 +456,18 @@ fn supply_and_holder_limits_apply_to_combined_transactions() {
 }
 
 #[test]
-fn independent_pairs_and_conflicting_exclusive_adjustments() {
+fn independent_pairs_and_conflicting_absolute_sets() {
     let env = setup();
-    call(&env, &ALICE, || {
-        token().adjust_allowance(&SPENDER, 10, true)
-    })
-    .assert_success();
-    call(&env, &ALICE, || token().adjust_allowance(&OTHER, 10, true))
-        .assert_success();
-    call(&env, &BOB, || token().adjust_allowance(&SPENDER, 10, true))
-        .assert_success();
-    call(&env, &ALICE, || {
-        token().adjust_allowance(&SPENDER, 10, true)
-    })
-    .assert_commit_failed_nondeterministically();
+    let set = |owner: ContractAddress, spender: ContractAddress| {
+        call(&env, &owner, move || {
+            token().clear_allowance(&spender);
+            token().adjust_allowance(&spender, 10);
+        })
+    };
+    set(ALICE, SPENDER).assert_success();
+    set(ALICE, OTHER).assert_success();
+    set(BOB, SPENDER).assert_success();
+    set(ALICE, SPENDER).assert_commit_failed_nondeterministically();
 }
 
 #[test]
@@ -549,7 +542,7 @@ fn export_cli_event_fixture() {
         ("mint", &MINTER, || token().mint(&ALICE, 100)),
         ("transfer", &ALICE, || token().transfer(&BOB, 25)),
         ("adjust_allowance", &ALICE, || {
-            token().adjust_allowance(&SPENDER, 30, false)
+            token().adjust_allowance(&SPENDER, 30)
         }),
         ("burn", &ALICE, || burn().burn(5)),
         ("clawback", &ADMIN, || clawback().clawback(&ALICE, 7)),

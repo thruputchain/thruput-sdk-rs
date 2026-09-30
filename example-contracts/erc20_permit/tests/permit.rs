@@ -802,11 +802,8 @@ fn signed_transfer_preserves_an_existing_allowance() {
     let env = setup();
     env.transact(|tx| {
         tx.call(&wallet_address()).run(|| {
-            ERC20Client::new(&token_address()).adjust_allowance(
-                &spender(),
-                100,
-                false,
-            );
+            ERC20Client::new(&token_address())
+                .adjust_allowance(&spender(), 100);
         })
     })
     .assert_success();

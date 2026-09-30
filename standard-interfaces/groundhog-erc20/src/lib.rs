@@ -7,7 +7,7 @@ pub use error::*;
 mod events;
 pub use events::*;
 
-use sdk::{ContractAddress, contract};
+use sdk::{BlockHeight, ContractAddress, contract};
 
 pub type Amount = u128;
 pub type Difference = i128;
@@ -31,22 +31,22 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 /// `ERC20Pausable` and `ERC20Authorization`. Clients expose those through
 /// their unknown-error path.
 ///
-/// The basic reference uses one administrator for mint and burn. Issuer
-/// extensions may delegate mint authority and restrict administrator burns:
-/// possession of the role does not bypass the token's policy.
+/// The basic reference uses one administrator for mint. Issuer extensions may
+/// delegate mint authority. Destruction lives in extensions: holder burns in
+/// `ERC20Burn`, forced destruction in `ERC20Clawback`.
 ///
 /// - [`ERC20Error::AlreadyInitialized`] — `initialize` called twice.
-/// - [`ERC20Error::MustBeContractOwner`] — `mint`/`burn` called by anyone
-///   other than the administrator.
+/// - [`ERC20Error::MustBeContractOwner`] — `mint` called by anyone other than
+///   the administrator.
 /// - [`ERC20Error::TooLarge`] — an operation would drive a balance or
-///   allowance below zero (overdraft), or an `Amount` doesn't fit in
-///   [`Difference`].
+///   allowance below zero (overdraft), spend an expired allowance, or an
+///   `Amount` doesn't fit in [`Difference`].
 /// - [`ERC20Error::BalanceNotZero`] — `clear_balance` called with a nonzero
 ///   balance.
 #[contract(
     client = ERC20Client,
     throws = ERC20Error,
-    emits(TransferEvent, AllowanceChangeEvent, MintEvent, BurnEvent)
+    emits(TransferEvent, AllowanceChangeEvent, MintEvent)
 )]
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
@@ -59,8 +59,8 @@ pub trait ERC20 {
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount);
 
     /// Transfer from `owner` to `receiver` address, using allowance.
-    /// Throws [`ERC20Error::TooLarge`] if the caller's allowance or the
-    /// owner's balance is insufficient.
+    /// Throws [`ERC20Error::TooLarge`] if the caller's allowance is
+    /// insufficient or expired, or the owner's balance is insufficient.
     fn transfer_from(
         &mut self,
         owner: &ContractAddress,
@@ -71,23 +71,39 @@ pub trait ERC20 {
     /// Add `difference` to the caller's allowance for `spender` and emit
     /// [`AllowanceChangeEvent`]. Negative differences reduce the allowance.
     /// A result outside `0..=i128::MAX` throws [`ERC20Error::TooLarge`].
+    /// The expiry is unchanged, so adjusting an expired allowance does not
+    /// make it spendable again.
     ///
-    /// With `exclusive=false`, adjustments may merge with concurrent spending
-    /// and adjustments within the allowance bounds. With `exclusive=true`,
-    /// this transaction conflicts with other writers to the same pair,
-    /// including when `difference` is zero. Later writes in this transaction
-    /// preserve that lock. Different pairs remain independent.
+    /// Adjustments may merge with concurrent spending and adjustments within
+    /// the allowance bounds. To set an absolute allowance, call
+    /// `clear_allowance` first in the same transaction: its exclusive lock
+    /// covers this write too.
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
-        exclusive: bool,
     );
 
-    /// Revoke the caller's allowance for `spender` and delete its storage entry.
-    /// Missing entries are allowed. Deletion conflicts with concurrent writes,
-    /// including grants and spending. Emit [`AllowanceChangeEvent`] with the
-    /// negative remaining allowance (zero for a missing entry).
+    /// Set the last block, inclusive, at which `spender` may spend the
+    /// caller's allowance, or `None` for no expiry. After it, `allowance`
+    /// reads zero and spending throws [`ERC20Error::TooLarge`]; the amount
+    /// stays stored until `clear_allowance`. An allowance without an expiry
+    /// stores none. Emits no event.
+    ///
+    /// The write is exclusive. Transactions elsewhere in the same block may
+    /// still spend under the previous expiry.
+    fn set_allowance_expiry(
+        &mut self,
+        spender: &ContractAddress,
+        until: Option<BlockHeight>,
+    );
+
+    /// Revoke the caller's allowance for `spender` and delete its storage entry,
+    /// including any expiry. Missing entries are allowed. Deletion conflicts
+    /// with concurrent writes, including grants and spending, and the lock
+    /// holds for later writes in this transaction. Emit
+    /// [`AllowanceChangeEvent`] with the negative remaining allowance (zero for
+    /// a missing entry).
     /// Implementations SHOULD refund the released storage cost to the caller.
     fn clear_allowance(&mut self, spender: &ContractAddress);
 
@@ -98,7 +114,7 @@ pub trait ERC20 {
     /// Implementations SHOULD refund the released storage cost to the caller.
     fn clear_balance(&mut self);
 
-    /// Get `spender`'s allowance of `owner`'s tokens
+    /// Get `spender`'s allowance of `owner`'s tokens, or zero once expired
     fn allowance(
         &self,
         owner: &ContractAddress,
@@ -115,12 +131,6 @@ pub trait ERC20 {
     /// Throws [`ERC20Error::MustBeContractOwner`] unless the caller is the
     /// administrator.
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount);
-
-    /// Destroy tokens from `owner` address and emit [`BurnEvent`].
-    /// Throws [`ERC20Error::MustBeContractOwner`] unless the caller is the
-    /// administrator, and [`ERC20Error::TooLarge`] if `owner`'s balance is
-    /// less than `amount`.
-    fn burn(&mut self, owner: &ContractAddress, amount: Amount);
 
     /// Get total supply of outstanding tokens
     fn total_supply(&self) -> Amount;

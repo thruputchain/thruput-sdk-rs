@@ -4,14 +4,33 @@
 controls. [SEP-0041](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
 informs the issuer behavior; this is not the Soroban ABI.
 
+## SEP-41 as client code
+
+No token implements a SEP-41 interface. `SEP41View` in
+`groundhog-erc20-controls-if` provides SEP-41's operations over any token
+implementing `ERC20`, `ERC20Burn` and `ERC20Metadata`. It runs in the holder's
+contract, so SEP-41's explicit authorizers are the Groundhog caller.
+
+`approve` clears the allowance, re-grants the amount and sets its expiry in
+one transaction. The clear's exclusive lock covers the re-grant, so a
+concurrent spend conflicts instead of landing beside it. Zero approval only
+clears. Expiry is inclusive and measured in Groundhog blocks, not Stellar
+ledgers.
+
 ## Semantic differences
 
-- Allowances are signed deltas with optional exclusivity, rather than absolute
-  approvals. Ordinary deltas and spending can merge. Exclusive operations keep
-  their lock through later writes in the transaction, including clear/regrant.
-- Standing allowances do not expire. Expiring a signed allowance increase
-  does not expire the allowance it creates. Bounded signed transfers consume
-  the whole grant even when spending less than its amount.
+- Native allowances are signed deltas rather than absolute approvals. Deltas
+  and spending can merge. An absolute set is `clear_allowance` followed by
+  `adjust_allowance`; the clear keeps its lock through the re-grant.
+- An allowance may carry an inclusive block expiry, set separately with
+  `set_allowance_expiry`. Setting it emits no event. An expired allowance
+  reads zero but keeps its amount until cleared, and adjusting it does not
+  make it spendable again.
+- Expiring a signed allowance increase does not expire the allowance it
+  creates. Bounded signed transfers consume the whole grant even when
+  spending less than its amount.
+- Events are native: transfers, mints and burns map onto SEP-41's, but
+  approvals appear as allowance deltas, not SEP-41 approve events.
 - Authorization and role changes reach other transactions in the next block.
   A same-block transfer can still use the previous permissions.
 - Issuer policy is immutable and clawback eligibility is uniform. Stellar

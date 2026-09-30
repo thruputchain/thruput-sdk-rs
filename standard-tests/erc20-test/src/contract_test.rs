@@ -57,22 +57,6 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     client.mint(&owner, amt);
     m.mint(&owner, amt);
 
-    // Burn
-    let amt = 50;
-    client.burn(&owner, amt);
-    m.burn(&owner, amt);
-
-    #[cfg(not(feature = "no_check_aborts"))]
-    {
-        // Burn too much
-        let amt = 60;
-        assert!(m.balances[&owner] < amt);
-        assert_eq!(
-            client.try_burn(&owner, amt).unwrap_err().try_as(),
-            Some(ERC20Error::TooLarge),
-        );
-    }
-
     // Transfer
     let amt = 25;
     client.transfer(other, amt);
@@ -88,14 +72,9 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
         );
     }
 
-    // Burn from other address
-    let amt = 5;
-    client.burn(other, amt);
-    m.burn(other, amt);
-
     // Exercise positive, negative, and zero changes at the amount boundary.
     for difference in [i128::MAX, -(i128::MAX - 7), 10, -4, 0] {
-        client.adjust_allowance(other, difference, false);
+        client.adjust_allowance(other, difference);
         m.adjust_allowance(other, difference);
         m.check_allowances(&client);
     }
@@ -103,14 +82,14 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     {
         assert_eq!(
             client
-                .try_adjust_allowance(other, -14, false)
+                .try_adjust_allowance(other, -14)
                 .unwrap_err()
                 .try_as(),
             Some(ERC20Error::TooLarge),
         );
         assert_eq!(
             client
-                .try_adjust_allowance(other, i128::MAX, false)
+                .try_adjust_allowance(other, i128::MAX)
                 .unwrap_err()
                 .try_as(),
             Some(ERC20Error::TooLarge),
@@ -133,7 +112,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 }
 
 /// Test the transfer/allowance subset of the ERC20 logic, for a contract
-/// that is already initialized and cannot mint or burn (such as the native
+/// that is already initialized and cannot mint (such as the native
 /// token precompile).
 ///
 /// The caller must already hold exactly `balance` tokens (at least 25, as
@@ -160,9 +139,9 @@ pub fn erc20_funded_test(
     client.transfer(other, amt);
     m.transfer(other, amt);
 
-    client.adjust_allowance(other, 17, false);
+    client.adjust_allowance(other, 17);
     m.adjust_allowance(other, 17);
-    client.adjust_allowance(other, -10, false);
+    client.adjust_allowance(other, -10);
     m.adjust_allowance(other, -10);
 
     // Check client state against the model

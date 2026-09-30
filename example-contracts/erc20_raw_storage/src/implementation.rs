@@ -63,6 +63,24 @@ fn add_to_allowance(
         .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
 }
 
+fn get_allowance_expiry_key(
+    owner: &ContractAddress,
+    spender: &ContractAddress,
+) -> StorageKey {
+    (b"allowance_expiry", owner, spender).hash().into()
+}
+
+// An allowance without a stored expiry never expires.
+fn allowance_is_live(
+    owner: &ContractAddress,
+    spender: &ContractAddress,
+) -> bool {
+    let key = get_allowance_expiry_key(owner, spender);
+    !bytestring_exists(&key)
+        || *sdk::block::get_block_height()
+            <= i64::from_be_bytes(bytestring_get_sized(&key))
+}
+
 #[storage]
 pub struct Token;
 
@@ -99,6 +117,7 @@ impl ERC20 for Token {
         let spender = get_caller();
         let diff = amount_to_diff(amount);
 
+        ensure(allowance_is_live(owner, &spender), ERC20Error::TooLarge);
         add_to_allowance(owner, &spender, -diff);
         add_to_balance(owner, -diff);
         add_to_balance(recipient, diff);
@@ -111,6 +130,9 @@ impl ERC20 for Token {
         owner: &ContractAddress,
         spender: &ContractAddress,
     ) -> Amount {
+        if !allowance_is_live(owner, spender) {
+            return 0;
+        }
         non_negative_int_try_get(&get_allowance_key(owner, spender))
             .none_if_missing()
             .unwrap_or(0) as Amount
@@ -120,25 +142,34 @@ impl ERC20 for Token {
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
-        exclusive: bool,
     ) {
         let owner = get_caller();
         let key = get_allowance_key(&owner, spender);
         non_negative_int_try_strict_inc(&key, difference)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-        if exclusive {
-            sdk::sys_exn::flags::set_storage_flags(
-                &key,
-                StorageDeltaFlags::ExclusiveLock,
-            );
-        }
         AllowanceChangeEvent::new(&owner, spender, difference).log();
+    }
+
+    fn set_allowance_expiry(
+        &mut self,
+        spender: &ContractAddress,
+        until: Option<BlockHeight>,
+    ) {
+        let key = get_allowance_expiry_key(&get_caller(), spender);
+        match until {
+            Some(until) => bytestring_set_exclusive(
+                &key,
+                &until.into_inner().to_be_bytes(),
+            ),
+            None => delete_exclusive(&key),
+        }
     }
 
     fn clear_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
         let remaining = amount_to_diff(self.allowance(&owner, spender));
         delete_exclusive(&get_allowance_key(&owner, spender));
+        delete_exclusive(&get_allowance_expiry_key(&owner, spender));
         AllowanceChangeEvent::new(&owner, spender, -remaining).log();
     }
 
@@ -169,16 +200,6 @@ impl ERC20 for Token {
         add_to_total_supply(diff);
 
         MintEvent::new(recipient, amount_to_diff(amount)).log();
-    }
-
-    fn burn(&mut self, loser: &ContractAddress, amount: Amount) {
-        ensure_caller_is_owner();
-
-        let diff = amount_to_diff(amount);
-        add_to_balance(loser, -diff);
-        add_to_total_supply(-diff);
-
-        BurnEvent::new(loser, amount_to_diff(amount)).log();
     }
 
     fn total_supply(&self) -> Amount {

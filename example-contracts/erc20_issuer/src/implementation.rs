@@ -1,7 +1,15 @@
 use crate::*;
+use sdk::block::get_block_height;
 use sdk::signer::Signed;
-use sdk::storage::{Balance, Deletable, Map, NNInt, Value};
+use sdk::storage::{Balance, Deletable, Map, NNInt, Node, Value};
 use sdk::*;
+
+#[sdk::storage]
+#[derive(sdk::Deletable)]
+pub(crate) struct Allowance {
+    amount: NNInt,
+    expiry: Value<BlockHeight>,
+}
 
 #[sdk::storage]
 pub struct TokenContract {
@@ -10,7 +18,7 @@ pub struct TokenContract {
     mint_authority: Value<ContractAddress>,
     authorizations: Map<ContractAddress, Value<bool>>,
     balances: Map<ContractAddress, Balance>,
-    allowances: Map<ContractAddress, Map<ContractAddress, NNInt>>,
+    allowances: Map<ContractAddress, Map<ContractAddress, Node<Allowance>>>,
     supply: Balance,
 }
 
@@ -74,8 +82,31 @@ impl TokenContract {
         self.allowances
             .at_mut(owner)
             .at_mut(spender)
+            .amount
             .try_strict_inc(diff)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
+    }
+    fn allowance_is_live(
+        &self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+    ) -> bool {
+        self.allowances
+            .at(owner)
+            .at(spender)
+            .expiry
+            .try_get()
+            .none_if_missing()
+            .is_none_or(|until| get_block_height() <= until)
+    }
+    fn spend(
+        &mut self,
+        owner: &ContractAddress,
+        spender: &ContractAddress,
+        amount: Amount,
+    ) {
+        ensure(self.allowance_is_live(owner, spender), ERC20Error::TooLarge);
+        self.adjust(owner, spender, -amount_to_diff(amount));
     }
     fn clear(&mut self, owner: &ContractAddress, spender: &ContractAddress) {
         self.settings();
@@ -166,9 +197,13 @@ impl ERC20 for TokenContract {
         spender: &ContractAddress,
     ) -> Amount {
         self.settings();
+        if !self.allowance_is_live(owner, spender) {
+            return 0;
+        }
         self.allowances
             .at(owner)
             .at(spender)
+            .amount
             .try_get()
             .none_if_missing()
             .unwrap_or(0) as Amount
@@ -177,20 +212,25 @@ impl ERC20 for TokenContract {
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
-        exclusive: bool,
+    ) {
+        let owner = get_caller();
+        self.adjust(&owner, spender, difference);
+        AllowanceChangeEvent::new(&owner, spender, difference).log();
+    }
+
+    fn set_allowance_expiry(
+        &mut self,
+        spender: &ContractAddress,
+        until: Option<BlockHeight>,
     ) {
         self.settings();
         let owner = get_caller();
         let mut allowances = self.allowances.at_mut(&owner);
-        let mut allowance = if exclusive {
-            allowances.at_mut_exclusive(spender)
-        } else {
-            allowances.at_mut(spender)
-        };
-        allowance
-            .try_strict_inc(difference)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-        AllowanceChangeEvent::new(&owner, spender, difference).log();
+        let mut allowance = allowances.at_mut(spender);
+        match until {
+            Some(until) => allowance.expiry.set_exclusive(&until),
+            None => allowance.expiry.delete_exclusive(),
+        }
     }
 
     fn clear_allowance(&mut self, spender: &ContractAddress) {
@@ -214,7 +254,7 @@ impl ERC20 for TokenContract {
         receiver: &ContractAddress,
         amount: Amount,
     ) {
-        self.adjust(owner, &get_caller(), -amount_to_diff(amount));
+        self.spend(owner, &get_caller(), amount);
         self.move_tokens(owner, receiver, amount);
     }
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
@@ -229,9 +269,6 @@ impl ERC20 for TokenContract {
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         self.credit(receiver, amount);
         MintEvent::new(receiver, amount_to_diff(amount)).log();
-    }
-    fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
-        self.forced_burn(owner, amount);
     }
     fn total_supply(&self) -> Amount {
         self.settings();
@@ -361,7 +398,7 @@ impl ERC20Burn for TokenContract {
     }
     fn burn_from(&mut self, owner: &ContractAddress, amount: Amount) {
         self.require_holder(owner);
-        self.adjust(owner, &get_caller(), -amount_to_diff(amount));
+        self.spend(owner, &get_caller(), amount);
         self.destroy(owner, amount);
     }
 }
