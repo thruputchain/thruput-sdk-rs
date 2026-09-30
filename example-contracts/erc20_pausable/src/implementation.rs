@@ -130,12 +130,6 @@ impl PausableTokenContract {
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
     }
 
-    fn _decrease_total_supply(&mut self, amount: Amount) {
-        self.total_supply
-            .try_decrease(amount)
-            .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
-    }
-
     fn _total_supply(&self) -> Amount {
         self.total_supply.get()
     }
@@ -156,13 +150,14 @@ impl ERC20 for PausableTokenContract {
     }
 
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount) {
+        check_amount(amount);
         self._require_not_paused();
         let owner = get_caller();
 
         self._decrease_balance(&owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        TransferEvent::new(&owner, receiver, amount_to_diff(amount)).log();
+        TransferEvent::new(&owner, receiver, amount).log();
     }
 
     fn transfer_from(
@@ -174,44 +169,39 @@ impl ERC20 for PausableTokenContract {
         self._require_not_paused();
         let spender = get_caller();
 
-        let diff = amount_to_diff(amount);
+        let diff = check_amount(amount);
         self._spend_allowance(owner, &spender, -diff);
         self._decrease_balance(owner, amount);
         self._lazy_increase_balance(receiver, amount);
 
-        TransferEvent::new(owner, receiver, amount_to_diff(amount)).log();
+        TransferEvent::new(owner, receiver, amount).log();
     }
 
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
         difference: Difference,
-        exclusive: bool,
     ) {
         let owner = get_caller();
         let mut allowances = self.allowances.at_mut(&owner);
-        let mut allowance = if exclusive {
-            allowances.at_mut_exclusive(spender)
-        } else {
-            allowances.at_mut(spender)
-        };
+        let mut allowance = allowances.at_mut(spender);
         allowance
             .try_strict_inc(difference)
             .unwrap_or_else(|_| throw(ERC20Error::TooLarge));
         AllowanceChangeEvent::new(&owner, spender, difference).log();
     }
 
-    fn clear_allowance(&mut self, spender: &ContractAddress) {
+    fn delete_allowance(&mut self, spender: &ContractAddress) {
         let owner = get_caller();
-        let remaining = amount_to_diff(self.allowance(&owner, spender));
+        let remaining = self.allowance(&owner, spender);
         self.allowances
             .at_mut(&owner)
             .at_mut(spender)
             .delete_exclusive();
-        AllowanceChangeEvent::new(&owner, spender, -remaining).log();
+        AllowanceDeleteEvent::new(&owner, spender, remaining).log();
     }
 
-    fn clear_balance(&mut self) {
+    fn delete_balance(&mut self) {
         let owner = get_caller();
         let mut balance = self.balances.at_mut(&owner);
         ensure(balance.get() == 0, ERC20Error::BalanceNotZero);
@@ -236,6 +226,7 @@ impl ERC20 for PausableTokenContract {
     }
 
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount) {
+        check_amount(amount);
         self._require_not_paused();
         let caller = get_caller();
         ensure(
@@ -248,21 +239,7 @@ impl ERC20 for PausableTokenContract {
         self._increase_total_supply(amount);
         self._lazy_increase_balance(receiver, amount);
 
-        MintEvent::new(receiver, amount_to_diff(amount)).log();
-    }
-
-    fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
-        self._require_not_paused();
-        let caller = get_caller();
-        ensure(
-            caller == self._administrator(),
-            ERC20Error::MustBeContractOwner,
-        );
-
-        self._decrease_balance(owner, amount);
-        self._decrease_total_supply(amount);
-
-        BurnEvent::new(owner, amount_to_diff(amount)).log();
+        MintEvent::new(receiver, amount).log();
     }
 
     fn total_supply(&self) -> Amount {

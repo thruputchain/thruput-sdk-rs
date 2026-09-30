@@ -83,25 +83,13 @@ contract_test!(balance_rejects_negative_raw_state {
     );
 });
 
-contract_test!(balance_rejects_amounts_above_i128_max {
+contract_test!(balance_rejects_negative_amounts {
     let mut balance: Balance = Keypath::default().into();
-    let too_large = (i128::MAX as u128) + 1;
-    assert_eq!(
-        balance.try_increase(too_large),
-        Err(LibraryExn::NonNegativeIntOverflow)
-    );
-    assert_eq!(
-        balance.try_lazy_increase(too_large),
-        Err(LibraryExn::NonNegativeIntOverflow)
-    );
-    assert_eq!(
-        balance.try_decrease(too_large),
-        Err(LibraryExn::NonNegativeIntUnderflow)
-    );
-    assert_eq!(
-        balance.try_lazy_decrease(too_large),
-        Err(LibraryExn::NonNegativeIntUnderflow)
-    );
+    let underflow = Err(LibraryExn::NonNegativeIntUnderflow);
+    assert_eq!(balance.try_increase(-1), underflow);
+    assert_eq!(balance.try_lazy_increase(-1), underflow);
+    assert_eq!(balance.try_decrease(-1), underflow);
+    assert_eq!(balance.try_lazy_decrease(-1), underflow);
 });
 
 #[test]

@@ -6,7 +6,8 @@ use crate::sys_exn::nnint_internal as nnint;
 /// A non-negative, zero-defaulting balance backed by Groundhog's mergeable
 /// integer-storage cell.
 ///
-/// Integer values in the range `0..i128::MAX` can be represented.
+/// Values are in `0..=i128::MAX`. Operations reject a negative amount with
+/// [`LibraryExn::NonNegativeIntUnderflow`].
 ///
 /// Each direction comes in a checked and a lazy form:
 ///
@@ -43,25 +44,26 @@ impl From<Keypath> for Balance {
 }
 
 impl Balance {
-    pub const MAX: u128 = i128::MAX as u128;
+    pub const MAX: i128 = i128::MAX;
 
     /// Get the balance, treating a never-written location as zero.
-    pub fn get(&self) -> u128 {
+    pub fn get(&self) -> i128 {
         self.try_get().or_re_throw()
     }
 
     /// Get the balance, reporting storage failures instead of throwing an
     /// exception. A never-written location is `Ok(0)`. A negative value
     /// written through the lower-level NNInt API is reported as an underflow.
-    pub fn try_get(&self) -> Result<u128, LibraryExn> {
+    pub fn try_get(&self) -> Result<i128, LibraryExn> {
         match nnint::try_get_values_force(self.key.get()) {
             Ok((set, add)) => {
                 let value = set
                     .checked_add(add)
                     .ok_or(LibraryExn::NonNegativeIntOverflow)?;
-                value
-                    .try_into()
-                    .map_err(|_| LibraryExn::NonNegativeIntUnderflow)
+                if value < 0 {
+                    return Err(LibraryExn::NonNegativeIntUnderflow);
+                }
+                Ok(value)
             }
             Err(e) if e.is_storage_missing() => Ok(0),
             Err(e) => Err(e),
@@ -78,7 +80,7 @@ impl Balance {
     ///
     /// *Throws:* any error that would be returned by
     /// [`try_increase`](Self::try_increase).
-    pub fn increase(&mut self, amount: u128) {
+    pub fn increase(&mut self, amount: i128) {
         self.try_increase(amount).or_re_throw()
     }
 
@@ -86,13 +88,13 @@ impl Balance {
     /// failure as `Err` instead of aborting (the `try_` law; see the
     /// [`exn`](mod@crate::exn) module docs). On `Err`, the stored value is
     /// unmodified.
-    pub fn try_increase(&mut self, amount: u128) -> Result<(), LibraryExn> {
+    pub fn try_increase(&mut self, amount: i128) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
         }
-        let increment: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
+        if amount < 0 {
+            return Err(LibraryExn::NonNegativeIntUnderflow);
+        }
         let key = self.key.get();
         let (set, add) = match nnint::try_get_values_force(key) {
             Ok(values) => values,
@@ -100,7 +102,7 @@ impl Balance {
             Err(e) => return Err(e),
         };
         let add = add
-            .checked_add(increment)
+            .checked_add(amount)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
         let total = set
             .checked_add(add)
@@ -121,7 +123,7 @@ impl Balance {
     ///
     /// *Throws:* any error that would be returned by
     /// [`try_decrease`](Self::try_decrease).
-    pub fn decrease(&mut self, amount: u128) {
+    pub fn decrease(&mut self, amount: i128) {
         self.try_decrease(amount).or_re_throw()
     }
 
@@ -130,13 +132,13 @@ impl Balance {
     /// [`exn`](mod@crate::exn) module docs).
     ///
     /// On `Err`, the stored value is unmodified.
-    pub fn try_decrease(&mut self, amount: u128) -> Result<(), LibraryExn> {
+    pub fn try_decrease(&mut self, amount: i128) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
         }
-        let decrement: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntUnderflow)?;
+        if amount < 0 {
+            return Err(LibraryExn::NonNegativeIntUnderflow);
+        }
         let key = self.key.get();
         let (set, add) = match nnint::try_get_values_force(key) {
             Ok(values) => values,
@@ -144,7 +146,7 @@ impl Balance {
             Err(e) => return Err(e),
         };
         let add = add
-            .checked_sub(decrement)
+            .checked_sub(amount)
             .ok_or(LibraryExn::NonNegativeIntUnderflow)?;
         let total = set
             .checked_add(add)
@@ -164,7 +166,7 @@ impl Balance {
     ///
     /// *Throws:* any error that would be returned by
     /// [`try_lazy_increase`](Self::try_lazy_increase).
-    pub fn lazy_increase(&mut self, amount: u128) {
+    pub fn lazy_increase(&mut self, amount: i128) {
         self.try_lazy_increase(amount).or_re_throw()
     }
 
@@ -177,18 +179,18 @@ impl Balance {
     /// lazy increase deliberately does not load that balance.
     pub fn try_lazy_increase(
         &mut self,
-        amount: u128,
+        amount: i128,
     ) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
         }
-        let increment: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntOverflow)?;
+        if amount < 0 {
+            return Err(LibraryExn::NonNegativeIntUnderflow);
+        }
         let key = self.key.get();
         let (set, add) = nnint::try_get_values(key)?;
         let add = add
-            .checked_add(increment)
+            .checked_add(amount)
             .ok_or(LibraryExn::NonNegativeIntOverflow)?;
         nnint::try_set_add(key, set, add, self.key.is_exclusive())
     }
@@ -202,7 +204,7 @@ impl Balance {
     ///
     /// *Throws:* any error that would be returned by
     /// [`try_lazy_decrease`](Self::try_lazy_decrease).
-    pub fn lazy_decrease(&mut self, amount: u128) {
+    pub fn lazy_decrease(&mut self, amount: i128) {
         self.try_lazy_decrease(amount).or_re_throw()
     }
 
@@ -218,18 +220,18 @@ impl Balance {
     /// no load and is checked here.
     pub fn try_lazy_decrease(
         &mut self,
-        amount: u128,
+        amount: i128,
     ) -> Result<(), LibraryExn> {
         if amount == 0 {
             return Ok(());
         }
-        let decrement: i128 = amount
-            .try_into()
-            .map_err(|_| LibraryExn::NonNegativeIntUnderflow)?;
+        if amount < 0 {
+            return Err(LibraryExn::NonNegativeIntUnderflow);
+        }
         let key = self.key.get();
         let (set, add) = nnint::try_get_values(key)?;
         let add = add
-            .checked_sub(decrement)
+            .checked_sub(amount)
             .ok_or(LibraryExn::NonNegativeIntUnderflow)?;
         if let Some(set) = set {
             let total = set

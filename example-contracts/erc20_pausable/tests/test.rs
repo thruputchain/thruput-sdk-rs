@@ -186,13 +186,12 @@ fn pause_blocks_balance_changes() {
             enforced_pause(token.try_transfer(&OTHER, 1));
             enforced_pause(token.try_transfer_from(&OTHER, &ADMIN, 1));
             enforced_pause(token.try_mint(&ADMIN, 1));
-            enforced_pause(token.try_burn(&ADMIN, 1));
 
             // Reads and allowance adjustments are not paused.
             assert_eq!(token.get_balance(), 75);
             assert_eq!(token.get_balance_of(&OTHER), 25);
             assert_eq!(token.total_supply(), 100);
-            token.adjust_allowance(&OTHER, 10, false);
+            token.adjust_allowance(&OTHER, 10);
             assert_eq!(token.allowance(&ADMIN, &OTHER), 10);
 
             // Pausing an already-paused token is rejected.
