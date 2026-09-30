@@ -1,7 +1,8 @@
+use adder_v1::AdderClient as AdderV1Client;
+use adder_v2::AdderClient as AdderV2Client;
 use bottle_test_if::BottleTest;
 use sdk::storage::Value;
 use sdk::*;
-use versioned_interface::AdderClient;
 
 #[storage]
 pub struct Tester {
@@ -18,7 +19,11 @@ impl BottleTest for Tester {
 
     fn run(&mut self) {
         let address = self.target.get().unwrap();
-        let client = AdderClient::new(&address);
-        assert!(client.add_one(41) == 42);
+        let v1 = AdderV1Client::new(&address);
+        let v2 = AdderV2Client::new(&address);
+        assert!(v1.add_one(41) == 42);
+        let large = u64::from(u32::MAX) + 41;
+        assert!(v2.add_one(large) == large + 1);
+        assert!(v1.add_one(99) == 100);
     }
 }

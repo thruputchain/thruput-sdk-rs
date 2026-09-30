@@ -1,0 +1,23 @@
+[package]
+name = "versioned_interface"
+description = "The 0.2 release of the versioned_interface example crate"
+version = "0.2.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+# Keep this release outside the parent workspace: Cargo requires unique
+# package names among workspace members. Both releases are still dependencies
+# of versioned_impl and are built and tested together through that package.
+[workspace]
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+[lib]
+doctest = false
+test = false
+
+[dependencies]
+sdk = { path = "../../crates/sdk" }

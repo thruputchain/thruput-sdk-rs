@@ -86,6 +86,9 @@ members = [
 ]
 
 exclude = [
+    # Cargo workspaces cannot contain two packages with the same name.
+    # This second release is a path dependency of versioned_impl instead.
+    "versioned_interface_v2",
     "multi_root_collision",
     "cross_crate_collision",
     # Negative duplicate-entrypoint fixture: its HOST build now fails at
