@@ -79,6 +79,7 @@ env:
     groundhog-erc20-permit-if
     groundhog-erc165-if
     groundhog-erc721-if
+    groundhog-sep41
     groundhog-access-control-if
     groundhog-access-control
   # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
@@ -263,6 +264,8 @@ jobs:
             sdk
             groundhog-erc20-if
             groundhog-erc20-metadata-if
+            groundhog-erc20-controls-if
+            groundhog-erc165-if
             groundhog-signed-op-if
             groundhog-access-control-if
           # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
@@ -411,6 +414,18 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
+      - name: Tag groundhog-sep41
+        if: ${{ inputs.dry_run == false }}
+        id: tag-sep41
+        uses: ./actions/cargo-release-tag
+        with:
+          packages: groundhog-sep41
+          tag-prefix: 'groundhog-sep41-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
       - name: Tag groundhog-access-control
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control
@@ -515,6 +530,20 @@ jobs:
           packages: groundhog-erc721-if
           git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
           tag-prefix: 'groundhog-erc721-if-v'
+          registry-name: groundhog
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '20'
+
+      # After the ERC20, ERC20 controls, metadata and ERC-165 interfaces:
+      # this component exact-pins all four.
+      - name: Publish groundhog-sep41
+        if: ${{ inputs.dry_run == false && steps.tag-sep41.outputs.released == 'true' }}
+        uses: ./actions/cargo-publish
+        with:
+          packages: groundhog-sep41
+          git-tag: ${{ steps.tag-sep41.outputs.tag }}
+          tag-prefix: 'groundhog-sep41-v'
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'

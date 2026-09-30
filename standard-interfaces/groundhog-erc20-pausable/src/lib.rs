@@ -12,7 +12,7 @@ use sdk::contract;
 /// The pausable extension to the standard ERC20 interface.
 ///
 /// A paused token rejects every balance-changing ERC20 operation
-/// (`transfer`, `transfer_from`, `mint`, `burn`) with
+/// (`transfer`, `transfer_from`, `mint`, and any burn an extension adds) with
 /// [`ERC20PausableError::EnforcedPause`]; allowance adjustments and reads
 /// stay available. Who counts as a pauser is implementation-defined (a
 /// stored administrator, an access-control role, ...), but unauthorized

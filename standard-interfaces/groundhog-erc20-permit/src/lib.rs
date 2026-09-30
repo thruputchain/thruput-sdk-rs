@@ -36,7 +36,7 @@
 //! another transaction, or through code that only speaks
 //! [`ERC20::transfer_from`](groundhog_erc20_if::ERC20::transfer_from). For
 //! that, [`ERC20Permit::increase_allowance_signed`] turns a grant into
-//! allowance, and [`ERC20Permit::clear_allowance_signed`] is the owner's signed
+//! allowance, and [`ERC20Permit::delete_allowance_signed`] is the owner's signed
 //! way to take it back.
 
 mod error;
@@ -89,26 +89,26 @@ pub struct PermitGrant {
 }
 
 /// What an owner approves to revoke a spender's standing allowance: the
-/// counterpart of [`PermitRequest`], turned into a [`ClearAllowanceGrant`] and
+/// counterpart of [`PermitRequest`], turned into a [`DeleteAllowanceGrant`] and
 /// signed the same way, inside the wallet's own body type.
 ///
 /// A separate type rather than a [`PermitRequest`] with a zero amount, so the
 /// signed body says which operation the owner approved: a grant signed to
-/// raise an allowance can never be redeemed to clear one, or the reverse.
+/// raise an allowance can never be redeemed to delete one, or the reverse.
 /// `token` is load-bearing for the same reason it is in [`PermitRequest`].
 #[sdk::contract_type]
-pub struct ClearAllowanceRequest {
-    /// The token contract whose allowance is cleared.
+pub struct DeleteAllowanceRequest {
+    /// The token contract whose allowance is deleted.
     pub token: ContractAddress,
-    /// Whose allowance is cleared.
+    /// Whose allowance is deleted.
     pub spender: ContractAddress,
 }
 
-/// The auth token a wallet mints from a validated [`ClearAllowanceRequest`],
-/// consumed by [`ERC20Permit::clear_allowance_signed`]. Like [`PermitGrant`],
+/// The auth token a wallet mints from a validated [`DeleteAllowanceRequest`],
+/// consumed by [`ERC20Permit::delete_allowance_signed`]. Like [`PermitGrant`],
 /// it carries neither the owner nor the token.
 #[sdk::contract_type]
-pub struct ClearAllowanceGrant {
+pub struct DeleteAllowanceGrant {
     pub spender: ContractAddress,
 }
 
@@ -165,12 +165,12 @@ pub trait ERC20Permit {
     fn increase_allowance_signed(&mut self, grant: Signed<PermitGrant>);
 
     /// Consume `grant` and delete its minter's allowance for the grant's
-    /// `spender`, emitting the allowance-change event for the amount removed.
+    /// `spender`, emitting the delete event for the stored amount removed.
     ///
     /// The entry is deleted rather than zeroed, freeing its storage, and
     /// deleted under an exclusive lock: another transaction in the same block
     /// that writes the same allowance conflicts at commit, so no concurrent
-    /// grant or spend can land beside the clear. A write later in the same
+    /// grant or spend can land beside the delete. A write later in the same
     /// transaction still applies after it.
-    fn clear_allowance_signed(&mut self, grant: Signed<ClearAllowanceGrant>);
+    fn delete_allowance_signed(&mut self, grant: Signed<DeleteAllowanceGrant>);
 }

@@ -17,3 +17,4 @@ extern crate groundhog_erc20_if;
 
 // Anchor the ERC20 interface so its candidate spec survives shaking.
 sdk::export_interface_spec!(groundhog_erc20_if::ERC20);
+sdk::export_interface_spec!(groundhog_erc20_if::ERC20AllowanceExpiry);
