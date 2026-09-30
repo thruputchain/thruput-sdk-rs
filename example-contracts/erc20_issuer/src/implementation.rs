@@ -431,3 +431,5 @@ impl ERC20Permit for TokenContract {
         self.delete(&owner, &grant.spender);
     }
 }
+
+groundhog_erc165_if::impl_erc165!();

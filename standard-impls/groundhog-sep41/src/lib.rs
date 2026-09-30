@@ -1,12 +1,22 @@
-use crate::{ERC20BurnClient, ERC20ControlsError};
-use groundhog_erc20_if::{Amount, ERC20Client};
-use groundhog_erc20_metadata_if::{ERC20MetadataClient, Name, Symbol};
+//! [SEP-41](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
+//! token operations as client code over the Groundhog ERC20 interfaces.
+
+#![cfg_attr(not(feature = "dev"), no_std)]
+#![allow(clippy::result_large_err)]
+
+mod error;
+pub use error::*;
+
+use groundhog_erc20_controls_if::{ERC20BurnClient, ERC20BurnEntrypoints};
+use groundhog_erc20_if::{Amount, ERC20Client, ERC20Entrypoints};
+use groundhog_erc20_metadata_if::{
+    ERC20MetadataClient, ERC20MetadataEntrypoints, Name, Symbol,
+};
+use groundhog_erc165_if::{ERC165Entrypoints, probe_interface};
 use sdk::{BlockHeight, ContractAddress, ensure, get_block_height, throw};
 
-/// [SEP-41](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
-/// token operations over any token implementing `ERC20`,
-/// [`ERC20Burn`](crate::ERC20Burn) and `ERC20Metadata`. Tokens implement no
-/// SEP-41 interface of their own.
+/// SEP-41 token operations over any token implementing `ERC20`, `ERC20Burn`
+/// and `ERC20Metadata`. Tokens implement no SEP-41 interface of their own.
 ///
 /// This is client code: it runs in the holder's contract and calls the token,
 /// so the holder is the Groundhog caller. SEP-41's explicit authorizers
@@ -21,6 +31,27 @@ pub struct SEP41View<'a> {
 impl<'a> SEP41View<'a> {
     pub fn new(token: &'a ContractAddress) -> Self {
         Self { token }
+    }
+
+    /// Whether the token reports implementing every interface this view
+    /// calls: `Some` of its ERC-165 answer, or `None` if it does not implement
+    /// ERC-165 and so cannot say. Other call failures throw.
+    ///
+    /// Like any ERC-165 claim, this describes the token's code, so treat it
+    /// as a dispatch hint rather than an authorization boundary.
+    pub fn is_supported(&self) -> Option<bool> {
+        if !probe_interface(self.token, ERC165Entrypoints::INTERFACE_ID) {
+            return None;
+        }
+        Some(
+            [
+                ERC20Entrypoints::INTERFACE_ID,
+                ERC20BurnEntrypoints::INTERFACE_ID,
+                ERC20MetadataEntrypoints::INTERFACE_ID,
+            ]
+            .into_iter()
+            .all(|id| probe_interface(self.token, id)),
+        )
     }
 
     /// `spender`'s remaining allowance of `from`'s tokens, or zero once expired.
@@ -46,7 +77,7 @@ impl<'a> SEP41View<'a> {
         &self,
         spender: &ContractAddress,
         amount: i128,
-        live_until_ledger: u32,
+        live_until_ledger: BlockHeight,
     ) {
         Self::amount(amount);
         let token = ERC20Client::new(self.token);
@@ -54,12 +85,11 @@ impl<'a> SEP41View<'a> {
             token.delete_allowance(spender);
             return;
         }
-        let until = BlockHeight::from(i64::from(live_until_ledger));
         ensure(
-            get_block_height() <= until,
-            ERC20ControlsError::InvalidExpiration,
+            get_block_height() <= live_until_ledger,
+            SEP41Error::InvalidExpiration,
         );
-        token.reset_allowance(spender, until);
+        token.reset_allowance(spender, live_until_ledger);
         token.adjust_allowance(spender, amount);
     }
 
@@ -97,28 +127,28 @@ impl<'a> SEP41View<'a> {
         ERC20BurnClient::new(self.token).burn_from(from, Self::amount(amount));
     }
 
-    /// Throws [`ERC20ControlsError::MetadataUnavailable`] when unset, as do
+    /// Throws [`SEP41Error::MetadataUnavailable`] when unset, as do
     /// `name` and `symbol`.
     pub fn decimals(&self) -> u32 {
         ERC20MetadataClient::new(self.token)
             .decimals()
-            .unwrap_or_else(|| throw(ERC20ControlsError::MetadataUnavailable))
+            .unwrap_or_else(|| throw(SEP41Error::MetadataUnavailable))
     }
 
     pub fn name(&self) -> Name {
         ERC20MetadataClient::new(self.token)
             .name()
-            .unwrap_or_else(|| throw(ERC20ControlsError::MetadataUnavailable))
+            .unwrap_or_else(|| throw(SEP41Error::MetadataUnavailable))
     }
 
     pub fn symbol(&self) -> Symbol {
         ERC20MetadataClient::new(self.token)
             .symbol()
-            .unwrap_or_else(|| throw(ERC20ControlsError::MetadataUnavailable))
+            .unwrap_or_else(|| throw(SEP41Error::MetadataUnavailable))
     }
 
     fn amount(amount: i128) -> Amount {
-        ensure(amount >= 0, ERC20ControlsError::NegativeAmount);
+        ensure(amount >= 0, SEP41Error::NegativeAmount);
         amount as Amount
     }
 }

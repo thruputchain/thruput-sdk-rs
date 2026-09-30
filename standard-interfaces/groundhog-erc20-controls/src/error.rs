@@ -15,10 +15,4 @@ pub enum ERC20ControlsError {
     OperationDisabled = 4,
     #[cfg_attr(feature = "dev", error("Clawback requires revocation"))]
     InvalidPolicy = 5,
-    #[cfg_attr(feature = "dev", error("Amount must be non-negative"))]
-    NegativeAmount = 6,
-    #[cfg_attr(feature = "dev", error("Approval would already be expired"))]
-    InvalidExpiration = 7,
-    #[cfg_attr(feature = "dev", error("Token metadata is not set"))]
-    MetadataUnavailable = 8,
 }

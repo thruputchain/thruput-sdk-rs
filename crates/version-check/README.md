@@ -131,7 +131,8 @@ The current set:
   `groundhog-erc20-pausable-if`, `groundhog-access-control-if`, `groundhog-erc165-if`,
   `groundhog-erc721-if`,
   `groundhog-signed-op-if`, `groundhog-erc20-permit-if`) and the
-  `groundhog-access-control` and `groundhog-signed-op` components, plus
+  `groundhog-access-control`, `groundhog-signed-op` and `groundhog-sep41`
+  components, plus
   `bottle-test-if` and
   `version-mismatch-helper`, declare their own versions instead of inheriting
   the workspace version.

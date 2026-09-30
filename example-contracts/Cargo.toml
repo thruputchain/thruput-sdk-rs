@@ -119,6 +119,7 @@ groundhog-access-control-if = { path = "../standard-interfaces/groundhog-access-
 groundhog-access-control = { path = "../standard-impls/groundhog-access-control", registry = "groundhog", version = "=0.1.43" }
 groundhog-signed-op-if = { path = "../standard-interfaces/groundhog-signed-op", registry = "groundhog", version = "=0.1.43" }
 groundhog-signed-op = { path = "../standard-impls/groundhog-signed-op", registry = "groundhog", version = "=0.1.43" }
+groundhog-sep41 = { path = "../standard-impls/groundhog-sep41", registry = "groundhog", version = "=0.1.43" }
 groundhog-erc20-permit-if = { path = "../standard-interfaces/groundhog-erc20-permit", registry = "groundhog", version = "=0.1.43" }
 groundhog-erc721-if = { path = "../standard-interfaces/groundhog-erc721", registry = "groundhog", version = "=0.1.43" }
 

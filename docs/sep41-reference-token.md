@@ -6,10 +6,12 @@ informs the issuer behavior; this is not the Soroban ABI.
 
 ## SEP-41 as client code
 
-No token implements a SEP-41 interface. `SEP41View` in
-`groundhog-erc20-controls-if` provides SEP-41's operations over any token
-implementing `ERC20`, `ERC20Burn` and `ERC20Metadata`. It runs in the holder's
-contract, so SEP-41's explicit authorizers are the Groundhog caller.
+No token implements a SEP-41 interface. `SEP41View` in the `groundhog-sep41`
+crate provides SEP-41's operations over any token implementing `ERC20`,
+`ERC20Burn` and `ERC20Metadata`. It runs in the holder's contract, so SEP-41's
+explicit authorizers are the Groundhog caller. `is_supported` asks the token's
+ERC-165 whether it implements all three, returning `None` for a token without
+ERC-165. `live_until_ledger` is a Groundhog `BlockHeight`.
 
 `approve` is `reset_allowance` with the expiry, then `adjust_allowance` with
 the amount, in one transaction. The reset's exclusive lock covers the

@@ -1,5 +1,6 @@
 //! SEP-41 as client code over the issuer token's native interfaces.
 use erc20_issuer::*;
+use groundhog_sep41::{SEP41Error, SEP41View};
 use sdk::*;
 
 const TOKEN: ContractAddress = ContractAddress::new([0x20; 32]);
@@ -51,15 +52,15 @@ fn setup() -> TestEnvironmentHandle {
     env.advance_block();
     env
 }
-/// The current height as a SEP-41 ledger number.
-fn current_ledger(env: &TestEnvironmentHandle) -> u32 {
+/// The current height, read from inside a frame.
+fn current_ledger(env: &TestEnvironmentHandle) -> i64 {
     let result = env.transact(|tx| tx.call(&BOB).run(get_block_height));
     result.assert_success();
-    u32::try_from(*result.assert_return_as::<BlockHeight>()).unwrap()
+    *result.assert_return_as::<BlockHeight>()
 }
-fn approve(env: &TestEnvironmentHandle, amount: i128, live_until: u32) {
+fn approve(env: &TestEnvironmentHandle, amount: i128, live_until: i64) {
     call(env, &ALICE, move || {
-        view().approve(&SPENDER, amount, live_until)
+        view().approve(&SPENDER, amount, live_until.into())
     })
     .assert_success();
     env.advance_block();
@@ -77,7 +78,7 @@ fn operations_map_onto_the_native_interfaces() {
     let ledger = current_ledger(&env);
     call(&env, &ALICE, move || {
         view().transfer(&BOB, 10);
-        view().approve(&SPENDER, 30, ledger + 10);
+        view().approve(&SPENDER, 30, (ledger + 10).into());
         view().burn(10);
     })
     .assert_success();
@@ -138,13 +139,13 @@ fn approve_rejects_negative_amounts_and_expired_approvals() {
     let ledger = current_ledger(&env);
     assert!(ledger > 0);
     for (amount, live_until, expected) in [
-        (-1, ledger, ERC20ControlsError::NegativeAmount),
-        (1, ledger - 1, ERC20ControlsError::InvalidExpiration),
+        (-1, ledger, SEP41Error::NegativeAmount),
+        (1, ledger - 1, SEP41Error::InvalidExpiration),
     ] {
         let result = call(&env, &ALICE, move || {
-            view().approve(&SPENDER, amount, live_until)
+            view().approve(&SPENDER, amount, live_until.into())
         });
-        assert_eq!(result.assert_abort_as::<ERC20ControlsError>(), expected);
+        assert_eq!(result.assert_abort_as::<SEP41Error>(), expected);
         result.assert_no_events();
     }
 }
@@ -157,7 +158,7 @@ fn approve_conflicts_with_a_same_block_spend_in_both_orders() {
         approve(&env, 50, ledger + 10);
         let replace = || {
             call(&env, &ALICE, move || {
-                view().approve(&SPENDER, 5, ledger + 10)
+                view().approve(&SPENDER, 5, (ledger + 10).into())
             })
         };
         let spend =
@@ -172,4 +173,24 @@ fn approve_conflicts_with_a_same_block_spend_in_both_orders() {
         env.advance_block();
         assert_allowance(&env, if approve_first { 5 } else { 40 });
     }
+}
+
+#[test]
+fn is_supported_reads_the_tokens_erc165_claims() {
+    const NFT: ContractAddress = ContractAddress::new([0x25; 32]);
+    const BARE: ContractAddress = ContractAddress::new([0x26; 32]);
+    let env = setup();
+    for (addr, contract) in [
+        (NFT, erc721::register_mock_contract(&env).as_contract()),
+        (BARE, counter::register_mock_contract(&env).as_contract()),
+    ] {
+        env.setup_create_contract(&contract);
+        env.setup_create_deployment(&addr, &contract);
+    }
+    call(&env, &BOB, || {
+        assert_eq!(view().is_supported(), Some(true));
+        assert_eq!(SEP41View::new(&NFT).is_supported(), Some(false));
+        assert_eq!(SEP41View::new(&BARE).is_supported(), None);
+    })
+    .assert_success();
 }

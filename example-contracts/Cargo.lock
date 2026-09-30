@@ -329,13 +329,17 @@ dependencies = [
 name = "erc20_issuer"
 version = "0.4.0"
 dependencies = [
+ "counter",
  "ed25519-dalek",
  "erc20_issuer",
+ "erc721",
  "groundhog-domain-separator",
+ "groundhog-erc165-if",
  "groundhog-erc20-controls-if",
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
  "groundhog-erc20-permit-if",
+ "groundhog-sep41",
  "groundhog-signed-op-if",
  "permit_wallet",
  "sdk",
@@ -640,6 +644,18 @@ dependencies = [
 [[package]]
 name = "groundhog-rv32-runtime"
 version = "0.42.0"
+
+[[package]]
+name = "groundhog-sep41"
+version = "0.1.43"
+dependencies = [
+ "groundhog-erc165-if",
+ "groundhog-erc20-controls-if",
+ "groundhog-erc20-if",
+ "groundhog-erc20-metadata-if",
+ "sdk",
+ "thiserror",
+]
 
 [[package]]
 name = "groundhog-serde_arrays"
