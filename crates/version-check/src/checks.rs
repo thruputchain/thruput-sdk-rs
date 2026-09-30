@@ -64,7 +64,7 @@ fn in_repo_req(repo: &Repo, out: &mut Vec<Violation>) {
         if !edge.is_pin_site() {
             continue;
         }
-        let Some(local) = repo.locals.get(&edge.name) else {
+        let Some(local) = repo.local_for_edge(edge) else {
             continue;
         };
         let Some(raw) = &edge.req_raw else { continue };
@@ -249,7 +249,7 @@ fn own_version(repo: &Repo, out: &mut Vec<Violation>) {
 fn lockfiles(repo: &Repo, out: &mut Vec<Violation>) {
     for lock in &repo.lockfiles {
         for (name, version, has_source, line) in &lock.packages {
-            let Some(local) = repo.locals.get(name) else {
+            let Some(locals) = repo.locals.get(name) else {
                 continue;
             };
             let location = format!("{}:{}", lock.rel, line);
@@ -262,13 +262,23 @@ fn lockfiles(repo: &Repo, out: &mut Vec<Violation>) {
                          source; re-run `cargo update` for this workspace"
                     ),
                 ));
-            } else if version != &local.version.to_string() {
+            } else if !locals
+                .iter()
+                .any(|local| version == &local.version.to_string())
+            {
+                let declared = locals
+                    .iter()
+                    .map(|local| {
+                        format!("{} ({})", local.version, local.manifest)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 out.push(Violation::new(
                     "lockfile",
                     location,
                     format!(
-                        "`{name}` is locked at {version} but {} declares {}",
-                        local.manifest, local.version
+                        "`{name}` is locked at {version} but local manifests \
+                         declare {declared}"
                     ),
                 ));
             }
