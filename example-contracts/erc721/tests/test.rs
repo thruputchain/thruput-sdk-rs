@@ -10,10 +10,12 @@ use groundhog_erc165_if::{
 use groundhog_erc721_if::{
     ApprovalEvent, ApprovalForAllEvent, BurnEvent, CONTRACT_ADDR_ZERO,
     ERC721Client, ERC721Entrypoints, ERC721Error, ERC721MetadataClient,
-    ERC721MetadataEntrypoints, ERC721ReceiverEntrypoints, MintEvent,
-    OnchainMetadata, TokenId, TokenMetadata, TransferData, TransferEvent,
+    ERC721MetadataEntrypoints, ERC721ReceiverClient,
+    ERC721ReceiverEntrypoints, MintEvent, OnchainMetadata, TokenId,
+    TokenMetadata, TransferData, TransferEvent,
 };
 use sdk::call::CallError;
+use sdk::exn::{LibraryExn, MatchExn};
 use sdk::*;
 
 hash_ident! { static TOKEN_NONCE: SHA256Hash; }
@@ -616,6 +618,23 @@ fn supports_interface_reports_the_token_interfaces() {
                     InterfaceSupport::from_slice(&[true, true, false])
                         .unwrap()
                 );
+
+                // And named by client type, in the same one call.
+                assert_eq!(
+                    erc165.supports::<(
+                        ERC721Client,
+                        ERC721MetadataClient,
+                        ERC721ReceiverClient,
+                    )>(),
+                    [true, true, false]
+                );
+
+                // A target without ERC-165 fails the call rather than
+                // answering.
+                let err = ERC165Client::new(&receiver)
+                    .try_supports::<(ERC721ReceiverClient,)>()
+                    .expect_err("the receiver fixture has no ERC-165");
+                assert_eq!(err.try_as(), Some(LibraryExn::UnknownMethod));
             })
         });
     result.assert_success();

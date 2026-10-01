@@ -155,3 +155,81 @@ pub fn probe_interface(
 
     try_probe_interface(target, interface_id).or_re_throw()
 }
+
+/// A set of interfaces to ask one contract about in a single
+/// [`ERC165Client::supports`] call: a tuple of one to eight of their
+/// generated clients, such as `(ERC721Client, ERC721MetadataClient)`.
+pub trait InterfaceQuery: sealed::Sealed {
+    /// One answer per interface, in tuple order.
+    type Answer;
+
+    #[doc(hidden)]
+    const IDS: &'static [InterfaceId];
+
+    #[doc(hidden)]
+    fn answer(support: &[bool]) -> Self::Answer;
+}
+
+mod sealed {
+    pub trait Sealed {}
+}
+
+macro_rules! interface_query {
+    ($n:literal: $($client:ident),+) => {
+        impl<$($client: sdk::ContractClient),+> sealed::Sealed
+            for ($($client,)+)
+        {
+        }
+
+        impl<$($client: sdk::ContractClient),+> InterfaceQuery
+            for ($($client,)+)
+        {
+            type Answer = [bool; $n];
+
+            const IDS: &'static [InterfaceId] =
+                &[$($client::INTERFACE_ID),+];
+
+            fn answer(support: &[bool]) -> [bool; $n] {
+                core::array::from_fn(|i| support.get(i) == Some(&true))
+            }
+        }
+    };
+}
+
+interface_query!(1: A);
+interface_query!(2: A, B);
+interface_query!(3: A, B, C);
+interface_query!(4: A, B, C, D);
+interface_query!(5: A, B, C, D, E);
+interface_query!(6: A, B, C, D, E, F);
+interface_query!(7: A, B, C, D, E, F, G);
+interface_query!(8: A, B, C, D, E, F, G, H);
+
+impl ERC165Client {
+    /// Whether the target implements each interface in `Q`, a tuple of
+    /// interface clients, answered by one `supports_interfaces` call:
+    ///
+    /// ```ignore
+    /// let [is_nft, has_metadata] = ERC165Client::new(&target)
+    ///     .supports::<(ERC721Client, ERC721MetadataClient)>();
+    /// ```
+    ///
+    /// An interface the target leaves unanswered counts as unsupported.
+    pub fn supports<Q: InterfaceQuery>(&self) -> Q::Answer {
+        Q::answer(&self.supports_interfaces(&query_ids::<Q>()))
+    }
+
+    /// [`supports`](Self::supports), returning a failed call as its
+    /// [`CallError`] instead of re-throwing it.
+    pub fn try_supports<Q: InterfaceQuery>(
+        &self,
+    ) -> Result<Q::Answer, CallError> {
+        self.try_supports_interfaces(&query_ids::<Q>())
+            .map(|support| Q::answer(&support))
+    }
+}
+
+/// `Q`'s ids as a query. At most eight, so they always fit.
+fn query_ids<Q: InterfaceQuery>() -> InterfaceIds {
+    Q::IDS.iter().copied().collect()
+}
