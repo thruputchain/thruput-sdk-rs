@@ -213,13 +213,31 @@ impl ContractTypeRefSpec for str {
 // byte sequences (the macro tests assert `Bytes` never appears). The
 // `Bytes` wire variant still exists; other-language SDKs must also avoid
 // emitting it, or identical interfaces will hash/compare unequal.
-impl ContractTypeRefSpec for [u8] {
+//
+// A slice is an unbounded vector of its element; for `[u8]` that is the
+// byte-payload spelling above.
+impl<T> ContractTypeRefSpec for [T]
+where
+    T: ContractTypeRefSpec,
+{
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: &view::ContractTypeView::U8,
+            element: &type_ref::<T>(),
             max_len: u32::MAX,
         }),
     };
+
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(
+        target_arch = "riscv32",
+        unsafe(link_section = "groundhogspecanchortextv0")
+    )]
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 impl ContractTypeRefSpec for &[u8] {

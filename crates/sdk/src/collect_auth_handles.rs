@@ -113,7 +113,7 @@ impl<T: CollectAuthHandles> CollectAuthHandles for [T] {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: CollectAuthHandles + 'static, const MAX: u32> CollectAuthHandles
+impl<T: CollectAuthHandles, const MAX: u32> CollectAuthHandles
     for xdrs::VecM<T, MAX>
 {
     #[inline(always)]

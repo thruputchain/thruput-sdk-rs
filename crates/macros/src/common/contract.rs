@@ -129,6 +129,22 @@ where
                     None => combined = Some(err),
                 }
             }
+            // A `&mut` argument would be a mutable borrow of a value
+            // decoded from calldata that nothing reads back, so it has no
+            // meaning a caller could rely on.
+            if let syn::Type::Reference(reference) = pat_type.ty.as_ref()
+                && let Some(mutability) = reference.mutability
+            {
+                let err = error(
+                    &mutability,
+                    "contract method arguments cannot be `&mut`; take the \
+                     argument by value, or by shared reference `&`",
+                );
+                match combined.as_mut() {
+                    Some(existing) => existing.combine(err),
+                    None => combined = Some(err),
+                }
+            }
         }
     }
 

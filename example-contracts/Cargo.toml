@@ -41,6 +41,7 @@ members = [
     "bare_impl_caller",
     "free_fn_unnamed",
     "spec_named_types",
+    "ref_args",
     "recursive_type",
     "versioned_callee",
     "versioned_caller",

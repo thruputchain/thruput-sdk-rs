@@ -15,6 +15,7 @@ use quote::quote;
 use std::collections::HashMap;
 use syn::LitByteStr;
 use syn::parse::Result;
+use syn::spanned::Spanned;
 
 fn hex_symbol_component(value: &str) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
@@ -324,6 +325,23 @@ pub fn check_entrypoint_collisions(
     Ok(())
 }
 
+/// The method call's arguments: owned params pass through; `&T` params pass
+/// `RefArg::get(&wire)`.
+fn method_call_args(sig: &syn::Signature) -> TokenStream {
+    let args = method_args(sig).map(|(ident, ty)| match ty {
+        // Spanned on the parameter type, so a type with no `RefArg` impl
+        // is reported at the parameter rather than at the attribute.
+        syn::Type::Reference(reference) if reference.mutability.is_none() => {
+            let elem = &reference.elem;
+            quote::quote_spanned!(elem.span()=>
+                ::sdk::call::RefArg::get(&#ident)
+            )
+        }
+        _ => quote!(#ident),
+    });
+    quote! { #( #args ),* }
+}
+
 // Generate an exported function for:
 // - An impl or impl-trait method with self-parameter
 // - An impl or impl-trait associated function
@@ -396,6 +414,7 @@ pub fn generate_method(
             .unwrap_or(false);
 
     let arg_names = method_arg_name_list(method.sig());
+    let call_args = method_call_args(method.sig());
 
     // Load the stored contract state (when appropriate)
     let load_state = if is_method {
@@ -425,13 +444,13 @@ pub fn generate_method(
     // Trait methods always dispatch through the same resolved trait path.
     let invoke = if let Some((trait_path, self_ty)) = &trait_impl {
         let receiver = is_method.then(|| quote!(__gh_state,));
-        quote!(<#self_ty as #trait_path>::#ident(#receiver #arg_names))
+        quote!(<#self_ty as #trait_path>::#ident(#receiver #call_args))
     } else if is_method {
-        quote!(__gh_state.#ident(#arg_names))
+        quote!(__gh_state.#ident(#call_args))
     } else if let Some(self_ty) = self_ty {
-        quote!(#self_ty::#ident(#arg_names))
+        quote!(#self_ty::#ident(#call_args))
     } else {
-        quote!(#ident(#arg_names))
+        quote!(#ident(#call_args))
     };
 
     let log_guest_call = if cfg!(feature = "logging") {
@@ -872,6 +891,26 @@ mod tests {
         assert!(!generated.contains(".text.gh_"));
         assert!(!generated.contains("distributed_slice"));
         assert!(!generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
+    }
+
+    #[test]
+    fn shared_reference_params_are_passed_through_ref_arg() {
+        let sig: syn::Signature = syn::parse_quote! {
+            fn f(a: u32, b: &Ids, c: &mut Other, d: &[u8])
+        };
+
+        let args = method_call_args(&sig).to_string();
+
+        assert_eq!(
+            args,
+            quote! {
+                a,
+                ::sdk::call::RefArg::get(&b),
+                c,
+                ::sdk::call::RefArg::get(&d)
+            }
+            .to_string()
+        );
     }
 
     #[test]

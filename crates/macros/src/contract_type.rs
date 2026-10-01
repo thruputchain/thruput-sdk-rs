@@ -61,6 +61,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
 
                 #receive_auth
 
+                impl ::sdk::call::OwnedRefArg for #ident {}
+
                 #mintable_enum
             }
         }
@@ -133,6 +135,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 #collect_auth
 
                 #receive_auth
+
+                impl ::sdk::call::OwnedRefArg for #ident {}
 
                 #mintable
             }

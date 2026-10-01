@@ -1,0 +1,19 @@
+error[E0277]: `&&sdk::ContractAddress` cannot be a `#[contract]` method parameter
+  --> tests/compile-fail/contract_ref_arg_unsupported.rs:10:38
+   |
+10 |     pub fn owner_byte(&self, owner: &&ContractAddress) -> u32 {
+   |                                      ^^^^^^^^^^^^^^^^ no `RefArg` impl for `&sdk::ContractAddress`
+   |
+   = help: the trait `sdk::call::OwnedRefArg` is not implemented for `&sdk::ContractAddress`
+   = note: take the parameter by value; a slice `&[T]` of anything but bytes needs the sdk `alloc` feature; a type of your own becomes usable by reference with `#[contract_type]` or an `sdk::call::OwnedRefArg` impl
+   = help: the following other types implement trait `sdk::call::OwnedRefArg`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and $N others
+   = note: required for `&sdk::ContractAddress` to implement `sdk::call::RefArg<'_>`

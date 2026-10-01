@@ -1,0 +1,43 @@
+[package]
+name = "ref_args"
+description = "Contract methods taking bounded vectors and fixed-size types by reference"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+# The RV32 end-to-end check: a tester built from this crate deploys the
+# plain build and calls each by-reference method, so the guest decode path
+# runs on the VM, not only in the host mock.
+bottle-test = ["dep:bottle-test-if"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `groundhog build -p ref_args` derives
+# `--bin ref_args` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "ref_args"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk = { workspace = true, features = ["alloc"] }
+heapless = { workspace = true }
+
+# Optional
+bottle-test-if = { workspace = true, optional = true }
+
+[dev-dependencies]
+ref_args = { path = ".", features = ["dev"] }
