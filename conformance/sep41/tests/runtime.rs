@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     path::PathBuf,
     sync::{Arc, Mutex},
     time::Duration,
@@ -8,12 +9,14 @@ use groundhog_erc20_controls_if::{ClawbackEvent, ERC20ControlsError, Policy};
 use groundhog_erc20_if::{AllowanceResetEvent, BurnEvent, ERC20Error};
 use groundhog_json_rpc_client::GroundhogApiClient;
 use groundhog_testkit::{
-    Agent, BlockDriverConfig, DeployOptions, LocalNetworkConfig,
-    NetworkConfig, Scenario, WalletInitCall, entrypoint_id,
+    Agent, BlockDriverConfig, ContractEntrypointID, DeployOptions,
+    LocalNetworkConfig, NetworkConfig, Scenario, WalletInitCall,
+    entrypoint_id,
     rpc_types::{
         events::*,
         hex::Hex0x,
         receipt::{ExecStatus, TransactionReceipt},
+        view::ViewResponse,
     },
     xdr::types::ContractAddress,
     xdrs::{ReadXDROwned, WriteXDR, cxs},
@@ -46,6 +49,7 @@ struct Runtime {
     wallets: [ContractAddress; 4],
     actors: [ContractAddress; 4],
     token: ContractAddress,
+    committed_height: Cell<i64>,
 }
 
 impl Runtime {
@@ -86,7 +90,7 @@ impl Runtime {
             scenario.run_agents(agents).await.unwrap();
         }
         let wallets = *wallets.lock().unwrap();
-        let token = Self::deploy(
+        let (token, _) = Self::deploy(
             &scenario,
             ADMIN,
             "issuer",
@@ -105,8 +109,9 @@ impl Runtime {
         )
         .await;
         let mut actors = [ContractAddress::from([0; 32]); 4];
+        let mut committed_height = 0;
         for index in [ALICE, BOB, SPENDER] {
-            actors[index] = Self::deploy(
+            let (address, height) = Self::deploy(
                 &scenario,
                 index,
                 "actor",
@@ -114,12 +119,15 @@ impl Runtime {
                 &(token,),
             )
             .await;
+            actors[index] = address;
+            committed_height = height;
         }
         let runtime = Self {
             scenario,
             wallets,
             actors,
             token,
+            committed_height: Cell::new(committed_height),
         };
         for index in [ALICE, BOB, SPENDER] {
             assert_eq!(
@@ -149,7 +157,7 @@ impl Runtime {
         artifact: &'static str,
         interface: &'static str,
         args: &A,
-    ) -> ContractAddress {
+    ) -> (ContractAddress, i64) {
         let output = Arc::new(Mutex::new(None));
         let calldata = cxs::encode(args).unwrap();
         let agents = ACTORS.into_iter().enumerate().map(|(index, name)| {
@@ -179,7 +187,8 @@ impl Runtime {
                     let deployed = deploy.await_receipt().await?;
                     assert_eq!(*deployed.receipt.height, block.height);
                     assert!(deployed.receipt.gas_used > 0);
-                    *output.lock().unwrap() = Some(deployed.address);
+                    *output.lock().unwrap() =
+                        Some((deployed.address, *deployed.receipt.height));
                 }
                 Ok(())
             })
@@ -222,6 +231,7 @@ impl Runtime {
         });
         self.scenario.run_agents(agents).await.unwrap();
         let receipt = output.lock().unwrap().take().unwrap();
+        self.committed_height.set(*receipt.height);
         self.check_indexed(&receipt).await;
         receipt
     }
@@ -269,16 +279,13 @@ impl Runtime {
         // DefaultWallet wraps child aborts. The signed receipt proves rejection;
         // this matching simulation reveals the child's concrete exception.
         let response = self
-            .scenario
-            .network()
-            .view_call(
+            .fresh_view(
                 self.actors[actor],
                 entrypoint_id(ACTOR_INTERFACE, VERSION, method),
                 &cxs::encode(args).unwrap(),
                 Some(self.wallets[selected]),
             )
-            .await
-            .unwrap();
+            .await;
         assert_eq!(response.height, receipt.height);
         assert!(response.events.is_empty());
         let groundhog_testkit::rpc_types::view::RootInvocationOutput::Abort {
@@ -306,37 +313,93 @@ impl Runtime {
         args: &A,
     ) -> R {
         let output = self
-            .scenario
-            .network()
-            .view_call(
+            .fresh_view(
                 address,
                 entrypoint_id(interface, VERSION, method),
                 &cxs::encode(args).unwrap(),
                 None,
             )
-            .await
-            .unwrap();
+            .await;
         match output.output {
             groundhog_testkit::rpc_types::view::RootInvocationOutput::Return { return_data } => cxs::decode(&return_data.0).unwrap(),
             other => panic!("{method}: {other:?}"),
         }
     }
 
-    async fn height(&self) -> i64 {
-        *self.scenario.network().chain_tip().await.unwrap().height
+    fn height(&self) -> i64 {
+        self.committed_height.get()
+    }
+
+    async fn fresh_view(
+        &self,
+        address: ContractAddress,
+        entrypoint: ContractEntrypointID,
+        calldata: &[u8],
+        caller: Option<ContractAddress>,
+    ) -> ViewResponse {
+        let expected = self.height();
+        let mut observed = None;
+        // Receipts can precede the view gateway's snapshot refresh. Wait for
+        // the receipt height, never for a value or a successful invocation.
+        let read = async {
+            let mut poll = tokio::time::interval(Duration::from_millis(20));
+            loop {
+                poll.tick().await;
+                let response = self
+                    .scenario
+                    .network()
+                    .view_call(address, entrypoint, calldata, caller)
+                    .await
+                    .unwrap();
+                observed = Some(*response.height);
+                if *response.height < expected {
+                    continue;
+                }
+                assert_eq!(
+                    *response.height, expected,
+                    "unexpected view snapshot height"
+                );
+                return response;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(5), read)
+            .await
+            .unwrap_or_else(|_| {
+                panic!("view snapshot: expected {expected}, last {observed:?}")
+            })
     }
 
     async fn native_balance(&self, address: ContractAddress) -> u128 {
-        self.scenario
-            .network()
-            .client()
-            .unwrap()
-            .get_balance(Hex0x(address))
+        let expected = self.height();
+        let mut observed = None;
+        let read = async {
+            let mut poll = tokio::time::interval(Duration::from_millis(20));
+            loop {
+                poll.tick().await;
+                let response = self
+                    .scenario
+                    .network()
+                    .client()
+                    .unwrap()
+                    .get_balance(Hex0x(address))
+                    .await
+                    .unwrap();
+                observed = Some(*response.height);
+                if *response.height < expected {
+                    continue;
+                }
+                assert_eq!(
+                    *response.height, expected,
+                    "unexpected balance snapshot height"
+                );
+                return response.raw_balance.parse().unwrap();
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(5), read)
             .await
-            .unwrap()
-            .raw_balance
-            .parse()
-            .unwrap()
+            .unwrap_or_else(|_| {
+                panic!("HOG snapshot: expected {expected}, last {observed:?}")
+            })
     }
 
     async fn state(&self) -> ([i128; 3], i128, i128) {
@@ -491,7 +554,7 @@ async fn signed_funded_sep41_calls() {
                 BOB,
                 ALICE,
                 "approve",
-                &(spender, 50_i128, runtime.height().await + 20),
+                &(spender, 50_i128, runtime.height() + 20),
                 ActorError::Unauthorized,
             )
             .await;
@@ -517,7 +580,7 @@ async fn signed_funded_sep41_calls() {
             runtime.wallets[ALICE]
         );
 
-        let until = runtime.height().await + 20;
+        let until = runtime.height() + 20;
         success(
             &runtime
                 .actor_call(ALICE, "approve", &(spender, 50_i128, until))
@@ -622,7 +685,7 @@ async fn signed_funded_sep41_calls() {
             "parent abort restores child balances, collateral and logs"
         );
 
-        let until = runtime.height().await + 2;
+        let until = runtime.height() + 2;
         success(
             &runtime
                 .actor_call(ALICE, "approve", &(spender, 10_i128, until))
@@ -650,7 +713,7 @@ async fn signed_funded_sep41_calls() {
         assert_eq!(*receipt.height, until + 1, "first expired block");
         assert_eq!(runtime.rollback_state().await, before);
 
-        let until = runtime.height().await + 10;
+        let until = runtime.height() + 10;
         let receipt = runtime
             .actor_call(ALICE, "approve", &(spender, 9_i128, until))
             .await;
