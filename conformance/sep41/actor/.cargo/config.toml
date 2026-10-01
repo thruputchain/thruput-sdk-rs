@@ -1,0 +1,27 @@
+# Same RV32 linker flags as example-contracts/.cargo/config.toml.
+[target.riscv32im-unknown-none-elf]
+rustflags = [
+    "-C", "target-feature=+unaligned-scalar-mem,+relax",
+    "-C", "link-arg=-Tgroundhog-rv32.ld",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=--no-dynamic-linker",
+    "-C", "link-arg=--gc-sections",
+    "-C", "link-arg=--no-check-sections",
+    "-C", "link-arg=--icf=all",
+    "-C", "link-arg=--relax-gp",
+    "-Z", "unstable-options",
+    "-C", "panic=immediate-abort",
+    "-C", "relocation-model=static",
+    "-Z", "trap-unreachable=false",
+    "--deny", "warnings",
+]
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1

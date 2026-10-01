@@ -132,6 +132,7 @@ jobs:
             ~/.cargo/git
             ${{ github.workspace }}/.hogd-ffi-cache
             ${{ github.workspace }}/.groundhog-cli
+            ${{ github.workspace }}/.groundhog-runtime-cli
 
       # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
       # features like --ignore-file); the runner image doesn't ship it.
@@ -157,6 +158,34 @@ jobs:
           ERC20_PERMIT_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
           ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
         run: cargo test -p erc20_issuer --locked
+
+      - name: Compare SEP-41 traces with Stellar SAC
+        if: matrix.name == 'examples-test'
+        env:
+          ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
+        run: cargo test --manifest-path conformance/sep41/Cargo.toml --locked
+
+      - name: Prepare funded SEP-41 runtime
+        if: matrix.name == 'examples-test'
+        env:
+          CARGO_REGISTRIES_GROUNDHOG_INDEX: sparse+https://crates.thruput.network/api/v1/crates/
+        run: |
+          cargo install groundhog-cli --version '=0.20.0' --registry groundhog --locked \
+            --root "$GITHUB_WORKSPACE/.groundhog-runtime-cli"
+          runtime_cli="$GITHUB_WORKSPACE/.groundhog-runtime-cli/bin/groundhog"
+          "$runtime_cli" --json --non-interactive toolchain install 0.1.29-rc.4 > "$RUNNER_TEMP/sep41-toolchain.json"
+          python3 -c 'import json, sys; print("GROUNDHOG_DEVNODE_BINARY=" + json.load(open(sys.argv[1]))["data"]["path"])' \
+            "$RUNNER_TEMP/sep41-toolchain.json" >> "$GITHUB_ENV"
+          cd conformance/sep41/actor
+          "$runtime_cli" build -p sep41-runtime-actor --target-dir "$GITHUB_WORKSPACE/target/sep41-actor" \
+            -- --locked -Zbuild-std=core,alloc
+
+      - name: Test funded SEP-41 execution and indexed events
+        if: matrix.name == 'examples-test'
+        env:
+          ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
+          SEP41_ACTOR_RV32_ARTIFACT: ${{ github.workspace }}/target/sep41-actor/groundhog/sep41_runtime_actor.rv32a
+        run: cargo test --manifest-path conformance/sep41/Cargo.toml --features runtime --test runtime --locked
 
   # Main pushes only, off the PR critical path. Self-contained: rebuilds the
   # rv32 example artifacts and the full integration block (metrics.sh's

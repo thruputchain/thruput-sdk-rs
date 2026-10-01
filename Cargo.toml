@@ -67,6 +67,8 @@ groundhog-erc20-controls-if = { path = "standard-interfaces/groundhog-erc20-cont
 #    example-contracts/multi_root_collision/
 #    example-contracts/cross_crate_collision/ (3 manifests: alpha, beta, wrapper)
 #    integration_test/
+#    conformance/sep41/
+#    conformance/sep41/actor/
 #
 # When the workspace package version (or groundhog-xdr) undergoes a
 # *breaking change* (major or minor), the standard-interfaces/ crates

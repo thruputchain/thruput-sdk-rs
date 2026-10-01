@@ -1,0 +1,27 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "sep41-runtime-actor"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[features]
+entrypoints = []
+dev = ["sdk/dev", "groundhog-sep41/dev"]
+
+[lib]
+test = false
+doctest = false
+
+[[bin]]
+name = "sep41_runtime_actor"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+sdk = { path = "../../../crates/sdk", version = "=0.42.1" }
+groundhog-sep41 = { path = "../../../standard-impls/groundhog-sep41", version = "=0.1.43" }
+groundhog-erc20-if = { path = "../../../standard-interfaces/groundhog-erc20", version = "=0.1.43" }
+groundhog-erc20-controls-if = { path = "../../../standard-interfaces/groundhog-erc20-controls", version = "=0.1.43" }

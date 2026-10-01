@@ -1,0 +1,3 @@
+[unstable]
+build-std = ["core", "alloc"]
+build-std-features = ["std/optimize_for_size"]
