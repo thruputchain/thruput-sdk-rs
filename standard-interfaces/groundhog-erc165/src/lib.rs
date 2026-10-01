@@ -25,8 +25,9 @@
 //!
 //! The Ethereum detection dance (a 30k-gas `staticcall`, then probing
 //! `0xffffffff`) is unnecessary: a contract without this interface throws
-//! the typed `LibraryExn::UnknownMethod`, which [`try_probe_interface`]
-//! folds into `Ok(false)`, and there is no fallback function to lie.
+//! the typed `LibraryExn::UnknownMethod`, which
+//! [`ERC165Client::supports`] reads as "unsupported", and there is no
+//! fallback function to lie.
 //!
 //! The claim remains self-reported in the sense that it describes this
 //! contract's own code: `supports_interface` says "I export these
@@ -36,9 +37,7 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 
-use sdk::call::CallError;
-use sdk::exn::{LibraryExn, MatchExn};
-use sdk::{ContractAddress, contract};
+use sdk::contract;
 
 pub use sdk::InterfaceId;
 pub use sdk::implements;
@@ -120,42 +119,6 @@ macro_rules! impl_erc165 {
     };
 }
 
-/// Ask `target` whether it implements `interface_id`, treating a contract
-/// without ERC-165 as `Ok(false)`.
-///
-/// The query is a read-only call to `supports_interface`. A target that
-/// does not export that entrypoint throws `LibraryExn::UnknownMethod`,
-/// which is folded into `Ok(false)`; every other failure (no contract at
-/// the address, a fault, an unrelated exception) is returned as the
-/// [`CallError`] so a caller can distinguish "says no" from "cannot
-/// answer".
-pub fn try_probe_interface(
-    target: &ContractAddress,
-    interface_id: InterfaceId,
-) -> Result<bool, CallError> {
-    match ERC165Client::new(target)
-        .with_read_only()
-        .try_supports_interface(interface_id)
-    {
-        Ok(supported) => Ok(supported),
-        Err(err) if err.try_as() == Some(LibraryExn::UnknownMethod) => {
-            Ok(false)
-        }
-        Err(err) => Err(err),
-    }
-}
-
-/// [`try_probe_interface`], re-throwing any failure other than a missing
-/// `supports_interface` entrypoint.
-pub fn probe_interface(
-    target: &ContractAddress,
-    interface_id: InterfaceId,
-) -> bool {
-    use sdk::OrReThrow;
-
-    try_probe_interface(target, interface_id).or_re_throw()
-}
-
 /// A set of interfaces to ask one contract about in a single
 /// [`ERC165Client::supports`] call: a tuple of one to eight of their
 /// generated clients, such as `(ERC721Client, ERC721MetadataClient)`.
@@ -207,21 +170,21 @@ interface_query!(8: A, B, C, D, E, F, G, H);
 
 impl ERC165Client {
     /// Whether the target implements each interface in `Q`, a tuple of
-    /// interface clients, answered by one `supports_interfaces` call:
-    ///
-    /// ```ignore
-    /// let [is_nft, has_metadata] = ERC165Client::new(&target)
-    ///     .supports::<(ERC721Client, ERC721MetadataClient)>();
-    /// ```
-    ///
-    /// Never fails: if the call does (no contract at the address, no
-    /// ERC-165, a fault), every interface counts as unsupported, and so does
-    /// any interface the target leaves unanswered.
+    /// interface clients, from one read-only `supports_interfaces` call. A
+    /// failed call or an unanswered id counts as unsupported.
     pub fn supports<Q: InterfaceQuery>(&self) -> Q::Answer {
         let support = self
+            .with_read_only()
             .try_supports_interfaces(&query_ids::<Q>())
             .unwrap_or_default();
         Q::answer(&support)
+    }
+
+    /// Whether the target implements the interface `C` calls:
+    /// [`supports`](Self::supports) for a single interface.
+    pub fn implements<C: sdk::ContractClient>(&self) -> bool {
+        let [supported] = self.supports::<(C,)>();
+        supported
     }
 }
 

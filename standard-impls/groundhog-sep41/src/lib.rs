@@ -7,15 +7,12 @@
 mod error;
 pub use error::*;
 
-use groundhog_erc20_controls_if::{ERC20BurnClient, ERC20BurnEntrypoints};
+use groundhog_erc20_controls_if::ERC20BurnClient;
 use groundhog_erc20_if::{
-    Amount, ERC20AllowanceExpiryClient, ERC20AllowanceExpiryEntrypoints,
-    ERC20Client, ERC20Entrypoints, check_amount,
+    Amount, ERC20AllowanceExpiryClient, ERC20Client, check_amount,
 };
-use groundhog_erc20_metadata_if::{
-    ERC20MetadataClient, ERC20MetadataEntrypoints, Name, Symbol,
-};
-use groundhog_erc165_if::{ERC165Entrypoints, InterfaceId, probe_interface};
+use groundhog_erc20_metadata_if::{ERC20MetadataClient, Name, Symbol};
+use groundhog_erc165_if::ERC165Client;
 use sdk::{BlockHeight, ContractAddress, ensure, get_block_height, throw};
 
 /// SEP-41 token operations over any token implementing `ERC20`, `ERC20Burn`
@@ -37,17 +34,20 @@ impl<'a> SEP41View<'a> {
     }
 
     /// Whether the token reports implementing every interface this view
-    /// calls: `Some` of its ERC-165 answer, or `None` if it does not implement
-    /// ERC-165 and so cannot say. Other call failures throw.
+    /// calls: `Some` of its ERC-165 answer, or `None` if it cannot say (it
+    /// does not implement ERC-165, or the query fails). One call.
     ///
     /// Like any ERC-165 claim, this describes the token's code, so treat it
     /// as a dispatch hint rather than an authorization boundary.
     pub fn is_supported(&self) -> Option<bool> {
-        self.claims(&[
-            ERC20Entrypoints::INTERFACE_ID,
-            ERC20BurnEntrypoints::INTERFACE_ID,
-            ERC20MetadataEntrypoints::INTERFACE_ID,
-        ])
+        let [erc165, erc20, burn, metadata] = ERC165Client::new(self.token)
+            .supports::<(
+                ERC165Client,
+                ERC20Client,
+                ERC20BurnClient,
+                ERC20MetadataClient,
+            )>();
+        erc165.then_some(erc20 && burn && metadata)
     }
 
     /// Whether the token reports implementing [`ERC20AllowanceExpiry`], which
@@ -55,7 +55,9 @@ impl<'a> SEP41View<'a> {
     ///
     /// [`ERC20AllowanceExpiry`]: groundhog_erc20_if::ERC20AllowanceExpiry
     pub fn supports_expiry(&self) -> Option<bool> {
-        self.claims(&[ERC20AllowanceExpiryEntrypoints::INTERFACE_ID])
+        let [erc165, expiry] = ERC165Client::new(self.token)
+            .supports::<(ERC165Client, ERC20AllowanceExpiryClient)>();
+        erc165.then_some(expiry)
     }
 
     /// `spender`'s remaining allowance of `from`'s tokens, or zero once expired.
@@ -150,13 +152,5 @@ impl<'a> SEP41View<'a> {
         ERC20MetadataClient::new(self.token)
             .symbol()
             .unwrap_or_else(|| throw(SEP41Error::MetadataUnavailable))
-    }
-
-    // `None` when the token has no ERC-165; otherwise whether it claims all.
-    fn claims(&self, interfaces: &[InterfaceId]) -> Option<bool> {
-        if !probe_interface(self.token, ERC165Entrypoints::INTERFACE_ID) {
-            return None;
-        }
-        Some(interfaces.iter().all(|id| probe_interface(self.token, *id)))
     }
 }

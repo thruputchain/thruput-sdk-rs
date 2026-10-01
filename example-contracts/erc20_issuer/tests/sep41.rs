@@ -185,6 +185,8 @@ fn approve_conflicts_with_a_same_block_spend_in_both_orders() {
 fn is_supported_reads_the_tokens_erc165_claims() {
     const NFT: ContractAddress = ContractAddress::new([0x25; 32]);
     const BARE: ContractAddress = ContractAddress::new([0x26; 32]);
+    // No contract is deployed here.
+    const EMPTY: ContractAddress = ContractAddress::new([0x27; 32]);
     let env = setup();
     for (addr, contract) in [
         (NFT, erc721::register_mock_contract(&env).as_contract()),
@@ -200,6 +202,8 @@ fn is_supported_reads_the_tokens_erc165_claims() {
         assert_eq!(view().supports_expiry(), Some(true));
         assert_eq!(SEP41View::new(&NFT).supports_expiry(), Some(false));
         assert_eq!(SEP41View::new(&BARE).supports_expiry(), None);
+        assert_eq!(SEP41View::new(&EMPTY).is_supported(), None);
+        assert_eq!(SEP41View::new(&EMPTY).supports_expiry(), None);
     })
     .assert_success();
 }
