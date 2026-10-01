@@ -12,7 +12,8 @@ use groundhog_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
 use groundhog_erc165_if::{
-    ERC165Client, probe_interface, try_probe_interface,
+    ERC165Client, InterfaceIds, InterfaceSupport, probe_interface,
+    try_probe_interface,
 };
 use sdk::call::CallError;
 use sdk::*;
@@ -362,6 +363,56 @@ fn supports_interface_reports_derived_claims() {
             assert_eq!(
                 try_probe_interface(&EMPTY_ADDR, erc20),
                 Err(CallError::Invalid)
+            );
+        })
+    });
+    result.assert_success();
+}
+
+/// ERC-165 as a list: `supports_interfaces` answers every queried id in
+/// query order (duplicates and unknown ids included) and agrees with
+/// `supports_interface` id by id.
+#[test]
+fn supports_interfaces_answers_each_queried_id_in_order() {
+    use erc20_pausable::{
+        AccessControl, ERC20, ERC20Metadata, ERC20Pausable,
+        PausableTokenContract as Token,
+    };
+
+    let env = TestEnvironment::no_cost();
+    let addr = deploy_and_init(&env);
+
+    let result = env.transact(|tx| {
+        tx.call(&OTHER).run(move || {
+            let erc165 = ERC165Client::new(&addr);
+
+            let query = InterfaceIds::from_slice(&[
+                <Token as ERC20>::INTERFACE_ID,
+                groundhog_signed_op_if::SignedOpEntrypoints::INTERFACE_ID,
+                <Token as ERC20Metadata>::INTERFACE_ID,
+                [0xff; 8],
+                <Token as ERC20Pausable>::INTERFACE_ID,
+                <Token as AccessControl>::INTERFACE_ID,
+                groundhog_erc165_if::ERC165Entrypoints::INTERFACE_ID,
+                // A repeated id is answered again.
+                <Token as ERC20>::INTERFACE_ID,
+            ])
+            .unwrap();
+            let expected = InterfaceSupport::from_slice(&[
+                true, false, true, false, true, true, true, true,
+            ])
+            .unwrap();
+
+            // The list answer is the single answers, in query order.
+            assert_eq!(erc165.supports_interfaces(&query), expected);
+            for (id, supported) in query.iter().zip(&expected) {
+                assert_eq!(erc165.supports_interface(*id), *supported);
+            }
+
+            // An empty query gets an empty answer.
+            assert_eq!(
+                erc165.supports_interfaces(&InterfaceIds::new()),
+                InterfaceSupport::new()
             );
         })
     });

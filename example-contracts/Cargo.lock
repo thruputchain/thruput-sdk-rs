@@ -538,6 +538,7 @@ dependencies = [
 name = "groundhog-erc165-if"
 version = "0.1.44"
 dependencies = [
+ "heapless",
  "sdk",
 ]
 
@@ -1362,6 +1363,7 @@ dependencies = [
 name = "spec_named_types"
 version = "0.4.0"
 dependencies = [
+ "heapless",
  "sdk",
  "spec_named_types",
 ]

@@ -407,6 +407,7 @@ dependencies = [
 name = "groundhog-erc165-if"
 version = "0.1.44"
 dependencies = [
+ "heapless",
  "sdk",
 ]
 

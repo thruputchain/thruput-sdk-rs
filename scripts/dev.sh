@@ -589,6 +589,11 @@ check_rv32_contract_spec_artifacts() {
     assert_file_contains "$spec_named_json" '"name":"echo_hash"' &&
     assert_file_contains "$spec_named_json" '"kind":"array","len":32,"element":{"kind":"u8"}' &&
     assert_file_contains "$spec_named_json" '"name":"echo_blob_envelope"' &&
+    # A named element in a bounded heapless::Vec: the vector keeps its bound,
+    # the element is spelled by name, and its struct definition is published.
+    assert_file_contains "$spec_named_json" '"name":"echo_tallies"' &&
+    assert_file_contains "$spec_named_json" '"declared":"Tally"}},"max_len":4' &&
+    assert_file_matches "$spec_named_json" '"kind":"struct","name":\{[^}]*"declared":"Tally"\}' &&
     assert_file_contains_id "$spec_named_json" PayloadEvent &&
     assert_file_contains_id "$spec_named_json" AuditEvent &&
     assert_file_lacks_id "$spec_named_json" GhostEvent &&
