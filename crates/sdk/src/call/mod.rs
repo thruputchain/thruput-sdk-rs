@@ -29,9 +29,11 @@ mod contract_client;
 mod contract_result;
 mod encode;
 mod raw_call_error;
+mod ref_arg;
 
 pub use calls::*;
 pub use contract_client::*;
 pub use contract_result::*;
 pub use encode::*;
 pub use raw_call_error::*;
+pub use ref_arg::*;
