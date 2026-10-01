@@ -1,0 +1,2 @@
+[registries]
+groundhog = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }

@@ -1,0 +1,19 @@
+[registries]
+groundhog = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }
+
+# Same link flags as sdk_rs/example-contracts (the canonical rv32 set), on the
+# std-capable riscv32im zkvm-PAL target: single-threaded, RV32IM, no A/F/C, so
+# the lowered artifact is accepted by the Groundhog RV32 VM unchanged.
+# Build with build.sh (it passes -Zbuild-std and the memory/stack defsyms).
+[target.riscv32im-risc0-zkvm-elf]
+rustflags = [
+    "-C", "target-feature=+unaligned-scalar-mem,+relax",
+    "-C", "link-arg=-Tgroundhog-rv32-ceiling.ld",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=--no-dynamic-linker",
+    "-C", "link-arg=--gc-sections",
+    "-C", "link-arg=--no-check-sections",
+    "-C", "link-arg=--icf=all",
+    "-C", "link-arg=--relax-gp",
+    "-C", "relocation-model=static",
+]

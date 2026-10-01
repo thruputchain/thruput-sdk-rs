@@ -1,0 +1,28 @@
+# Project-local Groundhog config.
+#
+# User-level defaults live in ~/.config/groundhog/config.toml.
+# Profiles here merge with global profiles of the same name, and project
+# aliases override global aliases.
+
+default_profile = "local"
+
+[profile.local]
+network = "local"
+# Set with `groundhog wallet use <NAME> --profile local`.
+# default_wallet = "alice"
+
+[profile.local.wallets.alice]
+# address = "0x0000000000000000000000000000000000000000000000000000000000000000"
+# owner_public_key = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+[profile.devnet]
+network = "devnet"
+# Set with `groundhog wallet use <NAME> --profile devnet`.
+# default_wallet = "alice"
+
+[profile.devnet.contracts]
+# gh-caller = "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+# [profile.devnet.wallets.alice]
+# address = "0x0000000000000000000000000000000000000000000000000000000000000000"
+# owner_public_key = "0x0000000000000000000000000000000000000000000000000000000000000000"

@@ -1,0 +1,48 @@
+[package]
+name = "sorhog-xcall"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Standalone: not a member of the sdk_rs workspace.
+[workspace]
+
+[[bin]]
+name = "sorhog-xcall"
+path = "src/main.rs"
+
+[dependencies]
+sdk = { path = "../../../crates/sdk", features = ["alloc"] }
+# `testutils` here only adds native-contract dispatch (ContractFunctionSet) and
+# `arbitrary`; soroban-sdk itself stays non-testutils.
+soroban-env-host = { version = "=28.0.2", default-features = false, features = ["recording_mode", "testutils", "no-wasm-vm", "no-soroban-metering"] }
+soroban-sdk = { version = "=28.0.0", default-features = false, features = ["native-embed"] }
+# The Soroban contract compiled natively into this Groundhog contract: exactly
+# one, chosen by feature.
+soroban-counter = { path = "../soroban-counter", optional = true }
+soroban-caller = { path = "../soroban-caller", optional = true }
+
+getrandom = { version = "0.2", features = ["custom"] }
+talc = { version = "4", default-features = false, features = ["lock_api"] }
+spin = { version = "0.9", default-features = false, features = ["mutex", "spin_mutex", "lock_api"] }
+
+[features]
+counter = ["dep:soroban-counter"]
+caller = ["dep:soroban-caller"]
+
+[patch.crates-io]
+# build.sh vendors these and applies ../patches/*.patch:
+# - host: wall-clock telemetry timer compiled out on zkvm; a recording-mode
+#   invoke variant with a pre-invoke setup hook (to register native contracts).
+# - sdk: hidden `Env::__from_host` to call native contract fns without testutils.
+soroban-env-host = { path = "vendor/soroban-env-host-28.0.2" }
+soroban-sdk = { path = "vendor/soroban-sdk-28.0.0" }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = false
+debug = false
+strip = "symbols"
+panic = "abort"
+lto = true
+codegen-units = 1

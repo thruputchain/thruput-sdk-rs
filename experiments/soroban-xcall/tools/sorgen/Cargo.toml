@@ -1,0 +1,16 @@
+[package]
+name = "sorgen"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+stellar-xdr = { version = "=28.0.0", features = ["std"] }
+sha2 = "0.10"
+hex = "0.4"
+# Groundhog-side encodings (entrypoint ids, CXS calldata), from the SDK itself.
+groundhog-contract-util = { path = "../../../../crates/contract-util" }
+xdrs = { registry = "groundhog", version = "=0.10.2", features = ["alloc"] }
+groundhog-xdr = { registry = "groundhog", version = "=0.43.0", features = ["xdrs"] }

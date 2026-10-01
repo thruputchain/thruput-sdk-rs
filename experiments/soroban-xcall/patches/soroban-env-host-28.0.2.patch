@@ -1,0 +1,301 @@
+diff -ruN a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -36,6 +36,12 @@
+ ]
+ 
+ [features]
++# Reject Wasm upload/execution so the wasmi engine can be linked out; only
++# natively registered contracts can run.
++no-wasm-vm = []
++# Skip Soroban's CPU/memory cost model: the embedding VM meters every
++# instruction itself.
++no-soroban-metering = []
+ backtrace = ["dep:backtrace"]
+ bench = ["testutils"]
+ next = ["soroban-env-common/next"]
+diff -ruN a/src/budget.rs b/src/budget.rs
+--- a/src/budget.rs
++++ b/src/budget.rs
+@@ -1308,6 +1308,12 @@
+         iterations: u64,
+         input: Option<u64>,
+     ) -> Result<(), HostError> {
++        #[cfg(feature = "no-soroban-metering")]
++        {
++            let _ = (ty, iterations, input);
++            return Ok(());
++        }
++        #[allow(unreachable_code)]
+         self.0
+             .try_borrow_mut_or_err()?
+             .charge(ty, iterations, input)
+@@ -1319,6 +1325,13 @@
+     /// Otherwise it is a linear model.  The caller needs to ensure the input
+     /// passed is consistent with the inherent model underneath.
+     pub fn charge(&self, ty: ContractCostType, input: Option<u64>) -> Result<(), HostError> {
++        // The embedding VM meters every instruction itself.
++        #[cfg(feature = "no-soroban-metering")]
++        {
++            let _ = (ty, input);
++            return Ok(());
++        }
++        #[allow(unreachable_code)]
+         self.0.try_borrow_mut_or_err()?.charge(ty, 1, input)
+     }
+ 
+diff -ruN a/src/e2e_invoke.rs b/src/e2e_invoke.rs
+--- a/src/e2e_invoke.rs
++++ b/src/e2e_invoke.rs
+@@ -760,6 +760,37 @@
+     base_prng_seed: [u8; 32],
+     diagnostic_events: &mut Vec<DiagnosticEvent>,
+ ) -> Result<InvokeHostFunctionRecordingModeResult, HostError> {
++    invoke_host_function_in_recording_mode_with_setup(
++        budget,
++        enable_diagnostics,
++        host_fn,
++        source_account,
++        auth_mode,
++        ledger_info,
++        ledger_snapshot,
++        base_prng_seed,
++        diagnostic_events,
++        &|_| Ok(()),
++    )
++}
++
++/// Same as [`invoke_host_function_in_recording_mode`], but runs `setup` on the
++/// freshly built [`Host`] before the invocation (e.g. to register natively
++/// compiled contracts).
++#[cfg(any(test, feature = "recording_mode"))]
++#[allow(clippy::too_many_arguments)]
++pub fn invoke_host_function_in_recording_mode_with_setup(
++    budget: &Budget,
++    enable_diagnostics: bool,
++    host_fn: &HostFunction,
++    source_account: &AccountId,
++    auth_mode: RecordingInvocationAuthMode,
++    ledger_info: LedgerInfo,
++    ledger_snapshot: Rc<dyn SnapshotSource>,
++    base_prng_seed: [u8; 32],
++    diagnostic_events: &mut Vec<DiagnosticEvent>,
++    setup: &dyn Fn(&Host) -> Result<(), HostError>,
++) -> Result<InvokeHostFunctionRecordingModeResult, HostError> {
+     let storage = Storage::with_recording_footprint(ledger_snapshot.clone());
+     let host = Host::with_storage_and_budget(storage, budget.clone());
+     let recording_auth = match &auth_mode {
+@@ -789,6 +820,7 @@
+     if enable_diagnostics {
+         host.set_diagnostic_level(DiagnosticLevel::Debug)?;
+     }
++    setup(&host)?;
+     let invoke_result = host.invoke_function(host_function);
+     let mut contract_events_and_return_value_size = 0_u32;
+     if let Ok(res) = &invoke_result {
+diff -ruN a/src/host/frame.rs b/src/host/frame.rs
+--- a/src/host/frame.rs
++++ b/src/host/frame.rs
+@@ -906,6 +906,30 @@
+         args: &[Val],
+         treat_missing_function_as_noop: bool,
+     ) -> Result<Val, HostError> {
++        // Contracts living outside this host are reached through the
++        // embedder's handler (cloned out so no borrow is held across the call,
++        // which may re-enter the embedder).
++        let external = self.try_borrow_external_contract_handler()?.clone();
++        if let Some(handler) = external {
++            if handler.is_external(contract_id) {
++                let ScVal::Symbol(sym) = self.from_host_val(func.to_val())? else {
++                    return Err(self.err(
++                        ScErrorType::Value,
++                        ScErrorCode::UnexpectedType,
++                        "function name is not a symbol",
++                        &[],
++                    ));
++                };
++                let mut sc_args = std::vec::Vec::with_capacity(args.len());
++                for a in args {
++                    sc_args.push(self.from_host_val(*a)?);
++                }
++                return match handler.call(contract_id, &sym, sc_args) {
++                    Ok(v) => self.to_host_val(&v),
++                    Err(e) => Err(self.error(e, "external contract call failed", &[])),
++                };
++            }
++        }
+         // Create key for storage
+         let storage_key = self.contract_instance_ledger_key(contract_id)?;
+         let instance = self.retrieve_contract_instance_from_storage(&storage_key)?;
+@@ -961,6 +985,19 @@
+         // it to the caller (the current top frame). Reclaim that delta and hand
+         // it to the new frame as its opening balance, so it is refunded promptly
+         // when this frame pops rather than lingering on the caller.
++        // Embedders running only natively compiled contracts can compile the
++        // Wasm VM out entirely.
++        #[cfg(feature = "no-wasm-vm")]
++        {
++            let _ = (wasm_hash, &args_vec, &instance, treat_missing_function_as_noop);
++            return Err(self.err(
++                ScErrorType::WasmVm,
++                ScErrorCode::InvalidAction,
++                "Wasm execution is disabled (no-wasm-vm)",
++                &[],
++            ));
++        }
++        #[allow(unreachable_code)]
+         let caller_mark = self.current_frame_linear_mem_charged()?;
+         let vm = self.instantiate_vm(contract_id, wasm_hash)?;
+         let vm_linear_mem = self.reclaim_frame_linear_mem_since(caller_mark)?;
+diff -ruN a/src/host/lifecycle.rs b/src/host/lifecycle.rs
+--- a/src/host/lifecycle.rs
++++ b/src/host/lifecycle.rs
+@@ -343,6 +343,14 @@
+         // but really "instantiating a VM" is mostly just "parsing the module
+         // and doing those checks" anyway. Revisit in the future if you want to
+         // try to split these costs up some.
++        #[cfg(feature = "no-wasm-vm")]
++        return Err(self.err(
++            ScErrorType::WasmVm,
++            ScErrorCode::InvalidAction,
++            "Wasm upload is disabled (no-wasm-vm)",
++            &[],
++        ));
++        #[allow(unreachable_code)]
+         let ext = {
+             let _check_vm = Vm::new(
+                 self,
+diff -ruN a/src/host.rs b/src/host.rs
+--- a/src/host.rs
++++ b/src/host.rs
+@@ -93,9 +93,43 @@
+     pub vm_to_vm_calls: usize,
+ }
+ 
++std::thread_local! {
++    static LAST_ESCALATED_ERROR: core::cell::Cell<Option<crate::Error>> =
++        const { core::cell::Cell::new(None) };
++}
++
++fn set_last_escalated_error(e: crate::Error) {
++    LAST_ESCALATED_ERROR.with(|c| c.set(Some(e)));
++}
++
++/// The host error most recently escalated to a panic by a natively compiled
++/// contract (see `escalate_error_to_panic`). An embedder that cannot unwind
++/// can read this from its panic hook to fail with the real error instead of a
++/// bare trap.
++pub fn take_last_escalated_error() -> Option<crate::Error> {
++    LAST_ESCALATED_ERROR.with(|c| c.take())
++}
++
++/// Routes calls to contracts that do not live in this host -- e.g. Soroban
++/// contracts hosted by *other* contracts of an embedding chain, or that
++/// chain's own contracts. Values cross the boundary as `ScVal`s.
++pub trait ExternalContractHandler {
++    /// Whether a call to `id` must be routed through [`Self::call`].
++    fn is_external(&self, id: &crate::xdr::ContractId) -> bool;
++    /// Perform the call. An `Err` behaves exactly like a failed callee: it
++    /// propagates to the caller, or is caught by `try_call`.
++    fn call(
++        &self,
++        id: &crate::xdr::ContractId,
++        func: &crate::xdr::ScSymbol,
++        args: std::vec::Vec<ScVal>,
++    ) -> Result<ScVal, crate::Error>;
++}
++
+ #[derive(Clone, Default)]
+ struct HostImpl {
+     module_cache: RefCell<Option<ModuleCache>>,
++    external_contract_handler: RefCell<Option<Rc<dyn ExternalContractHandler>>>,
+     source_account: RefCell<Option<AccountId>>,
+     ledger: RefCell<Option<LedgerInfo>>,
+     objects: RefCell<Vec<HostObject>>,
+@@ -240,6 +274,12 @@
+ );
+ impl_checked_borrow_helpers!(storage, Storage, try_borrow_storage, try_borrow_storage_mut);
+ impl_checked_borrow_helpers!(
++    external_contract_handler,
++    Option<Rc<dyn ExternalContractHandler>>,
++    try_borrow_external_contract_handler,
++    try_borrow_external_contract_handler_mut
++);
++impl_checked_borrow_helpers!(
+     context_stack,
+     Vec<Context>,
+     try_borrow_context_stack,
+@@ -369,6 +409,7 @@
+         let _client = tracy_client::Client::start();
+         Self(Rc::new(HostImpl {
+             module_cache: RefCell::new(None),
++            external_contract_handler: RefCell::new(None),
+             source_account: RefCell::new(None),
+             ledger: RefCell::new(None),
+             objects: Default::default(),
+@@ -403,6 +444,15 @@
+         }))
+     }
+ 
++    /// Installs the handler for calls to contracts outside this host.
++    pub fn set_external_contract_handler(
++        &self,
++        handler: Rc<dyn ExternalContractHandler>,
++    ) -> Result<(), HostError> {
++        *self.try_borrow_external_contract_handler_mut()? = Some(handler);
++        Ok(())
++    }
++
+     #[cfg(any(test, feature = "testutils"))]
+     // This builds a module cache instance for just the contracts stored
+     // in the host's storage map, and is used only in testing.
+@@ -888,6 +938,7 @@
+             }
+             Ok(())
+         });
++        set_last_escalated_error(e.error);
+         let escalation = self.error(e.error, "escalating error to panic", &[]);
+         panic!("{:?}", escalation)
+     }
+diff -ruN a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -37,6 +37,7 @@
+ pub mod storage;
+ pub use budget::{DEFAULT_HOST_DEPTH_LIMIT, DEFAULT_XDR_RW_LIMITS};
+ pub use host::{
++    ExternalContractHandler, take_last_escalated_error,
+     metered_map::MeteredOrdMap, metered_vector::MeteredVector, ErrorHandler, Host, HostError, Seed,
+     SEED_BYTES,
+ };
+diff -ruN a/src/vm.rs b/src/vm.rs
+--- a/src/vm.rs
++++ b/src/vm.rs
+@@ -48,22 +48,22 @@
+ const WASM_STD_MEM_PAGE_SIZE_IN_BYTES: u32 = 0x10000;
+ 
+ struct VmInstantiationTimer {
+-    #[cfg(not(target_family = "wasm"))]
++    #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+     host: Host,
+-    #[cfg(not(target_family = "wasm"))]
++    #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+     start: std::time::Instant,
+ }
+ impl VmInstantiationTimer {
+     fn new(_host: Host) -> Self {
+         VmInstantiationTimer {
+-            #[cfg(not(target_family = "wasm"))]
++            #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+             host: _host,
+-            #[cfg(not(target_family = "wasm"))]
++            #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+             start: std::time::Instant::now(),
+         }
+     }
+ }
+-#[cfg(not(target_family = "wasm"))]
++#[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+ impl Drop for VmInstantiationTimer {
+     fn drop(&mut self) {
+         let _ = self.host.as_budget().track_time(

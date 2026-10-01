@@ -1,0 +1,49 @@
+[package]
+# A plain Groundhog contract (stock SDK, standard rv32 build) that calls a
+# Soroban contract hosted by a soroban-xcall Groundhog contract.
+name = "gh-caller"
+version = "0.1.0"
+edition = "2024"
+
+# Standalone: not a member of the sdk_rs workspace.
+[workspace]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# RV32 ELF bin wrapper. The name must stay the snake-case package name:
+# `groundhog build` looks for the ELF at `release/<snake_name>`.
+# `required-features` keeps host `cargo build` / `cargo test` from building
+# this no_std binary.
+[[bin]]
+name = "gh_caller"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+test = false
+bench = false
+
+# These feature names are contracts with the toolchain — do not rename them:
+# - `entrypoints`: the #[contract] macro keys guest entrypoint codegen on
+#   this exact name, and `groundhog build` compiles the rv32 bin with it.
+# - `dev`: `groundhog test` runs host tests with `--features dev`.
+[features]
+entrypoints = []
+dev = ["sdk/dev"]
+
+# `sdk` is declared per target because it needs `std` on the host and forbids
+# it on the guest. Cargo resolves features per platform, so host `cargo build`
+# / `cargo check` (and rust-analyzer) see a buildable crate without `dev`
+# being a default feature, and the rv32 build stays `no_std`.
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+sdk = { path = "../../../crates/sdk", features = ["alloc"] }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { path = "../../../crates/sdk", features = ["std"] }
+
+# The self-dependency is deliberate: it turns the `dev` feature (and so
+# `sdk/dev`, the native mock executor) on for `cargo test` builds only,
+# keeping the library itself no_std for guest builds.
+[dev-dependencies]
+gh-caller = { path = ".", features = ["dev"] }

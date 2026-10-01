@@ -1,0 +1,5 @@
+[toolchain]
+channel = "nightly-2026-07-01"
+profile = "default"
+targets = ["riscv32im-unknown-none-elf"]
+components = ["rust-src"]

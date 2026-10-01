@@ -1,0 +1,69 @@
+diff -ruN a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -36,6 +36,8 @@
+ 
+ [features]
+ alloc = []
++# Embed natively compiled contracts in a host (see Env::__from_host).
++native-embed = ["soroban-env-host/testutils"]
+ docs = []
+ hazmat = [
+     "hazmat-crypto",
+diff -ruN a/src/env.rs b/src/env.rs
+--- a/src/env.rs
++++ b/src/env.rs
+@@ -45,7 +45,7 @@
+     // we want to print out a nice error message in that case too, which
+     // panic_any() does not do us the favor of producing. This is all very
+     // subtle. See also soroban_env_host::Host::escalate_error_to_panic.)
+-    #[cfg(any(test, feature = "testutils"))]
++    #[cfg(any(test, feature = "testutils", feature = "native-embed"))]
+     pub(crate) fn reject_err<T>(env: &Host, r: Result<T, HostError>) -> Result<T, Infallible> {
+         r.map_err(|e| env.escalate_error_to_panic(e))
+     }
+@@ -56,7 +56,7 @@
+     // calling machinery set up, nor probably any panic-catcher installed that
+     // we need to hide error values for the benefit of. Any panic in this case
+     // is probably going to unwind completely anyways. No special case needed.
+-    #[cfg(not(any(test, feature = "testutils")))]
++    #[cfg(not(any(test, feature = "testutils", feature = "native-embed")))]
+     pub(crate) fn reject_err<T>(_env: &Host, r: Result<T, HostError>) -> Result<T, Infallible> {
+         r.map_err(|e| panic!("{:?}", e))
+     }
+@@ -2197,9 +2197,9 @@
+     #[cfg(not(target_family = "wasm"))]
+     fn error_from_error_val(&self, e: crate::Error) -> Self::Error {
+         let host_err = self.env_impl.error_from_error_val(e);
+-        #[cfg(any(test, feature = "testutils"))]
++        #[cfg(any(test, feature = "testutils", feature = "native-embed"))]
+         self.env_impl.escalate_error_to_panic(host_err);
+-        #[cfg(not(any(test, feature = "testutils")))]
++        #[cfg(not(any(test, feature = "testutils", feature = "native-embed")))]
+         panic!("{:?}", host_err);
+     }
+ 
+@@ -2241,7 +2241,7 @@
+     // not-very-serious impl, since `Self::Error` is `Infallible`, this instance
+     // can never actually be called and so its body is just a trivial
+     // transformation from one empty type to another, for Type System Reasons.
+-    #[cfg(any(test, feature = "testutils"))]
++    #[cfg(any(test, feature = "testutils", feature = "native-embed"))]
+     fn escalate_error_to_panic(&self, e: Self::Error) -> ! {
+         match e {}
+     }
+@@ -2454,3 +2454,14 @@
+ 
+ // Here we invoke the x-macro passing generate_env_trait as its callback macro.
+ internal::call_macro_with_all_host_functions! { impl_env_for_sdk }
++
++/// Wraps an existing host as an [`Env`], so an embedder can dispatch to
++/// natively compiled contract functions (`__<Type>__<fn>__invoke_raw`)
++/// without the `testutils` registration machinery.
++#[doc(hidden)]
++#[cfg(all(not(target_family = "wasm"), not(any(test, feature = "testutils"))))]
++impl Env {
++    pub fn __from_host(host: internal::Host) -> Self {
++        Env { env_impl: host }
++    }
++}
