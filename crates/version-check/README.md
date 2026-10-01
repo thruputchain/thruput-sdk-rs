@@ -112,7 +112,7 @@ none short-circuits, so one run tells you everything that needs fixing.
 | `path-target` | Every `path` dependency resolves to a manifest declaring the expected package name. | Catches moved, renamed, and typo'd paths. |
 | `in-repo-source` | A dependency naming an in-repo package reaches it by `path`. | Without a `path` it silently resolves from the registry, so local changes are ignored. |
 | `own-version` | Root-workspace members use `version.workspace = true`, unless excepted. | A new crate with a hardcoded version would drift out of lockstep on the next release. |
-| `lockfile` | Every lockfile agrees with the manifests on in-repo versions, and locks in-repo packages from their path rather than a registry source. | The six lockfiles are the easiest thing to forget; the registry-source case is a `grep`-proof failure. |
+| `lockfile` | Every lockfile agrees with local versions and uses path sources, except explicit lockfile/crate/version entries for released tools' older transitive dependencies. | Registry copies and stale exceptions are rejected. |
 | `default-members` | Non-target-only `crates/*` members appear in `default-members`. | Host-wide `cargo build`/`test`/`doc` build only `default-members`, so an omitted crate is silently untested. |
 | `external-agreement` | Every manifest pinning the same external crate pins it identically. | Probably what we want. (Compares version requirements only, not features.) |
 | `publish-order` | Every in-repo dependency is vendored and published before its dependent in `.github/workflows/publish.yml`. | `cargo package` resolves dev-dependencies too, so a list out of order fails the release itself. The workflow is dispatched by hand, so the first run to exercise a new edge is usually a real release. |

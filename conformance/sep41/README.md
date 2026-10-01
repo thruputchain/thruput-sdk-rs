@@ -1,46 +1,21 @@
 # SEP-41 comparison tests
 
-[GH-441](https://linear.app/grndhg/issue/GH-441) runs matching traces through
-`SEP41View` over the real Groundhog issuer RV32 token and Stellar's Asset
-Contract in Soroban SDK 28.0.0 / host 28.0.2. This separate workspace keeps
-Soroban dependencies out of SDK and example builds.
+Compare `SEP41View` over the Groundhog issuer RV32 token with pinned Stellar
+SAC. Each step checks balances, allowance, authorization, events and rollback.
+This separate workspace keeps Soroban dependencies out of SDK/example builds.
 
-Each step checks balances, allowance, holder authorization and event fields,
-including rollback after rejected calls. Traces cover approval replacement,
-partial spending, inclusive expiry, revocation, signed amount bounds,
-transfers, burns, freeze/unfreeze and clawback. SAC auth mocks match the exact
-actor, function and arguments; Groundhog uses a caller-checked host wallet.
-Commit and advance both hosts between steps. Same-block concurrency stays in
-the native token tests.
-
-The comparison preserves intentional differences:
-
-- Native reset/change events become one finite approval effect. Deletion has
-  no deadline; zero approval compares revocation only.
-- Native clawback emits burn plus context. Check both; compare one destruction.
-- Native aggregate supply is capped at `i128::MAX`; SAC caps each contract
-  holder separately. Metadata is configured on Groundhog and asset-derived
-  on SAC. Admin/minter handover is not shared behavior.
-
-Build the issuer example with the repository's pinned CLI, then run:
+Build the issuer example with the repository's pinned CLI. From the repo root:
 
 ```sh
 ISSUER_TOKEN_RV32_ARTIFACT="$PWD/target/groundhog/erc20_issuer.rv32a" \
   cargo test --manifest-path conformance/sep41/Cargo.toml --locked
 ```
 
-The artifact is required; CI uses its existing example build. Host comparisons
-disable Groundhog resource charges. Classic trustlines, bridge backing and
-recovery are outside this suite. Boundary cases also draw on
-[Leigh's example](https://github.com/groundhogchain/groundhog-examples/pull/116).
-
-The funded runtime test uses published testkit 0.20.0 with separate native
-signing wallets and a small RV32 actor that calls `SEP41View`. It checks
-atomic funded initialization, approval replacement/expiry/revocation,
-authorization and parent/child rollback, storage collateral, and receipts
-against indexed event bytes and identities. It owns a disposable node and
-manually produces blocks so the expiry boundary is exact. The actor has its
-own workspace; build it without host/Soroban features:
+The runtime test uses testkit 0.20.0, native signing wallets and an RV32 actor
+calling `SEP41View`. It checks funded initialization, approval/expiry,
+authorization, collateral rollback and indexed events against receipts.
+It owns a disposable node and produces blocks manually. Use CLI 0.20.0 to
+build the actor, then run:
 
 ```sh
 (cd conformance/sep41/actor && groundhog build -p sep41-runtime-actor -- --locked -Zbuild-std=core,alloc)
@@ -50,8 +25,19 @@ SEP41_ACTOR_RV32_ARTIFACT="$PWD/conformance/sep41/actor/target/groundhog/sep41_r
   cargo test --manifest-path conformance/sep41/Cargo.toml --features runtime --test runtime --locked
 ```
 
-All three inputs are required. The runtime feature leaves ordinary host tests
-independent of a node. This proves signed Groundhog execution; the SAC oracle
-still runs in a Soroban host with exact authorization mocks.
-The native wallet wraps child aborts; matching diagnostic views decode the
-child reason while signed receipts and state checks prove rejection/rollback.
+Artifact paths and the node binary are required; there is no fallback.
+CI builds both artifacts and runs both suites.
+
+Intentional differences:
+
+- Native reset/change events represent one finite approval. Zero approval
+  deletes the grant without a deadline, so compare revocation only.
+- Native clawback emits burn plus context; check both, compare one destruction.
+- Native supply is capped at `i128::MAX` in aggregate; SAC caps each contract
+  holder. Metadata and admin/minter roles differ between the implementations.
+
+Host tests mock authorization and disable Groundhog resource charges. Runtime
+calls use real signatures; native wallets wrap child aborts, so diagnostic
+views check the child reason while receipts and state checks establish rollback.
+Classic trustlines, same-block concurrency and bridge backing/recovery are
+outside this suite.

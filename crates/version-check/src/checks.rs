@@ -11,8 +11,8 @@ use semver::Op;
 
 use crate::model::{Repo, VersionSpec};
 use crate::policy::{
-    DEFAULT_MEMBER_EXCEPTIONS, EXTERNAL_AGREEMENT_EXCEPTIONS, Named,
-    OPERATOR_EXCEPTIONS, OWN_VERSION_EXCEPTIONS,
+    DEFAULT_MEMBER_EXCEPTIONS, EXTERNAL_AGREEMENT_EXCEPTIONS,
+    LOCKFILE_EXCEPTIONS, Named, OPERATOR_EXCEPTIONS, OWN_VERSION_EXCEPTIONS,
 };
 
 pub const ROOT_MANIFEST: &str = "Cargo.toml";
@@ -245,15 +245,30 @@ fn own_version(repo: &Repo, out: &mut Vec<Violation>) {
 }
 
 /// C6: every lockfile agrees with the manifests about in-repo versions, and
-/// resolves in-repo packages from their path rather than the registry.
+/// resolves in-repo packages from their path, apart from scoped tool dependencies.
 fn lockfiles(repo: &Repo, out: &mut Vec<Violation>) {
     for lock in &repo.lockfiles {
+        let exceptions: Vec<_> = LOCKFILE_EXCEPTIONS
+            .iter()
+            .filter(|e| e.lockfile == lock.rel)
+            .collect();
+        let mut used = vec![false; exceptions.len()];
         for (name, version, has_source, line) in &lock.packages {
             let Some(locals) = repo.locals.get(name) else {
                 continue;
             };
             let location = format!("{}:{}", lock.rel, line);
             if *has_source {
+                if let Some(i) = exceptions.iter().position(|e| {
+                    e.crate_name == name
+                        && e.version == version
+                        && !locals
+                            .iter()
+                            .any(|local| version == &local.version.to_string())
+                }) {
+                    used[i] = true;
+                    continue;
+                }
                 out.push(Violation::new(
                     "lockfile",
                     location,
@@ -281,6 +296,22 @@ fn lockfiles(repo: &Repo, out: &mut Vec<Violation>) {
                          declare {declared}"
                     ),
                 ));
+            }
+        }
+        for (e, used) in exceptions.iter().zip(used) {
+            if !used {
+                let mut violation = Violation::new(
+                    "lockfile",
+                    "crates/version-check/src/policy.rs".into(),
+                    format!(
+                        "the `{}` {} exception in {} is no longer needed",
+                        e.crate_name, e.version, e.lockfile
+                    ),
+                );
+                violation
+                    .note
+                    .push(format!("stale exception: {}", e.reason));
+                out.push(violation);
             }
         }
     }

@@ -27,6 +27,35 @@ pub struct AgreementException {
     pub reason: &'static str,
 }
 
+/// A released tool's older transitive dependency, scoped to one lockfile.
+pub struct LockfileException {
+    pub lockfile: &'static str,
+    pub crate_name: &'static str,
+    pub version: &'static str,
+    pub reason: &'static str,
+}
+
+pub const LOCKFILE_EXCEPTIONS: &[LockfileException] = &[
+    LockfileException {
+        lockfile: "conformance/sep41/Cargo.lock",
+        crate_name: "groundhog-contract-spec",
+        version: "0.41.1",
+        reason: "published testkit 0.20.0 requires this older SDK release transitively",
+    },
+    LockfileException {
+        lockfile: "conformance/sep41/Cargo.lock",
+        crate_name: "groundhog-contract-util",
+        version: "0.41.1",
+        reason: "published testkit 0.20.0 requires this older SDK release transitively",
+    },
+    LockfileException {
+        lockfile: "conformance/sep41/Cargo.lock",
+        crate_name: "groundhog-domain-separator",
+        version: "0.41.1",
+        reason: "published testkit 0.20.0 requires this older SDK release transitively",
+    },
+];
+
 /// A named subject (package or crate) excused from a check.
 pub struct Named {
     pub name: &'static str,
