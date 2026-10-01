@@ -11,10 +11,7 @@ use groundhog_erc20_metadata_if::ERC20MetadataClient;
 use groundhog_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
-use groundhog_erc165_if::{
-    ERC165Client, InterfaceIds, InterfaceSupport, probe_interface,
-    try_probe_interface,
-};
+use groundhog_erc165_if::{ERC165Client, InterfaceIds, InterfaceSupport};
 use sdk::call::CallError;
 use sdk::*;
 
@@ -308,8 +305,8 @@ fn roles_gate_pausing_and_are_administered() {
 }
 
 /// ERC-165: `supports_interface` answers for exactly the interfaces this
-/// contract implements (ERC-165 itself included), and the probe helpers
-/// fold a target without the entrypoint into `false`.
+/// contract implements (ERC-165 itself included), and `supports` reads a
+/// target without the entrypoint, or no contract at all, as `false`.
 #[test]
 fn supports_interface_reports_derived_claims() {
     use erc20_pausable::{
@@ -338,13 +335,17 @@ fn supports_interface_reports_derived_claims() {
                 <Token as AccessControl>::INTERFACE_ID,
             ] {
                 assert!(erc165.supports_interface(id));
-                assert!(probe_interface(&addr, id));
             }
             // ...and the interface crates agree on those IDs without
             // naming the implementing type.
             assert!(erc165.supports_interface(
                 groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID
             ));
+            // `supports` names the interfaces by their clients.
+            assert_eq!(
+                erc165.supports::<(groundhog_erc20_if::ERC20Client, ERC165Client)>(),
+                [true, true]
+            );
 
             // An interface it does not implement, and an arbitrary ID.
             assert!(!erc165.supports_interface(
@@ -352,17 +353,18 @@ fn supports_interface_reports_derived_claims() {
             ));
             assert!(!erc165.supports_interface([0xff; 8]));
 
-            // A target without ERC-165 is "no", not an error.
-            let erc20 = groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID;
-            assert_eq!(try_probe_interface(&bare_addr, erc20), Ok(false));
-            assert!(!probe_interface(&bare_addr, erc20));
-
-            // No contract at all is a real failure, not a "no".
+            // A target without ERC-165, and no contract at all, are "no".
+            assert_eq!(
+                ERC165Client::new(&bare_addr)
+                    .supports::<(groundhog_erc20_if::ERC20Client,)>(),
+                [false]
+            );
             const EMPTY_ADDR: ContractAddress =
                 ContractAddress::new([0x78; 32]);
             assert_eq!(
-                try_probe_interface(&EMPTY_ADDR, erc20),
-                Err(CallError::Invalid)
+                ERC165Client::new(&EMPTY_ADDR)
+                    .supports::<(groundhog_erc20_if::ERC20Client,)>(),
+                [false]
             );
         })
     });
