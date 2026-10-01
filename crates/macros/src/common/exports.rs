@@ -326,7 +326,7 @@ pub fn check_entrypoint_collisions(
 }
 
 /// The method call's arguments: owned params pass through; `&T` params pass
-/// `RefArg::get(&wire)`.
+/// `RefArg::get(&decoded)`.
 fn method_call_args(sig: &syn::Signature) -> TokenStream {
     let args = method_args(sig).map(|(ident, ty)| match ty {
         // Spanned on the parameter type, so a type with no `RefArg` impl

@@ -613,7 +613,7 @@ fn supports_interface_reports_the_token_interfaces() {
                 ])
                 .unwrap();
                 assert_eq!(
-                    erc165.supports_interfaces(query.clone()),
+                    erc165.supports_interfaces(&query),
                     InterfaceSupport::from_slice(&[true, true, false])
                         .unwrap()
                 );

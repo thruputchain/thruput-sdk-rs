@@ -1,11 +1,5 @@
-//! A contract whose ERC-165 predates `supports_interfaces`.
-//!
-//! [`SingleQueryERC165`] declares the same interface name and major version
-//! as `groundhog_erc165_if::ERC165`, so it has the same interface id and the
-//! same `supports_interface` entrypoint, but not the list query. That is
-//! what a contract built against the single-query interface exports, and
-//! the batch probes must still read its per-id answers rather than treat it
-//! as having no ERC-165 at all.
+//! Stands in for a contract built against the older ERC-165: it exports
+//! `supports_interface` but not `supports_interfaces`.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 

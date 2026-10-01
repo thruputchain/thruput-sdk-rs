@@ -410,7 +410,7 @@ fn supports_interfaces_answers_each_queried_id_in_order() {
             .unwrap();
 
             // The list answer is the single answers, in query order.
-            assert_eq!(erc165.supports_interfaces(query.clone()), expected);
+            assert_eq!(erc165.supports_interfaces(&query), expected);
             for (id, supported) in query.iter().zip(&expected) {
                 assert_eq!(erc165.supports_interface(*id), *supported);
             }
@@ -423,7 +423,7 @@ fn supports_interfaces_answers_each_queried_id_in_order() {
             // An empty query gets an empty answer.
             let empty = InterfaceIds::new();
             assert_eq!(
-                erc165.supports_interfaces(empty.clone()),
+                erc165.supports_interfaces(&empty),
                 InterfaceSupport::new()
             );
             assert_eq!(
@@ -497,7 +497,7 @@ fn list_probes_fall_back_to_single_query_erc165() {
 
             // The list entrypoint itself is absent...
             let err = ERC165Client::new(&single_addr)
-                .try_supports_interfaces(query.clone())
+                .try_supports_interfaces(&query)
                 .expect_err("a single-query contract has no list entrypoint");
             assert_eq!(err.try_as(), Some(LibraryExn::UnknownMethod));
 

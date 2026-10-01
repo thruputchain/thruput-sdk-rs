@@ -64,13 +64,8 @@ pub type InterfaceSupport = heapless::Vec<bool, INTERFACE_QUERY_MAX>;
 /// `supports_interface` returns `true` for [`ERC165::INTERFACE_ID`] itself,
 /// since the impl block that provides it is one more record in the table.
 /// `supports_interfaces` answers a list of ids in one call, one answer per
-/// id in the query's order, so a caller that needs several of a target's
-/// interfaces at once (a marketplace checking for a token, its metadata,
-/// and its receiver hook) pays one call rather than one per id. Neither
-/// takes `self`: the answer is a property of the contract's code, so they
-/// neither load nor touch storage, callers may invoke them read-only, and
-/// the impl can live on any type — [`impl_erc165!`] puts it on a hidden
-/// stateless one.
+/// id in the query's order. Neither takes `self`, so callers may invoke them
+/// read-only.
 #[contract(client = ERC165Client)]
 pub trait ERC165 {
     /// True if this contract implements the interface identified by
@@ -83,7 +78,7 @@ pub trait ERC165 {
     /// Equivalent to calling [`supports_interface`](ERC165::supports_interface)
     /// once per id: an id that appears twice is answered twice, and an
     /// empty query gets an empty answer.
-    fn supports_interfaces(interface_ids: InterfaceIds) -> InterfaceSupport;
+    fn supports_interfaces(interface_ids: &InterfaceIds) -> InterfaceSupport;
 }
 
 /// Give this contract ERC-165: a `#[contract] impl ERC165` whose
@@ -96,10 +91,9 @@ pub trait ERC165 {
 ///
 /// Invoke it once, at module level in the contract crate, next to the
 /// contract's other `#[contract]` impls. The methods take no `self`, so the
-/// impl does not need — and is not tied to — the contract's storage
-/// struct; the carrier is stateless and registers with the host mock like
-/// a free function. Writing the same block by hand on any type is
-/// equivalent.
+/// impl is not tied to the contract's storage struct; the carrier is
+/// stateless and registers with the host mock like a free function. Writing
+/// the same block by hand on any type is equivalent.
 #[macro_export]
 macro_rules! impl_erc165 {
     () => {
@@ -114,7 +108,7 @@ macro_rules! impl_erc165 {
             }
 
             fn supports_interfaces(
-                interface_ids: $crate::InterfaceIds,
+                interface_ids: &$crate::InterfaceIds,
             ) -> $crate::InterfaceSupport {
                 // The answer shares the query's bound, so collecting one
                 // answer per queried id cannot overflow it.
@@ -167,22 +161,16 @@ pub fn probe_interface(
 /// in the query's order, treating a contract without ERC-165 as all
 /// `Ok(false)`.
 ///
-/// The query is a single read-only call to `supports_interfaces`. A
-/// target that does not export that entrypoint throws
-/// `LibraryExn::UnknownMethod`; it is then asked one id at a time through
-/// [`try_probe_interface`], which answers a target with the older,
-/// single-query ERC-165 correctly and folds a target with no ERC-165 at
-/// all into `false` for every id. Every other failure (no contract at the
-/// address, a fault, an unrelated exception) is returned as the
-/// [`CallError`] so a caller can distinguish "says no" from "cannot
-/// answer".
+/// One read-only call to `supports_interfaces`, falling back to one
+/// [`try_probe_interface`] per id on `LibraryExn::UnknownMethod`. Every other
+/// failure is returned as the [`CallError`].
 pub fn try_probe_interfaces(
     target: &ContractAddress,
     interface_ids: &InterfaceIds,
 ) -> Result<InterfaceSupport, CallError> {
     match ERC165Client::new(target)
         .with_read_only()
-        .try_supports_interfaces(interface_ids.clone())
+        .try_supports_interfaces(interface_ids)
     {
         Ok(supported) => Ok(supported),
         Err(err) if err.try_as() == Some(LibraryExn::UnknownMethod) => {
