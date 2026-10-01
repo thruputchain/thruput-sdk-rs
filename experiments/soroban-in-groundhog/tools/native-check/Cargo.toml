@@ -1,0 +1,11 @@
+[package]
+name = "native-check"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+soroban-env-host = { version = "=28.0.2", features = ["recording_mode"] }
+hex = "0.4"

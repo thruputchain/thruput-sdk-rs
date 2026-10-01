@@ -1,0 +1,34 @@
+[package]
+name = "sorhog"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Standalone: not a member of the sdk_rs workspace.
+[workspace]
+
+[[bin]]
+name = "sorhog"
+path = "src/main.rs"
+
+[dependencies]
+sdk = { path = "../../../crates/sdk", features = ["alloc"] }
+soroban-env-host = { version = "=28.0.2", default-features = false, features = ["recording_mode"] }
+getrandom = { version = "0.2", features = ["custom"] }
+talc = { version = "4", default-features = false, features = ["lock_api"] }
+spin = { version = "0.9", default-features = false, features = ["mutex", "spin_mutex", "lock_api"] }
+
+[patch.crates-io]
+# build.sh vendors soroban-env-host 28.0.2 here and applies
+# ../patches/soroban-env-host-28.0.2-vm-timer.patch (compiles out a wall-clock
+# telemetry timer on target_os = "zkvm", as upstream already does for wasm).
+soroban-env-host = { path = "vendor/soroban-env-host-28.0.2" }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = false
+debug = false
+strip = "symbols"
+panic = "abort"
+lto = true
+codegen-units = 1

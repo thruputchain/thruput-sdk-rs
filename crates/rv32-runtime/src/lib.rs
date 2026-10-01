@@ -79,7 +79,9 @@ pub use dispatch::{Entrypoint, lookup};
 
 // Allocator gated on `alloc`, matching `sdk`'s `alloc` feature. rv32-only:
 // it binds linker-script externs and installs a `#[global_allocator]`.
-#[cfg(all(feature = "alloc", target_arch = "riscv32"))]
+// Bare-metal only: a std guest (e.g. a `target_os = "zkvm"` build) gets its
+// allocator and panic handler from std / the contract instead.
+#[cfg(all(feature = "alloc", target_arch = "riscv32", target_os = "none"))]
 mod allocator;
 
 // The allocator's pure bump arithmetic, split out so it also compiles for
@@ -88,7 +90,10 @@ mod allocator;
 // without `alloc` it would be dead code and trip `--deny warnings`. Under
 // `test` it is always compiled, so a default host `cargo test --lib` runs
 // its tests without needing the feature.
-#[cfg(any(all(feature = "alloc", target_arch = "riscv32"), test))]
+#[cfg(any(
+    all(feature = "alloc", target_arch = "riscv32", target_os = "none"),
+    test
+))]
 mod bump;
 
 // Strong mem-intrinsic overrides (rv32) + their pure copy/fill cores, which
@@ -100,7 +105,7 @@ mod mem;
 
 // rv32-only: these define `#[panic_handler]`, naked asm, and linker-script
 // extern statics, none of which can compile on the host.
-#[cfg(target_arch = "riscv32")]
+#[cfg(all(target_arch = "riscv32", target_os = "none"))]
 mod panic;
 
 #[cfg(target_arch = "riscv32")]

@@ -1,0 +1,30 @@
+--- a/src/vm.rs
++++ b/src/vm.rs
+@@ -48,22 +48,22 @@
+ const WASM_STD_MEM_PAGE_SIZE_IN_BYTES: u32 = 0x10000;
+ 
+ struct VmInstantiationTimer {
+-    #[cfg(not(target_family = "wasm"))]
++    #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+     host: Host,
+-    #[cfg(not(target_family = "wasm"))]
++    #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+     start: std::time::Instant,
+ }
+ impl VmInstantiationTimer {
+     fn new(_host: Host) -> Self {
+         VmInstantiationTimer {
+-            #[cfg(not(target_family = "wasm"))]
++            #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+             host: _host,
+-            #[cfg(not(target_family = "wasm"))]
++            #[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+             start: std::time::Instant::now(),
+         }
+     }
+ }
+-#[cfg(not(target_family = "wasm"))]
++#[cfg(not(any(target_family = "wasm", target_os = "zkvm")))]
+ impl Drop for VmInstantiationTimer {
+     fn drop(&mut self) {
+         let _ = self.host.as_budget().track_time(
