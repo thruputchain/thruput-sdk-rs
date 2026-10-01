@@ -1,0 +1,14 @@
+# CLI-only overlay. `groundhog build` passes this as
+# `cargo --config .cargo/contract.toml` for RV32 builds.
+#
+# DO NOT add [target.*] rustflags here. Cargo JOINS target-rustflags arrays
+# across config layers, so a flag in both this file and .cargo/config.toml is
+# passed twice — a duplicated -Tgroundhog-rv32.ld makes lld fail with
+# "region 'CODE' already defined". All rustflags live in .cargo/config.toml.
+#
+# build-std cannot move to .cargo/config.toml: [unstable] is global rather
+# than per-target, so it would also apply to host `cargo test` runs and break
+# them with "duplicate lang item in crate `core`". Nor can it be a rustflag —
+# it is a cargo option ("unknown unstable option: build-std").
+[unstable]
+build-std = ["core", "alloc"]

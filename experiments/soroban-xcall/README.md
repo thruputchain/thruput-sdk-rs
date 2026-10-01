@@ -89,6 +89,90 @@ that isn't its own:
 matters because a re-entered contract would read storage that its outer
 invocation has not written back yet. The refusal reverts cleanly.
 
+## Auth: Soroban auth trees as Groundhog auth tokens
+
+Soroban contracts authorize with `addr.require_auth()`. The host must
+confirm that `addr` approved this exact call, often as a sub-invocation of a
+call the user signed (user → `router.pay` → `token.transfer(from = user)`).
+Here the router and the token run in **different** Groundhog contracts, and
+any contract along the way may be malicious. So authorization has to cross
+untrusted hops without being forgeable, redirectable or reusable.
+Groundhog's auth tokens already provide exactly that.
+
+### Roles
+
+**Trusted entrypoint (`gh-entry/`).** It verifies the Soroban signatures and
+sequences nonces (RCQ). Both are assumed done in this experiment. It then
+mints one Groundhog auth-token tree per Soroban auth entry, and invokes the
+target Soroban contract with the root tokens.
+
+Node layout (`sorgen entry` builds it from a JSON spec):
+
+- `consumer_address`: the Soroban contract the node authorizes.
+- `payload`: XDR `ScVal::Vec[authorizer, fn, args, child_fingerprints]`.
+  - `pay` is 232 bytes and `transfer` is 188 bytes, under the current
+    256-byte limit.
+- `child_nodes`: the node's sub-invocations.
+- A child fingerprint is `sha256(InvokeContractArgs XDR)[..8]`.
+  - Only a token's consumer can open it, so a parent routes child tokens by
+    fingerprint without seeing inside them.
+
+**Each Soroban-hosting contract** (guest `auth` module):
+
+- **Consumes** the tokens passed with its invocation and rejects any whose
+  runtime-stamped minter isn't the trusted entrypoint.
+- **Installs** the entries in the host as **pre-verified**. A new host API,
+  `set_preverified_authorization_entries`, reuses Soroban's source-account
+  path: no signature or nonce check, but full call-tree enforcement in
+  enforcing mode.
+- **Adds the direct Groundhog caller** as an authorizer of the root call.
+  This is Soroban's invoker-contract rule, and `get_caller()` is
+  runtime-provided.
+- **Forwards child tokens.** On each outbound Soroban call, the router
+  attaches the held child token whose fingerprint matches that exact call.
+  If the callee fails, Groundhog hands the token back.
+
+### Why an untrusted contract in the middle can't abuse this
+
+| Attack | Stopped by |
+|---|---|
+| forge auth | only the entrypoint can mint tokens with itself as minter; the runtime stamps it |
+| redirect a sub-authorization to another contract | only the named consumer can open a node |
+| change the arguments (e.g. the recipient) | the payload pins the call; the callee's host enforces it against the real call |
+| use one authorization twice | each token is consumed once |
+| keep a token after a failed sub-call | the runtime returns tokens from failed frames |
+
+### Results (hog-devnode, `run.sh`; U starts with 100)
+
+| Scenario | Outcome | Gas |
+|---|---|---|
+| U authorizes `token.transfer(U, V, 10)` | ok | 1,204,397 |
+| same call, no auth tree | refused `Auth(InvalidAction)` | 379,586 |
+| tree authorizes recipient V, call pays T | refused `Auth(InvalidAction)` | 480,755 |
+| valid tree, minted by an untrusted copy of the entrypoint | refused `Auth(InvalidInput)` | 68,857 |
+| U → `router.pay` → `token.transfer` (child token forwarded across Groundhog contracts) | ok | 2,040,632 |
+| same, tree lacks the `transfer` sub-invocation | refused | 925,126 |
+| malicious `router.pay_evil` redirects the funds to itself | refused | 933,253 |
+| `router.pay_twice` with one authorized transfer | refused (whole call reverts) | 2,239,970 |
+| `router.pay_twice` with two authorized transfers | ok | 3,239,535 |
+| `router.pay_self` spends the router's own balance (it is the direct caller) | ok | 1,811,989 |
+| the entrypoint tries to spend the router's balance | refused | 379,586 |
+
+Final balances reconcile: U 81, V 26, T 0, router 43.
+
+### Auth limits and gaps
+
+- **Token tree shape:** depth ≤ 4 and ≤ 4 children per node
+  (`kAuthTokenMaxDepth`, `kAuthTokenMaxChildNodes`). Payloads ≤ 256 bytes.
+- **Trusted-entrypoint registration:** set once per contract via method 2
+  after deploy. A real deployment would fix it at build or genesis.
+- **Signatures and nonces:** not implemented in `gh-entry` (assumed
+  verified), and the RCQ sequencing isn't wired in.
+- **Invoker auth one level down:** contract-authorized sub-calls one level
+  further (`authorize_as_current_contract`) aren't mapped.
+- **Raw Groundhog calls:** child tokens are only forwarded on Soroban →
+  Soroban calls, not on `gh_raw` calls into native Groundhog contracts.
+
 ## Changes vs `../soroban-native`
 
 **soroban-env-host patch (added):**
@@ -96,6 +180,7 @@ invocation has not written back yet. The refusal reverts cleanly.
 - `ExternalContractHandler` plus `Host::set_external_contract_handler`, with
   the hook in `call_contract_fn`.
 - `take_last_escalated_error()`.
+- `Host::set_preverified_authorization_entries`.
 
 **Guest:**
 
@@ -108,11 +193,18 @@ invocation has not written back yet. The refusal reverts cleanly.
 
 - `soroban-caller`: Soroban contract that calls other contracts.
 - `gh-caller`: native Groundhog contract that calls Soroban.
+- `soroban-token`, `soroban-router`: the auth scenarios.
+- `gh-entry`: the trusted entrypoint.
 - `soroban-counter`: gains `get`, `inc_then_panic` and `inc_then_err`.
 
-**Tooling:** `tools/sorgen` builds calldata for any function with typed args,
-decodes results, and computes Groundhog entrypoint ids and calldata. `sc.sh`
-calls a Soroban function by name.
+**Tooling:**
+
+- `tools/sorgen` builds calldata for any function with typed args, decodes
+  results, and computes Groundhog entrypoint ids and calldata.
+- `sorgen entry` builds entrypoint calldata with auth trees from
+  `tests/*.json`.
+- `sc.sh` calls a Soroban function directly; `ep.sh` calls one through an
+  entrypoint.
 
 ## Costs and limits
 
@@ -125,11 +217,8 @@ calls a Soroban function by name.
 
 ## Not done
 
-- **Auth (the big one).** Every contract runs Soroban in *recording* auth
-  mode, so `require_auth` always passes. The Groundhog caller
-  (`get_caller()`) should become the authorised invoker, and Soroban auth
-  entries should be checked against Groundhog signatures. Until then this is
-  not safe with value at stake.
+- **Auth:** the remaining gaps are listed under "Auth limits and gaps"
+  above.
 - **Events:** Soroban contract events are dropped. They should be emitted as
   Groundhog events.
 - **Typed Groundhog calls:** a Soroban-side client that encodes Groundhog
@@ -143,5 +232,5 @@ calls a Soroban function by name.
 ```sh
 ./build.sh   # both Soroban-hosting contracts, gh-caller, the SDK counter, sorgen
 # start a node as in ../soroban-in-groundhog/README.md (needs the raised limits)
-./run.sh     # deploys all four contracts and runs the table above
+./run.sh     # deploys everything, runs the call matrix and the auth scenarios
 ```

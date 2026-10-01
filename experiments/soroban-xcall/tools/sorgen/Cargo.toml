@@ -14,3 +14,4 @@ hex = "0.4"
 groundhog-contract-util = { path = "../../../../crates/contract-util" }
 xdrs = { registry = "groundhog", version = "=0.10.2", features = ["alloc"] }
 groundhog-xdr = { registry = "groundhog", version = "=0.43.0", features = ["xdrs"] }
+serde_json = "1"

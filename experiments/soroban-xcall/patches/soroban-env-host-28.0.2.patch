@@ -14,6 +14,47 @@ diff -ruN a/Cargo.toml b/Cargo.toml
  backtrace = ["dep:backtrace"]
  bench = ["testutils"]
  next = ["soroban-env-common/next"]
+diff -ruN a/src/auth.rs b/src/auth.rs
+--- a/src/auth.rs
++++ b/src/auth.rs
+@@ -964,6 +964,37 @@
+         })
+     }
+ 
++    // Creates a new enforcing `AuthorizationManager` from entries whose
++    // credentials the embedder has already verified: they skip signature and
++    // nonce checks exactly like the transaction source account does, and only
++    // the authorized invocation tree is enforced.
++    pub(crate) fn new_enforcing_preverified(
++        host: &Host,
++        entries: Vec<(ScAddress, xdr::SorobanAuthorizedInvocation)>,
++    ) -> Result<Self, HostError> {
++        let mut trackers = Vec::<RefCell<AccountAuthorizationTracker>>::with_metered_capacity(
++            entries.len(),
++            host,
++        )?;
++        for (address, root_invocation) in entries {
++            trackers.push(RefCell::new(AccountAuthorizationTracker {
++                address: host.add_host_object(address)?,
++                invocation_tracker: InvocationTracker::from_xdr(host, root_invocation)?,
++                signature: Val::VOID.into(),
++                credentials: AccountAuthorizationCredentials::SourceAccount,
++                verified: true,
++                nonce: None,
++            }));
++        }
++        Ok(Self {
++            mode: AuthorizationMode::Enforcing,
++            call_stack: RefCell::new(vec![]),
++            account_trackers: RefCell::new(trackers),
++            invoker_contract_trackers: RefCell::new(vec![]),
++            authentication_stack: RefCell::new(vec![]),
++        })
++    }
++
+     // Creates a new enforcing `AuthorizationManager` that doesn't allow any
+     // authorizations.
+     // This is useful as a safe default mode.
 diff -ruN a/src/budget.rs b/src/budget.rs
 --- a/src/budget.rs
 +++ b/src/budget.rs
@@ -249,7 +290,30 @@ diff -ruN a/src/host.rs b/src/host.rs
      #[cfg(any(test, feature = "testutils"))]
      // This builds a module cache instance for just the contracts stored
      // in the host's storage map, and is used only in testing.
-@@ -888,6 +938,7 @@
+@@ -544,6 +594,22 @@
+         Ok(())
+     }
+ 
++    /// Enforcing auth from `(address, authorized invocation tree)` pairs whose
++    /// authenticity the embedder has already established (e.g. from
++    /// unforgeable capabilities of the embedding chain). No signature or nonce
++    /// is checked; `require_auth` succeeds only for calls matching the trees.
++    pub fn set_preverified_authorization_entries(
++        &self,
++        entries: Vec<(
++            soroban_env_common::xdr::ScAddress,
++            soroban_env_common::xdr::SorobanAuthorizedInvocation,
++        )>,
++    ) -> Result<(), HostError> {
++        let new_auth_manager = AuthorizationManager::new_enforcing_preverified(self, entries)?;
++        *self.try_borrow_authorization_manager_mut()? = new_auth_manager;
++        Ok(())
++    }
++
+     #[allow(unused_variables)]
+     pub fn set_base_prng_seed(&self, seed: prng::Seed) -> Result<(), HostError> {
+         let mut base_prng = Prng::new_from_seed(seed, self.budget_ref())?;
+@@ -888,6 +954,7 @@
              }
              Ok(())
          });

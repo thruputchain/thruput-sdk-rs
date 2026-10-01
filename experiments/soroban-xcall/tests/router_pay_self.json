@@ -1,0 +1,1 @@
+{"target": "@router", "fn": "pay_self", "args": ["addr:@token", "addr:0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "i128:7"]}

@@ -18,6 +18,9 @@
 //!   Groundhog contract (Soroban -> Groundhog).
 //! - Storage: Soroban ledger entries live in this contract's own Groundhog
 //!   storage (the storage shim, as in ../soroban-native).
+//! - Auth: Soroban auth trees arrive as Groundhog auth tokens minted by the
+//!   trusted Soroban entrypoint (`gh-entry`), which has already checked the
+//!   signatures. See the `auth` module.
 
 #![no_std]
 #![no_main]
@@ -32,7 +35,7 @@ use sdk::types::StorageKey;
 use soroban_env_host::{
     budget::Budget,
     e2e_invoke::{
-        RecordingInvocationAuthMode, RecordingInvocationAuthParams,
+        RecordingInvocationAuthMode,
         invoke_host_function_in_recording_mode_with_setup,
     },
     storage::{EntryWithLiveUntil, SnapshotSource},
@@ -336,6 +339,21 @@ mod native {
         gh_call => __Caller__gh_call__invoke_raw(0, 1, 2),
     });
 
+    #[cfg(feature = "token")]
+    native_contract!(Fns, "soroban-token", soroban_token::Token {
+        mint => __Token__mint__invoke_raw(0, 1),
+        balance => __Token__balance__invoke_raw(0),
+        transfer => __Token__transfer__invoke_raw(0, 1, 2),
+    });
+
+    #[cfg(feature = "router")]
+    native_contract!(Fns, "soroban-router", soroban_router::Router {
+        pay => __Router__pay__invoke_raw(0, 1, 2, 3),
+        pay_evil => __Router__pay_evil__invoke_raw(0, 1, 2, 3),
+        pay_twice => __Router__pay_twice__invoke_raw(0, 1, 2, 3),
+        pay_self => __Router__pay_self__invoke_raw(0, 1, 2),
+    });
+
     /// Pseudo Wasm hash the compiled-in contract is registered under.
     pub fn hash() -> [u8; 32] {
         let mut buf = Vec::new();
@@ -369,11 +387,160 @@ fn is_native_code_key(key_xdr: &[u8]) -> bool {
         Ok(LedgerKey::ContractCode(cc)) if cc.hash.0 == native::hash())
 }
 
+// ------------------------------------------------------------------- auth --
+
+/// Soroban auth trees, carried as Groundhog auth tokens.
+///
+/// The trusted Soroban entrypoint verifies signatures, then mints one token
+/// tree per Soroban authorization entry. Node layout:
+///   consumer_address = the Soroban contract the node authorizes
+///   payload          = XDR ScVal::Vec[authorizer: Address, fn: Symbol,
+///                                     args: Vec, child_fps: Bytes]
+///   child_nodes      = the node's sub-invocations
+/// `child_fps` holds an 8-byte fingerprint per child (see [`fingerprint`]):
+/// only a token's consumer can open it, so a parent routes its children by
+/// fingerprint without seeing them.
+///
+/// What the Groundhog runtime guarantees, and why it suffices against an
+/// untrusted contract anywhere in the call chain:
+/// - the minter is stamped by the runtime: only the entrypoint can mint
+///   tokens we accept (checked below), so auth can't be forged;
+/// - only the named consumer can open a node, once: a child can't be redirected
+///   to another contract or reused;
+/// - the payload pins the exact call: the host enforces the tree against the
+///   real call, so altered arguments fail `require_auth`;
+/// - forwarded tokens return to the caller if the callee fails.
+mod auth {
+    use super::*;
+    use soroban_env_host::xdr::{
+        InvokeContractArgs, ScSymbol, SorobanAuthorizedFunction, SorobanAuthorizedInvocation,
+    };
+
+    /// 8-byte fingerprint of a call: sha256(XDR InvokeContractArgs)[..8].
+    pub fn fingerprint(contract: &ContractId, func: &ScSymbol, args: &[ScVal]) -> [u8; 8] {
+        let ica = InvokeContractArgs {
+            contract_address: ScAddress::Contract(contract.clone()),
+            function_name: func.clone(),
+            args: args.to_vec().try_into().unwrap(),
+        };
+        let h = sdk::crypto::sha256(&ica.to_xdr(Limits::none()).unwrap()).into_inner();
+        h[..8].try_into().unwrap()
+    }
+
+    fn entrypoint_key() -> StorageKey {
+        sdk::crypto::sha256(b"sorhog:trusted-entrypoint").into_inner().into()
+    }
+
+    /// The Soroban entrypoint whose tokens this contract accepts. Set once
+    /// (method 2) right after deployment; a real deployment would fix it at
+    /// build time or genesis instead.
+    pub fn trusted_entrypoint() -> Option<[u8; 32]> {
+        sdk::bytestring_exists(&entrypoint_key())
+            .then(|| sdk::bytestring_get_sized::<32>(&entrypoint_key()))
+    }
+
+    pub fn set_trusted_entrypoint(addr: &[u8]) {
+        if trusted_entrypoint().is_some() || addr.len() != 32 {
+            sdk::contract_op::contract_revert();
+        }
+        sdk::bytestring_set(&entrypoint_key(), addr);
+    }
+
+    /// A child token this contract holds, routable by call fingerprint.
+    pub struct Held {
+        pub id: u32,
+        pub fp: [u8; 8],
+        pub used: core::cell::Cell<bool>,
+    }
+
+    /// Consume the root tokens passed with this invocation. Returns the
+    /// pre-verified auth entries for the host plus the child tokens to route.
+    pub fn consume_roots(
+        me: &ContractId,
+        token_ids: &[u32],
+    ) -> Result<(Vec<(ScAddress, SorobanAuthorizedInvocation)>, Vec<Held>), soroban_env_host::Error>
+    {
+        let bad = || soroban_env_host::Error::from_type_and_code(ScErrorType::Auth, ScErrorCode::InvalidInput);
+        let mut entries = Vec::new();
+        let mut held = Vec::new();
+        if token_ids.is_empty() {
+            return Ok((entries, held));
+        }
+        let trusted = trusted_entrypoint().ok_or_else(bad)?;
+        for &id in token_ids {
+            let (payload, minter, child_start, child_count) = consume(id).ok_or_else(bad)?;
+            if minter != trusted {
+                return Err(bad()); // forged: not minted by the trusted entrypoint
+            }
+            let ScVal::Vec(Some(parts)) = ScVal::from_xdr(payload, Limits::none()).map_err(|_| bad())? else {
+                return Err(bad());
+            };
+            let [ScVal::Address(authorizer), ScVal::Symbol(func), ScVal::Vec(args), ScVal::Bytes(fps)] =
+                parts.as_slice()
+            else {
+                return Err(bad());
+            };
+            if fps.len() != 8 * child_count as usize {
+                return Err(bad());
+            }
+            let args = args.clone().unwrap_or_default();
+            entries.push((
+                authorizer.clone(),
+                SorobanAuthorizedInvocation {
+                    function: SorobanAuthorizedFunction::ContractFn(InvokeContractArgs {
+                        contract_address: ScAddress::Contract(me.clone()),
+                        function_name: func.clone(),
+                        args: args.to_vec().try_into().map_err(|_| bad())?,
+                    }),
+                    // Sub-invocations run in other Groundhog contracts; they
+                    // travel as the child tokens below.
+                    sub_invocations: Default::default(),
+                },
+            ));
+            for (i, fp) in fps.as_slice().chunks(8).enumerate() {
+                held.push(Held {
+                    id: child_start + i as u32,
+                    fp: fp.try_into().unwrap(),
+                    used: core::cell::Cell::new(false),
+                });
+            }
+        }
+        Ok((entries, held))
+    }
+
+    /// ConsumeAuthToken: (payload, minter, first child id, child count).
+    fn consume(id: u32) -> Option<(Vec<u8>, [u8; 32], u32, u32)> {
+        use core::mem::MaybeUninit;
+        let mut buf = alloc::vec![MaybeUninit::<u8>::uninit(); 512];
+        let mut written = MaybeUninit::uninit();
+        let mut child_start = MaybeUninit::uninit();
+        let mut child_count = MaybeUninit::uninit();
+        let mut minter = MaybeUninit::uninit();
+        sdk::sys::uninit_ConsumeAuthToken(
+            id,
+            &mut buf[..],
+            &mut minter,
+            &mut written,
+            &mut child_start,
+            &mut child_count,
+        )
+        .ok()?;
+        unsafe {
+            let n = written.assume_init() as usize;
+            let payload = buf[..n].iter().map(|b| b.assume_init()).collect();
+            let minter: sdk::types::ContractAddress = minter.assume_init();
+            Some((payload, minter.into_inner(), child_start.assume_init(), child_count.assume_init()))
+        }
+    }
+}
+
 // ----------------------------------------------------------- call routing --
 
 /// Routes Soroban calls that leave this contract to Groundhog invocations.
 struct GroundhogRouter {
     me: ContractId,
+    /// Child auth tokens from consumed roots, routed to matching calls.
+    held: Vec<auth::Held>,
 }
 
 /// What a caller sees when the callee's frame trapped (a native panic): the
@@ -382,7 +549,12 @@ fn trapped() -> soroban_env_host::Error {
     soroban_env_host::Error::from_type_and_code(ScErrorType::WasmVm, ScErrorCode::InvalidAction)
 }
 
-fn gh_invoke(target: &ContractId, method: u64, calldata: &[u8]) -> Result<Vec<u8>, Vec<u8>> {
+fn gh_invoke(
+    target: &ContractId,
+    method: u64,
+    calldata: &[u8],
+    tokens: &[u32],
+) -> Result<Vec<u8>, Vec<u8>> {
     use sdk::call::{contract_call, CallOutcome};
     let mut ret = Vec::new();
     let mut ret_auth = Vec::new();
@@ -391,7 +563,7 @@ fn gh_invoke(target: &ContractId, method: u64, calldata: &[u8]) -> Result<Vec<u8
         sdk::contract::ContractEntrypointID::from_u64(method),
         u64::MAX,
         calldata,
-        &Vec::new(),
+        &tokens.to_vec(),
         Default::default(),
         &mut ret,
         &mut ret_auth,
@@ -421,7 +593,7 @@ impl soroban_env_host::ExternalContractHandler for GroundhogRouter {
             let [ScVal::U64(method), ScVal::Bytes(calldata)] = args.as_slice() else {
                 return Err(fail());
             };
-            return match gh_invoke(id, *method, calldata.as_slice()) {
+            return match gh_invoke(id, *method, calldata.as_slice(), &[]) {
                 Ok(ret) => Ok(ScVal::Bytes(ret.try_into().map_err(|_| fail())?)),
                 Err(abort) if abort.is_empty() => Err(trapped()),
                 Err(_) => Err(fail()),
@@ -434,7 +606,18 @@ impl soroban_env_host::ExternalContractHandler for GroundhogRouter {
             args: args.try_into().map_err(|_| fail())?,
         });
         let calldata = hf.to_xdr(Limits::none()).map_err(|_| fail())?;
-        match gh_invoke(id, 0, &calldata) {
+        // Attach the held child token authorizing exactly this call, if any.
+        let HostFunction::InvokeContract(ica) = &hf else { unreachable!() };
+        let fp = auth::fingerprint(id, &ica.function_name, ica.args.as_slice());
+        let tok = self.held.iter().find(|h| !h.used.get() && h.fp == fp);
+        let ids: Vec<u32> = tok.iter().map(|h| h.id).collect();
+        let r = gh_invoke(id, 0, &calldata, &ids);
+        // On success the callee owns the token now; on failure Groundhog gave
+        // it back, so it stays available.
+        if let (Some(t), Ok(_)) = (tok, &r) {
+            t.used.set(true);
+        }
+        match r {
             Ok(ret) => ScVal::from_xdr(ret, Limits::none()).map_err(|_| fail()),
             Err(abort) => match ScVal::from_xdr(abort, Limits::none()) {
                 Ok(ScVal::Error(e)) => Err(e.into()),
@@ -471,23 +654,38 @@ fn invoke() {
         min_persistent_entry_ttl: 4096,
         max_entry_ttl: 6_312_000,
     };
-    // Auth is still recording-mode (everything authorised); mapping Groundhog
-    // callers onto Soroban auth is the next problem, not solved here.
-    let source = AccountId(PublicKey::PublicKeyTypeEd25519(Uint256([1; 32])));
+    // Auth: the token trees passed with this invocation, plus the direct
+    // Groundhog caller as invoker of the root call (Soroban's invoker-contract
+    // rule; `get_caller` comes from the runtime, so it can't be forged).
+    let (mut entries, held) = match auth::consume_roots(&me, &auth_ids) {
+        Ok(x) => x,
+        Err(e) => abort_with(e),
+    };
+    let HostFunction::InvokeContract(root) = &host_fn else { unreachable!() };
+    entries.push((
+        ScAddress::Contract(ContractId(Hash(sdk::contract_op::get_caller().into_inner()))),
+        soroban_env_host::xdr::SorobanAuthorizedInvocation {
+            function: soroban_env_host::xdr::SorobanAuthorizedFunction::ContractFn(root.clone()),
+            sub_invocations: Default::default(),
+        },
+    ));
+    // The source account is not an auth principal here (no entry uses it).
+    let source = AccountId(PublicKey::PublicKeyTypeEd25519(Uint256([0; 32])));
     let mut diag = Vec::new();
-    let router = Rc::new(GroundhogRouter { me: me.clone() });
+    let router = Rc::new(GroundhogRouter { me: me.clone(), held });
     let res = invoke_host_function_in_recording_mode_with_setup(
         &Budget::default(),
         false,
         &host_fn,
         &source,
-        RecordingInvocationAuthMode::Recording(RecordingInvocationAuthParams::new(false, false)),
+        RecordingInvocationAuthMode::Enforcing(Vec::new()),
         ledger_info,
         Rc::new(HogSnapshot { me, memo: Default::default() }),
         [0; 32],
         &mut diag,
         &|host| {
             native::register(host)?;
+            host.set_preverified_authorization_entries(entries.clone())?;
             host.set_external_contract_handler(router.clone())
         },
     )
@@ -523,4 +721,18 @@ mod rv32_entries {
     #[used]
     #[unsafe(link_section = "groundhog_rv32_entrypoints")]
     static INVOKE: Entrypoint = Entrypoint { method_id: 0, wrapper: invoke_wrapper };
+
+    /// Method 2: set the trusted Soroban entrypoint (once). Calldata: its
+    /// 32-byte address.
+    extern "C" fn set_entrypoint_wrapper() {
+        super::init_heap();
+        let mut calldata = sdk::internal::new_scratch();
+        let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
+        sdk::contract_op::fetch_calldata_and_auth_tokens(&mut calldata, &mut auth_ids);
+        super::auth::set_trusted_entrypoint(AsRef::<[u8]>::as_ref(&calldata));
+        sdk::sys::raw_Return(&[], false, &[]);
+    }
+    #[used]
+    #[unsafe(link_section = "groundhog_rv32_entrypoints")]
+    static SET_ENTRYPOINT: Entrypoint = Entrypoint { method_id: 2, wrapper: set_entrypoint_wrapper };
 }

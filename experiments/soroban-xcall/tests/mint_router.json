@@ -1,0 +1,1 @@
+{"target": "@token", "fn": "mint", "args": ["addr:@router", "i128:50"]}

@@ -1,0 +1,1 @@
+{"target": "@token", "fn": "transfer", "args": ["addr:@router", "addr:0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "i128:1"]}

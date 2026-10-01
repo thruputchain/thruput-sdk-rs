@@ -21,6 +21,8 @@ soroban-sdk = { version = "=28.0.0", default-features = false, features = ["nati
 # one, chosen by feature.
 soroban-counter = { path = "../soroban-counter", optional = true }
 soroban-caller = { path = "../soroban-caller", optional = true }
+soroban-token = { path = "../soroban-token", optional = true }
+soroban-router = { path = "../soroban-router", optional = true }
 
 getrandom = { version = "0.2", features = ["custom"] }
 talc = { version = "4", default-features = false, features = ["lock_api"] }
@@ -29,6 +31,8 @@ spin = { version = "0.9", default-features = false, features = ["mutex", "spin_m
 [features]
 counter = ["dep:soroban-counter"]
 caller = ["dep:soroban-caller"]
+token = ["dep:soroban-token"]
+router = ["dep:soroban-router"]
 
 [patch.crates-io]
 # build.sh vendors these and applies ../patches/*.patch:

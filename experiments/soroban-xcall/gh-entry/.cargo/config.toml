@@ -1,0 +1,70 @@
+[target.riscv32im-unknown-none-elf]
+rustflags = [
+    # The Groundhog rv32 VM permits unaligned data loads/stores, so let LLVM
+    # emit them directly instead of byte-wise expansions. `relax` emits
+    # R_RISCV_RELAX relocations so lld folds auipc+jalr call pairs into single
+    # `jal` (smaller code and one fewer executed instruction per relaxed
+    # call). Output stays pure RV32IM.
+    "-C", "target-feature=+unaligned-scalar-mem,+relax",
+    "-C", "link-arg=-Tgroundhog-rv32.ld",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=--no-dynamic-linker",
+    "-C", "link-arg=--gc-sections",
+    # The groundhog-rv32 linker script deliberately overlaps the CODE and DATA
+    # VMAs (modified-Harvard: separate VM address spaces) so DATA starts near 0
+    # and the stored image carries no code-sized zero shadow. Tell lld the
+    # overlap is intentional.
+    "-C", "link-arg=--no-check-sections",
+    # Identical-code folding: merge byte-identical sections at link time. Safe
+    # here — nothing compares function pointers for identity (the dispatch
+    # table wrappers are only ever called).
+    "-C", "link-arg=--icf=all",
+    # gp relaxation: with the __global_pointer$ anchor in groundhog-rv32.ld and
+    # the gp init in the SDK's _start, lld folds static-address lui+addi pairs
+    # into single gp-relative accesses for statics within +/-2 KiB of the
+    # anchor. lld needs this explicit opt-in (GNU ld relaxes gp by default;
+    # lld deliberately does not).
+    "-C", "link-arg=--relax-gp",
+    # The Groundhog rv32 VM admits the canonical `unimp` trap, so panic sites
+    # compile straight to the trap instruction instead of routing through the
+    # SDK panic handler, stripping the panic-formatting machinery by
+    # construction. Requires unstable-options, and `-Zbuild-std` so `core` is
+    # rebuilt with the same panic strategy — `groundhog build` supplies that
+    # through the `.cargo/contract.toml` overlay.
+    "-Z", "unstable-options",
+    "-C", "panic=immediate-abort",
+    "-C", "relocation-model=static",
+    # LLVM pads unreachable code (after Return/Exit/Abort -> ! syscalls) with
+    # `unimp` (= csrrw x0, cycle, x0), a CSR op the Groundhog RV32IM profile
+    # rejects, so artifact validation would reject every such call site.
+    # Disable the safety pad.
+    "-Z", "trap-unreachable=false",
+    "--deny", "warnings",
+    ]
+
+# Build scripts and proc macros are build-time machinery nobody debugs;
+# skipping their debuginfo shrinks the target directory for free.
+[profile.dev.build-override]
+debug = false
+
+# Uncomment to also shrink dependency debuginfo in dev/test builds.
+# Panic backtraces through dependencies keep file:line info; only full
+# debugger stepping into dependency source degrades.
+# [profile.dev.package."*"]
+# debug = "line-tables-only"
+
+[profile.release]
+opt-level = 3
+overflow-checks = false
+debug = false
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+lto = true
+codegen-units = 1
+
+[registries]
+groundhog = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }
+
+[source]
+groundhog = { registry = "sparse+https://crates.thruput.network/api/v1/crates/" }

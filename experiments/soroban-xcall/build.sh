@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Build the soroban-xcall experiment into ./out:
-#   out/counter.rv32a    Groundhog contract hosting the Soroban counter
-#   out/caller.rv32a     Groundhog contract hosting the Soroban caller
+#   out/{counter,caller,token,router}.rv32a
+#                        Groundhog contracts each hosting one Soroban contract
+#   out/entry.rv32a      the trusted Soroban entrypoint (gh-entry/)
 #   out/ghcounter.rv32a  the SDK's native Groundhog counter (example-contracts)
 #   out/ghcaller.rv32a   a native Groundhog contract that calls Soroban
 #                        (gh-caller/, built with `groundhog build`)
@@ -41,7 +42,7 @@ vendor soroban-sdk 28.0.0
 # 2. Guests: one Groundhog contract per Soroban contract (cargo feature).
 GH_LOWER() { "$GROUNDHOG_RPC/target/release/rv32-lower" --elf "$1" --out "$2" --memory-bytes "$MEMORY_BYTES" --json; }
 (cd "$GROUNDHOG_RPC" && cargo build --release -q -p groundhog-rv32-lower)
-for c in counter caller; do
+for c in counter caller token router; do
   (cd guest && cargo rustc --release --features "$c" --target riscv32im-risc0-zkvm-elf \
     -Zbuild-std=std,panic_abort -Zbuild-std-features=compiler-builtins-mem --bin sorhog-xcall -- \
     -C link-arg=--defsym=__memory_size=$MEMORY_BYTES \
@@ -53,6 +54,8 @@ done
 G=${GROUNDHOG:-groundhog}
 (cd gh-caller && "$G" build)
 cp gh-caller/target/groundhog/gh_caller.rv32a "$OUT/ghcaller.rv32a"
+(cd gh-entry && "$G" build)
+cp gh-entry/target/groundhog/gh_entry.rv32a "$OUT/entry.rv32a"
 (cd ../../example-contracts/counter && "$G" build)
 cp ../../target/groundhog/counter.rv32a "$OUT/ghcounter.rv32a"
 
