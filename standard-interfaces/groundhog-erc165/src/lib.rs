@@ -214,18 +214,14 @@ impl ERC165Client {
     ///     .supports::<(ERC721Client, ERC721MetadataClient)>();
     /// ```
     ///
-    /// An interface the target leaves unanswered counts as unsupported.
+    /// Never fails: if the call does (no contract at the address, no
+    /// ERC-165, a fault), every interface counts as unsupported, and so does
+    /// any interface the target leaves unanswered.
     pub fn supports<Q: InterfaceQuery>(&self) -> Q::Answer {
-        Q::answer(&self.supports_interfaces(&query_ids::<Q>()))
-    }
-
-    /// [`supports`](Self::supports), returning a failed call as its
-    /// [`CallError`] instead of re-throwing it.
-    pub fn try_supports<Q: InterfaceQuery>(
-        &self,
-    ) -> Result<Q::Answer, CallError> {
-        self.try_supports_interfaces(&query_ids::<Q>())
-            .map(|support| Q::answer(&support))
+        let support = self
+            .try_supports_interfaces(&query_ids::<Q>())
+            .unwrap_or_default();
+        Q::answer(&support)
     }
 }
 
