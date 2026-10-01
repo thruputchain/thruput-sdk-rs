@@ -5,13 +5,15 @@
 use erc721::{NftAdminClient, NftError};
 use erc721_receiver::{Delivery, REJECT_DATA, ReceiverClient, ReceiverError};
 use groundhog_erc165_if::{
-    ERC165Client, InterfaceIds, InterfaceSupport, try_probe_interface,
+    ERC165Client, InterfaceIds, InterfaceQuery, InterfaceSupport,
+    try_probe_interface,
 };
 use groundhog_erc721_if::{
     ApprovalEvent, ApprovalForAllEvent, BurnEvent, CONTRACT_ADDR_ZERO,
     ERC721Client, ERC721Entrypoints, ERC721Error, ERC721MetadataClient,
-    ERC721MetadataEntrypoints, ERC721ReceiverEntrypoints, MintEvent,
-    OnchainMetadata, TokenId, TokenMetadata, TransferData, TransferEvent,
+    ERC721MetadataEntrypoints, ERC721ReceiverClient,
+    ERC721ReceiverEntrypoints, MintEvent, OnchainMetadata, TokenId,
+    TokenMetadata, TransferData, TransferEvent,
 };
 use sdk::call::CallError;
 use sdk::*;
@@ -616,7 +618,42 @@ fn supports_interface_reports_the_token_interfaces() {
                     InterfaceSupport::from_slice(&[true, true, false])
                         .unwrap()
                 );
+
+                // And named by client type, in the same one call.
+                assert_eq!(
+                    erc165.supports::<(
+                        ERC721Client,
+                        ERC721MetadataClient,
+                        ERC721ReceiverClient,
+                    )>(),
+                    [true, true, false]
+                );
+
+                // A failed call answers "unsupported": the receiver fixture
+                // has no ERC-165, and there is no contract at all at ALICE.
+                assert_eq!(
+                    ERC165Client::new(&receiver)
+                        .supports::<(ERC721ReceiverClient,)>(),
+                    [false]
+                );
+                assert_eq!(
+                    ERC165Client::new(&ALICE)
+                        .supports::<(ERC721Client, ERC721MetadataClient)>(),
+                    [false, false]
+                );
             })
         });
     result.assert_success();
+}
+
+/// `supports` reads the target's answers positionally: an interface the
+/// target leaves unanswered counts as unsupported, and extra answers are
+/// ignored.
+#[test]
+fn supports_treats_unanswered_interfaces_as_unsupported() {
+    type Query = (ERC721Client, ERC721MetadataClient, ERC721ReceiverClient);
+    assert_eq!(Query::answer(&[true, false, true]), [true, false, true]);
+    assert_eq!(Query::answer(&[true]), [true, false, false]);
+    assert_eq!(Query::answer(&[]), [false; 3]);
+    assert_eq!(<(ERC721Client,)>::answer(&[true, true]), [true]);
 }

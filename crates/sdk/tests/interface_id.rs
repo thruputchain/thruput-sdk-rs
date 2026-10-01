@@ -1,7 +1,8 @@
 //! `#[contract]` derives one interface ID per (interface name, major
 //! version): the trait's associated const, the `<Iface>Entrypoints`
-//! wrapper's const, and `groundhog_contract_util::interface_id` must agree,
-//! and the ID must move only with the major version.
+//! wrapper's const, the client's `ContractClient::INTERFACE_ID` and
+//! `groundhog_contract_util::interface_id` must agree, and the ID must move
+//! only with the major version.
 
 #![allow(unexpected_cfgs)]
 
@@ -40,6 +41,19 @@ fn trait_wrapper_and_util_agree() {
     assert_eq!(
         CounterEntrypoints::INTERFACE_ID,
         interface_id(Some("Counter"), "1.2.3")
+    );
+    assert_eq!(
+        CounterClient::INTERFACE_ID,
+        CounterEntrypoints::INTERFACE_ID
+    );
+    // An `interface = ...` rename names the client's interface too.
+    assert_eq!(
+        patch::CounterClient::INTERFACE_ID,
+        patch::CounterEntrypoints::INTERFACE_ID
+    );
+    assert_eq!(
+        BareContractClient::INTERFACE_ID,
+        BareContractEntrypoints::INTERFACE_ID
     );
 }
 
@@ -94,5 +108,17 @@ struct CounterContract {
 impl Counter for CounterContract {
     fn get(&self) -> u32 {
         self.value.try_get().none_if_missing().unwrap_or(0)
+    }
+}
+
+/// A non-trait impl block: its client and wrapper share the impl's
+/// interface ID too.
+#[sdk::storage]
+struct BareContract;
+
+#[contract]
+impl BareContract {
+    pub fn ping(&self) -> u32 {
+        1
     }
 }

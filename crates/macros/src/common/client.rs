@@ -88,6 +88,10 @@ pub fn generate(
         .collect::<Result<Vec<TokenStream>>>()?;
 
     let iface_vers = contract.defaulted_interface_vers();
+    let interface_id_lit = interface_id_literal(
+        contract.interface_name().as_deref(),
+        &iface_vers,
+    );
     let constructor_ident = client_constructor_ident();
     let gas_limit_helper_ident = client_gas_limit_helper_ident();
     let try_invoke_helper_ident = client_try_invoke_helper_ident();
@@ -165,6 +169,8 @@ pub fn generate(
             }
 
             impl ::sdk::call::ContractClient for #client_ident {
+                const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
+
                 fn new(address: &::sdk::ContractAddress) -> Self {
                     #client_ident::#constructor_ident(address)
                 }
