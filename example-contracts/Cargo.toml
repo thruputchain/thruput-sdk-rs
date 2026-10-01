@@ -11,7 +11,6 @@ members = [
     "erc20_permit",
     "erc20_pausable",
     "erc721",
-    "erc165_single_query",
     "erc721_receiver",
     "erc20_raw_storage",
     "erc20_low_level",

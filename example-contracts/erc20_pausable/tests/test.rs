@@ -13,7 +13,7 @@ use groundhog_erc20_pausable_if::{
 };
 use groundhog_erc165_if::{
     ERC165Client, InterfaceIds, InterfaceSupport, probe_interface,
-    probe_interfaces, try_probe_interface, try_probe_interfaces,
+    try_probe_interface,
 };
 use sdk::call::CallError;
 use sdk::*;
@@ -370,9 +370,8 @@ fn supports_interface_reports_derived_claims() {
 }
 
 /// ERC-165 as a list: `supports_interfaces` answers every queried id in
-/// query order (duplicates and unknown ids included), agrees with
-/// `supports_interface` id by id, and the list probes fold a target
-/// without the entrypoint into all-`false`.
+/// query order (duplicates and unknown ids included) and agrees with
+/// `supports_interface` id by id.
 #[test]
 fn supports_interfaces_answers_each_queried_id_in_order() {
     use erc20_pausable::{
@@ -380,16 +379,11 @@ fn supports_interfaces_answers_each_queried_id_in_order() {
         PausableTokenContract as Token,
     };
 
-    hash_ident! { static BARE_NONCE: SHA256Hash; }
-
     let env = TestEnvironment::no_cost();
     let addr = deploy_and_init(&env);
-    // A real contract that does not implement ERC-165.
-    let bare_hash = *counter::register_mock_contract(&env).as_hash();
 
     let result = env.transact(|tx| {
         tx.call(&OTHER).run(move || {
-            let bare_addr = deploy_contract(&BARE_NONCE, &bare_hash);
             let erc165 = ERC165Client::new(&addr);
 
             let query = InterfaceIds::from_slice(&[
@@ -414,102 +408,12 @@ fn supports_interfaces_answers_each_queried_id_in_order() {
             for (id, supported) in query.iter().zip(&expected) {
                 assert_eq!(erc165.supports_interface(*id), *supported);
             }
-            assert_eq!(
-                try_probe_interfaces(&addr, &query),
-                Ok(expected.clone())
-            );
-            assert_eq!(probe_interfaces(&addr, &query), expected);
 
             // An empty query gets an empty answer.
-            let empty = InterfaceIds::new();
             assert_eq!(
-                erc165.supports_interfaces(&empty),
+                erc165.supports_interfaces(&InterfaceIds::new()),
                 InterfaceSupport::new()
             );
-            assert_eq!(
-                try_probe_interfaces(&addr, &empty),
-                Ok(InterfaceSupport::new())
-            );
-
-            // A target without ERC-165 is "no" for every id, not an error.
-            let all_no: InterfaceSupport =
-                query.iter().map(|_| false).collect();
-            assert_eq!(
-                try_probe_interfaces(&bare_addr, &query),
-                Ok(all_no.clone())
-            );
-            assert_eq!(probe_interfaces(&bare_addr, &query), all_no);
-
-            // No contract at all is a real failure, not a "no".
-            const EMPTY_ADDR: ContractAddress =
-                ContractAddress::new([0x78; 32]);
-            assert_eq!(
-                try_probe_interfaces(&EMPTY_ADDR, &query),
-                Err(CallError::Invalid)
-            );
-        })
-    });
-    result.assert_success();
-}
-
-/// A contract built against the single-query ERC-165 exports
-/// `supports_interface` but not `supports_interfaces`. The list probes fall
-/// back to asking it one id at a time, so its mixed answers come through
-/// rather than folding to all-`false`.
-#[test]
-fn list_probes_fall_back_to_single_query_erc165() {
-    use erc165_single_query::{
-        ERC165Entrypoints as SingleQueryERC165Entrypoints, SingleQueryERC165,
-    };
-    use groundhog_erc165_if::ERC165Entrypoints;
-    use sdk::exn::{LibraryExn, MatchExn};
-
-    hash_ident! { static SINGLE_NONCE: SHA256Hash; }
-
-    // The fixture stands in for an older contract only if it answers on the
-    // same interface and the same entrypoint as the current trait.
-    assert_eq!(
-        <erc165_single_query::SingleQueryContract as SingleQueryERC165>::INTERFACE_ID,
-        ERC165Entrypoints::INTERFACE_ID
-    );
-    assert_eq!(
-        sdk::contract::ContractEntrypointID::from(
-            SingleQueryERC165Entrypoints::supports_interface
-        ),
-        sdk::contract::ContractEntrypointID::from(
-            ERC165Entrypoints::supports_interface
-        )
-    );
-
-    let env = TestEnvironment::no_cost();
-    let single_hash =
-        *erc165_single_query::register_mock_contract(&env).as_hash();
-
-    let result = env.transact(|tx| {
-        tx.call(&OTHER).run(move || {
-            let single_addr = deploy_contract(&SINGLE_NONCE, &single_hash);
-
-            let erc165 = ERC165Entrypoints::INTERFACE_ID;
-            let erc20 = groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID;
-            let query =
-                InterfaceIds::from_slice(&[erc165, erc20, [0xff; 8], erc165])
-                    .unwrap();
-
-            // The list entrypoint itself is absent...
-            let err = ERC165Client::new(&single_addr)
-                .try_supports_interfaces(&query)
-                .expect_err("a single-query contract has no list entrypoint");
-            assert_eq!(err.try_as(), Some(LibraryExn::UnknownMethod));
-
-            // ...so the probes ask per id and keep each answer.
-            let expected =
-                InterfaceSupport::from_slice(&[true, false, false, true])
-                    .unwrap();
-            assert_eq!(
-                try_probe_interfaces(&single_addr, &query),
-                Ok(expected.clone())
-            );
-            assert_eq!(probe_interfaces(&single_addr, &query), expected);
         })
     });
     result.assert_success();

@@ -26,8 +26,7 @@
 //! The Ethereum detection dance (a 30k-gas `staticcall`, then probing
 //! `0xffffffff`) is unnecessary: a contract without this interface throws
 //! the typed `LibraryExn::UnknownMethod`, which [`try_probe_interface`]
-//! and [`try_probe_interfaces`] fold into "no", and there is no fallback
-//! function to lie.
+//! folds into `Ok(false)`, and there is no fallback function to lie.
 //!
 //! The claim remains self-reported in the sense that it describes this
 //! contract's own code: `supports_interface` says "I export these
@@ -155,41 +154,4 @@ pub fn probe_interface(
     use sdk::OrReThrow;
 
     try_probe_interface(target, interface_id).or_re_throw()
-}
-
-/// Ask `target` which of `interface_ids` it implements, one answer per id
-/// in the query's order, treating a contract without ERC-165 as all
-/// `Ok(false)`.
-///
-/// One read-only call to `supports_interfaces`, falling back to one
-/// [`try_probe_interface`] per id on `LibraryExn::UnknownMethod`. Every other
-/// failure is returned as the [`CallError`].
-pub fn try_probe_interfaces(
-    target: &ContractAddress,
-    interface_ids: &InterfaceIds,
-) -> Result<InterfaceSupport, CallError> {
-    match ERC165Client::new(target)
-        .with_read_only()
-        .try_supports_interfaces(interface_ids)
-    {
-        Ok(supported) => Ok(supported),
-        Err(err) if err.try_as() == Some(LibraryExn::UnknownMethod) => {
-            interface_ids
-                .iter()
-                .map(|id| try_probe_interface(target, *id))
-                .collect()
-        }
-        Err(err) => Err(err),
-    }
-}
-
-/// [`try_probe_interfaces`], re-throwing any failure other than a missing
-/// `supports_interfaces` or `supports_interface` entrypoint.
-pub fn probe_interfaces(
-    target: &ContractAddress,
-    interface_ids: &InterfaceIds,
-) -> InterfaceSupport {
-    use sdk::OrReThrow;
-
-    try_probe_interfaces(target, interface_ids).or_re_throw()
 }

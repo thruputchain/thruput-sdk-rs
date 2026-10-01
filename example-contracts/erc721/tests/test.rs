@@ -6,7 +6,6 @@ use erc721::{NftAdminClient, NftError};
 use erc721_receiver::{Delivery, REJECT_DATA, ReceiverClient, ReceiverError};
 use groundhog_erc165_if::{
     ERC165Client, InterfaceIds, InterfaceSupport, try_probe_interface,
-    try_probe_interfaces,
 };
 use groundhog_erc721_if::{
     ApprovalEvent, ApprovalForAllEvent, BurnEvent, CONTRACT_ADDR_ZERO,
@@ -616,11 +615,6 @@ fn supports_interface_reports_the_token_interfaces() {
                     erc165.supports_interfaces(&query),
                     InterfaceSupport::from_slice(&[true, true, false])
                         .unwrap()
-                );
-                assert_eq!(
-                    try_probe_interfaces(&receiver, &query),
-                    Ok(InterfaceSupport::from_slice(&[false, false, false])
-                        .unwrap())
                 );
             })
         });
