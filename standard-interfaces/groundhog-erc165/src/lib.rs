@@ -179,13 +179,6 @@ impl ERC165Client {
             .unwrap_or_default();
         Q::answer(&support)
     }
-
-    /// Whether the target implements the interface `C` calls:
-    /// [`supports`](Self::supports) for a single interface.
-    pub fn implements<C: sdk::ContractClient>(&self) -> bool {
-        let [supported] = self.supports::<(C,)>();
-        supported
-    }
 }
 
 /// `Q`'s ids as a query. At most eight, so they always fit.

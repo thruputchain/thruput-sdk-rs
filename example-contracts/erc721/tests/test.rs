@@ -597,9 +597,10 @@ fn supports_interface_reports_the_token_interfaces() {
                 // The receiver fixture has the hook but no ERC-165, so a probe
                 // cannot confirm it; the safe transfer path calls the hook
                 // directly rather than asking first.
-                assert!(
-                    !ERC165Client::new(&receiver)
-                        .implements::<ERC721ReceiverClient>()
+                assert_eq!(
+                    ERC165Client::new(&receiver)
+                        .supports::<(ERC721ReceiverClient,)>(),
+                    [false]
                 );
 
                 // The same three, asked as one list.

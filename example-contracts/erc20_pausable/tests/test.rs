@@ -305,7 +305,7 @@ fn roles_gate_pausing_and_are_administered() {
 }
 
 /// ERC-165: `supports_interface` answers for exactly the interfaces this
-/// contract implements (ERC-165 itself included), and `implements` reads a
+/// contract implements (ERC-165 itself included), and `supports` reads a
 /// target without the entrypoint, or no contract at all, as `false`.
 #[test]
 fn supports_interface_reports_derived_claims() {
@@ -341,9 +341,11 @@ fn supports_interface_reports_derived_claims() {
             assert!(erc165.supports_interface(
                 groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID
             ));
-            // `implements` names the interface by its client.
-            assert!(erc165.implements::<groundhog_erc20_if::ERC20Client>());
-            assert!(erc165.implements::<ERC165Client>());
+            // `supports` names the interfaces by their clients.
+            assert_eq!(
+                erc165.supports::<(groundhog_erc20_if::ERC20Client, ERC165Client)>(),
+                [true, true]
+            );
 
             // An interface it does not implement, and an arbitrary ID.
             assert!(!erc165.supports_interface(
@@ -352,15 +354,17 @@ fn supports_interface_reports_derived_claims() {
             assert!(!erc165.supports_interface([0xff; 8]));
 
             // A target without ERC-165, and no contract at all, are "no".
-            assert!(
-                !ERC165Client::new(&bare_addr)
-                    .implements::<groundhog_erc20_if::ERC20Client>()
+            assert_eq!(
+                ERC165Client::new(&bare_addr)
+                    .supports::<(groundhog_erc20_if::ERC20Client,)>(),
+                [false]
             );
             const EMPTY_ADDR: ContractAddress =
                 ContractAddress::new([0x78; 32]);
-            assert!(
-                !ERC165Client::new(&EMPTY_ADDR)
-                    .implements::<groundhog_erc20_if::ERC20Client>()
+            assert_eq!(
+                ERC165Client::new(&EMPTY_ADDR)
+                    .supports::<(groundhog_erc20_if::ERC20Client,)>(),
+                [false]
             );
         })
     });
