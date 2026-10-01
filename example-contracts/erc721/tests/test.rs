@@ -5,7 +5,8 @@
 use erc721::{NftAdminClient, NftError};
 use erc721_receiver::{Delivery, REJECT_DATA, ReceiverClient, ReceiverError};
 use groundhog_erc165_if::{
-    ERC165Client, InterfaceIds, InterfaceSupport, try_probe_interface,
+    ERC165Client, InterfaceIds, InterfaceQuery, InterfaceSupport,
+    try_probe_interface,
 };
 use groundhog_erc721_if::{
     ApprovalEvent, ApprovalForAllEvent, BurnEvent, CONTRACT_ADDR_ZERO,
@@ -638,4 +639,16 @@ fn supports_interface_reports_the_token_interfaces() {
             })
         });
     result.assert_success();
+}
+
+/// `supports` reads the target's answers positionally: an interface the
+/// target leaves unanswered counts as unsupported, and extra answers are
+/// ignored.
+#[test]
+fn supports_treats_unanswered_interfaces_as_unsupported() {
+    type Query = (ERC721Client, ERC721MetadataClient, ERC721ReceiverClient);
+    assert_eq!(Query::answer(&[true, false, true]), [true, false, true]);
+    assert_eq!(Query::answer(&[true]), [true, false, false]);
+    assert_eq!(Query::answer(&[]), [false; 3]);
+    assert_eq!(<(ERC721Client,)>::answer(&[true, true]), [true]);
 }
