@@ -343,6 +343,16 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                     ));
                 }
                 for impl_item in &item.items {
+                    if let syn::ImplItem::Fn(method) = impl_item {
+                        for attr in &method.attrs {
+                            if attr.path().is_ident("contract") {
+                                return Err(syn::Error::new_spanned(
+                                    attr,
+                                    "method effects are defined by the interface trait; declare the effect on the trait method instead",
+                                ));
+                            }
+                        }
+                    }
                     let ident = match impl_item {
                         syn::ImplItem::Const(item) => &item.ident,
                         syn::ImplItem::Fn(item) => &item.sig.ident,
@@ -563,6 +573,58 @@ mod tests {
     }
 
     #[test]
+    fn method_effects_reject_invalid_duplicate_and_impl_declarations() {
+        for (item, expected) in [
+            (
+                syn::parse_quote! {
+                    pub trait Example { #[contract(effect = "view")] fn read(&self); }
+                },
+                "expected `pure`",
+            ),
+            (
+                syn::parse_quote! {
+                    pub trait Example {
+                        #[contract(effect = "pure", effect = "readOnly")]
+                        fn read(&self);
+                    }
+                },
+                "duplicate method effect",
+            ),
+            (
+                syn::parse_quote! {
+                    impl Example for Contract {
+                        #[contract(effect = "pure")]
+                        fn read(&self) {}
+                    }
+                },
+                "defined by the interface trait",
+            ),
+        ] {
+            let error =
+                apply_with_config(&item, &parse_config("")).unwrap_err();
+            assert!(error.to_string().contains(expected), "{error}");
+        }
+    }
+
+    #[test]
+    fn bare_impl_effect_reaches_spec_and_annotation_is_stripped() {
+        let declared: syn::Item = syn::parse_quote! {
+            impl Example {
+                #[contract(effect = "readOnly")]
+                pub fn read(&self) -> u32 { 0 }
+            }
+        };
+        let output = apply_with_config(&declared, &parse_config(""))
+            .unwrap()
+            .to_string();
+        assert!(
+            output.contains("ContractMethodEffectView :: ReadOnly"),
+            "{output}"
+        );
+        assert!(!output.contains("contract (effect"), "{output}");
+    }
+
+    #[test]
     fn contract_rejects_generic_impls() {
         let item: syn::Item = syn::parse_quote! {
             impl<T> Vault<T> {
@@ -650,7 +712,7 @@ mod tests {
         let tokens = apply_with_config(&item, &parse_config(""))
             .unwrap()
             .to_string();
-        assert!(tokens.contains("groundhogspecrawv3"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");

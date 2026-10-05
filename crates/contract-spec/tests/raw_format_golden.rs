@@ -23,7 +23,8 @@
 //! 2. bump `RAW_SECTION_NAME` to match,
 //! 3. bump `raw_spec_format` in `Cargo.toml`,
 //! 4. bump the `link_section` literals in `groundhog-macros`,
-//! 5. re-bless `GOLDEN` below from the `left` value this test prints.
+//! 5. run this test with `UPDATE_SNAPSHOTS=1`, inspect the diff, and rerun
+//!    without the variable to compare the checked-in golden.
 //!
 //! Steps 1-4 are each pinned by their own test, so a partial bump fails too.
 //! Then tell the CLI: `groundhog-spec-tool`'s new version has to reach the
@@ -125,6 +126,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
                 interface_version: spec_string("1.2.3"),
                 declared_by: golden_declarer(),
                 method: ContractSpecMethod {
+                    effect: groundhog_contract_spec::ContractMethodEffect::EffectUnknown,
                     name: spec_string("do_thing"),
                     args: vec![field("arg", ContractType::U32)]
                         .try_into()
@@ -169,6 +171,17 @@ fn encode_sample() -> String {
 #[test]
 fn raw_spec_encoding_matches_golden() {
     let actual = encode_sample();
+    if std::env::var("UPDATE_SNAPSHOTS").as_deref() == Ok("1") {
+        std::fs::write(
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/tests/raw_format_golden.hex"
+            ),
+            format!("{actual}\n"),
+        )
+        .expect("write raw spec golden");
+        return;
+    }
     assert_eq!(
         actual,
         GOLDEN.trim(),

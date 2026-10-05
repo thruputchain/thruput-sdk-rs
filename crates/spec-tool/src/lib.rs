@@ -783,6 +783,12 @@ fn validate_declared_by(
 }
 
 fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
+    if !(0..=3).contains(&method.effect.0) {
+        return Err(SpecToolError::InvalidRawFragment(format!(
+            "unsupported method effect {}",
+            method.effect.0
+        )));
+    }
     if method.name.is_empty() {
         return Err(SpecToolError::InvalidRawFragment(
             "method fragments must include a method name".to_string(),
@@ -1278,6 +1284,13 @@ fn method_to_json(method: &ContractSpecMethod) -> serde_json::Value {
         "name": spec_str_lossy(&method.name),
         "args": method.args.iter().map(field_to_json).collect::<Vec<_>>(),
         "return_type": type_to_json(&method.return_type),
+        "effect": match method.effect.0 {
+            0 => "unknown",
+            1 => "pure",
+            2 => "readOnly",
+            3 => "stateChanging",
+            _ => "unknown",
+        },
     })
 }
 

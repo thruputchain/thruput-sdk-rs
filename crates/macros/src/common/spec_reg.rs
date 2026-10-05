@@ -174,7 +174,7 @@ pub fn generate_free_function_raw_spec_fragments(
     })
 }
 
-/// Emit the `groundhogspecrawv3` fragments for a `#[contract]` trait
+/// Emit the `groundhogspecrawv4` fragments for a `#[contract]` trait
 /// (interface) definition: one Interface fragment, event fragments, plus
 /// throws/event/signature anchor roots. Method fragments come from the
 /// anchoring site instead (see the comment in the body). Name/version match
@@ -290,7 +290,7 @@ fn generate_trait_method_fragments_tokens(
 
             #[cfg_attr(
                 target_arch = "riscv32",
-                unsafe(link_section = "groundhogspecrawv3")
+                unsafe(link_section = "groundhogspecrawv4")
             )]
             // `#[used]` keeps the section live through ELF linking so the
             // CLI can extract it.
@@ -347,7 +347,7 @@ fn generate_trait_event_fragments_tokens(
 
             #[cfg_attr(
                 target_arch = "riscv32",
-                unsafe(link_section = "groundhogspecrawv3")
+                unsafe(link_section = "groundhogspecrawv4")
             )]
             // `#[used]` keeps the section live through ELF linking so the
             // CLI can extract it.
@@ -467,7 +467,7 @@ fn generate_carrier_method_fragments_tokens(
 
             #[cfg_attr(
                 target_arch = "riscv32",
-                unsafe(link_section = "groundhogspecrawv3")
+                unsafe(link_section = "groundhogspecrawv4")
             )]
             // `#[used]` keeps the section live through ELF linking so the
             // CLI can extract it.
@@ -593,6 +593,7 @@ fn generate_method_fragment_tokens(
     let method_name = method.sig().ident.to_string();
     let args = method_arg_spec_tokens(method)?;
     let return_type = method_return_spec_token(method)?;
+    let effect = super::contract::method_effect_tokens(method)?;
 
     Ok(emit_raw_fragment_tokens_with_cfg(
         cfg.clone(),
@@ -608,6 +609,7 @@ fn generate_method_fragment_tokens(
                         name: #method_name,
                         args: METHOD_ARGS,
                         return_type: #return_type,
+                        effect: #effect,
                     },
                 }
             )
@@ -637,7 +639,7 @@ pub fn emit_raw_fragment_tokens_with_cfg(
 
             #[cfg_attr(
                 target_arch = "riscv32",
-                unsafe(link_section = "groundhogspecrawv3")
+                unsafe(link_section = "groundhogspecrawv4")
             )]
             // `#[used]` keeps the section live through ELF linking so the CLI
             // can extract it.
@@ -701,7 +703,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv3"));
+        assert!(tokens.contains("groundhogspecrawv4"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
         assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
@@ -725,7 +727,7 @@ mod tests {
             .unwrap()
             .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv3"));
+        assert!(tokens.contains("groundhogspecrawv4"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
         assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
@@ -877,7 +879,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv3"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
         assert!(
             tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"),
@@ -1018,7 +1020,7 @@ mod emits_tests {
             "{tokens}"
         );
         assert!(tokens.contains("RAW_SPEC_EVENT_FRAGMENTS"), "{tokens}");
-        assert!(tokens.contains("groundhogspecrawv3"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
     }
 
     #[test]

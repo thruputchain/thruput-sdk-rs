@@ -90,6 +90,29 @@ pub struct ContractSpecMethodView<'a> {
     pub name: &'a str,
     pub args: &'a [ContractFieldView<'a>],
     pub return_type: ContractTypeView<'a>,
+    pub effect: ContractMethodEffectView,
+}
+
+/// Const-friendly author declaration; not a compiler or runtime guarantee.
+/// Covers the complete invocation, including nested calls and event emission.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+#[repr(i32)]
+pub enum ContractMethodEffectView {
+    /// No declaration; consumers must not assume read-only.
+    Unknown = 0,
+    /// Arguments and constants only, without state/context reads or effects.
+    Pure = 1,
+    /// May read state and execution context, without application effects.
+    ReadOnly = 2,
+    /// May produce application effects.
+    StateChanging = 3,
+}
+
+#[cfg(feature = "owned-model")]
+impl From<ContractMethodEffectView> for crate::ContractMethodEffect {
+    fn from(value: ContractMethodEffectView) -> Self {
+        Self(value as i32)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -369,6 +392,7 @@ impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
                 .try_into()
                 .unwrap(),
             return_type: value.return_type.into(),
+            effect: value.effect.into(),
         }
     }
 }

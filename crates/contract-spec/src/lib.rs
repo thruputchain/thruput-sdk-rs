@@ -16,12 +16,12 @@ pub use format::{
 #[cfg(feature = "owned-model")]
 pub use groundhog_spec::{
     ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
-    ContractExceptionType, ContractField, ContractSignedTokenPreimage,
-    ContractSpec, ContractSpecId, ContractSpecInterface, ContractSpecMethod,
-    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
-    ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
-    ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
-    ContractVectorType,
+    ContractExceptionType, ContractField, ContractMethodEffect,
+    ContractSignedTokenPreimage, ContractSpec, ContractSpecId,
+    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
+    ContractStructDef, ContractType, ContractTypeDef, ContractTypeDefKind,
+    ContractTypeKind, ContractUnionCase, ContractUnionCaseKind,
+    ContractUnionCaseType, ContractUnionDef, ContractVectorType,
 };
 #[cfg(feature = "owned-model")]
 mod fragment;
