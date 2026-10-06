@@ -184,7 +184,7 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 ///
 /// On trait methods and public methods of bare impls, use
 /// `#[contract(effect = "pure")]`, `#[contract(effect = "readOnly")]`, or
-/// `#[contract(effect = "stateChanging")]`. Omission means `unknown`, never
+/// `#[contract(effect = "stateChanging")]`. Omission leaves the effect absent, never
 /// read-only. Trait implementations inherit declarations from the trait;
 /// annotating an implementation method is rejected.
 ///

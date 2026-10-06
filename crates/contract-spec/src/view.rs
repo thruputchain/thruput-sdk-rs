@@ -90,7 +90,7 @@ pub struct ContractSpecMethodView<'a> {
     pub name: &'a str,
     pub args: &'a [ContractFieldView<'a>],
     pub return_type: ContractTypeView<'a>,
-    pub effect: ContractMethodEffectView,
+    pub effect: Option<ContractMethodEffectView>,
 }
 
 /// Const-friendly author declaration; not a compiler or runtime guarantee.
@@ -98,8 +98,6 @@ pub struct ContractSpecMethodView<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 #[repr(i32)]
 pub enum ContractMethodEffectView {
-    /// No declaration; consumers must not assume read-only.
-    Unknown = 0,
     /// Arguments and constants only, without state/context reads or effects.
     Pure = 1,
     /// May read state and execution context, without application effects.
@@ -392,7 +390,7 @@ impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
                 .try_into()
                 .unwrap(),
             return_type: value.return_type.into(),
-            effect: value.effect.into(),
+            effect: value.effect.map(Into::into),
         }
     }
 }

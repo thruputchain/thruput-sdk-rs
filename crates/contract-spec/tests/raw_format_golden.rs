@@ -126,7 +126,7 @@ fn sample_fragments() -> Vec<SpecFragment> {
                 interface_version: spec_string("1.2.3"),
                 declared_by: golden_declarer(),
                 method: ContractSpecMethod {
-                    effect: groundhog_contract_spec::ContractMethodEffect::EffectUnknown,
+                    effect: None,
                     name: spec_string("do_thing"),
                     args: vec![field("arg", ContractType::U32)]
                         .try_into()

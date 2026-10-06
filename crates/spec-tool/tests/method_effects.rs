@@ -57,10 +57,10 @@ fn author_declarations_survive_macro_raw_final_and_json_specs() {
     assert_eq!(
         effects,
         [
-            ContractMethodEffect::EffectPure,
-            ContractMethodEffect::EffectReadOnly,
-            ContractMethodEffect::EffectUnknown,
-            ContractMethodEffect::EffectStateChanging,
+            Some(ContractMethodEffect::EffectPure),
+            Some(ContractMethodEffect::EffectReadOnly),
+            None,
+            Some(ContractMethodEffect::EffectStateChanging),
         ]
     );
     let json: serde_json::Value =
@@ -69,9 +69,9 @@ fn author_declarations_survive_macro_raw_final_and_json_specs() {
     assert_eq!(
         methods
             .iter()
-            .map(|m| m["effect"].as_str().unwrap())
+            .map(|m| m.get("effect").map(|effect| effect.as_str().unwrap()))
             .collect::<Vec<_>>(),
-        ["pure", "readOnly", "unknown", "stateChanging"]
+        [Some("pure"), Some("readOnly"), None, Some("stateChanging")]
     );
 }
 
@@ -93,7 +93,7 @@ fn conflicting_effects_and_unsupported_values_are_rejected() {
     } = &mut conflicting
     {
         method_fragment.method.effect =
-            ContractMethodEffect::EffectStateChanging;
+            Some(ContractMethodEffect::EffectStateChanging);
     }
     fragments.push(conflicting);
     assert!(canonicalize_spec(&fragments).is_err());
@@ -102,7 +102,7 @@ fn conflicting_effects_and_unsupported_values_are_rejected() {
         method_fragment,
     } = &mut fragments[index]
     {
-        method_fragment.method.effect = ContractMethodEffect(99);
+        method_fragment.method.effect = Some(ContractMethodEffect(99));
     }
     assert!(
         canonicalize_spec(&fragments)

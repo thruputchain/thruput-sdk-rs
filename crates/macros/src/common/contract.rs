@@ -573,9 +573,12 @@ pub fn method_effect_tokens(method: &impl Method) -> Result<TokenStream> {
             Ok(())
         })?;
     }
-    let effect = effect
-        .unwrap_or_else(|| syn::Ident::new("Unknown", Span::call_site()));
-    Ok(quote! { ::sdk::__contract_spec::ContractMethodEffectView::#effect })
+    Ok(match effect {
+        Some(effect) => {
+            quote! { ::core::option::Option::Some(::sdk::__contract_spec::ContractMethodEffectView::#effect) }
+        }
+        None => quote! { ::core::option::Option::None },
+    })
 }
 
 pub fn method_anchor_tokens(

@@ -43,7 +43,7 @@ const FRAGMENTS: &[SpecFragmentView<'static>] = &[
         interface_version: VERSION,
         declared_by: DECLARED_BY,
         method: ContractSpecMethodView {
-            effect: groundhog_contract_spec::ContractMethodEffectView::Unknown,
+            effect: None,
             name: "convert",
             args: &[ContractFieldView {
                 name: "unsigned",
