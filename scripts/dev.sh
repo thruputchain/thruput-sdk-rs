@@ -611,23 +611,7 @@ check_rv32_contract_spec_artifacts() {
     assert_file_lacks "$phantom_method_json" '"name":"phantom_local"' &&
     assert_file_lacks_id "$phantom_method_json" LootConfig &&
 
-    # Method specs are sourced from the `#[contract]` trait, never from the
-    # impl's own signatures. trait_sourced_method_spec's impl renames every
-    # parameter `Pair` declares (`_factory`, `_numerator`, `_denominator` —
-    # the unused-parameter convention); the published interface spec is a
-    # contract's public API, so it must carry the trait's names, in the
-    # trait's order. Trait and impl share a crate, so a regression also shows
-    # up as a `conflicting method definitions` build failure — but only this
-    # assertion catches an impl name that reaches the spec silently.
-    #
-    # Replaces the guard the deleted `swap` contract carried; the macro-layer
-    # twin is `trait_impl_methods_come_from_trait_const_not_impl_signatures`.
-    assert_file_contains "$trait_sourced_json" '"name":"initialize","args":[{"name":"factory"' &&
-    assert_file_contains "$trait_sourced_json" '"name":"set_rate","args":[{"name":"numerator"' &&
-    assert_file_contains "$trait_sourced_json" '"name":"denominator"' &&
-    assert_file_lacks "$trait_sourced_json" '"_factory"' &&
-    assert_file_lacks "$trait_sourced_json" '"_numerator"' &&
-    assert_file_lacks "$trait_sourced_json" '"_denominator"' &&
+    check_trait_sourced_method_spec "$trait_sourced_json" &&
 
     # Pre-release interface versions: the macro accepts them and the spec
     # pipeline must publish them verbatim (historically ingestion rejected
@@ -743,6 +727,20 @@ check_rv32_contract_spec_artifacts() {
         "${groundhog_dir}/iface_conflict_caller.rv32a" \
         "${RV32_RELEASE}/iface_conflict_caller" \
         "PingEvent"
+}
+
+# Check the extracted RV32 spec, including the ConstWriter encoding path.
+# Method names, arguments, and effects must come from the trait, not its impl.
+check_trait_sourced_method_spec() {
+    local spec_json="$1"
+    assert_file_contains "$spec_json" '{"name":"initialize","args":[{"name":"factory","type":{"kind":"address"}}],"return_type":{"kind":"void"}}' &&
+    assert_file_contains "$spec_json" '{"name":"set_rate","args":[{"name":"numerator","type":{"kind":"u64"}},{"name":"denominator","type":{"kind":"u64"}}],"return_type":{"kind":"u64"},"effect":"stateChanging"}' &&
+    assert_file_contains "$spec_json" '{"name":"get_rate","args":[],"return_type":{"kind":"u64"},"effect":"readOnly"}' &&
+    assert_file_contains "$spec_json" '{"name":"calculate","args":[{"name":"value","type":{"kind":"u64"}}],"return_type":{"kind":"u64"},"effect":"pure"}' &&
+    assert_file_lacks "$spec_json" '"_factory"' &&
+    assert_file_lacks "$spec_json" '"_numerator"' &&
+    assert_file_lacks "$spec_json" '"_denominator"' &&
+    assert_file_lacks "$spec_json" '"_value"'
 }
 
 # Regression guard: the logging-test workspace unconditionally enables
