@@ -645,9 +645,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-common"
-version = "0.10.2"
+version = "0.10.3"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "60b53dc86cc6d89204bed084f8207cc2e24bdc5db888a031e3d92a180990034e"
+checksum = "aa40706c1eb7e8483c8ac185fbcb52d4b70495f0a1c50bf8ee3428ad3b9aef0c"
 dependencies = [
  "escape-bytes",
  "schemars",
@@ -655,9 +655,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-derive"
-version = "0.10.2"
+version = "0.10.3"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "5b24ad2f23fd8e15e61099b2fd21fcba4ddd65785f9d21dbf05a5c33ca2a387b"
+checksum = "c0da7fabeb5ec487a4e0ec25f49aa39ba8358fc13a201fa9705eb354b04794a2"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -667,9 +667,9 @@ dependencies = [
 
 [[package]]
 name = "xdr-repr"
-version = "0.10.2"
+version = "0.10.3"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "e8d59bfc840e3602caabf0c22ebffbd6991ed22b3630327668c1d01567354040"
+checksum = "60cb85a5282a084a86e1c3c6d2eb02168bd3438ebb3f076521903afae97c50fa"
 dependencies = [
  "heapless",
  "xdr-common",
@@ -677,9 +677,9 @@ dependencies = [
 
 [[package]]
 name = "xdrs"
-version = "0.10.2"
+version = "0.10.3"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "084c9cb4a5e73d5472b44a1d2025278ab7cb550fcf9b4976ae46c9eeb6ef3f6d"
+checksum = "2411efb4631e1c11edac3c600cd1a15c32fc7d8c39bea364d8b3af2a25956eb6"
 dependencies = [
  "heapless",
  "xdr-common",

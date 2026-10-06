@@ -119,9 +119,13 @@ groundhog-xdr = { registry = "groundhog", version = "=0.45.0", features = ["xdrs
 groundhog-syscall = { registry = "groundhog", version = "=0.45.0" }
 hogexec-internal = { registry = "groundhog", version = "=0.45.0" }
 
-# Deps from xdrs repo:
-xdrs = { registry = "groundhog", version = "=0.10.2", default-features = false, features = ["int128", "heapless"] }
-xdr-common = { registry = "groundhog", version = "=0.10.2" }
+# Deps from xdrs repo.  Caret rather than exact: cargo resolves one 0.10.x
+# for the whole graph, so consumers still get a single set of XDR traits, and
+# an xdrs patch release does not need an SDK release to reach them.  The floor
+# stays at 0.10.2 because published crates still pin `=0.10.2` (the scaffold's
+# groundhog-json-rpc-client 0.22, via groundhog-json-rpc-types).
+xdrs = { registry = "groundhog", version = "0.10.2", default-features = false, features = ["int128", "heapless"] }
+xdr-common = { registry = "groundhog", version = "0.10.2" }
 
 # External crates.io dependencies
 thiserror = { version = "2.0.12", default-features = false }

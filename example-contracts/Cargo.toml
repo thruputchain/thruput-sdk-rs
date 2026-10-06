@@ -136,7 +136,7 @@ bottle-test-if = { path = "../crates/bottle-test-if", registry = "groundhog", ve
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # External groundhog dependencies
-xdrs = { registry = "groundhog", version = "=0.10.2", default-features = false }
+xdrs = { registry = "groundhog", version = "0.10.2", default-features = false }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }
