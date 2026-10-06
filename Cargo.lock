@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "bigint-bench"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "bigint-bench-if",
  "sdk",
@@ -21,7 +21,7 @@ dependencies = [
 
 [[package]]
 name = "bigint-bench-if"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "sdk",
 ]
@@ -62,7 +62,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test-if"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "sdk",
 ]
@@ -265,7 +265,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
@@ -373,7 +373,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -384,7 +384,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-xdr",
  "sha2",
@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-domain-separator"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-macros",
@@ -472,7 +472,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -480,14 +480,14 @@ dependencies = [
 
 [[package]]
 name = "groundhog-exn"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "xdrs",
 ]
 
 [[package]]
 name = "groundhog-macros"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "darling",
  "groundhog-contract-spec",
@@ -502,7 +502,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "ed25519-dalek",
  "groundhog-domain-separator",
@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-rv32-runtime"
-version = "0.44.0"
+version = "0.44.1"
 
 [[package]]
 name = "groundhog-sep41"
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec-tool"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-access-control-if",
  "groundhog-contract-spec",
@@ -583,7 +583,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "bindgen",
  "cmake",
@@ -608,7 +608,7 @@ checksum = "2a6e8e37f9de0a9ea8e0413bea591f10704d4f258ce872599ce9e693ee91bcac"
 
 [[package]]
 name = "groundhog-test-vectors"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
@@ -634,7 +634,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-u256"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-u256",
@@ -799,7 +799,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "macros-crate-override-guest"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-macros",
@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
@@ -1301,7 +1301,7 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "vector-tests"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "sdk",
  "vector-tests",
@@ -1309,7 +1309,7 @@ dependencies = [
 
 [[package]]
 name = "version-check"
-version = "0.44.0"
+version = "0.44.1"
 dependencies = [
  "semver",
  "tempfile",
