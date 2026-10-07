@@ -31,6 +31,8 @@ jobs:
     permissions:
       contents: read
     uses: groundhogchain/actions/.github/workflows/workflow-lint.yml@af074672d3a6f3ddedcacd758224ea5a5cf2a8f3
+    with:
+      runs-on: ubuntu-24.04
 
   build:
     needs: dependency-policy # check deps before building anything
@@ -138,12 +140,9 @@ jobs:
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            # A broken third-party list in the runner image (google-chrome
-            # has served a mismatched index) must not fail the whole update:
-            # ripgrep comes from an Ubuntu index, and `rg --version` below is
-            # the real guard.
-            sudo apt-get update || true
-            sudo apt-get install -y ripgrep
+            # Ubuntu mirrors can be unavailable from ephemeral runners.
+            # Install the pinned upstream crate with the existing Rust toolchain.
+            cargo install ripgrep --version '=15.1.0' --locked
           fi
           rg --version
 
@@ -213,12 +212,9 @@ jobs:
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            # A broken third-party list in the runner image (google-chrome
-            # has served a mismatched index) must not fail the whole update:
-            # ripgrep comes from an Ubuntu index, and `rg --version` below is
-            # the real guard.
-            sudo apt-get update || true
-            sudo apt-get install -y ripgrep
+            # Ubuntu mirrors can be unavailable from ephemeral runners.
+            # Install the pinned upstream crate with the existing Rust toolchain.
+            cargo install ripgrep --version '=15.1.0' --locked
           fi
           rg --version
 
