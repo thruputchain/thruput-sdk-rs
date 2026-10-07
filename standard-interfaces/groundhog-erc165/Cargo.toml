@@ -1,6 +1,6 @@
 [package]
 name = "groundhog-erc165-if"
-version = "0.1.47"
+version = "0.1.48"
 edition.workspace = true
 publish.workspace = true
 authors.workspace = true
@@ -15,11 +15,11 @@ categories.workspace = true
 dev = ["sdk/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.44.2" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.45.0" }
 heapless = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.44.2", features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.45.0", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
