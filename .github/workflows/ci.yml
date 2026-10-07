@@ -86,12 +86,12 @@ jobs:
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
-      # SSH remotes) can authenticate. Only the entry that initializes
-      # submodules needs it.
+      # SSH remotes) can authenticate. Only this entry needs submodule keys.
       - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         if: matrix.submodules
         with:
           ssh-private-key: |
+            ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
             ${{ secrets.HOGD_ACCESS_KEY }}
             ${{ secrets.SDK_TO_PROTOCOL_RS }}
             ${{ secrets.SDK_TO_BCS_KEY }}
@@ -113,6 +113,12 @@ jobs:
 
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Authenticate pinned CLI source
+        if: ${{ !matrix.submodules }}
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
 
       - name: Initialize submodules
         if: matrix.submodules
@@ -175,6 +181,7 @@ jobs:
       - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: |
+            ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
             ${{ secrets.HOGD_ACCESS_KEY }}
             ${{ secrets.SDK_TO_PROTOCOL_RS }}
             ${{ secrets.SDK_TO_BCS_KEY }}

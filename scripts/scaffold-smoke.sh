@@ -6,11 +6,12 @@
 # sdk 0.17.8 shipped a feature problem (imported via an xdrs bump) that
 # broke the `groundhog new` scaffold's build without anything in this repo's
 # CI noticing. This script exercises exactly the new-user path: install the
-# CLI from the registry, scaffold a project, point its sdk dependency at
+# pinned CLI, scaffold a project, point its sdk dependency at
 # this checkout, and build the contract.
 #
 # The CLI is the version scripts/groundhog-cli-version.sh pins, not the
-# latest stable release. `groundhog build` refuses a contract whose SDK
+# latest stable release. The pin can be a source commit before publication.
+# `groundhog build` refuses a contract whose SDK
 # writes a raw spec format the CLI cannot read, and the SDK bumps that
 # format before the stable CLI release that adopts it exists (sdk 0.38.0
 # moved to format 3 while the newest stable CLI, 0.18.0, read format 2). An
@@ -75,6 +76,23 @@ if grep '^sdk = ' Cargo.toml | grep -qvF "path = \"$SDK_DIR/crates/sdk\""; then
     echo "error: an '^sdk = ' line was not rewritten to this checkout;" >&2
     echo "the CLI template layout changed — update $0" >&2
     exit 1
+fi
+
+# A source-pinned CLI can scaffold an RPC client version that has not yet
+# been published. Resolve it from the same verified checkout, preserving the
+# template's version and features rather than substituting an older client.
+if [ -n "${GROUNDHOG_CLI_SOURCE_DIR:-}" ]; then
+    python3 - "$GROUNDHOG_CLI_SOURCE_DIR" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+client = Path(sys.argv[1]) / 'crates/json-rpc/json-rpc-client'
+assert (client / 'Cargo.toml').is_file(), 'pinned RPC client source is missing'
+with Path('.cargo/config.toml').open('a') as config:
+    config.write('\n[patch."sparse+https://crates.thruput.network/api/v1/crates/"]\n')
+    config.write(f'groundhog-json-rpc-client = {{ path = {json.dumps(str(client))} }}\n')
+PY
 fi
 
 # Build the contract, exactly as the scaffold's "next steps" suggest. RV32
