@@ -30,7 +30,9 @@ install_groundhog_cli() {
         mkdir -p "$cli_root"
         cli_root="$(cd "$cli_root" && pwd)"
         export PATH="${cli_root}/bin:${PATH}"
-        source_dir="${cli_root}/source/${GROUNDHOG_CLI_COMMIT}"
+        # Keep this independent workspace outside the SDK checkout. Nesting
+        # it there confuses workspace inheritance and SDK version scanning.
+        source_dir="${GROUNDHOG_CLI_SOURCE_ROOT:-${CARGO_HOME:-$HOME/.cargo}/groundhog-cli-source}/${GROUNDHOG_CLI_COMMIT}"
         if [ ! -d "$source_dir/.git" ]; then
             git init "$source_dir" || return
             git -C "$source_dir" remote add origin git@github.com:groundhogchain/groundhog-rpc.git || return
@@ -57,6 +59,7 @@ PY
                 trap 'rm -rf "$build_dir"' EXIT
                 cd "$source_dir" || exit
                 GROUNDHOG_SOURCE_COMMIT="$GROUNDHOG_CLI_COMMIT" \
+                    CARGO_HTTP_MULTIPLEXING=false \
                     cargo "+$toolchain" install --path crates/cli --locked --force \
                     --root "$cli_root" --target-dir "$build_dir"
             ) || return

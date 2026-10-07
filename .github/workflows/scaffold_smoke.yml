@@ -49,6 +49,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/groundhog-cli-source
             ${{ github.workspace }}/.groundhog-cli
 
       - name: Scaffold and build
