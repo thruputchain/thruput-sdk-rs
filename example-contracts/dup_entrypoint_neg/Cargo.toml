@@ -32,4 +32,4 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.44.0" }
+sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.44.2" }
