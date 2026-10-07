@@ -13,21 +13,31 @@ use syn::*;
 
 pub trait Method {
     fn sig(&self) -> &syn::Signature;
+    fn attrs(&self) -> &[syn::Attribute];
 }
 
 impl Method for syn::ItemFn {
+    fn attrs(&self) -> &[syn::Attribute] {
+        &self.attrs
+    }
     fn sig(&self) -> &syn::Signature {
         &self.sig
     }
 }
 
 impl Method for syn::ImplItemFn {
+    fn attrs(&self) -> &[syn::Attribute] {
+        &self.attrs
+    }
     fn sig(&self) -> &syn::Signature {
         &self.sig
     }
 }
 
 impl Method for syn::TraitItemFn {
+    fn attrs(&self) -> &[syn::Attribute] {
+        &self.attrs
+    }
     fn sig(&self) -> &syn::Signature {
         &self.sig
     }
@@ -526,12 +536,48 @@ pub fn method_spec_view_tokens(
     let name = method.sig().ident.to_string();
     let args = method_arg_spec_tokens(method)?;
     let return_type = method_return_spec_token(method)?;
+    let effect = method_effect_tokens(method)?;
     Ok(quote! {
         ::sdk::__contract_spec::ContractSpecMethodView {
             name: #name,
             args: &[#(#args),*],
             return_type: #return_type,
+            effect: #effect,
         }
+    })
+}
+
+/// Parse the method's explicit declaration, never its name or receiver.
+pub fn method_effect_tokens(method: &impl Method) -> Result<TokenStream> {
+    let mut effect = None;
+    for attr in method
+        .attrs()
+        .iter()
+        .filter(|attr| attr.path().is_ident("contract"))
+    {
+        attr.parse_nested_meta(|meta| {
+            if !meta.path.is_ident("effect") {
+                return Err(meta.error("expected `effect = \"pure\"`, `\"readOnly\"`, or `\"stateChanging\"`"));
+            }
+            if effect.is_some() {
+                return Err(meta.error("duplicate method effect declaration"));
+            }
+            let value: syn::LitStr = meta.value()?.parse()?;
+            let name = match value.value().as_str() {
+                "pure" => "Pure",
+                "readOnly" => "ReadOnly",
+                "stateChanging" => "StateChanging",
+                _ => return Err(error(&value, "expected `pure`, `readOnly`, or `stateChanging`; omit the declaration for unknown effects")),
+            };
+            effect = Some(syn::Ident::new(name, value.span()));
+            Ok(())
+        })?;
+    }
+    Ok(match effect {
+        Some(effect) => {
+            quote! { ::core::option::Option::Some(::sdk::__contract_spec::ContractMethodEffectView::#effect) }
+        }
+        None => quote! { ::core::option::Option::None },
     })
 }
 

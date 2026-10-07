@@ -143,6 +143,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![ContractField {
                         name: s("request"),
@@ -177,6 +178,7 @@ fn canonicalize_spec_groups_methods_and_type_defs() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("pong"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -275,6 +277,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("zeta"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -300,6 +303,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("alpha"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -331,6 +335,7 @@ fn canonicalize_spec_merges_repeated_interface_buckets_when_throws_agree() {
 #[test]
 fn canonicalize_spec_dedups_identical_methods() {
     let method = ContractSpecMethod {
+        effect: None,
         name: s("alpha"),
         args: vec![ContractField {
             name: s("value"),
@@ -393,6 +398,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("alpha"),
                     args: vec![ContractField {
                         name: s("value"),
@@ -410,6 +416,7 @@ fn canonicalize_spec_rejects_conflicting_methods_with_same_name() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("alpha"),
                     args: vec![ContractField {
                         name: s("value"),
@@ -472,6 +479,7 @@ fn canonicalize_spec_dedups_identical_type_defs() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Named {
@@ -527,6 +535,7 @@ fn canonicalize_spec_rejects_missing_named_type_defs() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -549,6 +558,7 @@ fn canonicalize_spec_rejects_method_only_interface_buckets() {
             interface_version: s("0.1.0"),
             declared_by: declarer("test_if", "Iface"),
             method: ContractSpecMethod {
+                effect: None,
                 name: s("ping"),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::Void,
@@ -584,6 +594,7 @@ fn canonicalize_spec_rejects_conflicting_type_defs() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -641,6 +652,7 @@ fn canonicalize_spec_shakes_unreachable_conflicting_type_defs() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -700,6 +712,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
             interface_version: s("0.1.0"),
             declared_by: declarer("test_if", "Iface"),
             method: ContractSpecMethod {
+                effect: None,
                 name: s("configure"),
                 args: vec![ContractField {
                     name: s("cfg"),
@@ -721,6 +734,7 @@ fn conflicting_defs_ignored_when_type_is_unreachable() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -800,6 +814,7 @@ fn canonicalize_spec_rejects_conflicting_interface_throws() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -852,6 +867,7 @@ fn parse_raw_fragments_decodes_concatenated_xdr_stream() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![ContractField {
                         name: s("value"),
@@ -970,6 +986,7 @@ fn canonicalize_spec_resolves_types_in_multi_field_union_cases() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("get"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Named {
@@ -1087,6 +1104,7 @@ fn canonicalize_spec_exported_type_is_included_while_unreachable_regular_is_not(
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -1167,6 +1185,7 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -1256,6 +1275,7 @@ fn base_interface_fragments() -> Vec<SpecFragment> {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -1498,6 +1518,7 @@ fn non_utf8_type_name_is_rejected_not_panicked() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Named {
@@ -1548,6 +1569,7 @@ fn duplicate_exception_selector_with_different_types_is_rejected() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -1591,6 +1613,7 @@ fn identical_duplicate_exception_entries_are_deduped() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -1870,6 +1893,7 @@ fn ledger_fixture() -> Vec<SpecFragment> {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -1882,6 +1906,7 @@ fn ledger_fixture() -> Vec<SpecFragment> {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("steal"),
                     args: vec![ContractField {
                         name: s("cfg"),
@@ -2012,6 +2037,7 @@ fn signed_token_args_canonicalize_and_resolve_preimage_typedefs() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("transfer"),
                     args: vec![
                         ContractField {
@@ -2079,6 +2105,7 @@ fn opaque_signed_token_return_type_canonicalizes() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("is_valid_signature"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Vector {
@@ -2124,6 +2151,7 @@ fn signed_token_preimage_missing_typedef_is_rejected() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("transfer"),
                     args: vec![ContractField {
                         name: s("auth"),
@@ -2174,6 +2202,7 @@ fn canon_with_throws(
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,
@@ -2370,6 +2399,7 @@ fn signed_token_in_method_argument_is_still_allowed() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("deposit"),
                     args: vec![ContractField {
                         name: s("token"),
@@ -2544,6 +2574,7 @@ fn iface_returning(return_type: ContractType) -> Vec<SpecFragment> {
                 interface_version: s("0.1.0"),
                 declared_by: declarer("test_if", "Iface"),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("get"),
                     args: vec![].try_into().unwrap(),
                     return_type,
@@ -2732,6 +2763,7 @@ fn an_event_and_a_type_sharing_a_final_segment_both_survive() {
                     name: s("get"),
                     args: vec![].try_into().unwrap(),
                     return_type: named("ty@1::Transfer"),
+                    effect: None,
                 },
             },
         },
@@ -2932,6 +2964,7 @@ fn declared_method(declared_by: ContractSpecId, name: &str) -> SpecFragment {
             interface_version: s("0.1.0"),
             declared_by: declared_by.clone(),
             method: ContractSpecMethod {
+                effect: None,
                 name: s(name),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::U32,

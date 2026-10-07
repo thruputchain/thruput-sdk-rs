@@ -95,6 +95,7 @@ fn contract_spec_roundtrips_through_xdr() {
             .try_into()
             .unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("ping"),
                 args: vec![ContractField {
                     name: s("value"),
@@ -209,6 +210,7 @@ fn borrowed_views_convert_to_owned_model() {
         ContractTypeView::SignedToken(None),
     ];
     let methods = [ContractSpecMethodView {
+        effect: None,
         name: "ping",
         args: &method_args,
         return_type: ContractTypeView::Tuple(&tuple_items),
@@ -402,6 +404,7 @@ fn fragment_and_view_conversions_roundtrip() {
         interface_version: "0.1.0",
         declared_by: declarerv(),
         method: ContractSpecMethodView {
+            effect: None,
             name: "ping",
             args: &[ContractFieldView {
                 name: "payload",
@@ -484,6 +487,7 @@ fn borrowed_fragment_views_roundtrip_into_owned_fragments_via_txs() {
         interface_version: "0.3.0",
         declared_by: declarerv(),
         method: ContractSpecMethodView {
+            effect: None,
             name: "ping",
             args: &[ContractFieldView {
                 name: "payload",
@@ -674,6 +678,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
                 interface_version: s("0.1.0"),
                 declared_by: declarer(),
                 method: ContractSpecMethod {
+                    effect: None,
                     name: s("ping"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Void,

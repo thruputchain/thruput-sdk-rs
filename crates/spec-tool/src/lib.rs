@@ -783,6 +783,14 @@ fn validate_declared_by(
 }
 
 fn validate_method(method: &ContractSpecMethod) -> Result<(), SpecToolError> {
+    if let Some(effect) =
+        method.effect.filter(|effect| !(1..=3).contains(&effect.0))
+    {
+        return Err(SpecToolError::InvalidRawFragment(format!(
+            "unsupported method effect {}",
+            effect.0
+        )));
+    }
     if method.name.is_empty() {
         return Err(SpecToolError::InvalidRawFragment(
             "method fragments must include a method name".to_string(),
@@ -1274,11 +1282,20 @@ fn exception_type_to_json(exn: &ContractExceptionType) -> serde_json::Value {
 }
 
 fn method_to_json(method: &ContractSpecMethod) -> serde_json::Value {
-    serde_json::json!({
+    let mut value = serde_json::json!({
         "name": spec_str_lossy(&method.name),
         "args": method.args.iter().map(field_to_json).collect::<Vec<_>>(),
         "return_type": type_to_json(&method.return_type),
-    })
+    });
+    if let Some(effect) = method.effect {
+        value["effect"] = match effect.0 {
+            1 => serde_json::json!("pure"),
+            2 => serde_json::json!("readOnly"),
+            3 => serde_json::json!("stateChanging"),
+            value => serde_json::json!(value),
+        };
+    }
+    value
 }
 
 fn field_to_json(field: &ContractField) -> serde_json::Value {

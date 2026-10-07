@@ -41,7 +41,7 @@
 pub const RAW_SECTION_PREFIX: &str = "groundhogspecraw";
 
 /// Wire-format version of the raw spec section this SDK produces and parses.
-pub const RAW_SPEC_FORMAT: u32 = 3;
+pub const RAW_SPEC_FORMAT: u32 = 4;
 
 /// Name of the raw spec ELF section this SDK emits.
 ///
@@ -49,14 +49,14 @@ pub const RAW_SPEC_FORMAT: u32 = 3;
 /// [`RAW_SPEC_FORMAT`] because `#[link_section = ...]` in `groundhog-macros`
 /// needs a literal anyway; `raw_section_name_matches_its_parts` pins the
 /// three against each other.
-pub const RAW_SECTION_NAME: &str = "groundhogspecrawv3";
+pub const RAW_SECTION_NAME: &str = "groundhogspecrawv4";
 
 /// Name of the finalized spec ELF section.
 ///
 /// It holds a `ContractSpec`, whose layout is governed by the protocol-level
-/// `groundhog-spec` crate, so the suffix moves when that layout does. `v1`
-/// carries spec ids as a `ContractSpecId` of separate segments; `v0` carried
-/// them as one joined string, and the two do not decode as each other.
+/// `groundhog-spec` crate, so the suffix moves when that layout does. `v2`
+/// adds method effects; `v1` added segmented spec ids. Rebuild contracts and
+/// bindings after updating the toolchain; legacy decoding is not supported.
 ///
 /// Unlike the raw section, the suffix is not parsed: [`classify_section`]
 /// matches this name exactly, so a `v0` section reads as
@@ -66,7 +66,7 @@ pub const RAW_SECTION_NAME: &str = "groundhogspecrawv3";
 /// finalized section only ever reaches a reader in an unlowered build
 /// artifact: `groundhog-rv32-lower` drops both spec sections, so nothing
 /// deployed carries one.
-pub const FINAL_SECTION_NAME: &str = "groundhogspecv1";
+pub const FINAL_SECTION_NAME: &str = "groundhogspecv2";
 
 /// What an ELF section name means to the spec pipeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

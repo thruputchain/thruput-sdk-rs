@@ -180,6 +180,25 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// uninitialized sentinel. Spec canonicalization rejects it when the
 /// contract is built. See `#[contract_exception]`.
 ///
+/// # Declared method effects
+///
+/// On trait methods and public methods of bare impls, use
+/// `#[contract(effect = "pure")]`, `#[contract(effect = "readOnly")]`, or
+/// `#[contract(effect = "stateChanging")]`. Omission leaves the effect absent, never
+/// read-only. Trait implementations inherit declarations from the trait;
+/// annotating an implementation method is rejected.
+///
+/// Effects cover the whole invocation, including nested calls. `pure` uses
+/// only arguments and constants, without state or execution-context reads.
+/// `readOnly` permits those reads but no application effects. `stateChanging`
+/// permits storage deltas, events, transfers and deployment; it need not
+/// change state on every call. Event emission is an application effect.
+///
+/// These are author declarations. The macro checks syntax and duplicates,
+/// not method behavior; neither the compiler nor runtime enforces the
+/// declared effects. Metadata does not change entrypoint IDs, execution
+/// paths, authorization, gas accounting, or whether a call can fail.
+///
 /// # Limitations
 ///
 /// Generic parameters — including explicit lifetime parameters — are not

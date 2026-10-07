@@ -14,18 +14,22 @@ pub struct Counter {
 
 #[contract(throws = Error, client = CounterClient)]
 impl Counter {
+    #[contract(effect = "stateChanging")]
     pub fn initialize(&mut self, initial_value: u64) {
         self.value.strict_inc(initial_value as i128);
     }
 
+    #[contract(effect = "stateChanging")]
     pub fn increment(&mut self, amount: u64) {
         self.value.strict_inc(amount as i128);
     }
 
+    #[contract(effect = "stateChanging")]
     pub fn decrement(&mut self, amount: u64) {
         self.value.strict_inc(-(amount as i128));
     }
 
+    #[contract(effect = "readOnly")]
     pub fn get(&self) -> i128 {
         self.value.try_get().none_if_missing().unwrap_or(0)
     }

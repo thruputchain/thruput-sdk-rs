@@ -104,6 +104,7 @@ fn all_primitive_types_roundtrip() {
         .iter()
         .enumerate()
         .map(|(i, ty)| ContractSpecMethod {
+            effect: None,
             name: s(&format!("m{i}")),
             args: vec![ContractField {
                 name: s("arg"),
@@ -214,6 +215,7 @@ fn named_type_roundtrips() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("get"),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::Named {
@@ -281,6 +283,7 @@ fn deeply_nested_types_roundtrip() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("nested"),
                 args: vec![ContractField {
                     name: s("data"),
@@ -488,6 +491,7 @@ fn interface_with_throws_roundtrips() {
             .try_into()
             .unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("risky"),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::Bool,
@@ -539,6 +543,7 @@ fn method_with_multiple_args_roundtrips() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("transfer"),
                 args: vec![
                     ContractField {
@@ -586,6 +591,7 @@ fn kitchen_sink_roundtrips() {
                 .unwrap(),
                 methods: vec![
                     ContractSpecMethod {
+                        effect: None,
                         name: s("balance"),
                         args: vec![ContractField {
                             name: s("owner"),
@@ -596,6 +602,7 @@ fn kitchen_sink_roundtrips() {
                         return_type: ContractType::U128,
                     },
                     ContractSpecMethod {
+                        effect: None,
                         name: s("transfer"),
                         args: vec![
                             ContractField {
@@ -612,6 +619,7 @@ fn kitchen_sink_roundtrips() {
                         return_type: ContractType::Void,
                     },
                     ContractSpecMethod {
+                        effect: None,
                         name: s("metadata"),
                         args: vec![].try_into().unwrap(),
                         return_type: ContractType::Named {
@@ -627,6 +635,7 @@ fn kitchen_sink_roundtrips() {
                 vers: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
                 methods: vec![ContractSpecMethod {
+                    effect: None,
                     name: s("set_admin"),
                     args: vec![ContractField {
                         name: s("new_admin"),
@@ -766,6 +775,7 @@ fn xdr_to_json_to_xdr_roundtrips() {
                 .try_into()
                 .unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("run"),
                 args: vec![ContractField {
                     name: s("input"),
@@ -831,6 +841,7 @@ fn spec_with_method(name: &str, return_type: ContractType) -> ContractSpec {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s(name),
                 args: vec![].try_into().unwrap(),
                 return_type,
@@ -858,6 +869,7 @@ fn spec_with_typedef(type_def: ContractTypeDef) -> ContractSpec {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("get"),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::Named {
@@ -964,6 +976,7 @@ fn signed_token_types_roundtrip() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("transfer"),
                 args: vec![
                     ContractField {
@@ -1009,6 +1022,7 @@ fn render_spec_json_renders_signed_token() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("transfer"),
                 args: vec![
                     ContractField {

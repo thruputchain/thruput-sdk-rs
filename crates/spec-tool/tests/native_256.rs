@@ -43,6 +43,7 @@ const FRAGMENTS: &[SpecFragmentView<'static>] = &[
         interface_version: VERSION,
         declared_by: DECLARED_BY,
         method: ContractSpecMethodView {
+            effect: None,
             name: "convert",
             args: &[ContractFieldView {
                 name: "unsigned",

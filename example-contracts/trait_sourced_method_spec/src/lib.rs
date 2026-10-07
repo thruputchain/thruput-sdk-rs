@@ -4,15 +4,13 @@
 //! An impl may legitimately rename a parameter it does not use — the
 //! convention is a leading underscore — and the published interface spec is
 //! a contract's public API, so it must keep the trait's names. `Pair` names
-//! its parameters `factory`, `numerator` and `denominator`; the impl below
+//! its parameters `factory`, `numerator`, `denominator` and `value`; the impl below
 //! renames every one of them.
 //!
-//! Trait and impl live in the SAME crate deliberately. Both emit `Method`
-//! fragments for the interface, and impl-sourced signatures would make the
-//! two disagree — so a regression shows up either as a build failure
-//! (`conflicting method definitions` out of canonicalization) or as
-//! `_factory` reaching the spec, which
-//! `check_rv32_contract_spec_artifacts` asserts against.
+//! The impl emits method fragments from the trait's metadata. The extracted
+//! RV32 spec must retain the trait's argument names and all three declared
+//! effects, while leaving the unannotated method's effect absent.
+//! `check_rv32_contract_spec_artifacts` checks this after a real build.
 //!
 //! Replaces the guard the deleted `swap` contract carried, which was the
 //! only end-to-end check of this invariant.
@@ -26,7 +24,12 @@ use sdk::*;
 #[contract]
 pub trait Pair {
     fn initialize(factory: &ContractAddress);
+    #[contract(effect = "stateChanging")]
     fn set_rate(numerator: u64, denominator: u64) -> u64;
+    #[contract(effect = "readOnly")]
+    fn get_rate() -> u64;
+    #[contract(effect = "pure")]
+    fn calculate(value: u64) -> u64;
 }
 
 pub struct TraitSourcedMethodSpecContract;
@@ -39,5 +42,13 @@ impl Pair for TraitSourcedMethodSpecContract {
 
     fn set_rate(_numerator: u64, _denominator: u64) -> u64 {
         _denominator.wrapping_add(_numerator)
+    }
+
+    fn get_rate() -> u64 {
+        1
+    }
+
+    fn calculate(_value: u64) -> u64 {
+        _value.wrapping_mul(2)
     }
 }

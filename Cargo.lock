@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "bigint-bench"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "bigint-bench-if",
  "sdk",
@@ -21,7 +21,7 @@ dependencies = [
 
 [[package]]
 name = "bigint-bench-if"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "sdk",
 ]
@@ -62,7 +62,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "bottle-test-if",
  "groundhog-erc20-if",
@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test-if"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "sdk",
 ]
@@ -265,7 +265,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-bottle-test"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "erc20-test",
  "groundhog-erc20-if",
@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
@@ -357,7 +357,7 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 
 [[package]]
 name = "groundhog-access-control"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-access-control-if",
  "sdk",
@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-access-control-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "sdk",
  "thiserror",
@@ -373,7 +373,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-spec"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-spec",
  "groundhog-xdr",
@@ -384,7 +384,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-contract-util"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-xdr",
  "sha2",
@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-domain-separator"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-macros",
@@ -405,7 +405,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc165-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "heapless",
  "sdk",
@@ -413,7 +413,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-controls-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-erc20-metadata-if",
@@ -424,7 +424,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-erc20-if",
  "groundhog-xdr",
@@ -434,7 +434,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-metadata-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-erc20-metadata-if",
  "groundhog-xdr",
@@ -445,7 +445,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-pausable-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "sdk",
  "thiserror",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc20-permit-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-erc20-if",
  "sdk",
@@ -462,7 +462,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-erc721-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-erc721-if",
  "heapless",
@@ -472,7 +472,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-event"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -480,14 +480,14 @@ dependencies = [
 
 [[package]]
 name = "groundhog-exn"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "xdrs",
 ]
 
 [[package]]
 name = "groundhog-macros"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "darling",
  "groundhog-contract-spec",
@@ -502,7 +502,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-native-exec"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "ed25519-dalek",
  "groundhog-domain-separator",
@@ -520,11 +520,11 @@ dependencies = [
 
 [[package]]
 name = "groundhog-rv32-runtime"
-version = "0.44.2"
+version = "0.45.0"
 
 [[package]]
 name = "groundhog-sep41"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-erc165-if",
  "groundhog-erc20-controls-if",
@@ -536,7 +536,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-signed-op"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-domain-separator",
@@ -546,7 +546,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-signed-op-if"
-version = "0.1.47"
+version = "0.1.48"
 dependencies = [
  "sdk",
  "thiserror",
@@ -554,9 +554,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec"
-version = "0.46.0"
+version = "0.47.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "a01a2f1e989a5e54f5c6cf3fb2bd828152cc625025407a294f699388baf84896"
+checksum = "a8b6d261c4788bbbd0cf0e19099e8b232b46471e22187cc3c0d3b01716602548"
 dependencies = [
  "groundhog-xdr",
  "serde",
@@ -565,7 +565,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-spec-tool"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-access-control-if",
  "groundhog-contract-spec",
@@ -583,7 +583,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-storage-cost"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-xdr",
  "xdrs",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-sys"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -602,13 +602,13 @@ dependencies = [
 
 [[package]]
 name = "groundhog-syscall"
-version = "0.46.0"
+version = "0.47.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "7ec997bf179898573353c7b75e94072fd038f9e5575fca0a8571aebb65de143c"
+checksum = "4e096c3bbfbb7df3b08c872589fab7aba5c5dcf51b8d08c198c350505c9edd2b"
 
 [[package]]
 name = "groundhog-test-vectors"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
@@ -621,9 +621,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-trace"
-version = "0.46.0"
+version = "0.47.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "f709f762b9a5d147b7afc58b4f24f08d7c19c96b2d650882873829b4a236a414"
+checksum = "831686fc96d4da5e0100e5d674dc8969c832d980d19c9baf4af2074c5cfd1030"
 dependencies = [
  "groundhog-xdr",
  "hogexec-internal",
@@ -634,7 +634,7 @@ dependencies = [
 
 [[package]]
 name = "groundhog-u256"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-u256",
@@ -644,9 +644,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr"
-version = "0.46.0"
+version = "0.47.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "74230ae3a3d8790ddeaa1a2af2d8da4ac4ed1168dd4301418e24b38e2a2f48a7"
+checksum = "5935b5b311dd1268cd0690b518b9a3a7a538c5eddaed17759300cb998d14a366"
 dependencies = [
  "groundhog-syscall",
  "groundhog-xdr-macros",
@@ -659,9 +659,9 @@ dependencies = [
 
 [[package]]
 name = "groundhog-xdr-macros"
-version = "0.46.0"
+version = "0.47.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "d37125f19a939d9431e97c30edae18b258be6b66219fd6a6d1a0878777c1f58d"
+checksum = "d881256fa4455f3fa51d744966612d13a7c190348b67f52e63edfd28cba935d0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -711,9 +711,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.46.0"
+version = "0.47.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "8a1fcea71e80264322b1912a65836e8285bc33ca9c47fd5b4c106bf5c358a79e"
+checksum = "3aba27fe1e4eb9c30f59c7ffdab6715e04b5d0067a5a982813d5968e87041980"
 dependencies = [
  "xdrs",
 ]
@@ -799,7 +799,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "macros-crate-override-guest"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-macros",
@@ -978,7 +978,7 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "groundhog-contract-spec",
  "groundhog-contract-util",
@@ -1301,7 +1301,7 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "vector-tests"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "sdk",
  "vector-tests",
@@ -1309,7 +1309,7 @@ dependencies = [
 
 [[package]]
 name = "version-check"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "semver",
  "tempfile",
