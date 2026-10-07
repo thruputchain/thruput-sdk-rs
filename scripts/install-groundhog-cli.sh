@@ -2,12 +2,10 @@
 # GROUNDHOG_CLI_ROOT is set it prepends that root's bin to PATH, which the
 # caller then keeps.
 #
-# Installs the version scripts/groundhog-cli-version.sh pins and skips the
-# install when that version already answers `groundhog --version`, so re-runs
-# with a warm cargo root are free. CI sets GROUNDHOG_CLI_ROOT to a
-# Namespace-cached directory so the compiled binary survives across runs and
-# the install is a no-op until the pin moves. Unset (local runs): installs to
-# the default cargo root.
+# Installs the version or source commit scripts/groundhog-cli-version.sh pins.
+# CI caches GROUNDHOG_CLI_ROOT; source installs record the commit as well as
+# checking the version, so another build of the same version cannot satisfy
+# the pin. The source checkout is also used by the scaffold smoke test.
 #
 # `cargo install` deliberately ignores the repo's .cargo/config.toml (install
 # is global, not project-scoped), so the registry index must arrive via
@@ -21,6 +19,58 @@ install_groundhog_cli() {
     . "${sdk_dir}/scripts/groundhog-cli-version.sh"
 
     export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
+
+    if [ -n "${GROUNDHOG_CLI_COMMIT:-}" ]; then
+        if [[ ! "$GROUNDHOG_CLI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "error: GROUNDHOG_CLI_COMMIT must be a full lowercase commit SHA" >&2
+            return 1
+        fi
+        local cli_root source_dir
+        cli_root="${GROUNDHOG_CLI_ROOT:-${CARGO_HOME:-$HOME/.cargo}/groundhog-cli}"
+        mkdir -p "$cli_root"
+        cli_root="$(cd "$cli_root" && pwd)"
+        export PATH="${cli_root}/bin:${PATH}"
+        # Keep this independent workspace outside the SDK checkout. Nesting
+        # it there confuses workspace inheritance and SDK version scanning.
+        source_dir="${GROUNDHOG_CLI_SOURCE_ROOT:-${CARGO_HOME:-$HOME/.cargo}/groundhog-cli-source}/${GROUNDHOG_CLI_COMMIT}"
+        if [ ! -d "$source_dir/.git" ]; then
+            git init "$source_dir" || return
+            git -C "$source_dir" remote add origin git@github.com:groundhogchain/groundhog-rpc.git || return
+        fi
+        if [ "$(git -C "$source_dir" rev-parse HEAD 2>/dev/null)" != "$GROUNDHOG_CLI_COMMIT" ]; then
+            git -C "$source_dir" fetch --depth 1 origin "$GROUNDHOG_CLI_COMMIT" || return
+            git -C "$source_dir" -c core.hooksPath=/dev/null checkout --detach "$GROUNDHOG_CLI_COMMIT" || return
+        fi
+        git -C "$source_dir" diff --quiet HEAD || return
+        export GROUNDHOG_CLI_SOURCE_DIR="$source_dir"
+        if [ "$(cat "$cli_root/.source-commit" 2>/dev/null)" != "$GROUNDHOG_CLI_COMMIT" ] ||
+           [ "$("$cli_root/bin/groundhog" --version 2>/dev/null | awk '{print $2}')" != "$GROUNDHOG_CLI_VERSION" ]; then
+            # The CLI's stable toolchain is distinct from the SDK's nightly.
+            local toolchain build_dir
+            toolchain=$(python3 - "$source_dir/rust-toolchain.toml" <<'PY'
+import sys
+import tomllib
+with open(sys.argv[1], 'rb') as config:
+    print(tomllib.load(config)['toolchain']['channel'])
+PY
+            ) || return
+            build_dir=$(mktemp -d "${RUNNER_TEMP:-/tmp}/groundhog-cli-build.XXXXXX") || return
+            (
+                trap 'rm -rf "$build_dir"' EXIT
+                cd "$source_dir" || exit
+                GROUNDHOG_SOURCE_COMMIT="$GROUNDHOG_CLI_COMMIT" \
+                    CARGO_HTTP_MULTIPLEXING=false \
+                    cargo "+$toolchain" install --path crates/cli --locked --force \
+                    --root "$cli_root" --target-dir "$build_dir"
+            ) || return
+            if [ "$("$cli_root/bin/groundhog" --version | awk '{print $2}')" != "$GROUNDHOG_CLI_VERSION" ]; then
+                echo "error: source CLI version does not match GROUNDHOG_CLI_VERSION" >&2
+                return 1
+            fi
+            printf '%s\n' "$GROUNDHOG_CLI_COMMIT" > "$cli_root/.source-commit"
+        fi
+        return
+    fi
 
     local -a install_flags=()
     if [ -n "${GROUNDHOG_CLI_ROOT:-}" ]; then

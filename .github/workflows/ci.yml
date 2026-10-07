@@ -31,6 +31,8 @@ jobs:
     permissions:
       contents: read
     uses: groundhogchain/actions/.github/workflows/workflow-lint.yml@af074672d3a6f3ddedcacd758224ea5a5cf2a8f3
+    with:
+      runs-on: ubuntu-24.04
 
   build:
     needs: dependency-policy # check deps before building anything
@@ -84,12 +86,12 @@ jobs:
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
-      # SSH remotes) can authenticate. Only the entry that initializes
-      # submodules needs it.
+      # SSH remotes) can authenticate. Only this entry needs submodule keys.
       - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         if: matrix.submodules
         with:
           ssh-private-key: |
+            ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
             ${{ secrets.HOGD_ACCESS_KEY }}
             ${{ secrets.SDK_TO_PROTOCOL_RS }}
             ${{ secrets.SDK_TO_BCS_KEY }}
@@ -112,6 +114,12 @@ jobs:
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
+      - name: Authenticate pinned CLI source
+        if: ${{ !matrix.submodules }}
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
+
       - name: Initialize submodules
         if: matrix.submodules
         run: git submodule update --init --recursive
@@ -130,6 +138,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/groundhog-cli-source
             ${{ github.workspace }}/.hogd-ffi-cache
             ${{ github.workspace }}/.groundhog-cli
 
@@ -138,12 +147,9 @@ jobs:
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            # A broken third-party list in the runner image (google-chrome
-            # has served a mismatched index) must not fail the whole update:
-            # ripgrep comes from an Ubuntu index, and `rg --version` below is
-            # the real guard.
-            sudo apt-get update || true
-            sudo apt-get install -y ripgrep
+            # Ubuntu mirrors can be unavailable from ephemeral runners.
+            # Install the pinned upstream crate with the existing Rust toolchain.
+            cargo install ripgrep --version '=15.1.0' --locked
           fi
           rg --version
 
@@ -176,6 +182,7 @@ jobs:
       - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: |
+            ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
             ${{ secrets.HOGD_ACCESS_KEY }}
             ${{ secrets.SDK_TO_PROTOCOL_RS }}
             ${{ secrets.SDK_TO_BCS_KEY }}
@@ -207,18 +214,16 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/groundhog-cli-source
             ${{ github.workspace }}/.hogd-ffi-cache
             ${{ github.workspace }}/.groundhog-cli
 
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            # A broken third-party list in the runner image (google-chrome
-            # has served a mismatched index) must not fail the whole update:
-            # ripgrep comes from an Ubuntu index, and `rg --version` below is
-            # the real guard.
-            sudo apt-get update || true
-            sudo apt-get install -y ripgrep
+            # Ubuntu mirrors can be unavailable from ephemeral runners.
+            # Install the pinned upstream crate with the existing Rust toolchain.
+            cargo install ripgrep --version '=15.1.0' --locked
           fi
           rg --version
 

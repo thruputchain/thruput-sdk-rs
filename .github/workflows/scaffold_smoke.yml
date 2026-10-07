@@ -29,11 +29,16 @@ jobs:
     runs-on: namespace-profile-hogd-linux-2604
 
     steps:
-      # No SSH keys, submodules, or FFI secrets: the workspace has no git
+      # No submodules or FFI secrets: the workspace has no git
       # dependencies, the only submodule (integration_test/contracts) is not
       # a workspace member, and the scaffold build never enables sdk/dev.
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Authenticate pinned CLI source
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
 
       # NB: deliberately NOT caching ./target — cargo's many-small-file churn
       # stalls on the network-backed cache mount. Cache only the dependency
@@ -44,6 +49,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/groundhog-cli-source
             ${{ github.workspace }}/.groundhog-cli
 
       - name: Scaffold and build
