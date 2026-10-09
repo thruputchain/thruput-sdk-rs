@@ -457,7 +457,7 @@ jobs:
           # action's host doc-validation must skip them (covered by the per-target
           # verify in the dry-run step).
           arch-only-packages: groundhog-rv32-runtime
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-erc20-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
@@ -473,7 +473,7 @@ jobs:
           # and tries to link the rv32-only spec-carrier bin on the host.
           # (Same for the other interface crates below.)
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-erc20-metadata-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
@@ -485,7 +485,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-erc20-controls-if
         if: ${{ inputs.dry_run == false && steps.tag-token-controls-if.outputs.released == 'true' }}
@@ -497,7 +497,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-erc20-pausable-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
@@ -509,7 +509,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-erc165-if
         if: ${{ inputs.dry_run == false && steps.tag-erc165-if.outputs.released == 'true' }}
@@ -521,7 +521,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-erc721-if
         if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
@@ -533,7 +533,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       # After the ERC20, ERC20 controls, metadata and ERC-165 interfaces:
       # this component exact-pins all four.
@@ -547,7 +547,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-access-control-if
         if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
@@ -559,7 +559,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish groundhog-signed-op-if
         if: ${{ inputs.dry_run == false && steps.tag-signed-op-if.outputs.released == 'true' }}
@@ -571,7 +571,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       # After groundhog-signed-op-if: the component exact-pins it, and this
       # publish resolves deps against the live registry.
@@ -585,7 +585,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       # After groundhog-erc20-if: this crate exact-pins it, and this publish
       # resolves deps against the live registry.
@@ -599,7 +599,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       # After groundhog-access-control-if: the component exact-pins it, and
       # this publish resolves deps against the live registry.
@@ -613,7 +613,7 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
 
       - name: Publish interface-dependent crates
         if: ${{ inputs.dry_run == false }}
@@ -624,4 +624,4 @@ jobs:
           registry-name: groundhog
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
-          publish-delay-seconds: '20'
+          publish-delay-seconds: '10'
