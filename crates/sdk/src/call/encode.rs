@@ -38,19 +38,6 @@ pub fn collect_auth_handle_bytes<T: CollectAuthHandles + ?Sized>(
     Ok(handles)
 }
 
-pub fn auth_handles_as_mut_bytes(
-    handles: &mut AuthHandleBuf,
-) -> &mut [core::mem::MaybeUninit<u8>] {
-    let slice = handles.as_mut_slice();
-    // Safety: &mut [u32] → &mut [MaybeUninit<u8>] is always valid; u8 has alignment 1.
-    unsafe {
-        core::slice::from_raw_parts_mut(
-            slice.as_mut_ptr() as *mut core::mem::MaybeUninit<u8>,
-            core::mem::size_of_val(slice),
-        )
-    }
-}
-
 pub fn auth_handles_as_bytes(handles: &[u32]) -> &[u8] {
     // Safety: &[u32] → &[u8] is always valid; u8 has alignment 1.
     unsafe {
