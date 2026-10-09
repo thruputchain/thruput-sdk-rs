@@ -51,7 +51,7 @@ where
             // them back to.
             crate::call::contract_call_decode::<T>(
                 return_buffer.as_slice(),
-                &[],
+                [],
             )
             .map_err(crate::call::widen_uninhabited_exn)
         }

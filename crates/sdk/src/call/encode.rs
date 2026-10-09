@@ -1,10 +1,10 @@
 use crate::call::{CallFault, RawCallError};
 use crate::exn::FaultString;
-use crate::{ReceiveAuthHandles, receive_auth_handles_from_slice, xdr::*};
+use crate::{ReceiveAuthHandles, receive_auth_handles_from_iter, xdr::*};
 
 pub fn contract_call_decode<'b, T>(
     bytes: &'b [u8],
-    handles: &[u32],
+    handles: impl IntoIterator<Item = u32>,
 ) -> Result<T, CallFault>
 where
     T: ReadXDR<'b> + ReceiveAuthHandles,
@@ -13,7 +13,7 @@ where
         RawCallError::UnparseableReturn(FaultString::from_display(e))
     })?;
 
-    receive_auth_handles_from_slice(&mut args, handles).map_err(|e| {
+    receive_auth_handles_from_iter(&mut args, handles).map_err(|e| {
         RawCallError::UnparseableAuthHandles(FaultString::from_display(e))
     })?;
     Ok(args)

@@ -48,7 +48,7 @@ where
                 .map_err(widen_uninhabited_exn)?;
 
         if is_ok {
-            contract_call_decode(buf.as_slice(), auth_buf.as_slice())
+            contract_call_decode(buf.as_slice(), auth_buf.iter().copied())
                 .map_err(widen_uninhabited_exn)
         } else {
             match RawExceptionRef::parse(buf.as_slice()) {

@@ -15,13 +15,12 @@ fn fetch_roundtrips(payload: Vec<u8>) {
             .with_calldata(BytesM::try_from(payload.clone()).unwrap())
             .run(move || {
                 let mut calldata = sdk::internal::new_scratch();
-                let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-                sdk::contract_op::fetch_calldata_and_auth_tokens(
-                    &mut calldata,
-                    &mut auth_ids,
-                );
+                let auth_token_count =
+                    sdk::contract_op::fetch_calldata_and_auth_tokens(
+                        &mut calldata,
+                    );
                 assert_eq!(calldata.as_slice(), expected.as_slice());
-                assert!(auth_ids.is_empty());
+                assert_eq!(auth_token_count, 0);
             })
     })
     .assert_success();

@@ -3,8 +3,6 @@
 //! The functions are used by the [`contract`](macro@crate::contract) macro,
 //! and are also available for lower-level code.
 
-#[cfg(not(feature = "alloc"))]
-use crate::internal::MUBuf;
 use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::types::{ContractAddress, RuntimeMemoryLength, SHA256Hash};
@@ -148,114 +146,84 @@ pub fn get_calldata_len() -> RuntimeMemoryLength {
 /// reused for outbound encoding.
 pub type Calldata = crate::internal::ScratchBuf;
 
-/// The auth-token-id list supplied with the invocation.
-///
-/// With the `alloc` feature this is sized exactly to the token count; the
-/// fixed-capacity fallback supports at most 32 tokens.
-#[cfg(feature = "alloc")]
-pub type AuthTokenIdBuf = alloc::vec::Vec<u32>;
-#[cfg(not(feature = "alloc"))]
-pub type AuthTokenIdBuf = heapless::Vec<u32, 32>;
-
-/// Fetch the current frame's calldata and auth-token ids into
-/// caller-provided buffers (cleared first).
+/// Fetch the current frame's calldata into the caller-provided buffer
+/// (cleared first), returning the number N of auth tokens supplied with the
+/// invocation. They are the frame's auth token ids 0..N-1.
 ///
 /// This is the fallible core of [`fetch_calldata_and_auth_tokens`]: the
-/// buffers are filled in place, never moved by value. Buffers are
-/// heap-allocated with their exact sizes, queried up front via
-/// `GetCalldataLen`, so calldata of any length is supported.
+/// buffer is filled in place, never moved by value. It is heap-allocated
+/// with its exact size, queried up front via `GetCalldataLen`, so calldata
+/// of any length is supported.
 #[cfg(feature = "alloc")]
 fn fetch_calldata_and_auth_tokens_into(
     calldata: &mut Calldata,
-    auth_ids: &mut AuthTokenIdBuf,
-) -> SysResult<()> {
+) -> SysResult<u32> {
     let mut len: RuntimeMemoryLength = 0;
-    let mut auth_token_count: u32 = 0;
-    sys::raw_GetCalldataLen(&mut len, &mut auth_token_count)?;
+    let mut _auth_token_count: u32 = 0;
+    sys::raw_GetCalldataLen(&mut len, &mut _auth_token_count)?;
 
     let len = len as usize;
-    let auth_len = auth_token_count as usize * 4;
 
     calldata.clear();
     calldata.reserve(len);
-    let mut auth_token_buf: alloc::vec::Vec<u8> =
-        alloc::vec::Vec::with_capacity(auth_len);
 
     let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
-    let mut auth_token_written: MaybeUninit<RuntimeMemoryLength> =
-        MaybeUninit::uninit();
+    let mut auth_token_count: MaybeUninit<u32> = MaybeUninit::uninit();
 
     sys::uninit_GetCalldata(
-        // `with_capacity` may over-allocate; pass exactly the spans we
-        // proved initialized below.
+        // `reserve` may over-allocate; pass exactly the span we prove
+        // initialized below.
         &mut calldata.spare_capacity_mut()[..len],
         &mut written,
-        &mut auth_token_buf.spare_capacity_mut()[..auth_len],
-        &mut auth_token_written,
+        &mut auth_token_count,
     )?;
 
-    // Both buffers were sized from `GetCalldataLen` in this same frame, so
-    // the lengths `GetCalldata` reports must match exactly; a mismatch
-    // means the host broke the syscall contract, and trusting it would let
-    // `set_len` expose uninitialized bytes.
+    // The buffer was sized from `GetCalldataLen` in this same frame, so the
+    // length `GetCalldata` reports must match exactly; a mismatch means the
+    // host broke the syscall contract, and trusting it would let `set_len`
+    // expose uninitialized bytes.
     let written = unsafe { written.assume_init() } as usize;
-    let auth_written = unsafe { auth_token_written.assume_init() } as usize;
-    if written != len || auth_written != auth_len {
+    if written != len {
         return Err(
             sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into(),
         );
     }
     unsafe { calldata.set_len(written) };
-    unsafe { auth_token_buf.set_len(auth_written) };
 
-    // Convert bytes to u32s using native byte order (rv32 is little-endian)
-    auth_ids.clear();
-    auth_ids.reserve(auth_token_count as usize);
-    for chunk in auth_token_buf.as_chunks::<4>().0 {
-        auth_ids.push(u32::from_ne_bytes(*chunk));
-    }
-
-    Ok(())
+    Ok(unsafe { auth_token_count.assume_init() })
 }
 
-/// Fetch the current frame's calldata and auth-token ids into
-/// caller-provided buffers (cleared first).
+/// Fetch the current frame's calldata into the caller-provided buffer
+/// (cleared first), returning the number N of auth tokens supplied with the
+/// invocation. They are the frame's auth token ids 0..N-1.
 ///
 /// This is the fallible core of [`fetch_calldata_and_auth_tokens`]: the
-/// buffers are filled in place, never moved by value. Without `alloc`,
+/// buffer is filled in place, never moved by value. Without `alloc`,
 /// calldata lands in the fixed
-/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer and the
-/// token list holds at most 32 entries; larger inputs return
-/// `InvalidSyscallInput` (thrown as a `LibraryExn::Syscall` for
-/// `kGetCalldata`).
+/// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer; larger
+/// calldata returns `InvalidSyscallInput` (thrown as a
+/// `LibraryExn::Syscall` for `kGetCalldata`).
 #[cfg(not(feature = "alloc"))]
 fn fetch_calldata_and_auth_tokens_into(
     calldata: &mut Calldata,
-    auth_ids: &mut AuthTokenIdBuf,
-) -> SysResult<()> {
-    // 32 u32s * 4 bytes each
-    const AUTH_TOKEN_IDS_MAX: usize = 32 * 4;
-
+) -> SysResult<u32> {
     calldata.clear();
-    let mut auth_token_buf: MUBuf<AUTH_TOKEN_IDS_MAX> = MUBuf::new();
 
     let mut written: MaybeUninit<RuntimeMemoryLength> = MaybeUninit::uninit();
-    let mut auth_token_written: MaybeUninit<RuntimeMemoryLength> =
-        MaybeUninit::uninit();
+    let mut auth_token_count: MaybeUninit<u32> = MaybeUninit::uninit();
 
     sys::uninit_GetCalldata(
         calldata.spare_capacity_mut(),
         &mut written,
-        auth_token_buf.spare_capacity_mut(),
-        &mut auth_token_written,
+        &mut auth_token_count,
     )?;
 
     // `GetCalldata` copies at most the destination span's length but reports
-    // the *full* source length, which can exceed the fixed buffers here
+    // the *full* source length, which can exceed the fixed buffer here
     // (protocol calldata is unbounded). Applying an oversized length via
     // `set_len` would let `as_ref` read past the initialized region, so an
-    // oversized report is surfaced as InvalidSyscallInput: the spans this
-    // wrapper supplied were too small for the data.
+    // oversized report is surfaced as InvalidSyscallInput: the span this
+    // wrapper supplied was too small for the data.
     let written = unsafe { written.assume_init() } as usize;
     if written > calldata.capacity() {
         return Err(
@@ -264,57 +232,38 @@ fn fetch_calldata_and_auth_tokens_into(
     }
     unsafe { calldata.set_len(written) };
 
-    let auth_written = unsafe { auth_token_written.assume_init() } as usize;
-    if auth_written > AUTH_TOKEN_IDS_MAX {
-        return Err(
-            sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into(),
-        );
-    }
-    unsafe { auth_token_buf.set_len(auth_written) };
-
-    // Convert bytes to u32s using native byte order (rv32 is little-endian)
-    auth_ids.clear();
-    for chunk in auth_token_buf.as_ref().as_chunks::<4>().0 {
-        let id = u32::from_ne_bytes(*chunk);
-        auth_ids.push(id).expect("too many auth token IDs");
-    }
-
-    Ok(())
+    Ok(unsafe { auth_token_count.assume_init() })
 }
 
-/// Fetch this frame's calldata and auth-token ids into the caller's
-/// buffers (cleared first), throwing a `LibraryExn::Syscall` on fetch
-/// failure. The single calldata API: generated entrypoint wrappers and
-/// raw-calldata contracts both use it. The throw is guest-reachable and
-/// not limited to an adversarial host: in the no-alloc guest it is
-/// exactly what an ordinary transaction gets if its calldata exceeds
-/// `SCRATCH_MAX` (4096) bytes or carries more than 32 auth tokens.
+/// Fetch this frame's calldata into the caller's buffer (cleared first),
+/// returning the number N of auth tokens supplied with the invocation —
+/// the frame's auth token ids 0..N-1, in the order the caller listed them —
+/// and throwing a `LibraryExn::Syscall` on fetch failure. The single
+/// calldata API: generated entrypoint wrappers and raw-calldata contracts
+/// both use it. The throw is guest-reachable and not limited to an
+/// adversarial host: in the no-alloc guest it is exactly what an ordinary
+/// transaction gets if its calldata exceeds `SCRATCH_MAX` (4096) bytes.
 ///
-/// The buffers live in the caller's frame and are filled in place —
-/// never moved by value. Generated entrypoint wrappers declare them as
-/// locals and fetch exactly once, at the root of the frame; the decoded
-/// args borrow the calldata buffer for the entire handler frame. In the
-/// no-alloc guest that costs `SCRATCH_MAX` (4096) bytes of stack per
-/// live fetch. There is no shared cell, so nested fetches (the native
-/// mock's in-process frames, or a hand-written re-fetch) each get their
-/// own buffers and cannot alias.
+/// The buffer lives in the caller's frame and is filled in place — never
+/// moved by value. Generated entrypoint wrappers declare it as a local and
+/// fetch exactly once, at the root of the frame; the decoded args borrow
+/// the calldata buffer for the entire handler frame. In the no-alloc guest
+/// that costs `SCRATCH_MAX` (4096) bytes of stack per live fetch. There is
+/// no shared cell, so nested fetches (the native mock's in-process frames,
+/// or a hand-written re-fetch) each get their own buffer and cannot alias.
 ///
 /// Non-generic and `#[inline(never)]`, both load-bearing for codesize:
-/// every entrypoint reaches this single copy of the fetch machinery
-/// (~440 bytes in the optimized artifact) by direct call — nothing
-/// monomorphizes per entrypoint, and no handler's address is ever taken.
-/// Without the attribute, LTO inlines the body back into each export,
-/// recreating the per-export copies.
+/// every entrypoint reaches this single copy of the fetch machinery by
+/// direct call — nothing monomorphizes per entrypoint, and no handler's
+/// address is ever taken. Without the attribute, LTO inlines the body back
+/// into each export, recreating the per-export copies.
 ///
 /// `doc(hidden)`: raw calldata access is plumbing for the generated
 /// entrypoint wrappers, not a surface contracts should discover and
 /// build on.
 #[doc(hidden)]
 #[inline(never)]
-pub fn fetch_calldata_and_auth_tokens(
-    calldata: &mut Calldata,
-    auth_ids: &mut AuthTokenIdBuf,
-) {
-    fetch_calldata_and_auth_tokens_into(calldata, auth_ids)
-        .or_syscall_throw(SyscallNo::kGetCalldata);
+pub fn fetch_calldata_and_auth_tokens(calldata: &mut Calldata) -> u32 {
+    fetch_calldata_and_auth_tokens_into(calldata)
+        .or_syscall_throw(SyscallNo::kGetCalldata)
 }

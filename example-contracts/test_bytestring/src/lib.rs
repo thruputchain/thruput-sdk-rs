@@ -14,8 +14,7 @@ use sdk::*;
 
 pub fn write_bytestring() {
     let mut calldata_buf = sdk::internal::new_scratch();
-    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+    fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
@@ -27,8 +26,7 @@ pub fn write_bytestring() {
 
 pub fn log_bytestring() {
     let mut calldata_buf = sdk::internal::new_scratch();
-    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+    fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
@@ -44,8 +42,7 @@ pub fn log_bytestring() {
 
 pub fn expect_bytestring() {
     let mut calldata_buf = sdk::internal::new_scratch();
-    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+    fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
