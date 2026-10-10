@@ -13,19 +13,22 @@ const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
-const TEST_FFI_VERSION: &str = "0.37.0";
+const TEST_FFI_VERSION: &str = "0.37.1";
 
 /// Must match the version expected by hogd/built_contracts' build scripts.
 /// Bump this in lockstep with `TEST_FFI_VERSION`: the hogd tag we check out
 /// gates its contract builds on an exact `groundhog <version>` match, so a
 /// stale pin fails the source build in built_contracts/build_risc.sh.
 #[cfg(feature = "source-build")]
-const GROUNDHOG_CLI_VERSION: &str = "0.19.0";
+const GROUNDHOG_CLI_VERSION: &str = "0.26.0";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
 /// - If `HOGD_SRC` is set but empty/missing, clone there
-/// - Otherwise, clone to `OUT_DIR/hogd_clone`
+/// - Otherwise, clone to `OUT_DIR/hogd_clone_<TEST_FFI_VERSION>`. The
+///   directory is keyed by version because `OUT_DIR` survives a
+///   `TEST_FFI_VERSION` bump: an unversioned clone would keep the old tag
+///   and fail the header version check.
 #[cfg(feature = "source-build")]
 fn ensure_hogd_clone(
     out_dir: &Path,
@@ -44,8 +47,8 @@ fn ensure_hogd_clone(
         return Ok(hogd_path);
     }
 
-    // Default: clone to OUT_DIR/hogd_clone
-    let hogd_path = out_dir.join("hogd_clone");
+    // Default: clone to a per-version directory under OUT_DIR.
+    let hogd_path = out_dir.join(format!("hogd_clone_{TEST_FFI_VERSION}"));
     if !hogd_path.exists() {
         clone_hogd_repo(&hogd_path, &expected_tag)?;
     }
