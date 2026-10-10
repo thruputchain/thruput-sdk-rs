@@ -25,7 +25,10 @@ const GROUNDHOG_CLI_VERSION: &str = "0.26.0";
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
 /// - If `HOGD_SRC` is set but empty/missing, clone there
-/// - Otherwise, clone to `OUT_DIR/hogd_clone`
+/// - Otherwise, clone to `OUT_DIR/hogd_clone_<TEST_FFI_VERSION>`. The
+///   directory is keyed by version because `OUT_DIR` survives a
+///   `TEST_FFI_VERSION` bump: an unversioned clone would keep the old tag
+///   and fail the header version check.
 #[cfg(feature = "source-build")]
 fn ensure_hogd_clone(
     out_dir: &Path,
@@ -44,8 +47,8 @@ fn ensure_hogd_clone(
         return Ok(hogd_path);
     }
 
-    // Default: clone to OUT_DIR/hogd_clone
-    let hogd_path = out_dir.join("hogd_clone");
+    // Default: clone to a per-version directory under OUT_DIR.
+    let hogd_path = out_dir.join(format!("hogd_clone_{TEST_FFI_VERSION}"));
     if !hogd_path.exists() {
         clone_hogd_repo(&hogd_path, &expected_tag)?;
     }
