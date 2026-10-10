@@ -32,17 +32,6 @@ use crate::exn::{CallingError, FaultString, LibraryExn};
 use crate::xdr::*;
 use groundhog_exn::RawExceptionRef;
 
-/// The protocol caps a child frame's return/abort payload at
-/// `kMaxReturnBufferLen`; the no-alloc call scratch (and `RawException`'s
-/// inline no-alloc copy) is a fixed `SCRATCH_MAX`-capacity buffer. This is
-/// what makes the `extend_from_slice` overflow branch in
-/// [`own_wire`](RawException::own_wire) below unreachable in practice:
-/// `wire` can never exceed `SCRATCH_MAX` bytes.
-const _: () = assert!(
-    crate::types::transaction::kMaxReturnBufferLen as usize
-        <= crate::internal::SCRATCH_MAX
-);
-
 /// Re-throw to our caller: abort with the original wire bytes, verbatim.
 /// Zero-copy; this is what plain (non-`try_`) generated methods do.
 impl crate::re_throw::ReThrow for RawExceptionRef<'_> {
@@ -119,9 +108,11 @@ impl RawException {
             let mut buf = crate::call::Buf::new();
             if buf.extend_from_slice(wire).is_err() {
                 // Cannot happen in practice: `wire` is abort bytes drawn
-                // from the call scratch, which is the same `SCRATCH_MAX`
-                // capacity as `buf` (see the const assert above). If it
-                // somehow did, propagate the original borrowed `wire`
+                // from the call scratch, the same `SCRATCH_MAX` capacity as
+                // `buf`, and `checked_returned_len` already refused anything
+                // the scratch could not hold. What the chain configures as a
+                // return-buffer limit does not enter into it. If it somehow
+                // did overflow, propagate the original borrowed `wire`
                 // verbatim rather than catch a truncated copy.
                 crate::contract_op::contract_abort(wire);
             }

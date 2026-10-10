@@ -5,9 +5,7 @@ use super::encode::*;
 use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
 use crate::exn::{FaultInfo, FaultString, RawExceptionRef};
-use crate::types::transaction::{
-    InvocationFrameStatusCode, kMaxReturnBufferLen,
-};
+use crate::types::transaction::InvocationFrameStatusCode;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 use crate::{AuthHandleBuf, sys};
@@ -123,8 +121,8 @@ fn call_core(
     buf.clear();
 
     // No `reserve` here, unlike `contract_call`: `reset_call_scratch` already
-    // sized the scratch to `SCRATCH_MAX`, which `invoke_frame` has checked the
-    // payload against (`kMaxReturnBufferLen`). `contract_call`'s buffer is
+    // sized the scratch to `SCRATCH_MAX`, and `checked_returned_len` refuses a
+    // payload that does not fit it. `contract_call`'s buffer is
     // caller-supplied and has no such guarantee.
     let returned_auth_tokens = fetch_frame_payload(is_ok, &outputs, buf)?;
 
@@ -336,18 +334,10 @@ fn invoke_frame(
         Err(syserr) => return Err(classify_invoke_rejection(syserr)),
     };
 
-    // The protocol caps returns at kMaxReturnBufferLen; a larger reported
-    // length means the host broke the syscall contract.
-    if outputs.return_buffer_len > kMaxReturnBufferLen {
-        return Err(unparseable(
-            is_ok,
-            FaultString::from_display(format_args!(
-                "reported return length {} exceeds the protocol cap {}",
-                outputs.return_buffer_len, kMaxReturnBufferLen
-            )),
-        ));
-    }
-
+    // No cap check on `return_buffer_len` here: what the chain permits is
+    // configuration (`kConfigParamMaxReturnBufferLen`), not a constant this
+    // crate can know. `checked_returned_len` bounds the length that matters,
+    // against the capacity of the buffer actually receiving the bytes.
     Ok((is_ok, outputs))
 }
 
