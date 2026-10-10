@@ -460,12 +460,12 @@ pub fn generate_method(
         quote! {}
     };
 
-    // Decode the args, run the body, encode the result. The calldata and
-    // auth-token buffers are locals of this (per-entrypoint) wrapper frame,
-    // filled in place by the shared, non-generic
-    // `fetch_calldata_and_auth_tokens` — no by-value copy of the no-alloc
-    // SCRATCH_MAX buffer — and the decoded args borrow the calldata buffer
-    // for the whole frame.
+    // Decode the args, run the body, encode the result. The calldata buffer
+    // is a local of this (per-entrypoint) wrapper frame, filled in place by
+    // the shared, non-generic `fetch_calldata_and_auth_tokens` — no by-value
+    // copy of the no-alloc SCRATCH_MAX buffer — and the decoded args borrow
+    // it for the whole frame. The fetch returns the number N of auth tokens
+    // the caller supplied, which are this frame's auth token ids 0..N-1.
     //
     // Both calls here (wrapper -> fetch, and the handler body itself) are
     // direct. That is load-bearing for the chain's funcref-table cap (64
@@ -481,12 +481,10 @@ pub fn generate_method(
 
         let mut __gh_calldata: ::sdk::contract_op::Calldata =
             ::sdk::internal::new_scratch();
-        let mut __gh_auth_token_ids: ::sdk::contract_op::AuthTokenIdBuf =
-            ::sdk::contract_op::AuthTokenIdBuf::new();
-        ::sdk::contract_op::fetch_calldata_and_auth_tokens(
-            &mut __gh_calldata,
-            &mut __gh_auth_token_ids,
-        );
+        let __gh_auth_token_count: u32 =
+            ::sdk::contract_op::fetch_calldata_and_auth_tokens(
+                &mut __gh_calldata,
+            );
 
         let __gh_res = {
 
@@ -495,11 +493,11 @@ pub fn generate_method(
 
             // Decode the args (Signer<T> reads 0 bytes, gets sentinel handle;
             // contract_call_decode then fills in Signer handles from the auth
-            // token ID list)
+            // token ids 0..N-1, in order)
             let mut __args =
                 ::sdk::call::contract_call_decode(
                     __gh_calldata.as_ref(),
-                    __gh_auth_token_ids.as_slice(),
+                    0..__gh_auth_token_count,
                 )
                     .unwrap_or_else(|e|
                         ::sdk::exn::decoding_args_throw(&e));
