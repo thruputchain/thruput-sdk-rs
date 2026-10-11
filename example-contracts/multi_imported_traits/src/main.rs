@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `multi_imported_traits` contract.
 //!
-//! `groundhog build` derives `--bin multi_imported_traits` from the package
+//! `thruput build` derives `--bin multi_imported_traits` from the package
 //! name, so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

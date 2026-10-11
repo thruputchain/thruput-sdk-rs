@@ -49,7 +49,7 @@ The generated types differ from the hand-written ones:
 
 Add workspace dependency:
 ```toml
-groundhog-spec = { registry = "groundhog", version = "0.7.8", default-features = false }
+groundhog-spec = { registry = "thruput", version = "0.7.8", default-features = false }
 ```
 
 Update `alloc` feature to include `groundhog-spec/std` if needed (the generated crate

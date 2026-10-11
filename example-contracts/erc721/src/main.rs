@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `erc721` contract.
 //!
-//! `groundhog build` derives `--bin erc721` from the package name, so this
+//! `thruput build` derives `--bin erc721` from the package name, so this
 //! target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

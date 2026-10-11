@@ -16,9 +16,9 @@ cargo() {
 
 RV32_TARGET="riscv32im-unknown-none-elf"
 RV32_RELEASE="${TARGET_DIR}/${RV32_TARGET}/release"
-# Where `groundhog build` writes the lowered artifacts:
+# Where `thruput build` writes the lowered artifacts:
 # <stem>.{rv32a,rv32.json,spec.json,spec.xdr}.
-LOWERED="${TARGET_DIR}/groundhog"
+LOWERED="${TARGET_DIR}/thruput"
 
 # rv32 contracts: the contract set (dirs with Cargo.toml minus the `disabled`
 # marker, i.e. ls_contract_packages) narrowed to packages that declare a
@@ -102,9 +102,9 @@ build_rv32() {
 
     (
         cd "$workspace_dir" &&
-        # The groundhog CLI compiles the ELF (honoring this workspace's
+        # The Thruput CLI compiles the ELF (honoring this workspace's
         # .cargo/config.toml rv32 rustflags) and lowers it in-process,
-        # writing target/groundhog/<snake>.{rv32a,rv32.json,spec.json,spec.xdr}.
+        # writing target/thruput/<snake>.{rv32a,rv32.json,spec.json,spec.xdr}.
         # The CLI itself passes --no-default-features and the package's
         # entrypoints (or rv32-entrypoints) feature — see the build_flags it
         # records in the .rv32.json sidecar. Callers may pass extra trailing
@@ -123,7 +123,7 @@ build_rv32() {
         # mem-override held. The deployed artifact is the lowered .rv32a,
         # which carries no symtab regardless.
         CARGO_PROFILE_RELEASE_STRIP=false \
-        groundhog build -p "$package" -- \
+        thruput build -p "$package" -- \
             $locked -Zbuild-std=core,alloc "$@"
     )
 }
@@ -227,7 +227,7 @@ check_rv32_mem_symbols() {
 }
 
 eg_build_rv32_all() {
-    require_groundhog_cli || return 1
+    require_thruput_cli || return 1
 
     local package elf
     for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
@@ -270,7 +270,7 @@ check_rv32_typedef_conflict_detected() {
     local out
     if out=$( (
         cd "${SDK_DIR}/negative-contracts" &&
-        groundhog build -p typedef_id_collision
+        thruput build -p typedef_id_collision
     ) 2>&1); then
         fail "Expected the rv32 build of typedef_id_collision to fail with a typedef conflict, but it succeeded"
         return 1
@@ -296,7 +296,7 @@ check_rv32_event_signature_conflict_detected() {
     local out
     if out=$( (
         cd "${SDK_DIR}/negative-contracts" &&
-        groundhog build -p event_signature_collision
+        thruput build -p event_signature_collision
     ) 2>&1); then
         fail "Expected the rv32 build of event_signature_collision to fail with an event signature conflict, but it succeeded"
         return 1
@@ -323,7 +323,7 @@ check_rv32_iface_declarer_conflict_detected() {
     local out
     if out=$( (
         cd "${SDK_DIR}/negative-contracts" &&
-        groundhog build -p iface_declarer_collision
+        thruput build -p iface_declarer_collision
     ) 2>&1); then
         fail "Expected the rv32 build of iface_declarer_collision to fail with an interface declarer conflict, but it succeeded"
         return 1
@@ -399,7 +399,7 @@ check_rv32_duplicate_entrypoint_detected() {
     local out
     if out=$( (
         cd "${SDK_DIR}/example-contracts/dup_entrypoint_neg" &&
-        groundhog build -p dup_entrypoint_neg
+        thruput build -p dup_entrypoint_neg
     ) 2>&1); then
         fail "Expected the rv32 build of dup_entrypoint_neg to fail with a duplicate entrypoint symbol, but it succeeded"
         return 1
@@ -426,7 +426,7 @@ ls_itc_rv32_packages() {
 }
 
 itc_build_rv32_all() {
-    require_groundhog_cli || return 1
+    require_thruput_cli || return 1
     # Discovery yielding nothing means the tree moved under us (dir renamed,
     # bins dropped) — fail rather than silently build zero contracts.
     [ -n "$(ls_itc_rv32_packages)" ] || {
@@ -527,17 +527,17 @@ assert_rv32a_lacks_spec_content() {
     done
 }
 
-# Asserts on rv32-pipeline-produced spec JSONs written to target/groundhog/.
+# Asserts on rv32-pipeline-produced spec JSONs written to target/thruput/.
 # Called at the end of eg_build_rv32_all (not from check_all) so it only runs
 # when the rv32 build succeeds and is not skipped via SKIP_RV32_EXAMPLES.
-# NOTE: assumes the rv32 build loop ran in the same invocation — target/groundhog
+# NOTE: assumes the rv32 build loop ran in the same invocation — target/thruput
 # is never cleaned automatically, so a stale spec from a previous run could
 # otherwise satisfy these checks without the current code being re-exercised.
 check_rv32_contract_spec_artifacts() {
     info "CHECK-SPECS(rv32)"
 
-    local groundhog_dir
-    groundhog_dir="${TARGET_DIR}/groundhog"
+    local thruput_dir
+    thruput_dir="${TARGET_DIR}/thruput"
 
     # The spec JSON is minified (no spaces), so needle matching is exact:
     # "name":"Orphan" (closing quote after n) cannot match
@@ -550,23 +550,23 @@ check_rv32_contract_spec_artifacts() {
     local erc20_json signer_callee_json signed_op_wallet_json coexist_json
     local name_reuse_json
     local phantom_method_json prerelease_json trait_sourced_json
-    rv32_event_shaking_json="${groundhog_dir}/event_shaking_subset.spec.json"
-    rv32_typedef_shaking_json="${groundhog_dir}/typedef_shaking_caller.spec.json"
-    rv32_iface_conflict_json="${groundhog_dir}/iface_conflict_caller.spec.json"
-    iface_conflict_impl_json="${groundhog_dir}/iface_conflict_impl.spec.json"
-    free_fn_json="${groundhog_dir}/free_fn_unnamed.spec.json"
-    imported_json="${groundhog_dir}/imported_error_callee.spec.json"
-    multi_json="${groundhog_dir}/multi_imported_traits.spec.json"
-    spec_named_json="${groundhog_dir}/spec_named_types.spec.json"
-    genesis_json="${groundhog_dir}/genesis_deployer.spec.json"
-    erc20_json="${groundhog_dir}/erc20_raw_storage.spec.json"
-    signer_callee_json="${groundhog_dir}/signer_callee.spec.json"
-    signed_op_wallet_json="${groundhog_dir}/signed_op_wallet.spec.json"
-    phantom_method_json="${groundhog_dir}/phantom_method_impl.spec.json"
-    prerelease_json="${groundhog_dir}/prerelease_version.spec.json"
-    trait_sourced_json="${groundhog_dir}/trait_sourced_method_spec.spec.json"
-    coexist_json="${groundhog_dir}/typedef_ids_coexist.spec.json"
-    name_reuse_json="${groundhog_dir}/spec_name_reuse.spec.json"
+    rv32_event_shaking_json="${thruput_dir}/event_shaking_subset.spec.json"
+    rv32_typedef_shaking_json="${thruput_dir}/typedef_shaking_caller.spec.json"
+    rv32_iface_conflict_json="${thruput_dir}/iface_conflict_caller.spec.json"
+    iface_conflict_impl_json="${thruput_dir}/iface_conflict_impl.spec.json"
+    free_fn_json="${thruput_dir}/free_fn_unnamed.spec.json"
+    imported_json="${thruput_dir}/imported_error_callee.spec.json"
+    multi_json="${thruput_dir}/multi_imported_traits.spec.json"
+    spec_named_json="${thruput_dir}/spec_named_types.spec.json"
+    genesis_json="${thruput_dir}/genesis_deployer.spec.json"
+    erc20_json="${thruput_dir}/erc20_raw_storage.spec.json"
+    signer_callee_json="${thruput_dir}/signer_callee.spec.json"
+    signed_op_wallet_json="${thruput_dir}/signed_op_wallet.spec.json"
+    phantom_method_json="${thruput_dir}/phantom_method_impl.spec.json"
+    prerelease_json="${thruput_dir}/prerelease_version.spec.json"
+    trait_sourced_json="${thruput_dir}/trait_sourced_method_spec.spec.json"
+    coexist_json="${thruput_dir}/typedef_ids_coexist.spec.json"
+    name_reuse_json="${thruput_dir}/spec_name_reuse.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -623,7 +623,7 @@ check_rv32_contract_spec_artifacts() {
     # an interface crate: the shaken candidates must leave no spec at all, not
     # a spec claiming `interfaces: []` just because a dependency carried
     # interface candidates. The rv32 pipeline writes no sidecar in that case.
-    if [ -f "${groundhog_dir}/raw_iface_dep.spec.json" ]; then
+    if [ -f "${thruput_dir}/raw_iface_dep.spec.json" ]; then
         fail "Expected no spec.json sidecar for raw contract raw_iface_dep"
         return 1
     fi &&
@@ -716,15 +716,15 @@ check_rv32_contract_spec_artifacts() {
     assert_file_lacks_id "$iface_conflict_impl_json" Token &&
 
     assert_rv32a_lacks_spec_content \
-        "${groundhog_dir}/event_shaking_subset.rv32a" \
+        "${thruput_dir}/event_shaking_subset.rv32a" \
         "${RV32_RELEASE}/event_shaking_subset" \
         "AdoptedEvent" "OrphanPayload" &&
     assert_rv32a_lacks_spec_content \
-        "${groundhog_dir}/typedef_shaking_caller.rv32a" \
+        "${thruput_dir}/typedef_shaking_caller.rv32a" \
         "${RV32_RELEASE}/typedef_shaking_caller" \
         "SharedConfig" "MarketV1" &&
     assert_rv32a_lacks_spec_content \
-        "${groundhog_dir}/iface_conflict_caller.rv32a" \
+        "${thruput_dir}/iface_conflict_caller.rv32a" \
         "${RV32_RELEASE}/iface_conflict_caller" \
         "PingEvent"
 }
@@ -904,7 +904,7 @@ BOTTLE_TEST="${TARGET_DIR}/bottle-test"
 #   <stem>.tester.rv32a   the same contract plus the BottleTest entrypoints
 #                         that drive it (the package's `bottle-test` feature)
 #
-# `groundhog build` writes both to the same target/groundhog/<stem>.rv32a, so
+# `thruput build` writes both to the same target/thruput/<stem>.rv32a, so
 # each is copied aside before the next build overwrites it — the same staging
 # scripts/bigint-bench.sh does for its per-variant artifacts.
 #
@@ -917,7 +917,7 @@ bottle_test_contract() {
 
     info "BOTTLE-TEST $package"
 
-    require_groundhog_cli || return 1
+    require_thruput_cli || return 1
 
     local stem="${package//-/_}"
 
@@ -996,7 +996,7 @@ itc_bottle_test_all() {
 # of work for a number that only moves when the arithmetic does. Run it on
 # demand, or from scripts/metrics/sdk_bigint_bench_rv32.sh.
 bigint_bench() {
-    require_groundhog_cli || return 1
+    require_thruput_cli || return 1
 
     bash "${SDK_DIR}/scripts/bigint-bench.sh" "$@"
 }
@@ -1190,21 +1190,21 @@ fail() {
     return 1
 }
 
-require_groundhog_cli() {
-    # rv32 contract builds run through the groundhog CLI. CI installs the
+require_thruput_cli() {
+    # rv32 contract builds run through the Thruput CLI. CI installs the
     # exact pin (scripts/ci.sh); locally a mismatch only warns — the pin is
     # authoritative for CI metrics, not a local build requirement.
-    . "${SDK_DIR}/scripts/groundhog-cli-version.sh"
+    . "${SDK_DIR}/scripts/thruput-cli-version.sh"
 
-    command -v groundhog > /dev/null || {
-        fail "groundhog CLI not found; install the pin with: source scripts/install-groundhog-cli.sh"
+    command -v thruput > /dev/null || {
+        fail "Thruput CLI not found; install the pin with: source scripts/install-thruput-cli.sh"
         return 1
     }
 
     local installed
-    installed=$(groundhog --version | awk '{print $2}')
-    if [ "$installed" != "$GROUNDHOG_CLI_VERSION" ]; then
-        warn "groundhog CLI ${installed} != pinned ${GROUNDHOG_CLI_VERSION} (CI uses the pin; continuing with the local CLI)"
+    installed=$(thruput --version | awk '{print $2}')
+    if [ "$installed" != "$THRUPUT_CLI_VERSION" ]; then
+        warn "Thruput CLI ${installed} != pinned ${THRUPUT_CLI_VERSION} (CI uses the pin; continuing with the local CLI)"
     fi
 }
 

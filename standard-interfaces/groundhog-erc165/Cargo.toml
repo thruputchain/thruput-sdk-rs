@@ -15,11 +15,11 @@ categories.workspace = true
 dev = ["sdk/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.50.1" }
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.50.1" }
 heapless = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.50.1", features = ["std"] }
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.50.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

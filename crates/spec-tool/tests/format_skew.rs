@@ -92,7 +92,7 @@ fn skew_messages_name_both_versions_and_a_fix() {
     .to_string();
     assert!(too_new.contains('7') && too_new.contains('3'), "{too_new}");
     assert!(too_new.contains("newer"), "{too_new}");
-    assert!(too_new.contains("Upgrade the groundhog CLI"), "{too_new}");
+    assert!(too_new.contains("Upgrade the Thruput CLI"), "{too_new}");
 
     let too_old = SpecToolError::RawSpecFormatTooOld {
         found: 2,

@@ -1,4 +1,4 @@
-# Yanks (or un-yanks) a published release from the groundhog registry.
+# Yanks (or un-yanks) a published release from the Thruput registry.
 #
 # The crates here release on two version lines (see publish.yml): the
 # workspace-versioned crates share one `v<version>` release, while each
@@ -125,5 +125,5 @@ jobs:
           version: ${{ inputs.version }}
           undo: ${{ inputs.undo }}
           packages: ${{ steps.select.outputs.packages }}
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}

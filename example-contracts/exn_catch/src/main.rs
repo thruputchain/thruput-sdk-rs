@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `exn_catch` contract.
 //!
-//! `groundhog build` derives `--bin exn_catch` from the package name, so this
+//! `thruput build` derives `--bin exn_catch` from the package name, so this
 //! target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

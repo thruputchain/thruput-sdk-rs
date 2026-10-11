@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `caller` contract.
 //!
-//! `groundhog build` derives `--bin caller` from the package name, so this
+//! `thruput build` derives `--bin caller` from the package name, so this
 //! target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

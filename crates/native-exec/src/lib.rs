@@ -39,7 +39,7 @@ pub mod mock_contract;
 pub mod mock_transaction_handler;
 /// The chain's execution parameters, and a builder for non-default ones.
 pub mod network_config;
-/// The in-process groundhog test environment.
+/// The in-process thruput test environment.
 pub mod test_environment;
 /// Optional builder for a test environment with non-default settings.
 pub mod test_environment_builder;

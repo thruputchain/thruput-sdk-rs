@@ -9,8 +9,8 @@ use sdk::Named;
 // These paths only work for the example-contracts directory
 // that is hosted in the SDK package.
 //
-const ERC20_PATH: &str = "../../target/groundhog/erc20.rv32a";
-const CALLER_PATH: &str = "../../target/groundhog/caller.rv32a";
+const ERC20_PATH: &str = "../../target/thruput/erc20.rv32a";
+const CALLER_PATH: &str = "../../target/thruput/caller.rv32a";
 
 #[test]
 fn caller_test_rv32() {

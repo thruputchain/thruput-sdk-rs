@@ -13,7 +13,7 @@ use sdk::*;
 use u256_roundtrip::U256RoundtripClient;
 
 // Test working directory is the example contract directory.
-const RV32_PATH: &str = "../../target/groundhog/u256_roundtrip.rv32a";
+const RV32_PATH: &str = "../../target/thruput/u256_roundtrip.rv32a";
 
 static NONCE: SHA256Hash = sdk::sha256_static!("U256_ROUNDTRIP_TEST_NONCE");
 

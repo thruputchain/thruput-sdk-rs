@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `trait_sourced_method_spec` contract.
 //!
-//! `groundhog build` derives `--bin trait_sourced_method_spec` from the
+//! `thruput build` derives `--bin trait_sourced_method_spec` from the
 //! package name, so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

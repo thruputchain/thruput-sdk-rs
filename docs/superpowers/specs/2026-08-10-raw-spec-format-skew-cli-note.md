@@ -2,7 +2,7 @@
 
 ## The problem this closes
 
-A partner's `groundhog build` failed with a confusing parse error. Cause: the
+A partner's `thruput build` failed with a confusing parse error. Cause: the
 raw spec fragment format changed (PR #321 added `emits` to
 `SpecInterfaceFragment`), the SDK crate was bumped, and the CLI was bumped —
 but the *pairing* was never checked. Before/before and after/after both work;
@@ -53,7 +53,7 @@ name, so those bytes cannot be interpreted from the name alone.
 
 ### 1. Preflight, before compiling — the main UX win
 
-`groundhog build` shells out to cargo, so it can detect skew in ~2s instead of
+`thruput build` shells out to cargo, so it can detect skew in ~2s instead of
 after a full contract compile. `groundhog-contract-spec`'s manifest now carries
 
 ```toml

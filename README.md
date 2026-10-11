@@ -5,25 +5,25 @@ This SDK facilitates writing contracts in Rust.
 The canonical way to start a contract is the CLI scaffold. It writes the
 manifest, `src/lib.rs`, the `#![no_main]` `src/main.rs` wrapper and a
 `rust-toolchain.toml`, and `scripts/scaffold-smoke.sh` runs exactly this
-path — `groundhog new`, then `groundhog build` — against this checkout on
+path — `thruput new`, then `thruput build` — against this checkout on
 every push to `main`:
 
 ```shell
-groundhog new my-contract
+thruput new my-contract
 cd my-contract
-groundhog build          # compiles and lowers the rv32 artifact
+thruput build          # compiles and lowers the rv32 artifact
 ```
 
-Installing the CLI from source goes through the Groundhog Cargo registry. Install
-the version `scripts/groundhog-cli-version.sh` pins, which is what this
+Installing the CLI from source uses the `thruput` Cargo registry alias. Install
+the version `scripts/thruput-cli-version.sh` pins, which is what this
 repository's own scripts do (`scripts/ci.sh`, `scripts/scaffold-smoke.sh`):
 the CLI and the SDK share the raw contract-spec wire format, and an unpinned
 install picks the latest stable CLI release, which can lag a format bump this
 checkout has already shipped.
 
 ```shell
-. scripts/groundhog-cli-version.sh
-cargo install groundhog-cli --version "=$GROUNDHOG_CLI_VERSION" --registry groundhog --locked
+. scripts/thruput-cli-version.sh
+cargo install thruput-cli --version "=$THRUPUT_CLI_VERSION" --registry thruput --locked
 ```
 
 `cargo install` resolves configuration from the directory you run it in, so
@@ -31,17 +31,17 @@ this repository's `.cargo/config.toml` does not apply unless you happen to be
 standing in the checkout. Set the index and token globally instead:
 
 ```shell
-export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
-export CARGO_REGISTRIES_GROUNDHOG_TOKEN=...
+export CARGO_REGISTRIES_THRUPUT_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
+export CARGO_REGISTRIES_THRUPUT_TOKEN=...
 ```
 
 Prebuilt client bundles that pair the CLI with a matching `hog-devnode` are
-described in [Getting Started](https://docs.groundhog.dev/start/getting-started/);
+described in [Getting Started](https://docs.thruput.network/start/getting-started/);
 the version pin above applies to those too.
 
 Polished examples and tutorials are maintained outside this repository:
-the [developer docs](https://docs.groundhog.dev/start/getting-started/) walk
-through scaffolding a project with `groundhog new`, and
+the [developer docs](https://docs.thruput.network/start/getting-started/) walk
+through scaffolding a project with `thruput new`, and
 [groundhog-examples](https://github.com/groundhogchain/groundhog-examples)
 holds worked contracts. (The `example-contracts/` directory here is an
 internal test corpus for SDK development, not a set of recommended starting
@@ -56,7 +56,7 @@ top-level build crate — the one with `src/main.rs` — becomes the deployed
 artifact. Without that `[[bin]]` and its wrapper there is nothing to
 deploy. [`crates/sdk/doc/lib.md`](crates/sdk/doc/lib.md) — the SDK's front
 page, also readable through `./scripts/dev.sh open-docs` — explains each
-piece. `groundhog new` writes this manifest:
+piece. `thruput new` writes this manifest:
 
 ```toml
 [lib]
@@ -65,7 +65,7 @@ doctest = false
 test = false
 
 # The rv32 artifact. The bin name must stay the snake_case package name:
-# `groundhog build` looks for the ELF at `release/<snake_name>`. src/main.rs
+# `thruput build` looks for the ELF at `release/<snake_name>`. src/main.rs
 # is a `#![no_std] #![no_main]` wrapper whose `extern crate my_contract;`
 # force-links the rlib so the entrypoint records reach the binary.
 [[bin]]
@@ -77,7 +77,7 @@ bench = false
 
 # These names are contracts with the toolchain, not free choices:
 # `#[contract]` keys guest entrypoint codegen on `entrypoints`, and
-# `groundhog test` runs host tests with `--features dev`.
+# `thruput test` runs host tests with `--features dev`.
 [features]
 entrypoints = []
 dev = ["sdk/dev"]
@@ -85,10 +85,10 @@ dev = ["sdk/dev"]
 # `sdk` is declared per target: it needs `std` on the host and forbids it on
 # the guest, and Cargo resolves features per platform.
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-sdk = { version = "=0.38.0", registry = "groundhog" }  # the pinned CLI's exact SDK version
+sdk = { version = "=0.49.0", registry = "thruput" }  # the pinned CLI's exact SDK version
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { version = "=0.38.0", registry = "groundhog", features = ["std"] }
+sdk = { version = "=0.49.0", registry = "thruput", features = ["std"] }
 
 # Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
 # keeping the library itself no_std for guest builds.
@@ -96,16 +96,16 @@ sdk = { version = "=0.38.0", registry = "groundhog", features = ["std"] }
 my-contract = { path = ".", features = ["dev"] }
 ```
 
-The scaffold also wires a `groundhog-integration-test` feature and its
+The scaffold also wires a `thruput-integration-test` feature and its
 optional `groundhog-json-rpc-client`/`tokio` dependencies, for
-`groundhog test --integration`; they are omitted above.
+`thruput test --integration`; they are omitted above.
 
 Native tests additionally link the hogd test-FFI library, downloaded on
 first build by `crates/hogd-sys/build.rs`, so `cargo test` needs access to
 that download as well as to the registry.
 
 Tests run contracts natively against a `TestEnvironment` (an in-process
-groundhog instance). The canonical pattern is the fluent transaction API:
+Thruput instance). The canonical pattern is the fluent transaction API:
 each `env.transact` call builds one transaction, `tx.call(&addr).run(...)`
 executes a closure as a contract frame at that address, and the returned
 result is asserted on:
@@ -222,6 +222,13 @@ the first `cargo` invocation. No manual `rustup target add` step is needed.
 [ccache](https://ccache.dev/) is only used when building the hogd test
 executor from source (`HOGD_FFI_BUILD=1`). The default prebuilt download path
 does not need it.
+
+The pinned runtime source uses its own `groundhog` registry alias. For the
+source-build path, also set `CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the same
+value as `CARGO_REGISTRIES_THRUPUT_TOKEN`; the source-build workflow sets both.
+The default runtime clone lives in the system temporary directory. If you set
+`HOGD_SRC`, select a checkout outside this SDK tree so Cargo keeps the two
+workspaces' registry configuration separate.
 
 ## Building
 

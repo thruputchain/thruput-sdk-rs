@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `raw_iface_dep` contract.
 //!
-//! `groundhog build` derives `--bin raw_iface_dep` from the package name, so
+//! `thruput build` derives `--bin raw_iface_dep` from the package name, so
 //! this target is what produces the deployable ELF.
 //!
 //! This contract registers its entrypoints by hand rather than through the

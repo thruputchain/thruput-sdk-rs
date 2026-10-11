@@ -4,7 +4,7 @@ description = "Negative fixture: two colliding traits with the same method name 
 version = "0.4.0"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
-publish = ["groundhog"]
+publish = ["thruput"]
 repository = "https://github.com/groundhogchain/example-contracts.git"
 homepage = "https://github.com/groundhogchain/example-contracts.git"
 keywords = ["groundhog"]
@@ -32,4 +32,4 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.50.1" }
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.50.1" }

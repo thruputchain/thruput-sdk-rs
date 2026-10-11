@@ -15,8 +15,8 @@ categories.workspace = true
 dev = ["sdk/dev", "dep:thiserror", "groundhog-erc20-if/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "0.50.1" }
-groundhog-erc20-if = { path = "../groundhog-erc20", registry = "groundhog", version = "=0.1.54" }
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.50.1" }
+groundhog-erc20-if = { path = "../groundhog-erc20", registry = "thruput", version = "=0.1.54" }
 thiserror = { workspace = true, optional = true }
 
 [lib]

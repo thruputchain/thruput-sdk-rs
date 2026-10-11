@@ -82,8 +82,8 @@ PROVIDE(__stack_size = 30K);
  * a chain admits unless its configuration raises max_rv32_memory_bytes,
  * and what the lowerer stamps unless told otherwise.
  *
- * Per-contract override: `groundhog build` passes the contract's
- * `[package.metadata.groundhog] initial_memory_bytes` as a --defsym on the
+ * Per-contract override: `thruput build` passes the contract's
+ * `[package.metadata.thruput] initial_memory_bytes` as a --defsym on the
  * final link and stamps the same value into the artifact header, so the
  * heap bound below and the memory the VM provisions agree. A hand-driven
  * build passes the same --defsym as for __stack_size:

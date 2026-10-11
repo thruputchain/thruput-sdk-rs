@@ -11,6 +11,8 @@ on:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  # The pinned runtime source still uses its own groundhog registry alias.
   CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 

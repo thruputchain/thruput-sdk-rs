@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `erc20_low_level` contract.
 //!
-//! `groundhog build` derives `--bin erc20_low_level` from the package name, so
+//! `thruput build` derives `--bin erc20_low_level` from the package name, so
 //! this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

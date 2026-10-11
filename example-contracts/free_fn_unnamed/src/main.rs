@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `free_fn_unnamed` contract.
 //!
-//! `groundhog build` derives `--bin free_fn_unnamed` from the package name, so
+//! `thruput build` derives `--bin free_fn_unnamed` from the package name, so
 //! this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

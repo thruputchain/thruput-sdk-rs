@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `typedef_shaking_caller` contract.
 //!
-//! `groundhog build` derives `--bin typedef_shaking_caller` from the package
+//! `thruput build` derives `--bin typedef_shaking_caller` from the package
 //! name, so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

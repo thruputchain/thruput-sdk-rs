@@ -10,7 +10,7 @@ on:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
 permissions:
@@ -23,7 +23,7 @@ jobs:
     uses: groundhogchain/actions/.github/workflows/rust-dependency-policy.yml@af074672d3a6f3ddedcacd758224ea5a5cf2a8f3
     with:
       runs-on: namespace-profile-hogd-linux-2604
-      registry-name: groundhog
+      registry-name: thruput
     secrets:
       registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
@@ -80,9 +80,9 @@ jobs:
       # defaults to each instance's OUT_DIR, so every workspace/feature variant
       # re-downloads the prebuilt FFI tarball.
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
-      # Namespace-cached CLI install root: ci.sh installs the pinned groundhog
+      # Namespace-cached CLI install root: ci.sh installs the pinned Thruput
       # CLI here once per version bump instead of recompiling it every run.
-      GROUNDHOG_CLI_ROOT: ${{ github.workspace }}/.groundhog-cli
+      THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
@@ -131,16 +131,16 @@ jobs:
       # eating a cold compile is faster than an I/O-starved "incremental" build.
       # We still cache the dependency *sources* (read-mostly, few large files)
       # so we don't re-fetch every crate from the registry, plus the one-shot
-      # FFI download and the compiled groundhog CLI.
+      # FFI download and the compiled Thruput CLI.
       - name: Configure Namespace Cache
         uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/groundhog-cli-source
+            ~/.cargo/thruput-cli-source
             ${{ github.workspace }}/.hogd-ffi-cache
-            ${{ github.workspace }}/.groundhog-cli
+            ${{ github.workspace }}/.thruput-cli
 
       # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
       # features like --ignore-file); the runner image doesn't ship it.
@@ -160,21 +160,21 @@ jobs:
         if: matrix.name == 'examples-test'
         working-directory: example-contracts
         env:
-          ERC20_PERMIT_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
-          ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/groundhog/erc20_issuer.rv32a
+          ERC20_PERMIT_RV32_ARTIFACT: ${{ github.workspace }}/target/thruput/erc20_issuer.rv32a
+          ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/thruput/erc20_issuer.rv32a
         run: cargo test -p erc20_issuer --locked
 
   # Main pushes only, off the PR critical path. Self-contained: rebuilds the
   # rv32 example artifacts and the full integration block (metrics.sh's
   # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize
-  # metrics read the rv32 release ELFs and target/groundhog).
+  # metrics read the rv32 release ELFs and target/thruput).
   metrics:
     needs: dependency-policy # check deps before building anything
     if: github.ref == 'refs/heads/main'
     runs-on: namespace-profile-hogd-linux-2604
     env:
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
-      GROUNDHOG_CLI_ROOT: ${{ github.workspace }}/.groundhog-cli
+      THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
 
     steps:
       # Needed both for the submodule fetch and for metrics.sh's push to
@@ -214,9 +214,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/groundhog-cli-source
+            ~/.cargo/thruput-cli-source
             ${{ github.workspace }}/.hogd-ffi-cache
-            ${{ github.workspace }}/.groundhog-cli
+            ${{ github.workspace }}/.thruput-cli
 
       - name: Install ripgrep
         run: |
@@ -243,5 +243,5 @@ jobs:
         run: |
           # ci.sh's PATH export doesn't survive into this step; re-expose the
           # cached CLI in case bottle re-runs ever shell out to it.
-          export PATH="${GROUNDHOG_CLI_ROOT}/bin:${PATH}"
+          export PATH="${THRUPUT_CLI_ROOT}/bin:${PATH}"
           ./scripts/metrics.sh

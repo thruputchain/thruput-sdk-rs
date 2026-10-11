@@ -19,7 +19,7 @@ dev = ["sdk/dev"]
 crate-type = ["rlib"]
 doctest = false
 
-# The rv32 artifact. `groundhog build -p complex-storage` derives
+# The rv32 artifact. `thruput build -p complex-storage` derives
 # `--bin complex_storage` from the package name, so the name here must stay the
 # underscored package name. `required-features` keeps it out of host builds.
 [[bin]]

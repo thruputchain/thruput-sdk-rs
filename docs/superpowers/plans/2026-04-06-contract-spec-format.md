@@ -125,7 +125,7 @@ Update the root workspace in `Cargo.toml`:
 
 ```toml
 [workspace.dependencies]
-groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "groundhog", version = "=0.8.6" }
+groundhog-contract-spec = { path = "groundhog-contract-spec", registry = "thruput", version = "=0.8.6" }
 ```
 
 and add `"groundhog-contract-spec"` to the `[workspace].members` array next to

@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `recursive_type` contract.
 //!
-//! `groundhog build` derives `--bin recursive_type` from the package name, so
+//! `thruput build` derives `--bin recursive_type` from the package name, so
 //! this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the
