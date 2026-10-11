@@ -30,10 +30,16 @@ pub fn perform_mocked_syscall(
         x if x == HostFnErrorCode::Unrecoverable.0 => {
             panic_any(crate::invoke_error::unrecoverable_error());
         }
-        x if x == HostFnErrorCode::Return.0
-            || x == HostFnErrorCode::Exit.0 =>
-        {
+        x if x == HostFnErrorCode::Return.0 => {
             panic_any(crate::invoke_error::control_flow_unwind());
+        }
+        // Exit is a deterministic frame revert on every runtime (rv32,
+        // native precompiles): the `Exit` syscall and every host-side
+        // rejection of `Return` (over-limit buffer, bad returned auth
+        // tokens) raise it. Unwinding it as a completed frame would report
+        // the caller an `Ok(Return)` with an empty buffer instead.
+        x if x == HostFnErrorCode::Exit.0 => {
+            panic_any(crate::invoke_error::deterministic_error());
         }
         x if x == HostFnErrorCode::ValidationFailure.0 => {
             panic_any(crate::invoke_error::validation_error());

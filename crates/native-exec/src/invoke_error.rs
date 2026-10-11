@@ -43,10 +43,12 @@ pub fn unrecoverable_error() -> InvokeError {
     }
 }
 
-/// Panic payload for the non-error control-flow unwinds (`raw_Return` /
-/// `raw_Exit` terminating an invocation frame). Despite traveling as an
+/// Panic payload for the non-error control-flow unwind (`raw_Return`
+/// terminating an invocation frame). Despite traveling as an
 /// [`InvokeError`], the code is [`InvokeErrorCode::None`]: the frame
-/// completed; the panic only unwinds the contract's Rust stack.
+/// completed; the panic only unwinds the contract's Rust stack. `raw_Exit`
+/// is not one of these: it reverts the frame, so it unwinds as a
+/// [`deterministic_error`].
 pub fn control_flow_unwind() -> InvokeError {
     InvokeError {
         error_type: InvokeErrorCode::None,
