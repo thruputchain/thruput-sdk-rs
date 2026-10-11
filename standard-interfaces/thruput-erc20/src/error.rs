@@ -30,14 +30,3 @@ pub fn check_amount(amount: Amount) -> Amount {
     ensure(amount >= 0, ERC20Error::NegativeAmount);
     amount
 }
-
-#[cfg(test)]
-mod wire_identity_tests {
-    #[test]
-    fn selector_matches_the_native_token_precompile() {
-        assert_eq!(
-            <super::ERC20Error as sdk::exn::Exn>::SELECTOR,
-            0xb19947acb2fa14ff
-        );
-    }
-}

@@ -21,14 +21,3 @@ pub enum ERC20PermitError {
     )]
     ExceedsGrant = 2,
 }
-
-#[cfg(test)]
-mod wire_identity_tests {
-    #[test]
-    fn selector_matches_the_native_token_precompile() {
-        assert_eq!(
-            <super::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
-            0xe8abb072f5171148
-        );
-    }
-}

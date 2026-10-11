@@ -175,6 +175,15 @@ mod registry_tests {
     use super::*;
 
     #[test]
+    fn native_token_selectors_match_the_protocol_constants() {
+        assert_eq!(lookup("ERC20Error").unwrap().selector, 0xb19947acb2fa14ff);
+        assert_eq!(
+            lookup("ERC20PermitError").unwrap().selector,
+            0xe8abb072f5171148
+        );
+    }
+
+    #[test]
     fn selectors_match_recorded_preimage() {
         for entry in REGISTRY {
             // These protocol-defined selectors retain their pre-rename package
