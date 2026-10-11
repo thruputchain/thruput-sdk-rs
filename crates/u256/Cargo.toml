@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-u256"
+name = "thruput-u256"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -9,13 +9,13 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Signed and unsigned 256-bit integers for Groundhog contracts, with a 32-bit-native representation and the OpenZeppelin Math/SignedMath surface"
+description = "Signed and unsigned 256-bit integers for Thruput contracts, with a 32-bit-native representation and the OpenZeppelin Math/SignedMath surface"
 
 [lib]
 crate-type = ["rlib"]
 
 [dependencies]
-groundhog-contract-spec = { workspace = true }
+thruput-contract-spec = { workspace = true }
 xdrs = { workspace = true }
 
 [dev-dependencies]
@@ -27,13 +27,13 @@ xdrs = { workspace = true }
 # guest builds use (the workspace toolchain is nightly anyway); the stable
 # fallback arm is covered by the `--no-default-features` check below.
 #
-# Side effect: feature unification means every `cargo test -p groundhog-u256`
+# Side effect: feature unification means every `cargo test -p thruput-u256`
 # builds the lib with `std` + `fmt`, and `--no-default-features` is silently a
 # no-op for tests -- the no-feature guest config is only ever *compiled*, never
 # tested. `test_package` in scripts/dev.sh keeps a
 # `cargo check --no-default-features` alongside the tests so that config
 # cannot rot unnoticed.
-groundhog-u256 = { path = ".", features = ["std", "fmt", "nightly"] }
+thruput-u256 = { path = ".", features = ["std", "fmt", "nightly"] }
 # Oracle only. Parity's `uint` is the implementation this crate replaces;
 # the differential tests assert we agree with it everywhere. It must never
 # become a normal dependency -- its u64 limbs and u128 intermediates are the
@@ -43,14 +43,14 @@ uint = { version = "0.10.0", default-features = false }
 # so the XDR round-trip tests need their own handle on xdrs.
 xdrs = { workspace = true, features = ["alloc"] }
 # Likewise: the ABI-pinning test names spec types directly.
-groundhog-contract-spec = { workspace = true }
+thruput-contract-spec = { workspace = true }
 
 [features]
 # No default features: this crate is built into contracts, and a guest build
 # that picks up `std` by accident does not link. Hosts opt in with
 # `features = ["std"]`.
 default = []
-std = ["alloc", "fmt", "groundhog-contract-spec/alloc", "xdrs/alloc"]
+std = ["alloc", "fmt", "thruput-contract-spec/alloc", "xdrs/alloc"]
 alloc = ["xdrs/alloc"]
 
 # Decimal and hex formatting (`Display`, `FromStr`, `LowerHex`, `UpperHex`).

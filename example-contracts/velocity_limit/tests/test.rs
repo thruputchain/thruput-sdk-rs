@@ -20,7 +20,7 @@ fn setup(env: &TestEnvironmentHandle) -> (ContractAddress, ContractAddress) {
         tx.call(&owner).run(move || {
             // initialize the erc20 contract, minting tokens to the velocity
             // limit contract
-            let erc20 = groundhog_erc20_if::ERC20Client::new(&token_addr);
+            let erc20 = thruput_erc20_if::ERC20Client::new(&token_addr);
             erc20.initialize(&owner);
             erc20.mint(&velocity_limit_addr, 1000000000000000000);
 

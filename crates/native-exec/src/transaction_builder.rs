@@ -4,7 +4,7 @@ use crate::mock_transaction_handler::{
 };
 use crate::test_environment::TestEnvironmentHandle;
 use crate::transact_result::TransactResult;
-use groundhog_xdr::auth_claim::AuthClaim;
+use thruput_xdr::auth_claim::AuthClaim;
 
 /// Builder for configuring a mocked transaction before executing it.
 ///

@@ -37,7 +37,7 @@ impl Sandbox {
         let serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!(
-            "groundhog-sys-download-retry-{}-{id}",
+            "thruput-sys-download-retry-{}-{id}",
             std::process::id()
         ));
         fs::create_dir_all(&dir).unwrap();

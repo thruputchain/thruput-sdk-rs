@@ -1,6 +1,6 @@
-//! # groundhog-rv32-runtime
+//! # thruput-rv32-runtime
 //!
-//! Bare-metal runtime support for Groundhog contracts targeting
+//! Bare-metal runtime support for Thruput contracts targeting
 //! `riscv32im-unknown-none-elf`.
 //!
 //! This crate is the rv32 analog of what the system + linker provide for
@@ -70,7 +70,7 @@
 
 #[cfg(not(any(target_arch = "riscv32", doc, test)))]
 compile_error!(
-    "groundhog-rv32-runtime can only be built for the riscv32 target"
+    "thruput-rv32-runtime can only be built for the riscv32 target"
 );
 
 // Pure, target-independent — compiled everywhere (host tests included).

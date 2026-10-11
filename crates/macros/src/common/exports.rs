@@ -6,8 +6,6 @@ use super::contract::{
 };
 use super::entrypoint::*;
 use super::util::*;
-use groundhog_contract_util as contract_util;
-use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -16,6 +14,8 @@ use std::collections::HashMap;
 use syn::LitByteStr;
 use syn::parse::Result;
 use syn::spanned::Spanned;
+use thruput_contract_util as contract_util;
+use thruput_xdr::contract::ContractEntrypointID;
 
 fn hex_symbol_component(value: &str) -> String {
     const HEX: &[u8; 16] = b"0123456789abcdef";
@@ -282,7 +282,7 @@ fn generate_entrypoints_wrapper(
         impl #entrypoints_ident {
             /// The identity of this interface at its major version, shared
             /// by every entrypoint below and derived by
-            /// `groundhog_contract_util::interface_id`. Equal to the trait's
+            /// `thruput_contract_util::interface_id`. Equal to the trait's
             /// `INTERFACE_ID` for trait-defined interfaces.
             pub const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
 

@@ -85,7 +85,7 @@ impl VelocityLimitedWithdrawal {
         limit.remaining_capacity.consume_capacity(amount);
 
         let token =
-            groundhog_erc20_if::ERC20Client::new(&self.config.get().token);
+            thruput_erc20_if::ERC20Client::new(&self.config.get().token);
         token.transfer(&receiver, amount);
     }
 }

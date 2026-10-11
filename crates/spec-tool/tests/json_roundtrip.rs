@@ -1,11 +1,11 @@
-use groundhog_contract_spec::{
+use thruput_contract_spec::{
     ContractArrayType, ContractEnumDef, ContractEnumVariant,
     ContractExceptionType, ContractField, ContractSpec, ContractSpecId,
     ContractSpecInterface, ContractSpecMethod, ContractSpecString,
     ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
     ContractUnionCaseType, ContractUnionDef, ContractVectorType,
 };
-use groundhog_spec_tool::{parse_spec_json, spec_to_json};
+use thruput_spec_tool::{parse_spec_json, spec_to_json};
 
 fn s(value: &str) -> ContractSpecString {
     ContractSpecString::try_from(value).unwrap()
@@ -890,7 +890,7 @@ fn spec_with_typedef(type_def: ContractTypeDef) -> ContractSpec {
 // Events
 // ---------------------------------------------------------------------------
 
-use groundhog_contract_spec::ContractEventDef;
+use thruput_contract_spec::ContractEventDef;
 
 #[test]
 fn spec_with_events_roundtrips() {
@@ -931,7 +931,7 @@ fn spec_with_events_roundtrips() {
     };
     roundtrip(&spec);
 
-    let rendered = groundhog_spec_tool::render_spec_json(&spec);
+    let rendered = thruput_spec_tool::render_spec_json(&spec);
     assert!(rendered.contains("\"events\""), "{rendered}");
     // The id renders as an object, not a flattened string: the sidecar is
     // read by consumers, so they get the segments rather than a name to split.
@@ -950,7 +950,7 @@ fn spec_with_events_roundtrips() {
 fn signed_token_types_roundtrip() {
     let signed_named = ContractType::SignedToken {
         signed_token_preimage:
-            groundhog_contract_spec::ContractSignedTokenPreimage {
+            thruput_contract_spec::ContractSignedTokenPreimage {
                 preimage_type: Some(Box::new(ContractType::Named {
                     named: id("TransferAuth"),
                 })),
@@ -960,10 +960,10 @@ fn signed_token_types_roundtrip() {
     // i.e. Signed<Opaque>).
     let signed_nested = ContractType::SignedToken {
         signed_token_preimage:
-            groundhog_contract_spec::ContractSignedTokenPreimage {
+            thruput_contract_spec::ContractSignedTokenPreimage {
                 preimage_type: Some(Box::new(ContractType::SignedToken {
                     signed_token_preimage:
-                        groundhog_contract_spec::ContractSignedTokenPreimage {
+                        thruput_contract_spec::ContractSignedTokenPreimage {
                             preimage_type: None,
                         },
                 })),
@@ -1029,7 +1029,7 @@ fn render_spec_json_renders_signed_token() {
                         name: s("auth"),
                         ty: ContractType::SignedToken {
                             signed_token_preimage:
-                                groundhog_contract_spec::ContractSignedTokenPreimage {
+                                thruput_contract_spec::ContractSignedTokenPreimage {
                                     preimage_type: Some(Box::new(ContractType::U64)),
                                 },
                         },
@@ -1038,7 +1038,7 @@ fn render_spec_json_renders_signed_token() {
                         name: s("erased"),
                         ty: ContractType::SignedToken {
                             signed_token_preimage:
-                                groundhog_contract_spec::ContractSignedTokenPreimage {
+                                thruput_contract_spec::ContractSignedTokenPreimage {
                                     preimage_type: None,
                                 },
                         },
@@ -1057,7 +1057,7 @@ fn render_spec_json_renders_signed_token() {
         events: vec![].try_into().unwrap(),
     };
 
-    let json = groundhog_spec_tool::render_spec_json(&spec);
+    let json = thruput_spec_tool::render_spec_json(&spec);
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(
         value["interfaces"][0]["methods"][0]["args"][0]["type"],

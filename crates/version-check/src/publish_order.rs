@@ -288,11 +288,11 @@ env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
   # Workspace-versioned crates, in dependency order.
   PRIMARY_PACKAGES: >-
-    groundhog-event
-    groundhog-macros
+    thruput-event
+    thruput-macros
     sdk
   INTERFACE_PACKAGES: >-
-    groundhog-erc20-if
+    thruput-erc20-if
 
 jobs:
   publish:
@@ -303,7 +303,7 @@ jobs:
           packages: ${{ env.PRIMARY_PACKAGES }}
           # Pre-vendored, in dependency order.
           vendor-workspace-deps:
-            groundhog-event
+            thruput-event
             sdk
           cargo-hack-feature-options: --feature-powerset
 "#;
@@ -322,16 +322,13 @@ jobs:
         assert_eq!(lists.len(), 3);
         assert_eq!(
             names(list(&lists, "PRIMARY_PACKAGES")),
-            ["groundhog-event", "groundhog-macros", "sdk"]
+            ["thruput-event", "thruput-macros", "sdk"]
         );
         assert_eq!(
             names(list(&lists, "INTERFACE_PACKAGES")),
-            ["groundhog-erc20-if"]
+            ["thruput-erc20-if"]
         );
-        assert_eq!(
-            names(list(&lists, VENDOR_KEY)),
-            ["groundhog-event", "sdk"]
-        );
+        assert_eq!(names(list(&lists, VENDOR_KEY)), ["thruput-event", "sdk"]);
     }
 
     #[test]
@@ -348,7 +345,7 @@ jobs:
         let line = primary.entries[0].1;
         assert_eq!(
             WORKFLOW_SHAPE.lines().nth(line - 1).unwrap().trim(),
-            "groundhog-event"
+            "thruput-event"
         );
     }
 
@@ -357,10 +354,7 @@ jobs:
         // `cargo-hack-feature-options` follows the vendor list and must not
         // be swallowed into it.
         let lists = parse_lists(WORKFLOW_SHAPE);
-        assert_eq!(
-            names(list(&lists, VENDOR_KEY)),
-            ["groundhog-event", "sdk"]
-        );
+        assert_eq!(names(list(&lists, VENDOR_KEY)), ["thruput-event", "sdk"]);
     }
 
     #[test]

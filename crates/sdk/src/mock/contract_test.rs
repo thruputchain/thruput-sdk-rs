@@ -15,16 +15,16 @@ use crate::exn::FaultInfo;
 use crate::exn::RawException;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
-use groundhog_native_exec as native_exec;
-use groundhog_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::transaction::{
-    Invocation, InvocationFrameStatusCode, SignedTransaction, Transaction,
-    Uniquifier,
-};
 use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
 use std::vec::Vec;
+use thruput_native_exec as native_exec;
+use thruput_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
+use thruput_xdr::contract::ContractEntrypointID;
+use thruput_xdr::transaction::{
+    Invocation, InvocationFrameStatusCode, SignedTransaction, Transaction,
+    Uniquifier,
+};
 
 /// Decode a `TransactResult`'s root-frame outcome into the same
 /// `Result<T, RawCallError>` shape that contract clients produce.
@@ -266,8 +266,8 @@ pub fn deploy_address(
     nonce: &SHA256Hash,
     contract_hash: &SHA256Hash,
 ) -> ContractAddress {
-    use groundhog_xdr::contract::ContractDeploymentHashPreimage;
     use sha2::{Digest, Sha256};
+    use thruput_xdr::contract::ContractDeploymentHashPreimage;
 
     let preimage = ContractDeploymentHashPreimage {
         deployer_address: *deployer_address,
@@ -345,7 +345,7 @@ mod tests {
 
         fs::remove_file(&path).unwrap();
         match contract {
-            groundhog_xdr::contract::Contract::kRv32 { rv32_contract } => {
+            thruput_xdr::contract::Contract::kRv32 { rv32_contract } => {
                 assert_eq!(rv32_contract.data.0, bytes);
             }
             other => panic!("expected rv32 contract, got {other:?}"),

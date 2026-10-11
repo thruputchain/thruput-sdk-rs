@@ -2,16 +2,16 @@
 //! gating, and role-based access control across multiple callers.
 
 use erc20_pausable::PAUSER_ROLE;
-use groundhog_access_control_if::{
+use thruput_access_control_if::{
     AccessControlClient, AccessControlError, DEFAULT_ADMIN_ROLE, Role,
     RoleGrantedEvent, RoleRevokedEvent,
 };
-use groundhog_erc20_if::{ERC20Client, ERC20Error};
-use groundhog_erc20_metadata_if::ERC20MetadataClient;
-use groundhog_erc20_pausable_if::{
+use thruput_erc20_if::{ERC20Client, ERC20Error};
+use thruput_erc20_metadata_if::ERC20MetadataClient;
+use thruput_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
-use groundhog_erc165_if::{ERC165Client, InterfaceIds, InterfaceSupport};
+use thruput_erc165_if::{ERC165Client, InterfaceIds, InterfaceSupport};
 use sdk::call::CallError;
 use sdk::*;
 
@@ -328,7 +328,7 @@ fn supports_interface_reports_derived_claims() {
 
             // Every implemented interface, named through the trait...
             for id in [
-                groundhog_erc165_if::ERC165Entrypoints::INTERFACE_ID,
+                thruput_erc165_if::ERC165Entrypoints::INTERFACE_ID,
                 <Token as ERC20>::INTERFACE_ID,
                 <Token as ERC20Metadata>::INTERFACE_ID,
                 <Token as ERC20Pausable>::INTERFACE_ID,
@@ -339,31 +339,31 @@ fn supports_interface_reports_derived_claims() {
             // ...and the interface crates agree on those IDs without
             // naming the implementing type.
             assert!(erc165.supports_interface(
-                groundhog_erc20_if::ERC20Entrypoints::INTERFACE_ID
+                thruput_erc20_if::ERC20Entrypoints::INTERFACE_ID
             ));
             // `supports` names the interfaces by their clients.
             assert_eq!(
-                erc165.supports::<(groundhog_erc20_if::ERC20Client, ERC165Client)>(),
+                erc165.supports::<(thruput_erc20_if::ERC20Client, ERC165Client)>(),
                 [true, true]
             );
 
             // An interface it does not implement, and an arbitrary ID.
             assert!(!erc165.supports_interface(
-                groundhog_signed_op_if::SignedOpEntrypoints::INTERFACE_ID
+                thruput_signed_op_if::SignedOpEntrypoints::INTERFACE_ID
             ));
             assert!(!erc165.supports_interface([0xff; 8]));
 
             // A target without ERC-165, and no contract at all, are "no".
             assert_eq!(
                 ERC165Client::new(&bare_addr)
-                    .supports::<(groundhog_erc20_if::ERC20Client,)>(),
+                    .supports::<(thruput_erc20_if::ERC20Client,)>(),
                 [false]
             );
             const EMPTY_ADDR: ContractAddress =
                 ContractAddress::new([0x78; 32]);
             assert_eq!(
                 ERC165Client::new(&EMPTY_ADDR)
-                    .supports::<(groundhog_erc20_if::ERC20Client,)>(),
+                    .supports::<(thruput_erc20_if::ERC20Client,)>(),
                 [false]
             );
         })
@@ -390,12 +390,12 @@ fn supports_interfaces_answers_each_queried_id_in_order() {
 
             let query = InterfaceIds::from_slice(&[
                 <Token as ERC20>::INTERFACE_ID,
-                groundhog_signed_op_if::SignedOpEntrypoints::INTERFACE_ID,
+                thruput_signed_op_if::SignedOpEntrypoints::INTERFACE_ID,
                 <Token as ERC20Metadata>::INTERFACE_ID,
                 [0xff; 8],
                 <Token as ERC20Pausable>::INTERFACE_ID,
                 <Token as AccessControl>::INTERFACE_ID,
-                groundhog_erc165_if::ERC165Entrypoints::INTERFACE_ID,
+                thruput_erc165_if::ERC165Entrypoints::INTERFACE_ID,
                 // A repeated id is answered again.
                 <Token as ERC20>::INTERFACE_ID,
             ])

@@ -1,7 +1,7 @@
 //! `BytesM<MAX>` and `heapless::Vec<T, N>` must publish their length bound
 //! in the spec, like `VecM`.
 
-use groundhog_contract_spec::{ContractTypeRefSpec, view::ContractTypeView};
+use thruput_contract_spec::{ContractTypeRefSpec, view::ContractTypeView};
 use xdr_common::BytesM;
 
 #[test]

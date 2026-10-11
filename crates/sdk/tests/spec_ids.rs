@@ -20,19 +20,19 @@
 //! a type and an event declared side by side cannot drift apart.
 //!
 //! The major version follows the same rule as interface versions
-//! (`groundhog_contract_util::semver::major_version_from_string`): the
+//! (`thruput_contract_util::semver::major_version_from_string`): the
 //! leftmost non-zero component, so `1.2.3` is `1` and `0.33.0` is `0.33`.
 //! Two semver-compatible releases therefore share an id, and only a breaking
 //! release changes it.
 
 #![allow(unexpected_cfgs, dead_code)]
 
-use groundhog_contract_util::semver::major_version_from_string;
 use sdk::__contract_spec::{
     ContractEventSpec, ContractTypeDefView, ContractTypeName,
     ContractTypeSpec, ContractTypeView,
 };
 use sdk::*;
+use thruput_contract_util::semver::major_version_from_string;
 
 /// The id prefix every type declared in this test crate must carry, derived
 /// the same way the macro derives it rather than hardcoded, so a version bump
@@ -362,7 +362,7 @@ fn a_declared_name_renames_an_exceptions_id() {
 #[test]
 fn a_declared_name_renames_an_exceptions_selector() {
     let selector = |type_name: &str| {
-        groundhog_contract_util::exception_selector(
+        thruput_contract_util::exception_selector(
             env!("CARGO_PKG_VERSION"),
             env!("CARGO_PKG_NAME"),
             type_name,
@@ -371,4 +371,55 @@ fn a_declared_name_renames_an_exceptions_selector() {
     let actual = <RenamedError as sdk::exn::Exn>::SELECTOR;
     assert_eq!(actual, selector("SpecRenamedError"));
     assert_ne!(actual, selector("RenamedError"), "not the ident's");
+}
+
+// A protocol wire identity can survive a package rename without hiding the
+// declaring package in the spec.
+#[contract_exception(version = "1.0.0", wire_crate = "protocol-package")]
+pub enum StableWireError {
+    Denied = 1,
+}
+
+#[derive(Event)]
+#[event_spec(export, wire_crate = "protocol-package")]
+pub struct StableWireEvent {
+    pub amount: u32,
+}
+
+#[test]
+fn wire_exception_override_keeps_spec_provenance() {
+    assert_eq!(
+        <StableWireError as sdk::exn::Exn>::SELECTOR,
+        thruput_contract_util::exception_selector(
+            "1.0.0",
+            "protocol-package",
+            "StableWireError"
+        )
+    );
+    assert_eq!(
+        <StableWireError as ContractTypeName>::NAME.crate_name,
+        env!("CARGO_PKG_NAME")
+    );
+}
+
+#[test]
+fn wire_event_override_keeps_spec_provenance() {
+    assert_eq!(
+        StableWireEvent::SIGNATURE,
+        &thruput_contract_util::event_signature(
+            env!("CARGO_PKG_VERSION"),
+            "protocol-package",
+            "StableWireEvent"
+        )
+    );
+    assert_eq!(
+        <StableWireEvent as ContractEventSpec>::EVENT_DEF
+            .name
+            .crate_name,
+        env!("CARGO_PKG_NAME")
+    );
+    assert_eq!(
+        <StableWireEvent as ContractEventSpec>::EVENT_DEF.signature,
+        *StableWireEvent::SIGNATURE
+    );
 }

@@ -7,8 +7,8 @@
 //! across blocks it is a consumed pair.
 
 use ed25519_dalek::{Signer, SigningKey};
-use groundhog_domain_separator::SignedOp as SignedOpPreimage;
-use groundhog_signed_op::{Operation, SignedOpClient, SignedOpError};
+use thruput_domain_separator::SignedOp as SignedOpPreimage;
+use thruput_signed_op::{Operation, SignedOpClient, SignedOpError};
 use sdk::signer::Signed;
 use sdk::types::transaction::Uniquifier;
 use sdk::types::{Ed25519PublicKey, Ed25519Signature};

@@ -258,7 +258,7 @@ fn generate_trait_method_fragments_tokens(
     trait_path: &syn::Path,
 ) -> TokenStream {
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     quote! {
         #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
@@ -326,7 +326,7 @@ fn generate_trait_event_fragments_tokens(
     trait_path: &syn::Path,
 ) -> TokenStream {
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     quote! {
         #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
@@ -436,7 +436,7 @@ fn generate_carrier_method_fragments_tokens(
 ) -> TokenStream {
     let cfg = target_cfg();
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     quote! {
         #[cfg(#cfg)]
         const _: () = {
@@ -622,7 +622,7 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     fragment: TokenStream,
 ) -> TokenStream {
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
     // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
@@ -907,7 +907,7 @@ mod tests {
     /// no longer does — keyed off the same anchor const it anchors with.
     #[test]
     fn carrier_anchor_emits_the_traits_methods() {
-        let path: syn::Path = syn::parse_quote!(groundhog_erc20_if::ERC20);
+        let path: syn::Path = syn::parse_quote!(thruput_erc20_if::ERC20);
         let tokens = generate_interface_anchor_for_trait(&path).to_string();
 
         assert!(

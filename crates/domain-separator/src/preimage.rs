@@ -2,7 +2,7 @@
 
 use core::mem::MaybeUninit;
 
-use groundhog_xdr::types::SHA256Hash;
+use thruput_xdr::types::SHA256Hash;
 use xdrs::WriteXDR;
 
 use crate::DomainSeparator;

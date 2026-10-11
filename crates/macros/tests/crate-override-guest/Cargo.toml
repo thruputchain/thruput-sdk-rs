@@ -17,6 +17,6 @@ test = false
 # `#[contract_type_spec(crate = "...")]`. Same dependency set as
 # `crates/macros/tests/crate_override.rs`, which covers the host side.
 [dependencies]
-groundhog-macros = { workspace = true }
-groundhog-contract-spec = { workspace = true }
+thruput-macros = { workspace = true }
+thruput-contract-spec = { workspace = true }
 xdrs = { workspace = true }

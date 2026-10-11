@@ -75,7 +75,7 @@ jobs:
     env:
       # Every matrix entry sets SKIP_SDK_TESTS=1: SDK unit tests run in the
       # separate `sdk-tests` job (sdk_tests.yml).
-      # Share one FFI download cache across every groundhog-sys build instance
+      # Share one FFI download cache across every thruput-sys build instance
       # (and across runs, via the Namespace cache below). Without this the cache
       # defaults to each instance's OUT_DIR, so every workspace/feature variant
       # re-downloads the prebuilt FFI tarball.

@@ -11,7 +11,7 @@
 //!
 //! See `docs/` and the `arith.rs` shift impls for the reasoning.
 
-use groundhog_u256::U256;
+use thruput_u256::U256;
 
 // `From::from` is not a const fn, so this line only builds against the
 // inherent `U256::from`.

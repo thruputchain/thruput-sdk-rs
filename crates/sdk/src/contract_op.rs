@@ -103,7 +103,7 @@ pub fn get_caller() -> ContractAddress {
 
 /// The hash of the transaction that initiated the current execution.
 ///
-/// This is `groundhog-xdr`'s `TransactionHash`: sha256 of the XDR-encoded
+/// This is `thruput-xdr`'s `TransactionHash`: sha256 of the XDR-encoded
 /// `Transaction` — the same object the signatures are over, and the
 /// identifier the transaction carries network-wide. It deliberately covers
 /// neither the signatures wrapped around it nor the nondeterministic data a

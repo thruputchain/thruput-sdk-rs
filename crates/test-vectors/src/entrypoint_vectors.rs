@@ -1,8 +1,8 @@
-use groundhog_contract_util::{
+use serde_json::{Value, json};
+use thruput_contract_util::{
     NormalizedMethodSignature, contract_entrypoint_id, entrypoint_export_name,
     semver::major_version_from_string,
 };
-use serde_json::{Value, json};
 
 struct EntrypointCase {
     interface: Option<&'static str>,

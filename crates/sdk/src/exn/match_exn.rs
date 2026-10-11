@@ -1,6 +1,6 @@
 //! `match_exn!` and the [`MatchExn`] trait behind it.
 //!
-//! A Groundhog exception is self-describing on the wire —
+//! A Thruput exception is self-describing on the wire —
 //! `[CXS(selector)][payload]` — and the selector identifies the type
 //! independently of any interface's `throws` list. That is what lets
 //! [`match_exn!`](crate::match_exn) match an error declared by a base

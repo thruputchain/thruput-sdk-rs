@@ -16,13 +16,13 @@ rustdoc, and erc20-test abort checks (re-enabled by default and repaired)
 + the hardcoded mint-event amount.
 
 Additionally, the ERC20 error contract was standardized: the trait in
-`standard-interfaces/groundhog-erc20` now documents exactly which
+`standard-interfaces/thruput-erc20` now documents exactly which
 `ERC20Error` each method throws, all four implementations (`erc20`,
 `erc20_low_level`, `erc20_raw_storage`, `itc_erc20`) throw
 `ERC20Error::TooLarge` on balance/allowance overdraft instead of leaking
 storage-layer `NonNegativeIntUnderflow`, and erc20-test pins the exact
 error in its abort checks. (This partially addresses the
-"groundhog-erc20-if trait omits authorization and error contracts"
+"thruput-erc20-if trait omits authorization and error contracts"
 finding below — the trait-docs half is done; the `StdERC20Event`
 i128::MAX conversion panic is not.)
 
@@ -250,9 +250,9 @@ The type's entire rustdoc is `/// Non-negative integer`, yet `set(-5)` succeeds 
 
 For the same task ('make a deterministic test id'), the corpus a new author reads uses: `SHA256Hash::new(hash_to_array!("..."))` (README, sdk/src/mock/contract_test.rs:112), `sdk::sha256_static!("...")` (counter, versioned_caller, bare_impl_caller tests), `hash_ident! { static FOO: SHA256Hash; }` (erc20-test/src/contract_test.rs:16-17, swap_driver tests), `ContractAddress::named("test")` (everywhere for caller addresses), and raw `[0xAA; 32].into()` (erc1271_caller/tests/lifecycle.rs). The first two are not even value-equivalent (see the quote-hashing finding). A new user cannot tell which is canonical; the SDK exports all of them (sdk/src/lib.rs:166-168, util.rs:12) with no rustdoc on any.
 
-### [consumer-experience/missing-docs] groundhog-erc20-if trait omits authorization and error contracts; std-event conversion panics above i128::MAX
+### [consumer-experience/missing-docs] thruput-erc20-if trait omits authorization and error contracts; std-event conversion panics above i128::MAX
 
-**File:** `standard-interfaces/groundhog-erc20/src/lib.rs:23-65`
+**File:** `standard-interfaces/thruput-erc20/src/lib.rs:23-65`
 
 The published ERC20 standard interface documents nothing a wallet/token integrator needs: `initialize` has no doc at all (it throws `AlreadyInitialized`; who becomes administrator?); `mint`/`burn` don't say they are owner-restricted (`MustBeContractOwner`) or which `ERC20Error` variants each method can throw; `adjust_allowance` deviates from ERC-20 `approve` semantics (signed delta, not absolute) but that is documented only on the ApprovalEvent type (events.rs:135-138), not the trait method clients call. Also, `Amount` is `u128`, but `From<&TransferEvent> for stdevt::TransferEvent` does `TryInto::<i128>::try_into(val.amount).unwrap()` (events.rs:90) — converting an event for a supply above i128::MAX panics, an undocumented invariant, despite `amount_to_diff` in error.rs:20-22 showing the throwing alternative.
 
@@ -358,7 +358,7 @@ The entrypoint ID is computed as `sha256(INTERFACE_NAME || MAJOR_VERSION || METH
 
 **File:** `crates/hogd-sys/build.rs:330-334`
 
-The guest-target rejection reads `"native_exec does not build for <target>"`, the version-mismatch error (line 419) instructs "Please update TEST_FFI_VERSION in native_exec/build.rs to match the header", and the force-reconfigure env var is `NATIVE_EXEC_ALWAYS_CONFIGURE` (lines 339, 969). The package is `groundhog-sys` in `crates/hogd-sys`, and the workspace contains a separate `crates/native-exec` crate (which has no build.rs constant to update). A user hitting the version-mismatch error is directed to edit the wrong crate. Evidence of a rename that never updated the user-facing strings.
+The guest-target rejection reads `"native_exec does not build for <target>"`, the version-mismatch error (line 419) instructs "Please update TEST_FFI_VERSION in native_exec/build.rs to match the header", and the force-reconfigure env var is `NATIVE_EXEC_ALWAYS_CONFIGURE` (lines 339, 969). The package is `thruput-sys` in `crates/hogd-sys`, and the workspace contains a separate `crates/native-exec` crate (which has no build.rs constant to update). A user hitting the version-mismatch error is directed to edit the wrong crate. Evidence of a rename that never updated the user-facing strings.
 
 ### [small-crates/footgun] Download auth passes user:password on the curl command line; empty HOGD_FFI_USER silently disables auth
 
@@ -370,13 +370,13 @@ The guest-target rejection reads `"native_exec does not build for <target>"`, th
 
 **File:** `crates/bottle-test-if/Cargo.toml:3-9`
 
-Unlike every other crates/* package (which use `version.workspace`, `authors.workspace`, `license.workspace`, etc.), bottle-test-if hardcodes `version = "0.1.0"`, `authors = ["Groundhog Team"]`, `license = "MIT OR Apache-2.0"`, and `repository = "https://github.com/groundhogchain/sdk_rs"`, and its root-workspace pin is path-only (`bottle-test-if = { path = "crates/bottle-test-if" }`, root Cargo.toml:78) with no `registry`/`version ="=..."` like the other 14 pins. It will silently miss every workspace-wide version bump (the bump-version flow keys off the inherited fields). Also `#![cfg_attr(not(any(feature = "dev")), no_std)]` in src/lib.rs:4 wraps a single predicate in `any(...)` — harmless but a reread-trigger suggesting clauses were deleted without cleanup.
+Unlike every other crates/* package (which use `version.workspace`, `authors.workspace`, `license.workspace`, etc.), bottle-test-if hardcodes `version = "0.1.0"`, `authors = ["Thruput Team"]`, `license = "MIT OR Apache-2.0"`, and `repository = "https://github.com/groundhogchain/sdk_rs"`, and its root-workspace pin is path-only (`bottle-test-if = { path = "crates/bottle-test-if" }`, root Cargo.toml:78) with no `registry`/`version ="=..."` like the other 14 pins. It will silently miss every workspace-wide version bump (the bump-version flow keys off the inherited fields). Also `#![cfg_attr(not(any(feature = "dev")), no_std)]` in src/lib.rs:4 wraps a single predicate in `any(...)` — harmless but a reread-trigger suggesting clauses were deleted without cleanup.
 
 ### [consumer-experience/footgun] Counter example demonstrates unguarded initialize() and a silent i128→u64 truncating cast
 
 **File:** `example-contracts/counter/src/implementation.rs:17-31`
 
-The flagship-simple example's `initialize(&mut self, initial_value: u64)` is just `self.value.strict_inc(initial_value as i128)` — callable any number of times by anyone, each call adding to the counter. Other code in the same repo shows two different guard patterns (swap_driver/src/swapv2_driver.rs:25 uses `panic!("Already initialized.")`, i.e. a fault instead of a typed throw; groundhog-erc20-if defines `ERC20Error::AlreadyInitialized`). A contract author copying counter's pattern into a contract where initialize sets an owner gets a re-initialization/ownership-takeover bug. Additionally `get()` returns `self.value.try_get().unwrap_or(0) as u64` — NNInt stores i128 (storage/nnint.rs:28), so values above u64::MAX (reachable via repeated `increment`) are silently truncated.
+The flagship-simple example's `initialize(&mut self, initial_value: u64)` is just `self.value.strict_inc(initial_value as i128)` — callable any number of times by anyone, each call adding to the counter. Other code in the same repo shows two different guard patterns (swap_driver/src/swapv2_driver.rs:25 uses `panic!("Already initialized.")`, i.e. a fault instead of a typed throw; thruput-erc20-if defines `ERC20Error::AlreadyInitialized`). A contract author copying counter's pattern into a contract where initialize sets an owner gets a re-initialization/ownership-takeover bug. Additionally `get()` returns `self.value.try_get().unwrap_or(0) as u64` — NNInt stores i128 (storage/nnint.rs:28), so values above u64::MAX (reachable via repeated `increment`) are silently truncated.
 
 ### [consumer-experience/footgun] Generated client builder helpers have asymmetric receivers: with_gas_limit(&self) vs with_commit_locking(self)/with_read_only(self)
 
@@ -390,11 +390,11 @@ Every generated client gets three look-alike builder methods, but `with_gas_limi
 
 `members` contains "rcq_test" at two positions (after "hasher" and after "test_bytestring") — harmless to cargo but clear copy-paste drift in exactly the file the root manifest warns must be manually kept in sync (sdk_rs/Cargo.toml:53-55). The embedded workspace also pins `xdrs = "0.7.0"` with no features while the root pins `xdrs = { version = "0.7.1", features = ["int128", "heapless"] }`. Related drift: the rcq_test crate is disabled via an empty marker file `example-contracts/rcq_test/disabled` that only scripts/dev.sh:406 understands — an undocumented mechanism a reader of the example corpus has no way to discover.
 
-### [consumer-experience/weird] groundhog-erc20-metadata-if: wrong crate description, unconditional no_std, and undocumented initialize overlap with ERC20
+### [consumer-experience/weird] thruput-erc20-metadata-if: wrong crate description, unconditional no_std, and undocumented initialize overlap with ERC20
 
-**File:** `standard-interfaces/groundhog-erc20-metadata/Cargo.toml:8 and src/lib.rs:1,13`
+**File:** `standard-interfaces/thruput-erc20-metadata/Cargo.toml:8 and src/lib.rs:1,13`
 
-The Cargo description is "ERC20 standard interface for Groundhog smart contracts" — copy-pasted from groundhog-erc20-if; it should say metadata. The crate uses bare `#![no_std]` while its two sibling interfaces use `#![cfg_attr(not(feature = "dev"), no_std)]`. More substantively, `ERC20Metadata::initialize(administrator, name, symbol, decimals)` is undocumented and silently subsumes `ERC20::initialize`: erc20-test/src/contract_test.rs:34-53 calls ONLY the metadata initialize when the `metadata` feature is on (the plain `client.initialize` is under `#[cfg(not(feature = "metadata"))]`), so a conforming token must make the metadata initialize also perform ERC20 initialization — an interface contract stated nowhere.
+The Cargo description is "ERC20 standard interface for Thruput smart contracts" — copy-pasted from thruput-erc20-if; it should say metadata. The crate uses bare `#![no_std]` while its two sibling interfaces use `#![cfg_attr(not(feature = "dev"), no_std)]`. More substantively, `ERC20Metadata::initialize(administrator, name, symbol, decimals)` is undocumented and silently subsumes `ERC20::initialize`: erc20-test/src/contract_test.rs:34-53 calls ONLY the metadata initialize when the `metadata` feature is on (the plain `client.initialize` is under `#[cfg(not(feature = "metadata"))]`), so a conforming token must make the metadata initialize also perform ERC20 initialization — an interface contract stated nowhere.
 
 ### [consumer-experience/footgun] swap_driver test setup silently discards the airdrop transaction result
 
@@ -426,11 +426,11 @@ The sdk deliberately ships two parallel primitive-storage APIs: `sys_result` (re
 
 `grep -c '///'` returns 0 for both crates/sdk/src/crypto.rs and crates/sdk/src/deploy.rs, yet their items (`sha256`, `verify_signature_ed25519`, `get_deploy_address`, `get_deploy_address_for_other`, `deploy_contract`) are core, root-exported contract-author API. Undocumented hazards a user will hit: (1) all of them throw syscall exceptions on failure (not Result, not panic) — invisible from the signatures; (2) `verify_signature_ed25519` returns `sys::uninit_VerifySignature(...).is_ok()`, conflating 'signature invalid' with every other syscall failure (bad input length, out of gas at the boundary, etc.) into `false`; (3) `deploy_contract` performs an actual deployment while its name pattern matches the pure `get_deploy_address` computations; (4) `get_deploy_address` vs `get_deploy_address_for_other` differ only in the implicit self-address — none of the nonce/hash domain semantics are stated.
 
-### [cross-crate/redundancy] Dependency pins duplicated outside [workspace.dependencies], one already diverging (sha2 default features); root workspace pins groundhog-syscall that no member uses
+### [cross-crate/redundancy] Dependency pins duplicated outside [workspace.dependencies], one already diverging (sha2 default features); root workspace pins thruput-syscall that no member uses
 
 **File:** `crates/native-exec/Cargo.toml:43`
 
-The workspace table pins `sha2 = { version = "0.11.0", default-features = false }`, but native-exec declares `sha2 = { version = "0.11.0" }` directly — same version, different features (defaults on), bypassing the single-source-of-truth table. Likewise hogd-sys declares `thiserror = { version = "2.0.12", default-features = false }` directly instead of `workspace = true` (the workspace table has the identical entry), and `syn = "2.0.93"` is spelled out independently in crates/contract-util/Cargo.toml and crates/macros/Cargo.toml. Also: root Cargo.toml:84 pins `groundhog-syscall = "=0.17.0"` in [workspace.dependencies], but no member of the root workspace depends on it — only the separate integration_test workspace, which carries its own copy of the pin (integration_test/Cargo.toml:62), so the root entry is dead and the two copies can drift. example-contracts/Cargo.toml:79 pins `xdrs = "0.7.0"` vs the root's `0.7.1` with features ["int128", "heapless"]. The root Cargo.toml comment already admits these embedded-workspace configs 'need updating' manually whenever versions bump.
+The workspace table pins `sha2 = { version = "0.11.0", default-features = false }`, but native-exec declares `sha2 = { version = "0.11.0" }` directly — same version, different features (defaults on), bypassing the single-source-of-truth table. Likewise hogd-sys declares `thiserror = { version = "2.0.12", default-features = false }` directly instead of `workspace = true` (the workspace table has the identical entry), and `syn = "2.0.93"` is spelled out independently in crates/contract-util/Cargo.toml and crates/macros/Cargo.toml. Also: root Cargo.toml:84 pins `thruput-syscall = "=0.17.0"` in [workspace.dependencies], but no member of the root workspace depends on it — only the separate integration_test workspace, which carries its own copy of the pin (integration_test/Cargo.toml:62), so the root entry is dead and the two copies can drift. example-contracts/Cargo.toml:79 pins `xdrs = "0.7.0"` vs the root's `0.7.1` with features ["int128", "heapless"]. The root Cargo.toml comment already admits these embedded-workspace configs 'need updating' manually whenever versions bump.
 
 ### [cross-crate/redundancy] Three public spellings for the XDR vocabulary and two names for the hash type at the sdk root
 

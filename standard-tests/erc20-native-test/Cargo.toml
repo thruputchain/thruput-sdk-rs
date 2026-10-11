@@ -17,8 +17,8 @@ test = false
 
 [dependencies]
 sdk = { workspace = true, features = ["dev"] }
-groundhog-erc20-if = { workspace = true }
-groundhog-xdr = { workspace = true }
+thruput-erc20-if = { workspace = true }
+thruput-xdr = { workspace = true }
 thiserror = { workspace = true }
 erc20-test = { workspace = true }
 

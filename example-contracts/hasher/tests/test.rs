@@ -1,4 +1,4 @@
-use groundhog_domain_separator::sha2;
+use thruput_domain_separator::sha2;
 use sdk::types::{Ed25519PublicKey, PubkeyAccountPreimage, PublicKey};
 
 #[test]
@@ -9,7 +9,7 @@ fn hasher_test() {
     );
 }
 
-/// Exercises `groundhog-domain-separator`'s SHA256 syscall backend from inside
+/// Exercises `thruput-domain-separator`'s SHA256 syscall backend from inside
 /// a contract, against the cross-implementation vector the C++ validator
 /// derives.
 #[test]

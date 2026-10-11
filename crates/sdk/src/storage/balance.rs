@@ -3,7 +3,7 @@ use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
 use crate::sys_exn::nnint_internal as nnint;
 
-/// A non-negative, zero-defaulting balance backed by Groundhog's mergeable
+/// A non-negative, zero-defaulting balance backed by Thruput's mergeable
 /// integer-storage cell.
 ///
 /// Values are in `0..=i128::MAX`. Operations reject a negative amount with

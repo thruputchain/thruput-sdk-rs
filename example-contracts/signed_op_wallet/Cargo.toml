@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "dep:thiserror", "groundhog-signed-op/dev"]
+dev = ["sdk/dev", "dep:thiserror", "thruput-signed-op/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -28,10 +28,10 @@ required-features = ["entrypoints"]
 [dependencies]
 # `alloc`: the mint functions encode the token node into a `Vec`.
 sdk = { workspace = true, features = ["alloc"] }
-groundhog-signed-op = { workspace = true }
+thruput-signed-op = { workspace = true }
 thiserror = { workspace = true, optional = true }
 
 [dev-dependencies]
 signed_op_wallet = { path = ".", features = ["dev"] }
-groundhog-domain-separator = { workspace = true, features = ["std"] }
+thruput-domain-separator = { workspace = true, features = ["std"] }
 ed25519-dalek = { workspace = true }

@@ -50,7 +50,7 @@ version = "0.17.4"
 
 [workspace.dependencies]
 sdk = { path = "crates/sdk", version = "=0.17.4" }
-groundhog-xdr = { version = "=0.21.0" }
+thruput-xdr = { version = "=0.21.0" }
 "#,
     );
     write(
@@ -61,7 +61,7 @@ name = "sdk"
 version.workspace = true
 
 [dependencies]
-groundhog-xdr = { workspace = true }
+thruput-xdr = { workspace = true }
 "#,
     );
     write(
@@ -79,7 +79,7 @@ sdk = { path = "../sdk", version = "=0.17.4" }
         dir,
         "standard-interfaces/erc20-if/Cargo.toml",
         r#"[package]
-name = "groundhog-erc20-if"
+name = "thruput-erc20-if"
 version = "0.4.2"
 
 [dependencies]
@@ -90,12 +90,12 @@ sdk = { path = "../../crates/sdk", version = "0.17.0" }
         dir,
         "standard-impls/access-control/Cargo.toml",
         r#"[package]
-name = "groundhog-access-control"
+name = "thruput-access-control"
 version = "0.4.2"
 
 [dependencies]
 sdk = { path = "../../crates/sdk", version = "0.17.0" }
-groundhog-erc20-if = { path = "../../standard-interfaces/erc20-if", version = "=0.4.2" }
+thruput-erc20-if = { path = "../../standard-interfaces/erc20-if", version = "=0.4.2" }
 "#,
     );
 }
@@ -198,7 +198,7 @@ fn patch_bump_roundtrip() {
         req_of(
             &after,
             "standard-impls/access-control/Cargo.toml",
-            "groundhog-erc20-if"
+            "thruput-erc20-if"
         ),
         "=0.4.2"
     );
@@ -261,7 +261,7 @@ fn breaking_bump_moves_interfaces_and_refreshes_sdk_pins() {
         req_of(
             &after,
             "standard-impls/access-control/Cargo.toml",
-            "groundhog-erc20-if"
+            "thruput-erc20-if"
         ),
         "=0.4.3"
     );
@@ -307,7 +307,7 @@ fn protocol_bump_implies_sdk_patch_and_interface_bump() {
     fixture(tmp.path());
     let repo = load(tmp.path());
 
-    assert!(policy::PROTOCOL_CRATES.contains(&"groundhog-xdr"));
+    assert!(policy::PROTOCOL_CRATES.contains(&"thruput-xdr"));
     let plan = bump::plan(
         &repo,
         &Request {
@@ -326,7 +326,7 @@ fn protocol_bump_implies_sdk_patch_and_interface_bump() {
     bump::apply(&repo, &plan).unwrap();
 
     let after = load(tmp.path());
-    assert_eq!(req_of(&after, "Cargo.toml", "groundhog-xdr"), "=0.22.0");
+    assert_eq!(req_of(&after, "Cargo.toml", "thruput-xdr"), "=0.22.0");
     assert_eq!(req_of(&after, "Cargo.toml", "sdk"), "=0.17.5");
     assert_eq!(interface_version(&after), Version::new(0, 4, 3));
     assert_clean(&after);
@@ -388,7 +388,7 @@ fn diverged_interface_versions_are_refused() {
         tmp.path(),
         "standard-interfaces/erc20-pausable-if/Cargo.toml",
         r#"[package]
-name = "groundhog-erc20-pausable-if"
+name = "thruput-erc20-pausable-if"
 version = "0.4.1"
 
 [dependencies]
@@ -523,7 +523,7 @@ fn sync_repairs_a_caret_pin_that_no_longer_matches() {
         tmp.path(),
         "standard-interfaces/erc20-if/Cargo.toml",
         r#"[package]
-name = "groundhog-erc20-if"
+name = "thruput-erc20-if"
 version = "0.4.2"
 
 [dependencies]

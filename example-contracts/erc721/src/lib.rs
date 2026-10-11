@@ -8,8 +8,8 @@ sdk::declare_mock_contract!();
 
 // The traits describing the contract interface
 mod interface {
-    pub use groundhog_erc165_if::*;
-    pub use groundhog_erc721_if::*;
+    pub use thruput_erc165_if::*;
+    pub use thruput_erc721_if::*;
 }
 
 // Client stubs that provide the interfaces via cross-contract calls

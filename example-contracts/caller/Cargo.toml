@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
+dev = ["erc20/dev", "sdk/dev", "thruput-erc20-if/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -31,7 +31,7 @@ required-features = ["entrypoints"]
 [dependencies]
 sdk = { workspace = true }
 erc20 = { path = "../erc20" }
-groundhog-erc20-if = { workspace = true }
+thruput-erc20-if = { workspace = true }
 
 [dev-dependencies]
 caller = { path = ".", features = ["dev"] }

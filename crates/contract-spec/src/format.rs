@@ -24,9 +24,9 @@
 //!
 //! - this constant,
 //! - `[package.metadata.groundhog] raw_spec_format` in this crate's
-//!   `Cargo.toml`, which is how the `groundhog` CLI reads the format version
+//!   `Cargo.toml`, which is how the `thruput` CLI reads the format version
 //!   out of a contract's dependency graph before compiling it,
-//! - the `link_section` literals in `groundhog-macros`.
+//! - the `link_section` literals in `thruput-macros`.
 //!
 //! Format 0 (`groundhogspecrawv0`) is deliberately unsupported: two
 //! incompatible encodings shipped under that name, so the bytes cannot be
@@ -46,7 +46,7 @@ pub const RAW_SPEC_FORMAT: u32 = 4;
 /// Name of the raw spec ELF section this SDK emits.
 ///
 /// Kept as a literal rather than concatenated from [`RAW_SECTION_PREFIX`] and
-/// [`RAW_SPEC_FORMAT`] because `#[link_section = ...]` in `groundhog-macros`
+/// [`RAW_SPEC_FORMAT`] because `#[link_section = ...]` in `thruput-macros`
 /// needs a literal anyway; `raw_section_name_matches_its_parts` pins the
 /// three against each other.
 pub const RAW_SECTION_NAME: &str = "groundhogspecrawv4";
@@ -54,7 +54,7 @@ pub const RAW_SECTION_NAME: &str = "groundhogspecrawv4";
 /// Name of the finalized spec ELF section.
 ///
 /// It holds a `ContractSpec`, whose layout is governed by the protocol-level
-/// `groundhog-spec` crate, so the suffix moves when that layout does. `v2`
+/// `thruput-spec` crate, so the suffix moves when that layout does. `v2`
 /// adds method effects; `v1` added segmented spec ids. Rebuild contracts and
 /// bindings after updating the toolchain; legacy decoding is not supported.
 ///

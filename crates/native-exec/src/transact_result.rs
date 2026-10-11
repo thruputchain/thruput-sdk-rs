@@ -1,9 +1,9 @@
 use crate::frame_result::FrameResult;
-use groundhog_event::{EmittedEvent, Event, TypedEvent};
-use groundhog_exn::Exn;
-use groundhog_xdr::event::TxEmittedEvent;
-use groundhog_xdr::exec_result::ExecResult;
-use groundhog_xdr::types::ContractAddress;
+use thruput_event::{EmittedEvent, Event, TypedEvent};
+use thruput_exn::Exn;
+use thruput_xdr::event::TxEmittedEvent;
+use thruput_xdr::exec_result::ExecResult;
+use thruput_xdr::types::ContractAddress;
 
 /// Result of a full transaction: root frame result + commit outcome.
 /// Events are accessed via the root frame's per-frame events.

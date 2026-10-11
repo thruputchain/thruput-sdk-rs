@@ -13,7 +13,7 @@
 //!   (`mul_div`, `mul_shr`, `mul_mod`), whose whole point is an intermediate
 //!   that no 256-bit oracle can hold.
 
-use groundhog_u256::{Rounding, U256};
+use thruput_u256::{Rounding, U256};
 
 uint::construct_uint! {
     /// The wide oracle: eight 64-bit limbs, enough to hold any product of two
@@ -331,7 +331,7 @@ fn mul_div_agrees_with_the_u128_entry_point() {
         let a = rng.next_u128();
         let b = rng.next_u128();
         let d = rng.next_u128().max(1);
-        let via_u128 = groundhog_u256::checked_mul_div_u128(a, b, d);
+        let via_u128 = thruput_u256::checked_mul_div_u128(a, b, d);
         let via_u256 =
             U256::checked_mul_div(U256::from(a), U256::from(b), U256::from(d));
         // The u128 entry point additionally requires the quotient to fit a

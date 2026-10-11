@@ -4,10 +4,10 @@
 
 use erc721::{NftAdminClient, NftError};
 use erc721_receiver::{Delivery, REJECT_DATA, ReceiverClient, ReceiverError};
-use groundhog_erc165_if::{
+use thruput_erc165_if::{
     ERC165Client, InterfaceIds, InterfaceQuery, InterfaceSupport,
 };
-use groundhog_erc721_if::{
+use thruput_erc721_if::{
     ApprovalEvent, ApprovalForAllEvent, BurnEvent, CONTRACT_ADDR_ZERO,
     ERC721Client, ERC721Entrypoints, ERC721Error, ERC721MetadataClient,
     ERC721MetadataEntrypoints, ERC721ReceiverClient,
@@ -26,7 +26,7 @@ hash_ident! { static BOB: ContractAddress; }
 hash_ident! { static OPERATOR: ContractAddress; }
 hash_ident! { static NOBODY: ContractAddress; }
 
-const NAME: &str = "Groundhog Punks";
+const NAME: &str = "Thruput Punks";
 const SYMBOL: &str = "GHP";
 const BASE_URI: &str = "https://example.com/nft/";
 

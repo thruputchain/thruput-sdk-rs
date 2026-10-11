@@ -65,7 +65,7 @@ pub(crate) fn retrocausal_queue_get_sized<const N: usize>(
 // Every queue entry fits the scratch buffer, so the read paths below need no
 // peek-len pre-flight to size it.
 const _: () = assert!(
-    groundhog_xdr::retrocausal_queue::kQueueEntryMaxLen as usize
+    thruput_xdr::retrocausal_queue::kQueueEntryMaxLen as usize
         <= crate::internal::SCRATCH_MAX
 );
 
@@ -86,7 +86,7 @@ pub(crate) fn retrocausal_queue_read_into(
 ) -> Result<Option<()>> {
     buf.clear();
     #[cfg(feature = "alloc")]
-    buf.reserve(groundhog_xdr::retrocausal_queue::kQueueEntryMaxLen as usize);
+    buf.reserve(thruput_xdr::retrocausal_queue::kQueueEntryMaxLen as usize);
     let mut written_len = MaybeUninit::uninit();
     sys::uninit_RetrocausalQueueConsume(
         key,

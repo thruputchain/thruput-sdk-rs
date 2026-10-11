@@ -144,8 +144,8 @@ owned_ref_arg!(
     bool,
     (),
     crate::types::BlockHeight,
-    groundhog_u256::U256,
-    groundhog_u256::I256,
+    thruput_u256::U256,
+    thruput_u256::I256,
 );
 
 impl<T> OwnedRefArg for Option<T> {}

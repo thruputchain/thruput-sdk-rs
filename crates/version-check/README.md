@@ -132,17 +132,17 @@ The current set:
 - Manifests under `standard-interfaces/` and `standard-impls/` caret-depend on
   `sdk` rather than pinning it, because the published interface and
   implementation-component crates are compatible with any SDK patch release.
-- The standard-interface crates (`groundhog-erc20-controls-if`, `groundhog-erc20-if`,
-  `groundhog-erc20-metadata-if`,
-  `groundhog-erc20-pausable-if`, `groundhog-access-control-if`, `groundhog-erc165-if`,
-  `groundhog-erc721-if`,
-  `groundhog-signed-op-if`, `groundhog-erc20-permit-if`) and the
-  `groundhog-access-control`, `groundhog-signed-op` and `groundhog-sep41`
+- The standard-interface crates (`thruput-erc20-controls-if`, `thruput-erc20-if`,
+  `thruput-erc20-metadata-if`,
+  `thruput-erc20-pausable-if`, `thruput-access-control-if`, `thruput-erc165-if`,
+  `thruput-erc721-if`,
+  `thruput-signed-op-if`, `thruput-erc20-permit-if`) and the
+  `thruput-access-control`, `thruput-signed-op` and `thruput-sep41`
   components, plus
   `bottle-test-if` and
   `version-mismatch-helper`, declare their own versions instead of inheriting
   the workspace version.
-- `groundhog-rv32-runtime` is absent from `default-members`, because a
+- `thruput-rv32-runtime` is absent from `default-members`, because a
   top-level `compile_error!` rejects the host target.
 - `hex-literal` and `thiserror` pin sites under `integration_test/contracts/`
   are excluded from `external-agreement`, pending a PR to the

@@ -94,7 +94,7 @@ pub fn crate_id_tokens(
 /// non-zero component, so semver-compatible releases share an id and only a
 /// breaking release changes it. `None` takes the declaring crate's version.
 fn major_tokens(version: Option<&str>) -> String {
-    groundhog_contract_util::semver::major_version_from_string(
+    thruput_contract_util::semver::major_version_from_string(
         &version.map_or_else(
             crate::common::contract::interface_vers_default,
             str::to_string,

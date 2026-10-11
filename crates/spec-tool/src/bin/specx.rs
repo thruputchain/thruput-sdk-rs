@@ -3,7 +3,7 @@
 //!
 //! Usage: `specx <elf> <out_spec_json>`
 
-use groundhog_spec_tool::{
+use thruput_spec_tool::{
     SpecSection, check_raw_spec_format, classify_section, render_spec_json,
 };
 
@@ -82,7 +82,7 @@ fn main() {
             SpecSection::Raw(format) => {
                 check_raw_spec_format(format).expect("raw spec format skew");
                 raw_fragments.extend(
-                    groundhog_spec_tool::parse_raw_fragments(data)
+                    thruput_spec_tool::parse_raw_fragments(data)
                         .expect("parse raw fragments"),
                 );
             }
@@ -97,9 +97,9 @@ fn main() {
     }
 
     let spec = if !raw_fragments.is_empty() {
-        match groundhog_spec_tool::canonicalize_spec(&raw_fragments) {
+        match thruput_spec_tool::canonicalize_spec(&raw_fragments) {
             Ok(spec) => Some(spec),
-            Err(groundhog_spec_tool::SpecToolError::NoSpecFragments) => None,
+            Err(thruput_spec_tool::SpecToolError::NoSpecFragments) => None,
             Err(e) => panic!("canonicalize failed: {e}"),
         }
     } else {

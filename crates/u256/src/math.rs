@@ -568,7 +568,7 @@ impl U256 {
     ///
     /// `Math.modExp` in Solidity is not an implementation: it is a
     /// `staticcall` to the EIP-198 precompile at address `0x05`, so the
-    /// bignum runs as native client code at a flat fee. Groundhog's syscall
+    /// bignum runs as native client code at a flat fee. Thruput's syscall
     /// table -- the actual analogue of the EVM's precompile slots -- carries
     /// `kSHA256` and `kVerifySignature` (EVM `0x02` and `0x01`) but nothing
     /// for modular exponentiation, so this runs *inside* the contract.

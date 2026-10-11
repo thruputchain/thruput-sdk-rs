@@ -185,7 +185,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             );
             stripped.items.push(parse_quote! {
                 /// The identity of this interface at its major version, as
-                /// derived by `groundhog_contract_util::interface_id` from the
+                /// derived by `thruput_contract_util::interface_id` from the
                 /// same (name, MAJOR) pair that namespaces its entrypoint IDs.
                 /// Every implementor inherits it, and every `#[contract]` impl
                 /// of this trait records it in the contract's interface table

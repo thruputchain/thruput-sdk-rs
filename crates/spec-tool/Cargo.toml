@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-spec-tool"
+name = "thruput-spec-tool"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,19 +9,19 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Tools for reading, writing, and canonicalizing Groundhog contract specs"
+description = "Tools for reading, writing, and canonicalizing Thruput contract specs"
 
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
-groundhog-contract-spec = { workspace = true, features = ["alloc", "serde"] }
-groundhog-contract-util = { workspace = true }
-groundhog-erc20-if = { workspace = true }
-groundhog-erc20-pausable-if = { workspace = true }
-groundhog-access-control-if = { workspace = true }
-groundhog-signed-op-if = { workspace = true }
-groundhog-erc20-permit-if = { workspace = true }
+thruput-contract-spec = { workspace = true, features = ["alloc", "serde"] }
+thruput-contract-util = { workspace = true }
+thruput-erc20-if = { workspace = true }
+thruput-erc20-pausable-if = { workspace = true }
+thruput-access-control-if = { workspace = true }
+thruput-signed-op-if = { workspace = true }
+thruput-erc20-permit-if = { workspace = true }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }

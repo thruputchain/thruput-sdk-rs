@@ -1,6 +1,6 @@
 //! SEP-41 as client code over the issuer token's native interfaces.
 use erc20_issuer::*;
-use groundhog_sep41::{SEP41Error, SEP41View};
+use thruput_sep41::{SEP41Error, SEP41View};
 use sdk::*;
 
 const TOKEN: ContractAddress = ContractAddress::new([0x20; 32]);

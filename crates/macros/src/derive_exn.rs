@@ -62,7 +62,7 @@ pub fn expand(args: ExnArgs, item: Item) -> TokenStream {
     let crate_name = std::env::var("CARGO_PKG_NAME")
         .unwrap_or_else(|_| "_unknown_".to_string());
 
-    let selector = groundhog_contract_util::exception_selector(
+    let selector = thruput_contract_util::exception_selector(
         &version,
         &crate_name,
         &type_name,

@@ -22,8 +22,8 @@ use erc20_permit::{
     DeleteAllowanceGrant, DeleteAllowanceRequest, ERC20Client, ERC20Error,
     ERC20PermitClient, ERC20PermitError, PermitGrant, PermitRequest,
 };
-use groundhog_domain_separator::SignedOp as SignedOpPreimage;
-use groundhog_signed_op_if::{Operation, SignedOpClient, SignedOpError};
+use thruput_domain_separator::SignedOp as SignedOpPreimage;
+use thruput_signed_op_if::{Operation, SignedOpClient, SignedOpError};
 use permit_wallet::{PermitWalletClient, WalletRequest};
 use sdk::signer::Signed;
 use sdk::types::transaction::Uniquifier;
@@ -816,7 +816,7 @@ fn signed_transfer_preserves_an_existing_allowance() {
     result.assert_success();
     result.assert_event_count(1);
     result.assert_raw_event(0, |event| {
-        let transfer = groundhog_erc20_if::TransferEvent::try_from(
+        let transfer = thruput_erc20_if::TransferEvent::try_from(
             sdk::EmittedEvent::from(event.raw()),
         )
         .unwrap();

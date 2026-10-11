@@ -61,8 +61,8 @@ fn bottle_test(stem: &str) {
 
     // Print out the transaction's event log
     {
-        use groundhog_erc20_if::*;
         use sdk::EmittedEvent;
+        use thruput_erc20_if::*;
 
         for (i, event) in result.events().iter().enumerate() {
             let event: EmittedEvent = event.into();

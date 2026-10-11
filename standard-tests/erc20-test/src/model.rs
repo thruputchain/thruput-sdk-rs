@@ -1,8 +1,8 @@
 use alloc::collections::BTreeMap as Map;
 use alloc::vec::Vec;
-use groundhog_erc20_if::*;
 use sdk::types::event::TxEmittedEvent;
 use sdk::*;
+use thruput_erc20_if::*;
 
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]

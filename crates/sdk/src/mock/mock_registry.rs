@@ -1,5 +1,5 @@
-use groundhog_native_exec::mock_contract::MockContract;
 use linkme::distributed_slice;
+use thruput_native_exec::mock_contract::MockContract;
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -86,7 +86,7 @@ fn collect_mock_fragments<'a>(
 }
 
 pub fn register_mock_package(
-    env: &groundhog_native_exec::test_environment::TestEnvironmentHandle,
+    env: &thruput_native_exec::test_environment::TestEnvironmentHandle,
     package_name: &str,
 ) -> MockContract {
     let fragments =

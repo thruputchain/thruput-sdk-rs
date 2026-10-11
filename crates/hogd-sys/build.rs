@@ -384,7 +384,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             return Err(
                 "HOGD_FFI_BUILD=1 requires the `source-build` feature so \
                  cmake and bindgen are available.\n\
-                 Build with: cargo build -p groundhog-sys --features source-build"
+                 Build with: cargo build -p thruput-sys --features source-build"
                     .into(),
             );
         }
@@ -402,7 +402,7 @@ fn run_prebuilt_download(
         .unwrap()
         .parent()
         .unwrap()
-        .join("groundhog-sys.fslock");
+        .join("thruput-sys.fslock");
     let mut lockfile = fslock::LockFile::open(&lock_path)
         .expect("bug: could not open build lock file");
     lockfile.lock_with_pid().expect(

@@ -1,6 +1,6 @@
-use groundhog_xdr::syserr::SysErr;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
+use thruput_xdr::syserr::SysErr;
 
 /// Perform one guest syscall against the mocked FFI handler, returning its
 /// result code. Host-side terminations unwind with the matching
@@ -16,8 +16,8 @@ pub fn perform_mocked_syscall(
     arg6: u64,
     arg7: u64,
 ) -> i32 {
-    let result: groundhog_sys::ForeignHostFnResult = unsafe {
-        groundhog_sys::mock_syscall_entrypoint(
+    let result: thruput_sys::ForeignHostFnResult = unsafe {
+        thruput_sys::mock_syscall_entrypoint(
             syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
         )
     };
@@ -53,11 +53,11 @@ pub fn perform_mocked_syscall(
     }
 }
 
-/// The symbol groundhog-xdr's `syscalls_mock` extern declaration links
+/// The symbol thruput-xdr's `syscalls_mock` extern declaration links
 /// against; forwards to [`perform_mocked_syscall`].
 #[unsafe(no_mangle)]
 pub extern "C-unwind" fn syscall_wrapper_impl(
-    // Matches groundhog-xdr's `syscalls_mock` extern declaration, which passes
+    // Matches thruput-xdr's `syscalls_mock` extern declaration, which passes
     // `SyscallNo` widened to a native `SyscallWord` (u64). `SyscallNo` itself is
     // now `repr(transparent)` over a `u32`, so taking it directly here would be
     // an ABI mismatch.

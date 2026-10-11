@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "groundhog-erc20-controls-if/dev", "groundhog-erc20-if/dev", "groundhog-erc20-permit-if/dev", "groundhog-erc165-if/dev"]
+dev = ["sdk/dev", "thruput-erc20-controls-if/dev", "thruput-erc20-if/dev", "thruput-erc20-permit-if/dev", "thruput-erc165-if/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -27,22 +27,22 @@ required-features = ["entrypoints"]
 
 [dependencies]
 sdk.workspace = true
-groundhog-erc20-controls-if.workspace = true
-groundhog-erc20-if.workspace = true
-groundhog-erc20-metadata-if.workspace = true
-groundhog-erc20-permit-if.workspace = true
-groundhog-erc165-if.workspace = true
+thruput-erc20-controls-if.workspace = true
+thruput-erc20-if.workspace = true
+thruput-erc20-metadata-if.workspace = true
+thruput-erc20-permit-if.workspace = true
+thruput-erc165-if.workspace = true
 
 [dev-dependencies]
-groundhog-erc20-if = { workspace = true, features = ["dev"] }
+thruput-erc20-if = { workspace = true, features = ["dev"] }
 erc20_issuer = { path = ".", features = ["dev"] }
-groundhog-sep41 = { workspace = true, features = ["dev"] }
+thruput-sep41 = { workspace = true, features = ["dev"] }
 # Only for SEP41View::is_supported: a contract with ERC-165 but no ERC20, and
 # one without ERC-165.
 erc721 = { path = "../erc721", features = ["dev"] }
 counter = { path = "../counter", features = ["dev"] }
 
 permit_wallet = { path = "../permit_wallet", features = ["dev"] }
-groundhog-signed-op-if = { workspace = true, features = ["dev"] }
-groundhog-domain-separator = { workspace = true, features = ["std"] }
+thruput-signed-op-if = { workspace = true, features = ["dev"] }
+thruput-domain-separator = { workspace = true, features = ["std"] }
 ed25519-dalek.workspace = true

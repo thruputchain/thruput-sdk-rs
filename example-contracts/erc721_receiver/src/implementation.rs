@@ -1,4 +1,4 @@
-use groundhog_erc721_if::{ERC721Receiver, TokenId, TransferData};
+use thruput_erc721_if::{ERC721Receiver, TokenId, TransferData};
 use sdk::storage::Value;
 use sdk::*;
 

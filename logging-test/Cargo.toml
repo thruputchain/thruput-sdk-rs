@@ -16,12 +16,12 @@ members = [
 
 [workspace.package]
 version = "0.2.0"
-authors = ["Groundhog Team"]
+authors = ["Thruput Team"]
 license = "Apache-2.0"
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", version = "=0.50.1", features = ["logging"] }
+sdk = { path = "../crates/sdk", version = "=0.51.0", features = ["logging"] }
 
 [profile.release]
 trim-paths = "all" # unstable

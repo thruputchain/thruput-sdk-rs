@@ -1,8 +1,8 @@
 //! Miscellaneous utility functions for contract development
 
-use groundhog_xdr::contract::ContractEntrypointID;
 use sha2::Digest;
 use std::fmt::{self, Display};
+use thruput_xdr::contract::ContractEntrypointID;
 
 pub mod semver;
 
@@ -155,7 +155,7 @@ pub fn contract_entrypoint_id(
 /// interfaces apart, not resist an adversary. The preimage carries its own
 /// domain tag so an interface ID never collides with an entrypoint ID
 /// preimage. `#[contract]` emits it as `Trait::INTERFACE_ID` and
-/// `<Iface>Entrypoints::INTERFACE_ID`; `groundhog-erc165-if` is the on-chain
+/// `<Iface>Entrypoints::INTERFACE_ID`; `thruput-erc165-if` is the on-chain
 /// query surface for it.
 pub fn interface_id(
     interface_name: Option<&str>,

@@ -21,7 +21,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test-if"
-version = "0.50.1"
+version = "0.51.0"
 dependencies = [
  "sdk",
 ]
@@ -147,10 +147,10 @@ name = "default_wallet"
 version = "0.1.0"
 dependencies = [
  "default_wallet",
- "groundhog-domain-separator",
- "groundhog-erc20-if",
- "groundhog-xdr",
  "sdk",
+ "thruput-domain-separator",
+ "thruput-erc20-if",
+ "thruput-xdr",
 ]
 
 [[package]]
@@ -166,8 +166,8 @@ name = "deploy_and_transfer"
 version = "0.1.0"
 dependencies = [
  "deploy_and_transfer",
- "groundhog-erc20-if",
  "sdk",
+ "thruput-erc20-if",
 ]
 
 [[package]]
@@ -175,8 +175,8 @@ name = "dev_wallet"
 version = "0.1.0"
 dependencies = [
  "dev_wallet",
- "groundhog-erc20-if",
  "sdk",
+ "thruput-erc20-if",
 ]
 
 [[package]]
@@ -238,22 +238,22 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
 name = "erc20-native-test"
-version = "0.50.1"
+version = "0.51.0"
 dependencies = [
  "erc20-test",
- "groundhog-erc20-if",
- "groundhog-xdr",
  "sdk",
  "thiserror",
+ "thruput-erc20-if",
+ "thruput-xdr",
 ]
 
 [[package]]
 name = "erc20-test"
-version = "0.50.1"
+version = "0.51.0"
 dependencies = [
- "groundhog-erc20-if",
  "sdk",
  "thiserror",
+ "thruput-erc20-if",
 ]
 
 [[package]]
@@ -309,8 +309,8 @@ name = "genesis_root"
 version = "0.1.0"
 dependencies = [
  "genesis_root",
- "groundhog-erc20-if",
  "sdk",
+ "thruput-erc20-if",
 ]
 
 [[package]]
@@ -323,177 +323,6 @@ dependencies = [
  "libc",
  "r-efi",
  "rand_core",
-]
-
-[[package]]
-name = "groundhog-contract-spec"
-version = "0.50.1"
-dependencies = [
- "groundhog-spec",
- "groundhog-xdr",
- "heapless",
- "xdr-common",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-contract-util"
-version = "0.50.1"
-dependencies = [
- "groundhog-xdr",
- "sha2",
- "syn 3.0.4",
-]
-
-[[package]]
-name = "groundhog-domain-separator"
-version = "0.50.1"
-dependencies = [
- "groundhog-contract-spec",
- "groundhog-xdr",
- "sha2",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-erc20-if"
-version = "0.1.54"
-dependencies = [
- "groundhog-xdr",
- "sdk",
- "thiserror",
-]
-
-[[package]]
-name = "groundhog-event"
-version = "0.50.1"
-dependencies = [
- "groundhog-xdr",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-exn"
-version = "0.50.1"
-dependencies = [
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-macros"
-version = "0.50.1"
-dependencies = [
- "darling",
- "groundhog-contract-util",
- "groundhog-xdr",
- "proc-macro2",
- "quote",
- "sha2",
- "syn 3.0.4",
-]
-
-[[package]]
-name = "groundhog-native-exec"
-version = "0.50.1"
-dependencies = [
- "groundhog-event",
- "groundhog-exn",
- "groundhog-storage-cost",
- "groundhog-sys",
- "groundhog-trace",
- "groundhog-xdr",
- "hogexec-internal",
- "sha2",
- "xdr-common",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-rv32-runtime"
-version = "0.50.1"
-
-[[package]]
-name = "groundhog-spec"
-version = "0.53.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "44696589d264b23eda05602105486048d6bdb333497593ed1144065590fbb22c"
-dependencies = [
- "groundhog-xdr",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-storage-cost"
-version = "0.50.1"
-dependencies = [
- "groundhog-xdr",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-sys"
-version = "0.50.1"
-dependencies = [
- "fslock",
- "sha2",
- "thiserror",
-]
-
-[[package]]
-name = "groundhog-syscall"
-version = "0.53.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "7cfbcaee1185681c7e11180a89d104415186df98a0bd02dfbf1c9a3d4f5e33cd"
-
-[[package]]
-name = "groundhog-trace"
-version = "0.53.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "356999532297c1e6c0eb572ea13d034b24e217863c57aee3dc6cd9d54bb8e1a6"
-dependencies = [
- "groundhog-xdr",
- "hogexec-internal",
- "schemars",
- "xdr-common",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-u256"
-version = "0.50.1"
-dependencies = [
- "groundhog-contract-spec",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-xdr"
-version = "0.53.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "484de4908fbb31edc6a139d748586a6307d3c1f79f3b8f7cc89f4131724a0c9a"
-dependencies = [
- "groundhog-syscall",
- "groundhog-xdr-macros",
- "schemars",
- "serde",
- "thiserror",
- "xdr-common",
- "xdrs",
-]
-
-[[package]]
-name = "groundhog-xdr-macros"
-version = "0.53.0"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "3f5ad302e3ff64c750e1891096eccb1e6b1379506be8f75d5fd538088de6c926"
-dependencies = [
- "darling",
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "serde_yaml",
- "syn 3.0.4",
 ]
 
 [[package]]
@@ -538,9 +367,9 @@ checksum = "e712f64ec3850b98572bffac52e2c6f282b29fe6c5fa6d42334b30be438d95c1"
 
 [[package]]
 name = "hogexec-internal"
-version = "0.53.0"
+version = "0.54.0"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "1fbab5a20532b493cee3bfd77196bfca6df9d7f1b30c568c9c4670ea547defc4"
+checksum = "038b25a179dfe30cb16d8ce9710f720ea08edde3396e146d585375fdc82491a1"
 dependencies = [
  "xdrs",
 ]
@@ -549,9 +378,9 @@ dependencies = [
 name = "htlc"
 version = "0.1.0"
 dependencies = [
- "groundhog-erc20-if",
  "htlc",
  "sdk",
+ "thruput-erc20-if",
 ]
 
 [[package]]
@@ -584,9 +413,9 @@ name = "itc_erc20"
 version = "0.2.0"
 dependencies = [
  "erc20-native-test",
- "groundhog-erc20-if",
  "itc_erc20",
  "sdk",
+ "thruput-erc20-if",
 ]
 
 [[package]]
@@ -631,10 +460,10 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 name = "no_syscall_test"
 version = "0.1.0"
 dependencies = [
- "groundhog-syscall",
- "groundhog-xdr",
  "no_syscall_test",
  "sdk",
+ "thruput-syscall",
+ "thruput-xdr",
 ]
 
 [[package]]
@@ -648,9 +477,9 @@ dependencies = [
 name = "payment_channel"
 version = "0.1.0"
 dependencies = [
- "groundhog-erc20-if",
  "payment_channel",
  "sdk",
+ "thruput-erc20-if",
 ]
 
 [[package]]
@@ -688,11 +517,11 @@ name = "read_only_test"
 version = "0.2.0"
 dependencies = [
  "bottle-test-if",
- "groundhog-erc20-if",
- "groundhog-syscall",
- "groundhog-xdr",
  "read_only_test",
  "sdk",
+ "thruput-erc20-if",
+ "thruput-syscall",
+ "thruput-xdr",
 ]
 
 [[package]]
@@ -772,22 +601,22 @@ dependencies = [
 
 [[package]]
 name = "sdk"
-version = "0.50.1"
+version = "0.51.0"
 dependencies = [
- "groundhog-contract-spec",
- "groundhog-event",
- "groundhog-exn",
- "groundhog-macros",
- "groundhog-native-exec",
- "groundhog-rv32-runtime",
- "groundhog-storage-cost",
- "groundhog-u256",
- "groundhog-xdr",
  "heapless",
  "hogexec-internal",
  "linkme",
  "sha2",
  "thiserror",
+ "thruput-contract-spec",
+ "thruput-event",
+ "thruput-exn",
+ "thruput-macros",
+ "thruput-native-exec",
+ "thruput-rv32-runtime",
+ "thruput-storage-cost",
+ "thruput-u256",
+ "thruput-xdr",
  "xdrs",
 ]
 
@@ -962,11 +791,11 @@ dependencies = [
 name = "syscall_misc_tests"
 version = "0.2.0"
 dependencies = [
- "groundhog-syscall",
- "groundhog-xdr",
  "sdk",
  "sha2",
  "syscall_misc_tests",
+ "thruput-syscall",
+ "thruput-xdr",
 ]
 
 [[package]]
@@ -986,6 +815,177 @@ checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
+ "syn 3.0.4",
+]
+
+[[package]]
+name = "thruput-contract-spec"
+version = "0.51.0"
+dependencies = [
+ "heapless",
+ "thruput-spec",
+ "thruput-xdr",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-contract-util"
+version = "0.51.0"
+dependencies = [
+ "sha2",
+ "syn 3.0.4",
+ "thruput-xdr",
+]
+
+[[package]]
+name = "thruput-domain-separator"
+version = "0.51.0"
+dependencies = [
+ "sha2",
+ "thruput-contract-spec",
+ "thruput-xdr",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-erc20-if"
+version = "0.1.55"
+dependencies = [
+ "sdk",
+ "thiserror",
+ "thruput-xdr",
+]
+
+[[package]]
+name = "thruput-event"
+version = "0.51.0"
+dependencies = [
+ "thruput-xdr",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-exn"
+version = "0.51.0"
+dependencies = [
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-macros"
+version = "0.51.0"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "sha2",
+ "syn 3.0.4",
+ "thruput-contract-util",
+ "thruput-xdr",
+]
+
+[[package]]
+name = "thruput-native-exec"
+version = "0.51.0"
+dependencies = [
+ "hogexec-internal",
+ "sha2",
+ "thruput-event",
+ "thruput-exn",
+ "thruput-storage-cost",
+ "thruput-sys",
+ "thruput-trace",
+ "thruput-xdr",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-rv32-runtime"
+version = "0.51.0"
+
+[[package]]
+name = "thruput-spec"
+version = "0.54.0"
+source = "sparse+https://crates.thruput.network/api/v1/crates/"
+checksum = "9e937d2e7c7ab7dede1fbfc22562477b9d792169ae0f56765a24d154f16fcccf"
+dependencies = [
+ "thruput-xdr",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-storage-cost"
+version = "0.51.0"
+dependencies = [
+ "thruput-xdr",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-sys"
+version = "0.51.0"
+dependencies = [
+ "fslock",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "thruput-syscall"
+version = "0.54.0"
+source = "sparse+https://crates.thruput.network/api/v1/crates/"
+checksum = "dcf76d420945fbb2d001a1a7ff5df8e2e1e1db3dedda87e0d8cd7163a0ec7309"
+
+[[package]]
+name = "thruput-trace"
+version = "0.54.0"
+source = "sparse+https://crates.thruput.network/api/v1/crates/"
+checksum = "13bf190c39c219b245739140c422f5a302d6f93dccc4b91fa102e19a9cf5e673"
+dependencies = [
+ "hogexec-internal",
+ "schemars",
+ "thruput-xdr",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-u256"
+version = "0.51.0"
+dependencies = [
+ "thruput-contract-spec",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-xdr"
+version = "0.54.0"
+source = "sparse+https://crates.thruput.network/api/v1/crates/"
+checksum = "d0456ea3a43ad5b1008b65093c05d4422326aa1e18f655363497bc6e140509bf"
+dependencies = [
+ "schemars",
+ "serde",
+ "thiserror",
+ "thruput-syscall",
+ "thruput-xdr-macros",
+ "xdr-common",
+ "xdrs",
+]
+
+[[package]]
+name = "thruput-xdr-macros"
+version = "0.54.0"
+source = "sparse+https://crates.thruput.network/api/v1/crates/"
+checksum = "7f7ee4b275f8416292a95579a4a7dd52b35475fb374a9f43d82375c90037c43f"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "serde_yaml",
  "syn 3.0.4",
 ]
 
@@ -1019,8 +1019,8 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 name = "view_gateway_test"
 version = "0.2.0"
 dependencies = [
- "groundhog-xdr",
  "sdk",
+ "thruput-xdr",
 ]
 
 [[package]]

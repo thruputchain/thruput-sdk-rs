@@ -4,7 +4,7 @@
 //! `#[contract]` macros emit them (as const views) and spec-tool parses and
 //! canonicalizes them. Downstream consumers only ever see the finalized
 //! `ContractSpec`, so the fragment types live here rather than in the
-//! protocol-level `groundhog-spec` crate.
+//! protocol-level `thruput-spec` crate.
 //!
 //! These types are the raw wire format. Any change to their encoding — a new
 //! field, a new variant, a reordering — must bump
@@ -12,7 +12,7 @@
 //! [`crate::format`]. The stream is unframed, so a consumer that disagrees
 //! about the layout desynchronizes rather than failing cleanly.
 
-use groundhog_spec::{
+use thruput_spec::{
     ContractEventDef, ContractExceptionType, ContractSpecId,
     ContractSpecMethod, ContractSpecString, ContractTypeDef,
 };

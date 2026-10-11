@@ -2,8 +2,8 @@
 
 use alloc::vec::Vec;
 
-use groundhog_xdr::transaction::Transaction;
-use groundhog_xdr::types::NetworkHash;
+use thruput_xdr::transaction::Transaction;
+use thruput_xdr::types::NetworkHash;
 use xdrs::WriteResult;
 
 use crate::TRANSACTION;
@@ -49,12 +49,10 @@ pub fn transaction_signature_preimage(
 mod tests {
     use super::*;
     use alloc::vec;
-    use groundhog_xdr::auth_claim::{
-        AuthClaim, AuthClaim_source_address_claim,
-    };
-    use groundhog_xdr::contract::ContractEntrypointID;
-    use groundhog_xdr::transaction::{Invocation, Uniquifier};
-    use groundhog_xdr::types::{BlockHeight, ContractAddress, SHA256Hash};
+    use thruput_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
+    use thruput_xdr::contract::ContractEntrypointID;
+    use thruput_xdr::transaction::{Invocation, Uniquifier};
+    use thruput_xdr::types::{BlockHeight, ContractAddress, SHA256Hash};
     use xdrs::{BytesM, VecM};
 
     fn sample_tx() -> Transaction {

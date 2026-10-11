@@ -6,6 +6,38 @@ use quote::{format_ident, quote};
 use syn::spanned::Spanned;
 use syn::{DeriveInput, Fields, GenericParam, Result};
 
+#[derive(Debug, Default, darling::FromMeta)]
+struct EventSpecArgs {
+    #[darling(default)]
+    export: bool,
+    wire_crate: Option<darling::util::SpannedValue<String>>,
+}
+
+fn event_spec_args(input: &DeriveInput) -> Result<EventSpecArgs> {
+    use darling::FromMeta;
+    let mut result = EventSpecArgs::default();
+    for attr in input
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("event_spec"))
+    {
+        let args = EventSpecArgs::from_meta(&attr.meta)
+            .map_err(|err| syn::Error::new_spanned(attr, err.to_string()))?;
+        result.export |= args.export;
+        if let Some(name) = args.wire_crate {
+            if result.wire_crate.is_some() {
+                return Err(syn::Error::new_spanned(
+                    attr,
+                    "wire_crate may be specified only once",
+                ));
+            }
+            crate::common::util::validate_wire_crate_name(name.span(), &name)?;
+            result.wire_crate = Some(name);
+        }
+    }
+    Ok(result)
+}
+
 /// Returns (topic_fields, payload_fields).
 fn partition_fields(
     fields: &Fields,
@@ -70,6 +102,7 @@ fn emit_event_spec(
     sig_bytes: &[u8; 32],
     topics: &[&syn::Field],
     payload: &[&syn::Field],
+    export: bool,
 ) -> Result<TokenStream> {
     let ident = &input.ident;
     let (impl_generics, ty_generics, where_clause) =
@@ -78,7 +111,7 @@ fn emit_event_spec(
     // The same id every spec-named item carries. An interface's `emits(...)`
     // entry reads this def's `name`, so the reference follows the event here
     // rather than repeating its ident. The `signature` below is untouched: it
-    // is the on-wire topic-0 discriminator, hashed from the crate, major
+    // is the on-wire topic-0 discriminator, hashed from the wire crate, major
     // version and ident, and moving it would break every deployed indexer.
     let id = crate::common::spec_id::spec_id_tokens(
         &crate::common::contract::sdk_crate_path(),
@@ -113,23 +146,6 @@ fn emit_event_spec(
         }
     });
 
-    let export = {
-        use darling::FromMeta;
-        #[derive(Debug, Default, FromMeta)]
-        struct EventSpecArgs {
-            #[darling(default)]
-            export: bool,
-        }
-        input
-            .attrs
-            .iter()
-            .filter(|attr| attr.path().is_ident("event_spec"))
-            .try_fold(false, |acc, attr| {
-                let args = EventSpecArgs::from_meta(&attr.meta)?;
-                Ok::<_, darling::Error>(acc || args.export)
-            })
-            .map_err(|e| syn::Error::new_spanned(ident, e.to_string()))?
-    };
     let exported_fragment = if export {
         emit_exported_event_fragment(ident, &def_ident, &anchor_fn_ident)
     } else {
@@ -198,7 +214,7 @@ fn emit_exported_event_fragment(
         format_ident!("__groundhog_spec_raw_event_fragment_{ident}");
 
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
     // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
@@ -256,9 +272,10 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         ));
     };
 
+    let args = event_spec_args(input)?;
     let (topics, payload) = partition_fields(&data.fields)?;
 
-    let max_topics = groundhog_xdr::event::kMaxTopics as usize;
+    let max_topics = thruput_xdr::event::kMaxTopics as usize;
     let total_topics = topics.len() + 1; // signature topic
     if total_topics > max_topics {
         return Err(syn::Error::new_spanned(
@@ -281,9 +298,15 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
     let type_name = ident.to_string();
     let version = std::env::var("CARGO_PKG_VERSION")
         .unwrap_or_else(|_| "0.0.0".to_string());
-    let crate_name = std::env::var("CARGO_PKG_NAME")
-        .unwrap_or_else(|_| "_unknown_".to_string());
-    let sig_bytes = groundhog_contract_util::event_signature(
+    let crate_name = args
+        .wire_crate
+        .as_ref()
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| {
+            std::env::var("CARGO_PKG_NAME")
+                .unwrap_or_else(|_| "_unknown_".to_string())
+        });
+    let sig_bytes = thruput_contract_util::event_signature(
         &version,
         &crate_name,
         &type_name,
@@ -292,8 +315,14 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
     let sig_array = sig_bytes.iter().copied();
 
     // --- Spec definition (ContractEventSpec impl + optional exported fragment) ---
-    let event_spec =
-        emit_event_spec(input, &type_name, &sig_bytes, &topics, &payload)?;
+    let event_spec = emit_event_spec(
+        input,
+        &type_name,
+        &sig_bytes,
+        &topics,
+        &payload,
+        args.export,
+    )?;
 
     // --- Event impl ---
     let num_topics = (topics.len() + 1) as u32; // +1 for SIGNATURE at index 0
@@ -455,6 +484,33 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn ambiguous_or_invalid_wire_crates_are_rejected() {
+        let duplicate: syn::DeriveInput = syn::parse_quote! {
+            #[event_spec(wire_crate = "first-package")]
+            #[event_spec(wire_crate = "second-package")]
+            struct Event { amount: u32 }
+        };
+        assert!(
+            super::expand(&duplicate)
+                .unwrap_err()
+                .to_string()
+                .contains("only once")
+        );
+        for name in ["", "other::package", "white space"] {
+            let invalid: syn::DeriveInput = syn::parse_quote! {
+                #[event_spec(wire_crate = #name)]
+                struct Event { amount: u32 }
+            };
+            assert!(
+                super::expand(&invalid)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("wire_crate must be")
+            );
+        }
+    }
+
     use super::expand;
 
     #[test]

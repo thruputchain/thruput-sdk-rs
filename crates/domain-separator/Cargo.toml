@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-domain-separator"
+name = "thruput-domain-separator"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,28 +9,28 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Domain-separated hash derivation for Groundhog (pubkey account addresses, etc.)"
+description = "Domain-separated hash derivation for Thruput (pubkey account addresses, etc.)"
 
 [lib]
 crate-type = ["rlib"]
 
 [dependencies]
-groundhog-contract-spec = { workspace = true }
-groundhog-xdr = { workspace = true, features = ["xdrs"] }
+thruput-contract-spec = { workspace = true }
+thruput-xdr = { workspace = true, features = ["xdrs"] }
 xdrs = { workspace = true, features = ["derive"] }
 sha2 = { workspace = true, optional = true }
 
 [dev-dependencies]
-groundhog-macros = { workspace = true }
+thruput-macros = { workspace = true }
 hex-literal = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["alloc", "sha2", "groundhog-xdr/std"]
-alloc = ["xdrs/alloc", "groundhog-xdr/alloc", "groundhog-contract-spec/alloc"]
+std = ["alloc", "sha2", "thruput-xdr/std"]
+alloc = ["xdrs/alloc", "thruput-xdr/alloc", "thruput-contract-spec/alloc"]
 sha2 = ["dep:sha2"]
-syscall = ["groundhog-xdr/syscalls"]
-# Gives `syscall` a dispatch path on the host, where `groundhog-xdr/syscalls`
+syscall = ["thruput-xdr/syscalls"]
+# Gives `syscall` a dispatch path on the host, where `thruput-xdr/syscalls`
 # has none. Needed by anything running a contract frame natively (native-exec)
 # and by host `--all-features` builds, which enable `syscall` unconditionally.
-syscall-mock = ["syscall", "groundhog-xdr/syscalls_mock"]
+syscall-mock = ["syscall", "thruput-xdr/syscalls_mock"]

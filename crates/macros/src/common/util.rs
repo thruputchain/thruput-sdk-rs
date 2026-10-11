@@ -116,7 +116,7 @@ pub fn validate_version_string(
     span: proc_macro2::Span,
     version: &str,
 ) -> Result<(), Error> {
-    if groundhog_contract_util::semver::try_major_version_from_string(version)
+    if thruput_contract_util::semver::try_major_version_from_string(version)
         .is_none()
     {
         return Err(Error::new(
@@ -172,6 +172,24 @@ pub fn validate_spec_name(
                  the final segment of the spec id; the module path comes \
                  from where the type is declared)"
             ),
+        ));
+    }
+    Ok(())
+}
+
+/// Validate an explicit package label used only in an on-wire hash preimage.
+pub fn validate_wire_crate_name(
+    span: proc_macro2::Span,
+    name: &str,
+) -> syn::Result<()> {
+    if name.is_empty()
+        || !name
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+    {
+        return Err(syn::Error::new(
+            span,
+            "wire_crate must be a non-empty package label containing only ASCII letters, digits, '-' or '_'",
         ));
     }
     Ok(())

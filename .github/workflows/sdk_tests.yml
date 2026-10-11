@@ -21,7 +21,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux-2604
     env:
-      # Share one FFI download cache across every groundhog-sys build instance
+      # Share one FFI download cache across every thruput-sys build instance
       # (and across runs, via the Namespace cache below). Without this the cache
       # defaults to each instance's OUT_DIR, so every workspace/feature variant
       # re-downloads the prebuilt FFI tarball.

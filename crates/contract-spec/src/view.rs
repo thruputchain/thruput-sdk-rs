@@ -274,7 +274,7 @@ pub struct SpecMethodFragmentView<'a> {
 
 /// The "include this interface" marker an impl emits so the post-processor
 /// retains a trait's (otherwise candidate) interface spec. Mirrors
-/// `groundhog_spec::SpecInterfaceAnchor`.
+/// `thruput_spec::SpecInterfaceAnchor`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct SpecInterfaceAnchorView<'a> {
     pub interface_name: &'a str,

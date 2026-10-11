@@ -8,9 +8,9 @@
 
 use alloc::vec::Vec;
 
-use groundhog_contract_spec::ContractTypeSpec;
-use groundhog_xdr::transaction::Uniquifier;
-use groundhog_xdr::types::{ContractAddress, NetworkHash};
+use thruput_contract_spec::ContractTypeSpec;
+use thruput_xdr::transaction::Uniquifier;
+use thruput_xdr::types::{ContractAddress, NetworkHash};
 use xdrs::{WriteResult, WriteXDR, Writer, WriterUnchecked};
 
 use crate::SIGNED_OP;
@@ -85,7 +85,7 @@ impl<T: WriteXDR + ContractTypeSpec + ?Sized> WriteXDR for SignedOp<'_, T> {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use groundhog_contract_spec::{ContractSpecIdView, ContractTypeName};
+    use thruput_contract_spec::{ContractSpecIdView, ContractTypeName};
 
     /// Id for a fixture below. Only `declared` varies, so `GrantV2` keeping
     /// `Grant`'s name still collides on the whole id -- which is the point of
@@ -100,8 +100,8 @@ mod tests {
             declared,
         }
     }
-    use groundhog_macros::ContractTypeSpec as DeriveContractTypeSpec;
-    use groundhog_xdr::types::{BlockHeight, SHA256Hash};
+    use thruput_macros::ContractTypeSpec as DeriveContractTypeSpec;
+    use thruput_xdr::types::{BlockHeight, SHA256Hash};
 
     // Fixtures derive their spec impls through the same derive
     // `#[contract_type]` runs, so they cannot claim a shape the real macro

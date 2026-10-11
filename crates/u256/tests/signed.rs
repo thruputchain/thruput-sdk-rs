@@ -16,7 +16,7 @@
 //! shift-versus-Euclidean-division identity, and the named edges around `MIN`,
 //! where every overflow in the type lives.
 
-use groundhog_u256::{I256, ParseI256Error, Rounding, U256};
+use thruput_u256::{I256, ParseI256Error, Rounding, U256};
 
 uint::construct_uint! {
     /// The unsigned oracle: four 64-bit limbs.

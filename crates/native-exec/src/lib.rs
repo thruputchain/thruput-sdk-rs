@@ -1,4 +1,4 @@
-//! Native execution environment for testing Groundhog contracts in-process.
+//! Native execution environment for testing Thruput contracts in-process.
 //!
 //! The entry point is [`test_environment::TestEnvironment`], an in-memory
 //! groundhog instance against which tests run mocked transactions and

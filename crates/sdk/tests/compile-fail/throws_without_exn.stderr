@@ -13,8 +13,8 @@ help: the trait `Exn` is not implemented for `NotAnExn`
 help: the following other types implement trait `Exn`
   --> src/exn/library.rs
    |
-   | #[groundhog_macros::exn(version = "1.0.0")]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `LibraryExn`
+   | #[thruput_macros::exn(version = "1.0.0")]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `LibraryExn`
    |
   ::: $WORKSPACE/crates/exn/src/lib.rs
    |
@@ -23,7 +23,7 @@ help: the following other types implement trait `Exn`
 ...
    | impl Exn for core::convert::Infallible {
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `Infallible`
-   = note: this error originates in the attribute macro `groundhog_macros::exn` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the attribute macro `thruput_macros::exn` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `NotAnExn` cannot appear in a contract signature
   --> tests/compile-fail/throws_without_exn.rs:10:21

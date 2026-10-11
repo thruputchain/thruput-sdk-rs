@@ -1,11 +1,11 @@
 //! Construct and manipulate contract entrypoint IDs
 
-use groundhog_contract_util::EntrypointSignature;
-pub use groundhog_contract_util::entrypoint_export_name;
-use groundhog_xdr::contract::ContractEntrypointID;
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
 use std::str::FromStr;
+use thruput_contract_util::EntrypointSignature;
+pub use thruput_contract_util::entrypoint_export_name;
+use thruput_xdr::contract::ContractEntrypointID;
 
 pub fn trait_entrypoint_ident(method: &syn::Ident) -> syn::Ident {
     quote::format_ident!("__GROUNDHOG_ENTRYPOINT_{}", method)
@@ -42,13 +42,13 @@ pub fn contract_entrypoint_id(
 }
 
 /// The `::sdk::InterfaceId` literal for an (interface, version) pair, from
-/// [`groundhog_contract_util::interface_id`].
+/// [`thruput_contract_util::interface_id`].
 pub fn interface_id_literal(
     interface_name: Option<&str>,
     version_str: &str,
 ) -> TokenStream {
     let bytes =
-        groundhog_contract_util::interface_id(interface_name, version_str);
+        thruput_contract_util::interface_id(interface_name, version_str);
     quote!([#(#bytes),*])
 }
 

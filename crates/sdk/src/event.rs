@@ -4,8 +4,8 @@ use crate::internal::encode_scratch;
 use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SyscallNo};
 
-// Re-export core event types from groundhog-event
-pub use groundhog_event::{EmittedEvent, Event, Topic, TopicSrc, TypedEvent};
+// Re-export core event types from thruput-event
+pub use thruput_event::{EmittedEvent, Event, Topic, TopicSrc, TypedEvent};
 
 /// Trait for types that can be converted into an event topic.
 ///
@@ -33,10 +33,10 @@ impl IntoTopic for [u8; 32] {
 }
 
 /// Maximum number of topics per event
-pub const EVENT_MAX_TOPICS: u32 = groundhog_xdr::event::kMaxTopics;
+pub const EVENT_MAX_TOPICS: u32 = thruput_xdr::event::kMaxTopics;
 
 /// Maximum size of serialized event data (including the topics)
-pub const EVENT_MAX_DATA: u32 = groundhog_xdr::event::kMaxEventLength;
+pub const EVENT_MAX_DATA: u32 = thruput_xdr::event::kMaxEventLength;
 
 /// Convert any `WriteXDR` value into a topic by XDR-encoding and hashing.
 pub fn hash_to_topic<T: crate::WriteXDR>(val: &T) -> Topic {
@@ -111,7 +111,7 @@ impl<T: IntoTopic + ?Sized> IntoTopic for &T {
 
 /// Emit an event.
 ///
-/// Groundhog currently supports up to three total topics per event. Derived
+/// Thruput currently supports up to three total topics per event. Derived
 /// events typically reserve topic 0 for the event signature, leaving up to two
 /// additional user-declared `#[topic]` fields.
 ///

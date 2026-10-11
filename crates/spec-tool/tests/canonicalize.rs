@@ -1,4 +1,4 @@
-use groundhog_contract_spec::{
+use thruput_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractExceptionType,
     ContractField, ContractSpec, ContractSpecId, ContractSpecMethod,
     ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
@@ -6,7 +6,7 @@ use groundhog_contract_spec::{
     ContractVectorType, SpecFragment, SpecInterfaceAnchor,
     SpecInterfaceFragment, SpecMethodFragment,
 };
-use groundhog_spec_tool::{
+use thruput_spec_tool::{
     SpecToolError, canonicalize_spec, canonicalize_spec_with_exports,
     parse_raw_fragments,
 };
@@ -18,7 +18,7 @@ fn s(value: &str) -> ContractSpecString {
 
 /// A spec id for a test fixture: only `declared` varies, so a fixture reads
 /// the way it used to while still carrying a well-formed id.
-/// How a fixture id renders in a diagnostic, matching groundhog-spec's
+/// How a fixture id renders in a diagnostic, matching thruput-spec's
 /// `Display` for `ContractSpecId`. Spelled out here rather than rendered
 /// through it so a change to the rendering has to be made deliberately in both
 /// places.
@@ -28,7 +28,7 @@ fn id_str(declared: &str) -> String {
 
 /// A declarer id: the trait `declared` in crate `krate`. Declarers differ by
 /// crate here, which is what the collision fixtures turn on.
-/// How a declarer renders in a diagnostic, matching groundhog-spec's `Display`
+/// How a declarer renders in a diagnostic, matching thruput-spec's `Display`
 /// for `ContractSpecId`.
 fn declarer_str(krate: &str, declared: &str) -> String {
     format!("{krate}::{declared} ({krate}@0.1)")
@@ -1256,7 +1256,7 @@ fn canonicalize_spec_exported_type_pulls_in_transitive_deps() {
 // Events
 // ---------------------------------------------------------------------------
 
-use groundhog_contract_spec::ContractEventDef;
+use thruput_contract_spec::ContractEventDef;
 
 fn base_interface_fragments() -> Vec<SpecFragment> {
     vec![
@@ -1872,10 +1872,10 @@ fn selector_conflict_ignored_when_interface_is_unanchored() {
 /// Export-section name of the entrypoint for `iface_name@vers::method`,
 /// computed with the same contract-util function the shaker uses.
 fn export_name(iface_name: &str, vers: &str, method: &str) -> String {
-    groundhog_contract_util::entrypoint_export_name_for(
+    thruput_contract_util::entrypoint_export_name_for(
         Some(iface_name),
         vers,
-        &groundhog_contract_util::NormalizedMethodSignature::new(method),
+        &thruput_contract_util::NormalizedMethodSignature::new(method),
     )
 }
 
@@ -2001,7 +2001,7 @@ fn canonicalize_spec_without_exports_does_not_shake_methods() {
 fn signed_token(preimage_type: ContractType) -> ContractType {
     ContractType::SignedToken {
         signed_token_preimage:
-            groundhog_contract_spec::ContractSignedTokenPreimage {
+            thruput_contract_spec::ContractSignedTokenPreimage {
                 preimage_type: Some(Box::new(preimage_type)),
             },
     }
@@ -2010,7 +2010,7 @@ fn signed_token(preimage_type: ContractType) -> ContractType {
 fn opaque_signed_token() -> ContractType {
     ContractType::SignedToken {
         signed_token_preimage:
-            groundhog_contract_spec::ContractSignedTokenPreimage {
+            thruput_contract_spec::ContractSignedTokenPreimage {
                 preimage_type: None,
             },
     }
@@ -2109,7 +2109,7 @@ fn opaque_signed_token_return_type_canonicalizes() {
                     name: s("is_valid_signature"),
                     args: vec![].try_into().unwrap(),
                     return_type: ContractType::Vector {
-                        vector: groundhog_contract_spec::ContractVectorType {
+                        vector: thruput_contract_spec::ContractVectorType {
                             element: Box::new(opaque_signed_token()),
                             max_len: u32::MAX,
                         },
@@ -2123,7 +2123,7 @@ fn opaque_signed_token_return_type_canonicalizes() {
     assert_eq!(
         spec.interfaces[0].methods[0].return_type,
         ContractType::Vector {
-            vector: groundhog_contract_spec::ContractVectorType {
+            vector: thruput_contract_spec::ContractVectorType {
                 element: Box::new(opaque_signed_token()),
                 max_len: u32::MAX,
             },

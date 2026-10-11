@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "groundhog-erc721-if/dev"]
+dev = ["sdk/dev", "thruput-erc721-if/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -31,7 +31,7 @@ required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }
-groundhog-erc721-if = { workspace = true }
+thruput-erc721-if = { workspace = true }
 
 [dev-dependencies]
 erc721_receiver = { path = ".", features = ["dev"] }

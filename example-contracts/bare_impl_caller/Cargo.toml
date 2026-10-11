@@ -26,4 +26,4 @@ bare_impl_callee = { path = "../bare_impl_callee" }
 
 [dev-dependencies]
 bare_impl_caller = { path = ".", features = ["dev"] }
-groundhog-contract-util = { workspace = true }
+thruput-contract-util = { workspace = true }

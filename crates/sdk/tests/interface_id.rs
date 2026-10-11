@@ -1,13 +1,13 @@
 //! `#[contract]` derives one interface ID per (interface name, major
 //! version): the trait's associated const, the `<Iface>Entrypoints`
 //! wrapper's const, the client's `ContractClient::INTERFACE_ID` and
-//! `groundhog_contract_util::interface_id` must agree, and the ID must move
+//! `thruput_contract_util::interface_id` must agree, and the ID must move
 //! only with the major version.
 
 #![allow(unexpected_cfgs)]
 
-use groundhog_contract_util::interface_id;
 use sdk::*;
+use thruput_contract_util::interface_id;
 
 #[contract(version = "1.2.3")]
 pub trait Counter {

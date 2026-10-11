@@ -13,7 +13,7 @@
 
 use bigint_bench_contract::backend::Backend;
 use bigint_bench_contract::backend::parity::PU256;
-use bigint_bench_contract::backend::u256::GroundhogU256;
+use bigint_bench_contract::backend::u256::ThruputU256;
 use bigint_bench_contract::ops;
 
 /// Deterministic xorshift64* sweep. Fixed seed: a failure must be reproducible.
@@ -80,13 +80,13 @@ fn operand_pairs() -> Vec<((u128, u128), (u128, u128))> {
 /// Asserts `op` agrees between the two backends across the whole sweep.
 fn assert_agrees(
     name: &str,
-    gh: fn(GroundhogU256, GroundhogU256) -> GroundhogU256,
+    gh: fn(ThruputU256, ThruputU256) -> ThruputU256,
     pa: fn(PU256, PU256) -> PU256,
 ) {
     for ((a_hi, a_lo), (b_hi, b_lo)) in operand_pairs() {
         let got = gh(
-            GroundhogU256::from_hi_lo(a_hi, a_lo),
-            GroundhogU256::from_hi_lo(b_hi, b_lo),
+            ThruputU256::from_hi_lo(a_hi, a_lo),
+            ThruputU256::from_hi_lo(b_hi, b_lo),
         )
         .to_be_bytes();
 
@@ -147,11 +147,11 @@ fn digest_depends_on_every_bit() {
         let mut bytes = [0u8; 32];
         bytes[(bit / 8) as usize] = 1 << (bit % 8);
 
-        let zero_gh = GroundhogU256::from_be_bytes([0; 32]).digest();
+        let zero_gh = ThruputU256::from_be_bytes([0; 32]).digest();
         let zero_pa = PU256::from_be_bytes([0; 32]).digest();
 
         assert_ne!(
-            GroundhogU256::from_be_bytes(bytes).digest(),
+            ThruputU256::from_be_bytes(bytes).digest(),
             zero_gh,
             "u256 digest ignores bit {bit}"
         );

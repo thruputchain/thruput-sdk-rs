@@ -81,7 +81,7 @@ fn test_exhaustion_throws_typed_abort() {
 #[test]
 fn test_derivation_pins_no_streams() {
     let env = TestEnvironment::no_cost();
-    use groundhog_xdr::network_config::{ConfigParam, NetworkConfig};
+    use thruput_xdr::network_config::{ConfigParam, NetworkConfig};
     let NetworkConfig::_0 { v0 } = env.get_network_config() else {
         panic!("unsupported test network configuration version");
     };

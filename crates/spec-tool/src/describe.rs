@@ -1,8 +1,8 @@
-use groundhog_contract_spec::{
+use std::io::{self, Write};
+use thruput_contract_spec::{
     ContractExceptionType, ContractSpecIdView, ContractType, ContractTypeDef,
     ContractTypeName, SpecFragmentView,
 };
-use std::io::{self, Write};
 use xdrs::txs;
 
 pub struct DescribableType {
@@ -13,9 +13,8 @@ pub struct DescribableType {
     /// [`ContractTypeName`] rather than spelled out, so it is whatever that
     /// type calls itself and cannot skew from the def in `fragments`.
     ///
-    /// The selector invariant test below recomputes each selector from this
-    /// id, so an entry is checked against the identity its type actually
-    /// emits rather than against a copy repeated here.
+    /// The spec identity is distinct from the wire preimage when an exception
+    /// explicitly pins `wire_crate`, as the native token precompile requires.
     pub root: ContractSpecIdView<'static>,
 }
 
@@ -29,21 +28,21 @@ const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
 ];
 
 const ERC20_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
-    &[groundhog_erc20_if::__groundhog_spec_fragment_ERC20Error];
+    &[thruput_erc20_if::__groundhog_spec_fragment_ERC20Error];
 
 const ERC20_PAUSABLE_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
-    groundhog_erc20_pausable_if::__groundhog_spec_fragment_ERC20PausableError,
+    thruput_erc20_pausable_if::__groundhog_spec_fragment_ERC20PausableError,
 ];
 
 const ACCESS_CONTROL_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
-    groundhog_access_control_if::__groundhog_spec_fragment_AccessControlError,
+    thruput_access_control_if::__groundhog_spec_fragment_AccessControlError,
 ];
 
 const SIGNED_OP_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
-    &[groundhog_signed_op_if::__groundhog_spec_fragment_SignedOpError];
+    &[thruput_signed_op_if::__groundhog_spec_fragment_SignedOpError];
 
 const ERC20_PERMIT_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
-    &[groundhog_erc20_permit_if::__groundhog_spec_fragment_ERC20PermitError];
+    &[thruput_erc20_permit_if::__groundhog_spec_fragment_ERC20PermitError];
 
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {
@@ -54,37 +53,37 @@ pub const REGISTRY: &[DescribableType] = &[
     },
     DescribableType {
         name: "ERC20Error",
-        selector: <groundhog_erc20_if::ERC20Error as sdk::exn::Exn>::SELECTOR,
+        selector: <thruput_erc20_if::ERC20Error as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_ERROR_FRAGMENTS,
-        root: <groundhog_erc20_if::ERC20Error as ContractTypeName>::NAME,
+        root: <thruput_erc20_if::ERC20Error as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20PausableError",
-        selector: <groundhog_erc20_pausable_if::ERC20PausableError
+        selector: <thruput_erc20_pausable_if::ERC20PausableError
             as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PAUSABLE_ERROR_FRAGMENTS,
-        root: <groundhog_erc20_pausable_if::ERC20PausableError as ContractTypeName>::NAME,
+        root: <thruput_erc20_pausable_if::ERC20PausableError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "AccessControlError",
-        selector: <groundhog_access_control_if::AccessControlError
+        selector: <thruput_access_control_if::AccessControlError
             as sdk::exn::Exn>::SELECTOR,
         fragments: ACCESS_CONTROL_ERROR_FRAGMENTS,
-        root: <groundhog_access_control_if::AccessControlError as ContractTypeName>::NAME,
+        root: <thruput_access_control_if::AccessControlError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "SignedOpError",
         selector:
-            <groundhog_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
+            <thruput_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
         fragments: SIGNED_OP_ERROR_FRAGMENTS,
-        root: <groundhog_signed_op_if::SignedOpError as ContractTypeName>::NAME,
+        root: <thruput_signed_op_if::SignedOpError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20PermitError",
         selector:
-            <groundhog_erc20_permit_if::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
+            <thruput_erc20_permit_if::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PERMIT_ERROR_FRAGMENTS,
-        root: <groundhog_erc20_permit_if::ERC20PermitError as ContractTypeName>::NAME,
+        root: <thruput_erc20_permit_if::ERC20PermitError as ContractTypeName>::NAME,
     },
 ];
 
@@ -178,10 +177,17 @@ mod registry_tests {
     #[test]
     fn selectors_match_recorded_preimage() {
         for entry in REGISTRY {
+            // These protocol-defined selectors retain their pre-rename package
+            // labels; all other entries use their declaring package's identity.
+            let wire_crate = match entry.name {
+                "ERC20Error" => "groundhog-erc20-if",
+                "ERC20PermitError" => "groundhog-erc20-permit-if",
+                _ => entry.root.crate_name,
+            };
             let expected =
-                groundhog_contract_util::exception_selector_from_major(
+                thruput_contract_util::exception_selector_from_major(
                     entry.root.major,
-                    entry.root.crate_name,
+                    wire_crate,
                     entry.root.declared,
                 );
             assert_eq!(
@@ -192,7 +198,7 @@ mod registry_tests {
                 entry.name,
                 entry.selector,
                 entry.root.major,
-                entry.root.crate_name,
+                wire_crate,
                 entry.root.declared,
                 expected,
             );

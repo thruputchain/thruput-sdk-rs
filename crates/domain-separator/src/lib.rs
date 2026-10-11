@@ -1,6 +1,6 @@
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
-//! Domain-separated hash derivation for Groundhog.
+//! Domain-separated hash derivation for Thruput.
 //!
 //! Derives `sha256( cxs(DomainSeparator) || cxs(object) )`, matching the C++
 //! validator. The domain-separator prefix is baked into rodata at compile time
@@ -37,7 +37,7 @@ extern crate alloc;
 // silent substitution. Guests want `syscall`.
 #[cfg(all(feature = "sha2", target_arch = "riscv32"))]
 compile_error!(
-    "groundhog-domain-separator: the `sha2` backend must not be linked into a \
+    "thruput-domain-separator: the `sha2` backend must not be linked into a \
      guest contract; use the `syscall` backend"
 );
 
@@ -67,11 +67,11 @@ pub use operation::SignedOp;
 
 /// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what `sdk`
 /// re-exports, so test fixtures can derive their spec impls instead of
-/// hand-writing them. `groundhog-u256` has the same shim.
+/// hand-writing them. `thruput-u256` has the same shim.
 #[cfg(test)]
 #[doc(hidden)]
 pub mod __sdk_paths {
-    pub use groundhog_contract_spec as __contract_spec;
+    pub use thruput_contract_spec as __contract_spec;
     pub use xdrs as __xdrs;
 }
 

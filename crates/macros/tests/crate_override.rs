@@ -1,25 +1,25 @@
 //! `#[contract_type_spec(crate = "...")]` from a crate below `sdk`.
 //!
 //! This test crate deliberately has no `sdk` dependency — only
-//! `groundhog-contract-spec` and `xdrs`, both of which `sdk` merely re-exports
+//! `thruput-contract-spec` and `xdrs`, both of which `sdk` merely re-exports
 //! as `__contract_spec` and `__xdrs`. That it compiles at all is the proof: a
 //! crate that `sdk` depends on can derive its contract-spec impls instead of
 //! hand-writing them, without forming a dependency cycle.
 //!
 //! The type mirrors `crates/u256`'s `U256`, the motivating consumer.
 
-use groundhog_macros::ContractTypeSpec;
+use thruput_macros::ContractTypeSpec;
 
 /// The shim a consuming crate provides. The derive only ever reaches for
 /// `__contract_spec` and `__xdrs`, so matching those two names is the whole
 /// contract.
 #[doc(hidden)]
 pub mod sdk_paths {
-    pub use groundhog_contract_spec as __contract_spec;
+    pub use thruput_contract_spec as __contract_spec;
     pub use xdrs as __xdrs;
 }
 
-use groundhog_contract_spec as spec;
+use thruput_contract_spec as spec;
 
 const LIMBS: usize = 8;
 
@@ -119,8 +119,8 @@ const EXPECTED_RAW_BYTES: [u8; RAW_LEN] = [
     0, 0, 0, 2, // SpecFragmentView::TypeDef
     0, 0, 0, 0, // ContractTypeDefView::Struct
     // name: the four segments of ContractSpecIdView, each an XDR string
-    0, 0, 0, 16, b'g', b'r', b'o', b'u', b'n', b'd', b'h', b'o', b'g', b'-',
-    b'm', b'a', b'c', b'r', b'o', b's', // crate_name "groundhog-macros"
+    0, 0, 0, 14, b't', b'h', b'r', b'u', b'p', b'u', b't', b'-',
+    b'm', b'a', b'c', b'r', b'o', b's', 0, 0, // crate_name "thruput-macros"
     0, 0, 0, 1, b'0', 0, 0, 0, // major "0"
     0, 0, 0, 14, b'c', b'r', b'a', b't', b'e', b'_', b'o', b'v', b'e', b'r',
     b'r', b'i', b'd', b'e', 0, 0, // module_path "crate_override"

@@ -18,7 +18,7 @@ sdk = { workspace = true }
 
 # The host runner (crates/bigint-bench) links this crate to get the client, and
 # needs `sdk/std` for it. Guest targets must not: rv32 builds stay no_std.
-# Mirrors groundhog-erc20-if's split.
+# Mirrors thruput-erc20-if's split.
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
 sdk = { workspace = true, features = ["std"] }
 

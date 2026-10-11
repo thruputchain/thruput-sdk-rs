@@ -22,7 +22,7 @@
 //! difference is a language-level one, not something a library function
 //! decides.
 
-use groundhog_u256::{I256, Rounding, U256};
+use thruput_u256::{I256, Rounding, U256};
 
 /// `Math.tryDiv` / `Math.tryMod` return `(false, 0)` for a zero divisor rather
 /// than reverting -- the `try*` family's whole purpose. `checked_*` is the

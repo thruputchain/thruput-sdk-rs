@@ -1,6 +1,6 @@
 [package]
 name = "velocity_limit"
-description = "Example aggregate velocity-limit contract for the Groundhog blockchain"
+description = "Example aggregate velocity-limit contract for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -22,7 +22,7 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
+thruput-erc20-if = { workspace = true }
 
 [dev-dependencies]
 velocity_limit = { path = ".", features = ["dev"] }

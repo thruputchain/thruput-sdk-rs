@@ -1,9 +1,9 @@
-//! # groundhog-sys
+//! # thruput-sys
 //!
 //! Low-level Rust FFI bindings to the `hogd` test harness runtime.
 //!
 //! This crate is an internal implementation detail exposing C bindings and constants needed for the
-//! higher-level `groundhog` Rust crate. The contents are auto-generated from the `hogd` C headers via bindgen.
+//! higher-level `sdk` Rust crate. The contents are auto-generated from the `hogd` C headers via bindgen.
 
 // suppress spurious warnings from bindgen
 #![allow(non_camel_case_types)]

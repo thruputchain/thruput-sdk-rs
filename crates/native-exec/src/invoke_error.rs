@@ -271,7 +271,7 @@ fn panic_payload_message(
 /// with the contract's heap allocation.
 pub fn invoke_wrapper<'a, F>(
     wrapped: F,
-) -> Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync + 'a>
+) -> Box<dyn Fn() -> thruput_sys::ForeignInvokeResult + Send + Sync + 'a>
 where
     F: Fn() + UnwindSafe + Clone + Send + Sync + 'a,
 {
@@ -280,12 +280,12 @@ where
         let result = panic::catch_unwind(w);
 
         match result {
-            Ok(_) => groundhog_sys::ForeignInvokeResult {
+            Ok(_) => thruput_sys::ForeignInvokeResult {
                 panic: InvokeErrorCode::None.0,
             },
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
-                    return groundhog_sys::ForeignInvokeResult {
+                    return thruput_sys::ForeignInvokeResult {
                         panic: my_error.error_type.0,
                     };
                 }
@@ -300,12 +300,12 @@ where
                     // the panic, so every catch site takes what it caught
                     // and a stale record cannot outlive its panic.
                     drop(take_hooked_panic());
-                    return groundhog_sys::ForeignInvokeResult {
+                    return thruput_sys::ForeignInvokeResult {
                         panic: InvokeErrorCode::Deterministic.0,
                     };
                 }
                 eprintln!("unrecoverable error: {:?}", err);
-                groundhog_sys::ForeignInvokeResult {
+                thruput_sys::ForeignInvokeResult {
                     panic: InvokeErrorCode::Unrecoverable.0,
                 }
             }

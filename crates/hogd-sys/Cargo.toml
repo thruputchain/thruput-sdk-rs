@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-sys"
+name = "thruput-sys"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Bindings for the external Groundhog test environment"
+description = "Bindings for the external Thruput test environment"
 links = "groundhog_test_ffi"
 
 [lib]

@@ -1,6 +1,6 @@
 [package]
 name = "complex-storage"
-description = "Example complex storage contract for the Groundhog blockchain"
+description = "Example complex storage contract for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

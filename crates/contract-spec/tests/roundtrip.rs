@@ -1,4 +1,4 @@
-use groundhog_contract_spec::{
+use thruput_contract_spec::{
     ContractArrayType, ContractArrayTypeView, ContractEnumDef,
     ContractEnumDefView, ContractEnumVariant, ContractEnumVariantView,
     ContractEventDef, ContractEventDefView, ContractExceptionType,
@@ -443,9 +443,9 @@ fn fragment_and_view_conversions_roundtrip() {
     assert_eq!(
         ContractTypeDef::from(type_def),
         ContractTypeDef::TypeDefUnion {
-            union_def: groundhog_contract_spec::ContractUnionDef {
+            union_def: thruput_contract_spec::ContractUnionDef {
                 name: id("Envelope"),
-                cases: vec![groundhog_contract_spec::ContractUnionCase {
+                cases: vec![thruput_contract_spec::ContractUnionCase {
                     name: s("Empty"),
                     discriminant: 0,
                     case_type: ContractUnionCaseType::UnionCaseVoid,
@@ -633,7 +633,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
 
     assert_xdr_tag(
         &ContractTypeDef::TypeDefStruct {
-            struct_def: groundhog_contract_spec::ContractStructDef {
+            struct_def: thruput_contract_spec::ContractStructDef {
                 name: id("Payload"),
                 fields: vec![].try_into().unwrap(),
             },
@@ -642,7 +642,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     );
     assert_xdr_tag(
         &ContractTypeDef::TypeDefEnum {
-            enum_def: groundhog_contract_spec::ContractEnumDef {
+            enum_def: thruput_contract_spec::ContractEnumDef {
                 name: id("Choice"),
                 variants: vec![].try_into().unwrap(),
             },
@@ -651,7 +651,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     );
     assert_xdr_tag(
         &ContractTypeDef::TypeDefUnion {
-            union_def: groundhog_contract_spec::ContractUnionDef {
+            union_def: thruput_contract_spec::ContractUnionDef {
                 name: id("Envelope"),
                 cases: vec![].try_into().unwrap(),
             },
@@ -690,7 +690,7 @@ fn enum_numbering_and_fragment_tags_are_pinned() {
     assert_xdr_tag(
         &SpecFragment::SpecTypeDef {
             type_def: ContractTypeDef::TypeDefEnum {
-                enum_def: groundhog_contract_spec::ContractEnumDef {
+                enum_def: thruput_contract_spec::ContractEnumDef {
                     name: id("Choice"),
                     variants: vec![].try_into().unwrap(),
                 },
@@ -778,14 +778,14 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
 
     assert_eq!(Payload::TYPE_DEF.symbol(), idv("Payload"));
     assert_eq!(Payload::TYPE_DEF.symbol().declared, "Payload");
-    assert_eq!(groundhog_contract_spec::symbol::<Payload>(), idv("Payload"));
+    assert_eq!(thruput_contract_spec::symbol::<Payload>(), idv("Payload"));
     assert_eq!(
-        groundhog_contract_spec::type_ref::<Payload>(),
+        thruput_contract_spec::type_ref::<Payload>(),
         ContractTypeView::Named(idv("Payload")),
     );
     assert!(matches!(Payload::TYPE_DEF, ContractTypeDefView::Struct(_)));
     assert_eq!(
-        groundhog_contract_spec::type_ref::<Payload>(),
+        thruput_contract_spec::type_ref::<Payload>(),
         Payload::TYPE_DEF.type_ref()
     );
 }
@@ -793,58 +793,58 @@ fn contract_type_spec_helpers_are_derived_from_type_def() {
 #[test]
 fn contract_type_ref_helpers_cover_primitives_and_composites() {
     assert_eq!(
-        groundhog_contract_spec::type_ref::<u8>(),
+        thruput_contract_spec::type_ref::<u8>(),
         ContractTypeView::U8
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<u32>(),
+        thruput_contract_spec::type_ref::<u32>(),
         ContractTypeView::U32
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<Option<u32>>(),
+        thruput_contract_spec::type_ref::<Option<u32>>(),
         ContractTypeView::Option(&ContractTypeView::U32)
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<Vec<u8>>(),
+        thruput_contract_spec::type_ref::<Vec<u8>>(),
         ContractTypeView::Vector(ContractVectorTypeView {
             element: &ContractTypeView::U8,
             max_len: u32::MAX,
         })
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<&[u8]>(),
+        thruput_contract_spec::type_ref::<&[u8]>(),
         ContractTypeView::Vector(ContractVectorTypeView {
             element: &ContractTypeView::U8,
             max_len: u32::MAX,
         })
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<&str>(),
+        thruput_contract_spec::type_ref::<&str>(),
         ContractTypeView::String
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<Vec<u32>>(),
+        thruput_contract_spec::type_ref::<Vec<u32>>(),
         ContractTypeView::Vector(ContractVectorTypeView {
             element: &ContractTypeView::U32,
             max_len: u32::MAX,
         })
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<[u8; 32]>(),
+        thruput_contract_spec::type_ref::<[u8; 32]>(),
         ContractTypeView::Array(ContractArrayTypeView {
             element: &ContractTypeView::U8,
             len: 32,
         })
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<[bool; 4]>(),
+        thruput_contract_spec::type_ref::<[bool; 4]>(),
         ContractTypeView::Array(ContractArrayTypeView {
             element: &ContractTypeView::Bool,
             len: 4,
         })
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<(u32, bool)>(),
+        thruput_contract_spec::type_ref::<(u32, bool)>(),
         ContractTypeView::Tuple(&[
             ContractTypeView::U32,
             ContractTypeView::Bool,
@@ -859,14 +859,14 @@ fn alias_byte_collections_resolve_via_trait_layer() {
     type Hash = [Byte; 32];
 
     assert_eq!(
-        groundhog_contract_spec::type_ref::<Blob>(),
+        thruput_contract_spec::type_ref::<Blob>(),
         ContractTypeView::Vector(ContractVectorTypeView {
             element: &ContractTypeView::U8,
             max_len: u32::MAX,
         })
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<Hash>(),
+        thruput_contract_spec::type_ref::<Hash>(),
         ContractTypeView::Array(ContractArrayTypeView {
             element: &ContractTypeView::U8,
             len: 32,
@@ -909,14 +909,12 @@ fn interface_fragment_emits_roundtrips() {
 #[test]
 fn contract_type_ref_helpers_cover_groundhog_xdr_builtins() {
     assert_eq!(
-        groundhog_contract_spec::type_ref::<
-            groundhog_xdr::types::ContractAddress,
-        >(),
+        thruput_contract_spec::type_ref::<thruput_xdr::types::ContractAddress>(
+        ),
         ContractTypeView::Address
     );
     assert_eq!(
-        groundhog_contract_spec::type_ref::<groundhog_xdr::types::BlockHeight>(
-        ),
+        thruput_contract_spec::type_ref::<thruput_xdr::types::BlockHeight>(),
         ContractTypeView::I64
     );
 }

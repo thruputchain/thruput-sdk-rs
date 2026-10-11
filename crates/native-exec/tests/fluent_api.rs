@@ -1,12 +1,12 @@
-use groundhog_native_exec::TryCommitResult;
-use groundhog_native_exec::frame_result::FrameResult;
-use groundhog_native_exec::transact_result::TransactResult;
-use groundhog_xdr::exec_result::ExecResult;
-use groundhog_xdr::transaction::InvocationFrameOutput;
-use groundhog_xdr::types::ContractAddress;
+use thruput_native_exec::TryCommitResult;
+use thruput_native_exec::frame_result::FrameResult;
+use thruput_native_exec::transact_result::TransactResult;
+use thruput_xdr::exec_result::ExecResult;
+use thruput_xdr::transaction::InvocationFrameOutput;
+use thruput_xdr::types::ContractAddress;
 
-use groundhog_event::{Event, TopicSrc};
-use groundhog_exn::Exn;
+use thruput_event::{Event, TopicSrc};
+use thruput_exn::Exn;
 
 /// The default contract address used by most tests.
 const TEST_ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
@@ -183,9 +183,9 @@ fn test_transact_result_assert_success_panics_on_abort() {
     result.assert_success();
 }
 
-use groundhog_native_exec::frame_builder::FrameAction;
-use groundhog_native_exec::mock_transaction_handler::MockTransactionHandler;
-use groundhog_native_exec::test_environment::TestEnvironment;
+use thruput_native_exec::frame_builder::FrameAction;
+use thruput_native_exec::mock_transaction_handler::MockTransactionHandler;
+use thruput_native_exec::test_environment::TestEnvironment;
 
 #[test]
 fn test_mock_handler_commit() {
@@ -300,10 +300,10 @@ fn test_transact_success() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
-            let res = groundhog_xdr::syscalls::GetCurrentAddress();
+            let res = thruput_xdr::syscalls::GetCurrentAddress();
             assert_eq!(
                 res.unwrap(),
-                groundhog_xdr::types::ContractAddress::from([1; 32])
+                thruput_xdr::types::ContractAddress::from([1; 32])
             );
         })
     });
@@ -356,10 +356,10 @@ fn test_transact_manual_inspect_before_commit() {
     let (frame_result, exec_result) = env.transact_manual(|tx| {
         let frame_result = tx.call(&[1u8; 32].into()).run(|| {
             // Run some contract code
-            let addr = groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
+            let addr = thruput_xdr::syscalls::GetCurrentAddress().unwrap();
             assert_eq!(
                 addr,
-                groundhog_xdr::types::ContractAddress::from([1; 32])
+                thruput_xdr::types::ContractAddress::from([1; 32])
             );
         });
 
@@ -384,10 +384,10 @@ fn test_transaction_call_run_success() {
     let mut tx = MockTransactionHandler::new(env);
 
     let frame_result = tx.call(&[1u8; 32].into()).run(|| {
-        let res = groundhog_xdr::syscalls::GetCurrentAddress();
+        let res = thruput_xdr::syscalls::GetCurrentAddress();
         assert_eq!(
             res.unwrap(),
-            groundhog_xdr::types::ContractAddress::from([1; 32])
+            thruput_xdr::types::ContractAddress::from([1; 32])
         );
     });
 
@@ -472,7 +472,7 @@ fn test_transact_abort_buffer_access() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| -> () {
             // Trigger an abort via the Return syscall with revert_frame=true
-            groundhog_xdr::syscalls::raw_Return(&[42u8, 43, 44], true, &[]);
+            thruput_xdr::syscalls::raw_Return(&[42u8, 43, 44], true, &[]);
         })
     });
 
@@ -492,7 +492,7 @@ fn test_frame_events_single() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"hello")
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, b"hello")
                 .unwrap();
         })
     });
@@ -511,9 +511,9 @@ fn test_frame_events_multiple() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"first")
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, b"first")
                 .unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"second")
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, b"second")
                 .unwrap();
         })
     });
@@ -532,12 +532,12 @@ fn test_frame_events_multiple() {
 fn test_frame_events_with_topics() {
     let env = TestEnvironment::new(None);
 
-    let topic = groundhog_xdr::event::Topic::new([0xAA; 32]);
+    let topic = thruput_xdr::event::Topic::new([0xAA; 32]);
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new([0xAA; 32])),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new([0xAA; 32])),
                 None,
                 None,
                 b"data",
@@ -558,11 +558,11 @@ fn test_frame_events_with_topics() {
 #[test]
 fn test_frame_events_contract_address() {
     let env = TestEnvironment::new(None);
-    let addr = groundhog_xdr::types::ContractAddress::from([0x42; 32]);
+    let addr = thruput_xdr::types::ContractAddress::from([0x42; 32]);
 
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"evt")
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, b"evt")
                 .unwrap();
         })
     });
@@ -579,7 +579,7 @@ fn test_frame_events_empty_on_fault() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| -> () {
-            groundhog_xdr::syscalls::raw_LogEvent(
+            thruput_xdr::syscalls::raw_LogEvent(
                 None,
                 None,
                 None,
@@ -601,14 +601,14 @@ fn test_frame_events_empty_on_revert() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| -> () {
-            groundhog_xdr::syscalls::raw_LogEvent(
+            thruput_xdr::syscalls::raw_LogEvent(
                 None,
                 None,
                 None,
                 b"before_revert",
             )
             .unwrap();
-            groundhog_xdr::syscalls::raw_Return(&[1], true, &[]);
+            thruput_xdr::syscalls::raw_Return(&[1], true, &[]);
         })
     });
 
@@ -623,7 +623,7 @@ fn test_frame_events_via_transact_manual() {
 
     let frame_result = env.transact_manual(|tx| {
         let frame = tx.call(&[1u8; 32].into()).run(|| {
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"manual")
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, b"manual")
                 .unwrap();
         });
         tx.try_commit_transaction();
@@ -647,7 +647,7 @@ fn test_assert_event_data_u32() {
         tx.call(&[1u8; 32].into()).run(|| {
             let v: u32 = 12345;
             let data = xdrs::cxs::encode(&v).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
     });
@@ -674,8 +674,8 @@ fn test_assert_event_data_with_topic() {
         tx.call(&[1u8; 32].into()).run(|| {
             let v: u32 = 99;
             let data = xdrs::cxs::encode(&v).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new([0xBB; 32])),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new([0xBB; 32])),
                 None,
                 None,
                 &data,
@@ -699,7 +699,7 @@ fn test_assert_emitted_finds_matching_event() {
         tx.call(&[1u8; 32].into()).run(|| {
             for v in [10u32, 20, 30] {
                 let data = xdrs::cxs::encode(&v).unwrap();
-                groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                thruput_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                     .unwrap();
             }
         })
@@ -725,7 +725,7 @@ fn test_assert_emitted_panics_when_no_match() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             let data = xdrs::cxs::encode(&42u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
     });
@@ -753,7 +753,7 @@ fn test_assert_event_out_of_range() {
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
             let data = xdrs::cxs::encode(&1u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
     });
@@ -764,28 +764,28 @@ fn test_assert_event_out_of_range() {
 
 // ── Named addresses ──────────────────────────────────────────────────────
 
-use groundhog_native_exec::test_helpers::Named;
+use thruput_native_exec::test_helpers::Named;
 
 #[test]
 fn test_named_contract_address() {
-    let alice = groundhog_xdr::types::ContractAddress::named("alice");
-    let bob = groundhog_xdr::types::ContractAddress::named("bob");
+    let alice = thruput_xdr::types::ContractAddress::named("alice");
+    let bob = thruput_xdr::types::ContractAddress::named("bob");
 
-    assert_eq!(alice, groundhog_xdr::types::ContractAddress::named("alice"));
+    assert_eq!(alice, thruput_xdr::types::ContractAddress::named("alice"));
     assert_ne!(alice, bob);
 }
 
 #[test]
 fn test_named_address_in_transact() {
     let env = TestEnvironment::new(None);
-    let alice = groundhog_xdr::types::ContractAddress::named("alice");
+    let alice = thruput_xdr::types::ContractAddress::named("alice");
 
     let result = env.transact(|tx| {
         tx.call(&alice).run(|| {
-            let addr = groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
+            let addr = thruput_xdr::syscalls::GetCurrentAddress().unwrap();
             assert_eq!(
                 addr,
-                groundhog_xdr::types::ContractAddress::named("alice")
+                thruput_xdr::types::ContractAddress::named("alice")
             );
         })
     });
@@ -802,7 +802,7 @@ fn test_assert_return_with() {
         tx.call(&[1u8; 32].into()).run(|| -> () {
             let v: u32 = 42;
             let data = xdrs::cxs::encode(&v).unwrap();
-            groundhog_xdr::syscalls::raw_Return(&data, false, &[]);
+            thruput_xdr::syscalls::raw_Return(&data, false, &[]);
         })
     });
 
@@ -823,9 +823,9 @@ fn test_assert_event_count() {
 
     let result = env.transact(|tx| {
         tx.call(&[1u8; 32].into()).run(|| {
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"a")
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, b"a")
                 .unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, b"b")
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, b"b")
                 .unwrap();
         })
     });
@@ -854,7 +854,7 @@ fn test_filter_events() {
         tx.call(&[1u8; 32].into()).run(|| {
             for v in [10u32, 20, 30] {
                 let data = xdrs::cxs::encode(&v).unwrap();
-                groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+                thruput_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                     .unwrap();
             }
         })
@@ -902,11 +902,10 @@ fn test_run_continuable_with_child_frame() {
         .run_continuable(|frame| {
             // Open a child frame from within the continuable frame
             let child_result = frame.child_call(&[2u8; 32].into()).run(|| {
-                let addr =
-                    groundhog_xdr::syscalls::GetCurrentAddress().unwrap();
+                let addr = thruput_xdr::syscalls::GetCurrentAddress().unwrap();
                 assert_eq!(
                     addr,
-                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                    thruput_xdr::types::ContractAddress::from([2; 32])
                 );
             });
             child_result.assert_success();
@@ -950,8 +949,8 @@ fn test_mock_handler_syscall_sha256() {
         .execute(|_| {
             // SHA256 consumes gas — this would fail with gas_limit: 0
             let input = b"hello world";
-            let mut hash = groundhog_xdr::types::SHA256Hash::default();
-            groundhog_xdr::syscalls::raw_SHA256(input.as_slice(), &mut hash)
+            let mut hash = thruput_xdr::types::SHA256Hash::default();
+            thruput_xdr::syscalls::raw_SHA256(input.as_slice(), &mut hash)
                 .unwrap();
             FrameAction::Close
         })
@@ -970,8 +969,8 @@ fn test_filter_events_by_topic() {
         tx.call(&[1u8; 32].into()).run(|| {
             // Emit EventA(10) with topic 0 = EVENT_A_SIG
             let data = xdrs::cxs::encode(&10u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
                 None,
                 &data,
@@ -980,8 +979,8 @@ fn test_filter_events_by_topic() {
 
             // Emit EventB(20) with topic 0 = EVENT_B_SIG
             let data = xdrs::cxs::encode(&20u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new(EVENT_B_SIG)),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new(EVENT_B_SIG)),
                 None,
                 None,
                 &data,
@@ -990,8 +989,8 @@ fn test_filter_events_by_topic() {
 
             // Emit EventA(30) with topic 0 = EVENT_A_SIG
             let data = xdrs::cxs::encode(&30u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
                 None,
                 &data,
@@ -1031,7 +1030,7 @@ fn test_filter_events_topic_mismatch_skips() {
         tx.call(&[1u8; 32].into()).run(|| {
             // Emit an event with no topics
             let data = xdrs::cxs::encode(&42u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(None, None, None, &data)
+            thruput_xdr::syscalls::raw_LogEvent(None, None, None, &data)
                 .unwrap();
         })
     });
@@ -1057,8 +1056,8 @@ fn test_assert_emitted_distinguishes_by_topic() {
         tx.call(&[1u8; 32].into()).run(|| {
             // Emit EventA(10)
             let data = xdrs::cxs::encode(&10u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
                 None,
                 &data,
@@ -1067,8 +1066,8 @@ fn test_assert_emitted_distinguishes_by_topic() {
 
             // Emit EventB(20) — same payload shape, different topic
             let data = xdrs::cxs::encode(&20u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new(EVENT_B_SIG)),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new(EVENT_B_SIG)),
                 None,
                 None,
                 &data,
@@ -1095,8 +1094,8 @@ fn test_assert_emitted_rejects_wrong_topic() {
         tx.call(&[1u8; 32].into()).run(|| {
             // Only emit EventA
             let data = xdrs::cxs::encode(&10u32).unwrap();
-            groundhog_xdr::syscalls::raw_LogEvent(
-                Some(&groundhog_xdr::event::Topic::new(EVENT_A_SIG)),
+            thruput_xdr::syscalls::raw_LogEvent(
+                Some(&thruput_xdr::event::Topic::new(EVENT_A_SIG)),
                 None,
                 None,
                 &data,
@@ -1113,7 +1112,7 @@ fn test_assert_emitted_rejects_wrong_topic() {
 
 #[test]
 fn test_assert_emitted_skips_unrelated_malformed_event() {
-    use groundhog_xdr::event::TxEmittedEvent;
+    use thruput_xdr::event::TxEmittedEvent;
 
     // A valid TestValue(20) event sits alongside an unrelated, internally
     // malformed event from the same address: the malformed one claims 2
@@ -1172,7 +1171,7 @@ fn test_run_unit_closure_with_explicit_raw_return_is_preserved() {
     let env = TestEnvironment::new(None);
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| -> () {
-            groundhog_xdr::syscalls::raw_Return(&[7u8, 8, 9], false, &[]);
+            thruput_xdr::syscalls::raw_Return(&[7u8, 8, 9], false, &[]);
         })
     });
     result.assert_success();
@@ -1210,7 +1209,7 @@ fn test_run_nonunit_return_after_explicit_raw_return_pins_behavior() {
     let env = TestEnvironment::new(None);
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| {
-            groundhog_xdr::syscalls::raw_Return(&[1u8], false, &[]);
+            thruput_xdr::syscalls::raw_Return(&[1u8], false, &[]);
             #[allow(unreachable_code)]
             42u32
         })
@@ -1237,7 +1236,7 @@ fn test_assert_return_as_panics_on_garbage() {
     let env = TestEnvironment::new(None);
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| -> () {
-            groundhog_xdr::syscalls::raw_Return(&[0xFF], false, &[]);
+            thruput_xdr::syscalls::raw_Return(&[0xFF], false, &[]);
         })
     });
     let _: u64 = result.assert_return_as();
@@ -1258,7 +1257,7 @@ fn abort_with_wire(selector: u64, payload: &[u8]) -> TransactResult {
     let env = TestEnvironment::new(None);
     env.transact(|tx| {
         tx.call(&TEST_ADDR).run(move || -> () {
-            groundhog_xdr::syscalls::raw_Return(&wire, true, &[]);
+            thruput_xdr::syscalls::raw_Return(&wire, true, &[]);
         })
     })
 }
@@ -1286,7 +1285,7 @@ fn test_assert_abort_as_rejects_non_exception_abort() {
     let env = TestEnvironment::new(None);
     let result = env.transact(|tx| {
         tx.call(&TEST_ADDR).run(|| -> () {
-            groundhog_xdr::syscalls::raw_Return(&[], true, &[]);
+            thruput_xdr::syscalls::raw_Return(&[], true, &[]);
         })
     });
     let _: TestExn = result.assert_abort_as();

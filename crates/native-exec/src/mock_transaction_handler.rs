@@ -3,20 +3,20 @@ use crate::frame_result::FrameResult;
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
-use groundhog_sys::ForeignTryCommitResult;
-use groundhog_trace::InvocationFrameTrace;
-use groundhog_xdr::auth_claim::AuthClaim;
-use groundhog_xdr::event::TxEmittedEvent;
-use groundhog_xdr::syscall_error::SyscallErrorCode;
-use groundhog_xdr::transaction::InvocationFrameOutput;
-use groundhog_xdr::types::SHA256Hash;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::panic::UnwindSafe;
 use std::panic::panic_any;
 use std::rc::Rc;
+use thruput_sys::ForeignTryCommitResult;
+use thruput_trace::InvocationFrameTrace;
+use thruput_xdr::auth_claim::AuthClaim;
+use thruput_xdr::event::TxEmittedEvent;
+use thruput_xdr::syscall_error::SyscallErrorCode;
+use thruput_xdr::transaction::InvocationFrameOutput;
+use thruput_xdr::types::SHA256Hash;
 
-use groundhog_sys::FFIErrorCode;
+use thruput_sys::FFIErrorCode;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum MockTransactionState {
@@ -41,8 +41,8 @@ enum MockInvocationFrameState {
 /// [`build`](Self::build).
 pub struct MockInvocationFrameConfig<'a> {
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
-    invocation: groundhog_xdr::transaction::Invocation,
-    invoke_flags: groundhog_xdr::invoke_flag::InvokeFlagSet,
+    invocation: thruput_xdr::transaction::Invocation,
+    invoke_flags: thruput_xdr::invoke_flag::InvokeFlagSet,
 
     root_handler: *mut c_void,
     // when we build the frame, the new frame will be emplaced into this value
@@ -58,7 +58,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
     // reentrant case, and only at run time.
     fn new(
         root_handler: *mut c_void,
-        contract_address: groundhog_xdr::types::ContractAddress,
+        contract_address: thruput_xdr::types::ContractAddress,
         to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
@@ -66,7 +66,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
         Self {
             context_pushcount,
             root_handler,
-            invocation: groundhog_xdr::transaction::Invocation {
+            invocation: thruput_xdr::transaction::Invocation {
                 invoked_address: contract_address,
                 entrypoint: [0; 8].into(),
                 gas_limit: u64::MAX,
@@ -85,11 +85,11 @@ impl<'a> MockInvocationFrameConfig<'a> {
     }
 
     /// Set the frame's invoke flags, a bitset of
-    /// [`InvokeFlag`](groundhog_xdr::invoke_flag::InvokeFlag) values
+    /// [`InvokeFlag`](thruput_xdr::invoke_flag::InvokeFlag) values
     /// (default: none).
     pub fn with_invoke_flags(
         mut self,
-        invoke_flags: groundhog_xdr::invoke_flag::InvokeFlagSet,
+        invoke_flags: thruput_xdr::invoke_flag::InvokeFlagSet,
     ) -> Self {
         self.invoke_flags = invoke_flags;
         self
@@ -169,17 +169,17 @@ impl MockInvocationFrame {
     fn new(
         root_handler: *mut c_void,
         serialized_invocation: &[u8],
-        invoke_flags: groundhog_xdr::invoke_flag::InvokeFlagSet,
+        invoke_flags: thruput_xdr::invoke_flag::InvokeFlagSet,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
     ) -> Self {
-        let ffi_invocation = groundhog_sys::FFISerializedInvocation {
+        let ffi_invocation = thruput_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
             len: serialized_invocation.len().try_into().unwrap(),
         };
 
         let res = unsafe {
-            groundhog_sys::open_mock_invocation_frame(
+            thruput_sys::open_mock_invocation_frame(
                 root_handler,
                 ffi_invocation,
                 invoke_flags,
@@ -189,8 +189,7 @@ impl MockInvocationFrame {
         // Two distinct failures, and the FFI keeps them apart: an FFI code
         // means this harness called the API wrong, a syscall code means the
         // call was well-formed and production refused it. Both open no frame.
-        let handler_res: groundhog_sys::FFIErrorCode =
-            res.ffi_error_code.into();
+        let handler_res: thruput_sys::FFIErrorCode = res.ffi_error_code.into();
         if handler_res != FFIErrorCode::None {
             // An InvokeError payload, not a plain panic!: the Unrecoverable
             // code propagates out of any enclosing frame instead of being
@@ -237,7 +236,7 @@ impl MockInvocationFrame {
     /// only the ones open at the same time.
     pub fn open_child_frame(
         &mut self,
-        contract_address: groundhog_xdr::types::ContractAddress,
+        contract_address: thruput_xdr::types::ContractAddress,
     ) -> MockInvocationFrameConfig<'_> {
         // One open child at a time: `FrameAction::Continue` exists to
         // interleave frames across separate transactions, not to nest
@@ -278,7 +277,7 @@ impl MockInvocationFrame {
         }
 
         let handler_res = unsafe {
-            groundhog_sys::finish_mock_invocation_frame(
+            thruput_sys::finish_mock_invocation_frame(
                 self.root_handler,
                 error_code.0,
             )
@@ -453,7 +452,7 @@ impl Drop for MockInvocationFrame {
             // abort with a SIGABRT that hides it. Force-finishing is the
             // recoverable cleanup the old `panic!` never performed.
             let res = unsafe {
-                groundhog_sys::finish_mock_invocation_frame(
+                thruput_sys::finish_mock_invocation_frame(
                     self.root_handler,
                     hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
                         .0,
@@ -490,7 +489,7 @@ impl ThreadlocalContextPushcount {
 
     pub fn push_context(&mut self, handler: *mut c_void) {
         if self.count == 0 {
-            let push_res = unsafe { groundhog_sys::push_context(handler) };
+            let push_res = unsafe { thruput_sys::push_context(handler) };
             let err: FFIErrorCode = push_res.into();
             if err != FFIErrorCode::None {
                 panic!("failed to push context: {:?}", err);
@@ -505,7 +504,7 @@ impl ThreadlocalContextPushcount {
         }
         self.count -= 1;
         if self.count == 0 {
-            let pop_res = unsafe { groundhog_sys::pop_context() };
+            let pop_res = unsafe { thruput_sys::pop_context() };
             let err: FFIErrorCode = pop_res.into();
             if err != FFIErrorCode::None {
                 panic!("failed to pop context: {:?}", err);
@@ -521,7 +520,7 @@ impl Drop for ThreadlocalContextPushcount {
                 "Dropping transaction while threadlocal context active: count={}",
                 self.count
             );
-            let pop_res = unsafe { groundhog_sys::pop_context() };
+            let pop_res = unsafe { thruput_sys::pop_context() };
             let err: FFIErrorCode = pop_res.into();
             if err != FFIErrorCode::None {
                 crate::drop_failure(format_args!(
@@ -550,7 +549,7 @@ pub struct MockTransactionConfig {
 impl MockTransactionConfig {
     /// A `kSourceAddressAuthData` claim with no allowed keys and zero required weight.
     pub fn default_auth_claim() -> AuthClaim {
-        use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
+        use thruput_xdr::auth_claim::AuthClaim_source_address_claim;
         AuthClaim::kSourceAddressAuthData {
             source_address_claim: AuthClaim_source_address_claim {
                 allowed_keys: 0,
@@ -603,10 +602,10 @@ impl MockTransactionHandler {
             xdrs::txs::encode(&config.auth_claim).unwrap();
         let source_tx_hash: SHA256Hash = [0; 32].into();
         let handler_res = unsafe {
-            groundhog_sys::open_mocked_syscall_handler(
+            thruput_sys::open_mocked_syscall_handler(
                 env.inner.borrow().db.db,
                 env.inner.borrow().contract_context.context,
-                groundhog_sys::FFISerializedAuthClaimData {
+                thruput_sys::FFISerializedAuthClaimData {
                     data: serialized_auth_claim.as_ptr() as *mut u8,
                     len: serialized_auth_claim.len().try_into().unwrap(),
                 },
@@ -649,7 +648,7 @@ impl MockTransactionHandler {
         );
         self.state = MockTransactionState::Aborted;
         let err: FFIErrorCode =
-            unsafe { groundhog_sys::abort_transaction(self.handler) }.into();
+            unsafe { thruput_sys::abort_transaction(self.handler) }.into();
         if err != FFIErrorCode::None {
             panic!("failed to abort transaction: {:?}", err);
         }
@@ -667,7 +666,7 @@ impl MockTransactionHandler {
         );
         self.state = MockTransactionState::Committed;
         let result: ForeignTryCommitResult =
-            unsafe { groundhog_sys::try_commit_transaction(self.handler) };
+            unsafe { thruput_sys::try_commit_transaction(self.handler) };
         let err: FFIErrorCode = result.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("ffi error: failed to commit transaction: {:?}", err);
@@ -688,7 +687,7 @@ impl MockTransactionHandler {
     /// transaction.
     pub fn call(
         &mut self,
-        addr: &groundhog_xdr::types::ContractAddress,
+        addr: &thruput_xdr::types::ContractAddress,
     ) -> FrameBuilder<'_> {
         let config = self.open_root_frame(*addr);
         FrameBuilder::new(config)
@@ -703,7 +702,7 @@ impl MockTransactionHandler {
     /// [`MockInvocationFrame::open_child_frame`].
     pub fn open_root_frame(
         &mut self,
-        contract_address: groundhog_xdr::types::ContractAddress,
+        contract_address: thruput_xdr::types::ContractAddress,
     ) -> MockInvocationFrameConfig<'_> {
         assert_eq!(
             self.state,
@@ -743,8 +742,7 @@ impl Drop for MockTransactionHandler {
             // SIGABRT that hides the original message.
             self.state = MockTransactionState::Aborted;
             let err: FFIErrorCode =
-                unsafe { groundhog_sys::abort_transaction(self.handler) }
-                    .into();
+                unsafe { thruput_sys::abort_transaction(self.handler) }.into();
             if err != FFIErrorCode::None {
                 crate::drop_failure(format_args!(
                     "failed to abort uncommitted transaction during cleanup: {:?}",
@@ -754,8 +752,7 @@ impl Drop for MockTransactionHandler {
         }
 
         let err: FFIErrorCode =
-            unsafe { groundhog_sys::close_syscall_handler(self.handler) }
-                .into();
+            unsafe { thruput_sys::close_syscall_handler(self.handler) }.into();
         if err != FFIErrorCode::None {
             crate::drop_failure(format_args!(
                 "failed to close syscall handler: {:?}",
@@ -767,7 +764,7 @@ impl Drop for MockTransactionHandler {
 
 #[cfg(test)]
 mod tests {
-    use groundhog_xdr::transaction::InvocationFrameStatusCode;
+    use thruput_xdr::transaction::InvocationFrameStatusCode;
 
     use crate::frame_builder::FrameAction;
 
@@ -779,15 +776,15 @@ mod tests {
     // #3301). Addresses may be reused across separate handlers (separate
     // transactions, separate frame stacks) and by sequential frames at the same
     // depth, so these three cover every nesting the tests below build.
-    fn root_addr() -> groundhog_xdr::types::ContractAddress {
+    fn root_addr() -> thruput_xdr::types::ContractAddress {
         [0xA0u8; 32].into()
     }
 
-    fn child_addr() -> groundhog_xdr::types::ContractAddress {
+    fn child_addr() -> thruput_xdr::types::ContractAddress {
         [0xB0u8; 32].into()
     }
 
-    fn sibling_addr() -> groundhog_xdr::types::ContractAddress {
+    fn sibling_addr() -> thruput_xdr::types::ContractAddress {
         [0xC0u8; 32].into()
     }
 
@@ -969,18 +966,18 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         let result = handler
-            .open_root_frame(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(thruput_xdr::types::ContractAddress::from(
                 [1; 32],
             ))
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                    thruput_xdr::types::ContractAddress::from([1; 32])
                 );
                 FrameAction::Close
             })
@@ -1319,46 +1316,46 @@ mod tests {
         let mut handler2 = MockTransactionHandler::new(env);
 
         let frame1 = handler1
-            .open_root_frame(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(thruput_xdr::types::ContractAddress::from(
                 [1; 32],
             ))
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                    thruput_xdr::types::ContractAddress::from([1; 32])
                 );
                 FrameAction::Continue
             });
 
         let frame2 = handler2
-            .open_root_frame(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(thruput_xdr::types::ContractAddress::from(
                 [2; 32],
             ))
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                    thruput_xdr::types::ContractAddress::from([2; 32])
                 );
                 FrameAction::Continue
             });
         let result1 = frame1
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                    thruput_xdr::types::ContractAddress::from([1; 32])
                 );
                 FrameAction::Close
             })
@@ -1367,11 +1364,11 @@ mod tests {
         let result2 = frame2
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                    thruput_xdr::types::ContractAddress::from([2; 32])
                 );
                 FrameAction::Close
             })
@@ -1454,9 +1451,8 @@ mod tests {
         let env = TestEnvironment::new(None);
         env.setup_grant_storage_tokens(&child_addr(), 1_000_000_000);
         let mut handler = MockTransactionHandler::new(env);
-        let key =
-            groundhog_xdr::types::StorageKeyContractData::new([0x5A; 32]);
-        let read_only = groundhog_xdr::invoke_flag::InvokeFlag::ReadOnly
+        let key = thruput_xdr::types::StorageKeyContractData::new([0x5A; 32]);
+        let read_only = thruput_xdr::invoke_flag::InvokeFlag::ReadOnly
             .0
             .cast_unsigned();
 
@@ -1471,7 +1467,7 @@ mod tests {
                         .with_invoke_flags(flags)
                         .build();
                     child.execute(|_| {
-                        let res = groundhog_xdr::syscalls::raw_BytestringSet(
+                        let res = thruput_xdr::syscalls::raw_BytestringSet(
                             &key, b"x",
                         );
                         if admitted {

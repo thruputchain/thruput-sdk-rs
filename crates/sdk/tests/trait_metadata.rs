@@ -57,7 +57,7 @@ fn inherited_ids_match_clients_and_interface_table() {
     assert!(sdk::implements!(
         interfaces::WireCounterEntrypoints::INTERFACE_ID
     ));
-    assert!(!sdk::implements!(groundhog_contract_util::interface_id(
+    assert!(!sdk::implements!(thruput_contract_util::interface_id(
         Some("CounterAlias"),
         env!("CARGO_PKG_VERSION")
     )));

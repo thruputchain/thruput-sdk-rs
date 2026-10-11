@@ -10,7 +10,7 @@
 //! `sdk` and implemented there, for this type.
 
 use crate::{I256, U256};
-use groundhog_contract_spec as spec;
+use thruput_contract_spec as spec;
 use xdrs::{
     ReadResult, ReadXDR, Reader, WriteResult, WriteXDR, Writer,
     WriterUnchecked,

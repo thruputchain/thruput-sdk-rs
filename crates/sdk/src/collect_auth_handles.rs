@@ -58,8 +58,8 @@ impl_collect_noop!(
     sdk::types::SHA256Hash,
     sdk::types::Ed25519PublicKey,
     sdk::types::Ed25519Signature,
-    groundhog_u256::U256,
-    groundhog_u256::I256,
+    thruput_u256::U256,
+    thruput_u256::I256,
     sdk::types::ContractEntrypointID,
 );
 

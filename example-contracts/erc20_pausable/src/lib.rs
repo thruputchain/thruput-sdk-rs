@@ -11,11 +11,11 @@ sdk::declare_mock_contract!();
 
 // The traits describing the contract interface
 mod interface {
-    pub use groundhog_access_control_if::*;
-    pub use groundhog_erc20_if::*;
-    pub use groundhog_erc20_metadata_if::*;
-    pub use groundhog_erc20_pausable_if::*;
-    pub use groundhog_erc165_if::*;
+    pub use thruput_access_control_if::*;
+    pub use thruput_erc20_if::*;
+    pub use thruput_erc20_metadata_if::*;
+    pub use thruput_erc20_pausable_if::*;
+    pub use thruput_erc165_if::*;
 }
 
 // Client stubs that provide the interfaces via cross-contract calls

@@ -12,10 +12,10 @@ use crate::sys_exn::nnint_internal as nnint;
 ///
 /// Some kinds of constraints can be expressed directly as checks within one
 /// transaction. This data type is not for those kinds of constraints.
-/// Rather, this type is how a contract can tell the Groundhog runtime about
+/// Rather, this type is how a contract can tell the Thruput runtime about
 /// constraints that must hold across transactions in a block. For example,
 /// an aggregate velocity limit on a user's token balance cannot be checked
-/// within a single transaction, but can be enforced by the Groundhog runtime
+/// within a single transaction, but can be enforced by the Thruput runtime
 /// when packing new blocks of transactions.
 ///
 /// The storage cell tracks the *remaining capacity* (`b - \Sum_i a_i x_i`).

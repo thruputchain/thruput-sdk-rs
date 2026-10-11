@@ -278,7 +278,7 @@ impl NftContract {
     /// Call this in the transaction that deploys the contract, as the
     /// tests do: the first caller names the administrator, so a contract
     /// left uninitialized across a block boundary is anyone's to claim.
-    /// A Groundhog transaction is atomic, so deploy-and-initialize in one
+    /// A Thruput transaction is atomic, so deploy-and-initialize in one
     /// leaves no such window.
     pub fn initialize(
         &mut self,
@@ -345,4 +345,4 @@ impl NftContract {
 }
 
 // ERC-165 interface detection over the impl blocks above.
-groundhog_erc165_if::impl_erc165!();
+thruput_erc165_if::impl_erc165!();

@@ -1,0 +1,27 @@
+[package]
+name = "thruput-erc165-if"
+version = "0.1.55"
+edition.workspace = true
+publish.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "ERC165 interface-detection standard interface for Thruput smart contracts"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+dev = ["sdk/dev"]
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.0" }
+heapless = { workspace = true }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.0", features = ["std"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false

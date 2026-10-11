@@ -1,5 +1,5 @@
 //! Exception trait and the borrowed exception type, split out of the SDK
-//! (like `groundhog-event`) so host-side tooling below the SDK can decode
+//! (like `thruput-event`) so host-side tooling below the SDK can decode
 //! thrown exceptions.
 
 #![no_std]

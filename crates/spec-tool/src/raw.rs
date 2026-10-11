@@ -1,13 +1,13 @@
-use groundhog_contract_spec::SpecFragment;
+use thruput_contract_spec::SpecFragment;
 use xdrs::{ReadXDR, txs::buf_reader::BufReader};
 
 use crate::SpecToolError;
 
 /// Section naming and wire-format versioning live in
-/// `groundhog-contract-spec`, which owns [`SpecFragment`] and so owns what
+/// `thruput-contract-spec`, which owns [`SpecFragment`] and so owns what
 /// counts as a format change. Re-exported here because consumers (the
-/// `groundhog` CLI among them) reach them through this crate.
-pub use groundhog_contract_spec::{
+/// `thruput` CLI among them) reach them through this crate.
+pub use thruput_contract_spec::{
     FINAL_SECTION_NAME, RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT,
     SpecSection, classify_section,
 };

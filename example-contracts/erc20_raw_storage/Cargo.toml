@@ -1,6 +1,6 @@
 [package]
 name = "erc20_raw_storage"
-description = "Example ERC20 contract for the Groundhog blockchain"
+description = "Example ERC20 contract for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -26,12 +26,12 @@ required-features = ["entrypoints"]
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "groundhog-erc20-if/dev"]
+dev = ["sdk/dev", "thruput-erc20-if/dev"]
 bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "sdk/alloc"]
 
 [dependencies]
 sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
+thruput-erc20-if = { workspace = true }
 
 # Optional testing dependencies
 erc20-bottle-test = { workspace = true, optional = true }
