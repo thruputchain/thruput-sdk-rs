@@ -26,9 +26,8 @@ set -euo pipefail
 
 SDK_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-# The path dependency still uses the SDK workspace's groundhog registry alias.
-# The generated project lives outside that workspace and only defines thruput.
-export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
+# Keep registry lookup explicit when building outside the SDK workspace.
+export CARGO_REGISTRIES_THRUPUT_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
 
 if [ "${SKIP_CLI_INSTALL:-0}" != 1 ]; then
     # Same pin and install path as scripts/ci.sh; the helper honors

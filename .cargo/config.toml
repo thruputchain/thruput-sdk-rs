@@ -8,10 +8,10 @@ rustflags = [ "--deny", "warnings", "-C", "link-arg=-lSystem", "-C", "link-arg=-
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-Wl,-rpath,$ORIGIN" ]
 
 [registries]
-groundhog = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }
+thruput = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }
 
 [source]
-groundhog = { registry = "sparse+https://crates.thruput.network/api/v1/crates/" }
+thruput = { registry = "sparse+https://crates.thruput.network/api/v1/crates/" }
 
 # Keep dev/test builds lean: full debug info in ~150 test binaries (and
 # trybuild's nested build, which reads this file but not the workspace

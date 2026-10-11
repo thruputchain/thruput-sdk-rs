@@ -4,7 +4,7 @@ description = "Workspace-excluded fixture: two roots sharing a domain to exercis
 version = "0.4.0"
 authors = ["Groundhog Team"]
 license = "Apache-2.0"
-publish = ["groundhog"]
+publish = ["thruput"]
 repository = "https://github.com/groundhogchain/example-contracts.git"
 homepage = "https://github.com/groundhogchain/example-contracts.git"
 keywords = ["groundhog"]
@@ -24,7 +24,7 @@ crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.50.1" }
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.50.1" }
 
 [dev-dependencies]
 multi_root_collision = { path = ".", features = ["dev"] }

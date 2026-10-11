@@ -25,10 +25,9 @@ const GROUNDHOG_CLI_VERSION: &str = "0.26.0";
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
 /// - If `HOGD_SRC` is set but empty/missing, clone there
-/// - Otherwise, clone to `OUT_DIR/hogd_clone_<TEST_FFI_VERSION>`. The
-///   directory is keyed by version because `OUT_DIR` survives a
-///   `TEST_FFI_VERSION` bump: an unversioned clone would keep the old tag
-///   and fail the header version check.
+/// - Otherwise, clone under the system temporary directory, keyed by OUT_DIR
+///   and TEST_FFI_VERSION. Keep this independent workspace outside the SDK
+///   configuration tree: its pinned source still uses a different registry alias.
 #[cfg(feature = "source-build")]
 fn ensure_hogd_clone(
     out_dir: &Path,
@@ -47,8 +46,16 @@ fn ensure_hogd_clone(
         return Ok(hogd_path);
     }
 
-    // Default: clone to a per-version directory under OUT_DIR.
-    let hogd_path = out_dir.join(format!("hogd_clone_{TEST_FFI_VERSION}"));
+    // Preserve per-build/per-version isolation without inheriting SDK Cargo config.
+    let build_key: String =
+        Sha256::digest(out_dir.as_os_str().as_encoded_bytes())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+    let hogd_path = env::temp_dir()
+        .join("thruput-sdk-hogd")
+        .join(build_key)
+        .join(format!("test-ffi-v{TEST_FFI_VERSION}"));
     if !hogd_path.exists() {
         clone_hogd_repo(&hogd_path, &expected_tag)?;
     }
@@ -580,11 +587,11 @@ fn fetch_hogd_rust_deps(
                 "--root",
                 cli_root.to_str().unwrap(),
                 "--registry",
-                "groundhog",
+                "thruput",
                 &pkg,
             ])
             .env(
-                "CARGO_REGISTRIES_GROUNDHOG_INDEX",
+                "CARGO_REGISTRIES_THRUPUT_INDEX",
                 "sparse+https://crates.thruput.network/api/v1/crates/",
             )
             .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")

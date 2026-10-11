@@ -10,7 +10,7 @@
 # `cargo install` deliberately ignores the repo's .cargo/config.toml (install
 # is global, not project-scoped), so the registry index must arrive via
 # environment config. Keep in sync with .cargo/config.toml [registries]. Auth
-# comes from CARGO_REGISTRIES_GROUNDHOG_TOKEN +
+# comes from CARGO_REGISTRIES_THRUPUT_TOKEN +
 # CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS in the workflows.
 
 install_thruput_cli() {
@@ -18,7 +18,7 @@ install_thruput_cli() {
     sdk_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     . "${sdk_dir}/scripts/thruput-cli-version.sh"
 
-    export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
+    export CARGO_REGISTRIES_THRUPUT_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
 
     if [ -n "${THRUPUT_CLI_COMMIT:-}" ]; then
         if [[ ! "$THRUPUT_CLI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
@@ -80,7 +80,7 @@ PY
 
     if [ "$(thruput --version 2>/dev/null | awk '{print $2}')" != "$THRUPUT_CLI_VERSION" ]; then
         cargo install thruput-cli --version "=$THRUPUT_CLI_VERSION" \
-            --registry groundhog --locked "${install_flags[@]}"
+            --registry thruput --locked "${install_flags[@]}"
     fi
 }
 

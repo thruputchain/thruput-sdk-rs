@@ -14,7 +14,7 @@ cd my-contract
 thruput build          # compiles and lowers the rv32 artifact
 ```
 
-Installing the CLI from source uses the existing `groundhog` Cargo registry alias. Install
+Installing the CLI from source uses the `thruput` Cargo registry alias. Install
 the version `scripts/thruput-cli-version.sh` pins, which is what this
 repository's own scripts do (`scripts/ci.sh`, `scripts/scaffold-smoke.sh`):
 the CLI and the SDK share the raw contract-spec wire format, and an unpinned
@@ -23,7 +23,7 @@ checkout has already shipped.
 
 ```shell
 . scripts/thruput-cli-version.sh
-cargo install thruput-cli --version "=$THRUPUT_CLI_VERSION" --registry groundhog --locked
+cargo install thruput-cli --version "=$THRUPUT_CLI_VERSION" --registry thruput --locked
 ```
 
 `cargo install` resolves configuration from the directory you run it in, so
@@ -31,8 +31,8 @@ this repository's `.cargo/config.toml` does not apply unless you happen to be
 standing in the checkout. Set the index and token globally instead:
 
 ```shell
-export CARGO_REGISTRIES_GROUNDHOG_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
-export CARGO_REGISTRIES_GROUNDHOG_TOKEN=...
+export CARGO_REGISTRIES_THRUPUT_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
+export CARGO_REGISTRIES_THRUPUT_TOKEN=...
 ```
 
 Prebuilt client bundles that pair the CLI with a matching `hog-devnode` are
@@ -222,6 +222,13 @@ the first `cargo` invocation. No manual `rustup target add` step is needed.
 [ccache](https://ccache.dev/) is only used when building the hogd test
 executor from source (`HOGD_FFI_BUILD=1`). The default prebuilt download path
 does not need it.
+
+The pinned runtime source uses its own `groundhog` registry alias. For the
+source-build path, also set `CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the same
+value as `CARGO_REGISTRIES_THRUPUT_TOKEN`; the source-build workflow sets both.
+The default runtime clone lives in the system temporary directory. If you set
+`HOGD_SRC`, select a checkout outside this SDK tree so Cargo keeps the two
+workspaces' registry configuration separate.
 
 ## Building
 

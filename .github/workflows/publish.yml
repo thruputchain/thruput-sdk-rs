@@ -42,7 +42,7 @@ env:
   # first thing they do -- and that needs a credential provider of its own.
   # hog1 had one configured on disk; an ephemeral runner does not. Same pair
   # ci.yml and sdk_tests.yml set.
-  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
   # Workspace-versioned crates published under the `v<version>` tag, in
   # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
@@ -172,6 +172,7 @@ jobs:
       - name: Publish dry run
         uses: ./actions/cargo-publish-dry-run
         with:
+          registry-name: thruput
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           # The interface-dependent crates reach the standard interfaces (and
           # each other) as workspace path deps — `cargo vendor` skips those, so
@@ -244,6 +245,7 @@ jobs:
             -Z trap-unreachable=false
             --deny warnings
         with:
+          registry-name: thruput
           packages: ${{ env.INTERFACE_PACKAGES }}
           # The implementation components exact-pin their interface crates,
           # and the permit and issuer interfaces exact-pin groundhog-erc20-if — all
@@ -303,7 +305,7 @@ jobs:
           tag-prefix: 'groundhog-erc20-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-erc20-controls-if
@@ -315,7 +317,7 @@ jobs:
           tag-prefix: 'groundhog-erc20-controls-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-erc20-metadata-if
@@ -327,7 +329,7 @@ jobs:
           tag-prefix: 'groundhog-erc20-metadata-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-erc20-pausable-if
@@ -339,7 +341,7 @@ jobs:
           tag-prefix: 'groundhog-erc20-pausable-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-signed-op
@@ -351,7 +353,7 @@ jobs:
           tag-prefix: 'groundhog-signed-op-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-access-control-if
@@ -363,7 +365,7 @@ jobs:
           tag-prefix: 'groundhog-access-control-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-signed-op-if
@@ -375,7 +377,7 @@ jobs:
           tag-prefix: 'groundhog-signed-op-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-erc20-permit-if
@@ -387,7 +389,7 @@ jobs:
           tag-prefix: 'groundhog-erc20-permit-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-erc165-if
@@ -399,7 +401,7 @@ jobs:
           tag-prefix: 'groundhog-erc165-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-erc721-if
@@ -411,7 +413,7 @@ jobs:
           tag-prefix: 'groundhog-erc721-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-sep41
@@ -423,7 +425,7 @@ jobs:
           tag-prefix: 'groundhog-sep41-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag groundhog-access-control
@@ -435,7 +437,7 @@ jobs:
           tag-prefix: 'groundhog-access-control-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       # Unlike the dry runs, the publish steps resolve deps against the live
@@ -448,7 +450,7 @@ jobs:
         with:
           packages: ${{ env.PRIMARY_PACKAGES }}
           git-tag: ${{ steps.publish-tag.outputs.tag }}
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           # Verification is done in the dry-run steps above; the host verify-build
           # here would fail for the architecture-only runtime crates.
@@ -466,7 +468,7 @@ jobs:
           packages: groundhog-erc20-if
           git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           # Verification is done by the dry-run step above; the publish-time
           # verify build runs with --all-features, which enables `entrypoints`
@@ -482,7 +484,7 @@ jobs:
           packages: groundhog-erc20-metadata-if
           git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-metadata-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -494,7 +496,7 @@ jobs:
           packages: groundhog-erc20-controls-if
           git-tag: ${{ steps.tag-token-controls-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-controls-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -506,7 +508,7 @@ jobs:
           packages: groundhog-erc20-pausable-if
           git-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-pausable-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -518,7 +520,7 @@ jobs:
           packages: groundhog-erc165-if
           git-tag: ${{ steps.tag-erc165-if.outputs.tag }}
           tag-prefix: 'groundhog-erc165-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -530,7 +532,7 @@ jobs:
           packages: groundhog-erc721-if
           git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
           tag-prefix: 'groundhog-erc721-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -544,7 +546,7 @@ jobs:
           packages: groundhog-sep41
           git-tag: ${{ steps.tag-sep41.outputs.tag }}
           tag-prefix: 'groundhog-sep41-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -556,7 +558,7 @@ jobs:
           packages: groundhog-access-control-if
           git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
           tag-prefix: 'groundhog-access-control-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -568,7 +570,7 @@ jobs:
           packages: groundhog-signed-op-if
           git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
           tag-prefix: 'groundhog-signed-op-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -582,7 +584,7 @@ jobs:
           packages: groundhog-signed-op
           git-tag: ${{ steps.tag-signed-op.outputs.tag }}
           tag-prefix: 'groundhog-signed-op-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -596,7 +598,7 @@ jobs:
           packages: groundhog-erc20-permit-if
           git-tag: ${{ steps.tag-erc20-permit-if.outputs.tag }}
           tag-prefix: 'groundhog-erc20-permit-if-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -610,7 +612,7 @@ jobs:
           packages: groundhog-access-control
           git-tag: ${{ steps.tag-access-control.outputs.tag }}
           tag-prefix: 'groundhog-access-control-v'
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
@@ -621,7 +623,7 @@ jobs:
         with:
           packages: ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           git-tag: ${{ steps.publish-tag.outputs.tag }}
-          registry-name: groundhog
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'

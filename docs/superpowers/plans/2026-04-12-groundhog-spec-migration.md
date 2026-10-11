@@ -21,7 +21,7 @@
 In root `Cargo.toml`, add under `[workspace.dependencies]`:
 
 ```toml
-groundhog-spec = { registry = "groundhog", version = "0.7.8", default-features = false }
+groundhog-spec = { registry = "thruput", version = "0.7.8", default-features = false }
 ```
 
 - [ ] **Step 2: Add `groundhog-spec` as optional dep and update features in `groundhog-contract-spec/Cargo.toml`**
