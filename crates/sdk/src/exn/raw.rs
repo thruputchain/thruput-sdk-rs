@@ -107,13 +107,9 @@ impl RawException {
         let wire = {
             let mut buf = crate::call::Buf::new();
             if buf.extend_from_slice(wire).is_err() {
-                // Cannot happen in practice: `wire` is abort bytes drawn
-                // from the call scratch, the same `SCRATCH_MAX` capacity as
-                // `buf`, and `checked_returned_len` already refused anything
-                // the scratch could not hold. What the chain configures as a
-                // return-buffer limit does not enter into it. If it somehow
-                // did overflow, propagate the original borrowed `wire`
-                // verbatim rather than catch a truncated copy.
+                // Unreachable: `checked_returned_len` already refused what
+                // the `SCRATCH_MAX` scratch could not hold. If it somehow
+                // did, propagate `wire` verbatim, not a truncated copy.
                 crate::contract_op::contract_abort(wire);
             }
             buf

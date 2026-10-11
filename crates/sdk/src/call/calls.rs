@@ -334,10 +334,8 @@ fn invoke_frame(
         Err(syserr) => return Err(classify_invoke_rejection(syserr)),
     };
 
-    // No cap check on `return_buffer_len` here: what the chain permits is
-    // configuration (`kConfigParamMaxReturnBufferLen`), not a constant this
-    // crate can know. `checked_returned_len` bounds the length that matters,
-    // against the capacity of the buffer actually receiving the bytes.
+    // No cap here: `checked_returned_len` bounds the length against the
+    // receiving buffer, and a chain's limit is configuration, not a constant.
     Ok((is_ok, outputs))
 }
 
