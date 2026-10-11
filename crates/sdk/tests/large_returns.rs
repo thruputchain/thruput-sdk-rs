@@ -276,3 +276,66 @@ fn try_call_raw_with_preserves_abort_payloads_past_the_default_limit() {
     })
     .assert_success();
 }
+
+/// Calls the child and asserts its frame faulted rather than returned.
+fn assert_child_faults(env: &TestEnvironmentHandle) {
+    env.transact(|tx| {
+        tx.call(&PARENT_ADDR).run(|| {
+            let mut return_buf = sdk::call::ReturnBuf::new();
+            let mut returned_auth = AuthHandleBuf::new();
+            let err = sdk::call::contract_call(
+                &CHILD_ADDR,
+                entrypoint(),
+                u64::MAX,
+                &[] as &[u8],
+                &AuthHandleBuf::new(),
+                0,
+                &mut return_buf,
+                &mut returned_auth,
+            )
+            .expect_err("child must fault");
+            assert!(
+                matches!(err, RawCallError::Fault(_)),
+                "expected Fault, got {err:?}"
+            );
+            assert!(return_buf.as_slice().is_empty());
+        })
+    })
+    .assert_success();
+}
+
+// A Return over the chain's limit is refused by the host with Exit, which
+// reverts the frame. The mock harness used to unwind Exit as a completed
+// frame, so the caller saw `Ok(Return)` with an empty buffer instead.
+#[test]
+fn return_over_the_configured_limit_faults_the_child() {
+    let env = env_with_child_at_limit(128, || {
+        sdk::sys::raw_Return(&[0xAB_u8; 129], false, &[]);
+    });
+    assert_child_faults(&env);
+}
+
+#[test]
+fn return_over_the_default_limit_faults_the_child() {
+    let env = env_with_child(|| {
+        sdk::sys::raw_Return(&[0xAB_u8; 1025], false, &[]);
+    });
+    assert_child_faults(&env);
+}
+
+// The Exit syscall itself takes the same path.
+#[test]
+fn contract_revert_faults_the_child() {
+    let env = env_with_child(|| sdk::contract_op::contract_revert());
+    assert_child_faults(&env);
+}
+
+// Not a length check, but the same Exit path out of Return: a frame cannot
+// both revert and hand auth tokens back, so the host refuses the Return.
+#[test]
+fn reverting_return_with_auth_tokens_faults_the_child() {
+    let env = env_with_child(|| {
+        sdk::sys::raw_Return(&[], true, &[0]);
+    });
+    assert_child_faults(&env);
+}
