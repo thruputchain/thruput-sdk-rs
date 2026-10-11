@@ -54,8 +54,8 @@
 //! overridden: the protocol default, and what a chain admits unless its
 //! configuration raises `max_rv32_memory_bytes`. It has to agree with the
 //! `memory_bytes` the artifact header declares, so it is set from one place:
-//! `groundhog build` reads `initial_memory_bytes` under
-//! `[package.metadata.groundhog]` in the contract's `Cargo.toml`, passes it
+//! `thruput build` reads `initial_memory_bytes` under
+//! `[package.metadata.thruput]` in the contract's `Cargo.toml`, passes it
 //! as `--defsym=__memory_size=<bytes>` on the link, and stamps the same value
 //! into the artifact. A hand-driven build passes the same `--defsym` next to
 //! `__stack_size`. The linker script `PROVIDE`s the default, so either

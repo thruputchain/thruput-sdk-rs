@@ -1,4 +1,4 @@
-# Layered on by `groundhog build` (see example-contracts/.cargo/contract.toml
+# Layered on by `thruput build` (see example-contracts/.cargo/contract.toml
 # for the full rationale — this standalone fixture workspace needs its own
 # copy because the CLI resolves the file relative to the package, while the
 # rv32 [target.*] rustflags still flow from example-contracts/.cargo/config.toml

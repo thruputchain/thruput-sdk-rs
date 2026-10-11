@@ -1,7 +1,7 @@
 name: Scaffold Smoke
 
-# Builds a `groundhog new` scaffold from the groundhog CLI this repo pins
-# (scripts/groundhog-cli-version.sh) against the sdk at head (see
+# Builds a `thruput new` scaffold from the Thruput CLI this repo pins
+# (scripts/thruput-cli-version.sh) against the sdk at head (see
 # scripts/scaffold-smoke.sh). Guards the CLI x sdk-head combination — the
 # class of breakage sdk 0.17.8 shipped (scaffold build broken by an xdrs
 # feature edge) — so it runs on pushes to main rather than on every PR
@@ -17,9 +17,9 @@ env:
   CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
   # Namespace-cached CLI install root: scaffold-smoke.sh installs the pinned
-  # groundhog CLI here once per version bump instead of recompiling it every
+  # Thruput CLI here once per version bump instead of recompiling it every
   # run. Mirrors ci.yml.
-  GROUNDHOG_CLI_ROOT: ${{ github.workspace }}/.groundhog-cli
+  THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
 
 permissions:
   contents: read
@@ -42,15 +42,15 @@ jobs:
 
       # NB: deliberately NOT caching ./target — cargo's many-small-file churn
       # stalls on the network-backed cache mount. Cache only the dependency
-      # sources and the compiled groundhog CLI. Mirrors ci.yml.
+      # sources and the compiled Thruput CLI. Mirrors ci.yml.
       - name: Configure Namespace Cache
         uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/groundhog-cli-source
-            ${{ github.workspace }}/.groundhog-cli
+            ~/.cargo/thruput-cli-source
+            ${{ github.workspace }}/.thruput-cli
 
       - name: Scaffold and build
         run: ./scripts/scaffold-smoke.sh

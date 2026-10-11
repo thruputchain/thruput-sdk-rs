@@ -143,7 +143,7 @@ jobs:
       # auth, and it is a ~1min compile against a release that takes 15.
       #
       # Pinned exactly, and checked by version rather than by presence, the
-      # way ci.sh pins the groundhog CLI: this runs with the release job's
+      # way ci.sh pins the Thruput CLI: this runs with the release job's
       # SSH agent already loaded, so it must build the version that was
       # tested rather than whatever was published since. `--locked` alone
       # would pin cargo-hack's dependencies but not cargo-hack.

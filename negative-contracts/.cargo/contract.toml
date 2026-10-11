@@ -1,4 +1,4 @@
-# Layered on by `groundhog build`, which resolves this path relative to the
+# Layered on by `thruput build`, which resolves this path relative to the
 # WORKSPACE ROOT — so it belongs here beside config.toml, not in a member's
 # own .cargo/. (example-contracts/.cargo/contract.toml serves its members the
 # same way. dup_entrypoint_neg keeps its copy inside the package only because

@@ -189,7 +189,7 @@ impl core::fmt::Display for SpecToolError {
                 f,
                 "this contract was built with a newer Groundhog SDK than \
                  this tool understands (contract raw spec format {found}, \
-                 this tool supports {supported}). Upgrade the groundhog CLI, \
+                 this tool supports {supported}). Upgrade the Thruput CLI, \
                  or rebuild the contract against an SDK matching it.",
             ),
             Self::RawSpecFormatTooOld { found, supported } => write!(
@@ -197,7 +197,7 @@ impl core::fmt::Display for SpecToolError {
                 "this contract was built with an older Groundhog SDK than \
                  this tool understands (contract raw spec format {found}, \
                  this tool supports {supported}). Rebuild the contract \
-                 against a newer SDK, or use a groundhog CLI matching the \
+                 against a newer SDK, or use a Thruput CLI matching the \
                  SDK it was built with.",
             ),
         }

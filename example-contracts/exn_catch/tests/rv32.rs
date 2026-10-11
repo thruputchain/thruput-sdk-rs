@@ -2,7 +2,7 @@
 //! build-examples-rv32` writes it.
 
 // test working directory is example contract directory
-const RV32_PATH: &str = "../../target/groundhog/exn_catch.rv32a";
+const RV32_PATH: &str = "../../target/thruput/exn_catch.rv32a";
 
 mod common;
 use common::*;

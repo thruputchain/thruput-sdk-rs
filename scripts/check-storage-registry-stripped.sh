@@ -95,7 +95,7 @@ fi
 
 # --- Toolchain confirmed: from here on, any failure is a real failure ---
 
-# Build the ELF with plain cargo rather than through the groundhog CLI: this
+# Build the ELF with plain cargo rather than through the Thruput CLI: this
 # check only needs the linked guest binary, not the lowered artifact, so it
 # stays runnable without the CLI installed. example-contracts/.cargo/config.toml
 # supplies the rv32 rustflags; build-std goes on the command line (it must not

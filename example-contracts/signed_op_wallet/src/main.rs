@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `signed_op_wallet` contract.
 //!
-//! `groundhog build` derives `--bin signed_op_wallet` from the package name,
+//! `thruput build` derives `--bin signed_op_wallet` from the package name,
 //! so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

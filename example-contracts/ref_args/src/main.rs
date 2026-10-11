@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `ref_args` contract.
 //!
-//! `groundhog build` derives `--bin ref_args` from the package name,
+//! `thruput build` derives `--bin ref_args` from the package name,
 //! so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

@@ -189,4 +189,4 @@ fallback needed.
 - A build-time generator that synthesizes the `*-rv32` bin wrapper so authors
   write only `lib.rs`. This change reduces the wrapper to irreducible lines but
   does not eliminate the wrapper crate.
-- Any change to the `groundhog build` CLI (lives in `groundhog-rpc`).
+- Any change to the `thruput build` CLI (lives in `groundhog-rpc`).

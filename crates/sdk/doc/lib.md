@@ -86,7 +86,7 @@ dev = ["sdk/dev"]
 [lib]
 crate-type = ["rlib"]
 
-# The rv32 artifact. `groundhog build -p my-contract` derives
+# The rv32 artifact. `thruput build -p my-contract` derives
 # `--bin my-contract` from the package name, so this name must match it.
 # src/main.rs is a `#![no_std] #![no_main]` wrapper whose `extern crate
 # my_contract;` force-links the rlib so the entrypoint records reach the

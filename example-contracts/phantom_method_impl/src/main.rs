@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `phantom_method_impl` contract.
 //!
-//! `groundhog build` derives `--bin phantom_method_impl` from the package
+//! `thruput build` derives `--bin phantom_method_impl` from the package
 //! name, so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

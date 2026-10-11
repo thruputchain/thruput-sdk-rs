@@ -22,7 +22,7 @@ set -euo pipefail
 #                since every other number is measured against it
 #   -k           keep going after a failed build instead of aborting
 #
-# Run from the SDK's top-level directory. Requires the pinned groundhog CLI
+# Run from the SDK's top-level directory. Requires the pinned Thruput CLI
 # (scripts/ci.sh installs it), llvm-readelf or readelf on PATH, and whatever
 # `sdk`'s `dev` feature needs to stand up the mock node -- the same set the
 # bottle tests already require.
@@ -31,11 +31,11 @@ SDK_DIR="$(realpath ".")"
 TARGET_DIR="$(realpath "target")"
 CONTRACTS_DIR="${SDK_DIR}/example-contracts"
 RV32_RELEASE="${TARGET_DIR}/riscv32im-unknown-none-elf/release"
-LOWERED="${TARGET_DIR}/groundhog"
+LOWERED="${TARGET_DIR}/thruput"
 OUT_DIR="${TARGET_DIR}/bigint-bench"
 
 # The contract package, its bin/artifact stem, and the ELF the cargo build
-# leaves behind. `groundhog build` derives `--bin` from the package name.
+# leaves behind. `thruput build` derives `--bin` from the package name.
 PACKAGE="bigint-bench-contract"
 STEM="bigint_bench_contract"
 
@@ -96,8 +96,8 @@ READELF="${READELF:-$(command -v llvm-readelf || command -v readelf || true)}"
     exit 1
 }
 
-command -v groundhog > /dev/null || {
-    echo "groundhog CLI not on PATH; scripts/ci.sh installs the pinned version" >&2
+command -v thruput > /dev/null || {
+    echo "Thruput CLI not on PATH; scripts/ci.sh installs the pinned version" >&2
     exit 1
 }
 
@@ -165,7 +165,7 @@ for backend in $BACKENDS; do
         # which carries no symtab regardless.
         if ! (
             cd "$CONTRACTS_DIR" &&
-            groundhog build -p "$PACKAGE" -- \
+            thruput build -p "$PACKAGE" -- \
                 $LOCKED -Zbuild-std=core,alloc -F "$features" \
                 --config 'profile.release.strip=false'
         ); then

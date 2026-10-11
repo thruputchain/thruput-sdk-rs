@@ -10,9 +10,9 @@ Run from `example-contracts/`:
 
 ```sh
 cargo test -p erc20_issuer --locked
-groundhog build -p erc20_issuer -- --locked -Zbuild-std=core,alloc
-ISSUER_TOKEN_RV32_ARTIFACT="$PWD/../target/groundhog/erc20_issuer.rv32a" \
-ERC20_PERMIT_RV32_ARTIFACT="$PWD/../target/groundhog/erc20_issuer.rv32a" \
+thruput build -p erc20_issuer -- --locked -Zbuild-std=core,alloc
+ISSUER_TOKEN_RV32_ARTIFACT="$PWD/../target/thruput/erc20_issuer.rv32a" \
+ERC20_PERMIT_RV32_ARTIFACT="$PWD/../target/thruput/erc20_issuer.rv32a" \
   cargo test -p erc20_issuer --locked
 ```
 

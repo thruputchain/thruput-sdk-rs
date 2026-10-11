@@ -15,7 +15,7 @@ edition.workspace = true
 crate-type = ["rlib"]
 doctest = false
 
-# The rv32 artifact. `groundhog build -p bigint-bench-contract` derives
+# The rv32 artifact. `thruput build -p bigint-bench-contract` derives
 # `--bin bigint_bench_contract` from the package name, so the name here must
 # stay the underscored package name.
 [[bin]]
@@ -39,7 +39,7 @@ bigint-bench-contract = { path = ".", features = ["backend-uint"] }
 entrypoints = []
 
 # `op-none` by default so a plain `cargo build`/`cargo test`/`cargo doc` of this
-# package satisfies the exactly-one-op assertion in kernel.rs. `groundhog build`
+# package satisfies the exactly-one-op assertion in kernel.rs. `thruput build`
 # passes `--no-default-features`, so a measured build gets only the op the driver
 # names and never this one on top of it.
 default = ["op-none"]

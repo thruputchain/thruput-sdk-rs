@@ -2,7 +2,7 @@
 
 ## The extraction already exists in groundhog-rpc
 
-`groundhog build --target rv32` already extracts and emits the contract spec
+`thruput build --target rv32` already extracts and emits the contract spec
 from the rv32 ELF. No new extraction code is needed. The wiring (in
 `../../groundhog-rpc`):
 

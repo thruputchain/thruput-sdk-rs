@@ -1,4 +1,4 @@
-# Layered on by `groundhog build` for every contract build, and by a manual
+# Layered on by `thruput build` for every contract build, and by a manual
 #
 #    cargo --config .cargo/contract.toml --release build
 #

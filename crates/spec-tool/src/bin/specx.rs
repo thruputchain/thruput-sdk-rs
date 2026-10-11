@@ -1,5 +1,5 @@
 //! Local dev tool: extract and canonicalize the contract spec from an rv32
-//! ELF, mirroring the groundhog CLI's `finalize_rv32_spec` pipeline.
+//! ELF, mirroring the Thruput CLI's `finalize_rv32_spec` pipeline.
 //!
 //! Usage: `specx <elf> <out_spec_json>`
 

@@ -20,7 +20,7 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build -p erc721` derives `--bin erc721` from
+# The rv32 artifact. `thruput build -p erc721` derives `--bin erc721` from
 # the package name, so the name here must stay the underscored package name.
 # `required-features` keeps it out of host builds.
 [[bin]]

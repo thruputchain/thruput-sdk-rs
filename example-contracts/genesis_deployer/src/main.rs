@@ -1,6 +1,6 @@
 //! RV32 binary wrapper for the `genesis_deployer` contract.
 //!
-//! `groundhog build` derives `--bin genesis_deployer` from the package name,
+//! `thruput build` derives `--bin genesis_deployer` from the package name,
 //! so this target is what produces the deployable ELF.
 //!
 //! The `extern crate` line force-links this package's own rlib, so the

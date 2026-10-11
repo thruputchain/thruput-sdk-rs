@@ -186,7 +186,7 @@ fn raw_spec_encoding_matches_golden() {
         actual,
         GOLDEN.trim(),
         "\n\nThe raw spec wire format changed (RAW_SPEC_FORMAT is currently \
-         {RAW_SPEC_FORMAT}).\n\nAn older groundhog CLI reading a contract \
+         {RAW_SPEC_FORMAT}).\n\nAn older Thruput CLI reading a contract \
          built with this SDK cannot detect the change unless the format \
          version is bumped: the fragment stream is unframed, so it \
          desynchronizes and reports an unrelated-looking parse error. If \

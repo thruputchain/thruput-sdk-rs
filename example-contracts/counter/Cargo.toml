@@ -16,13 +16,13 @@ entrypoints = []
 dev = ["sdk/dev"]
 
 [lib]
-# Keep the host cdylib lane aligned with `groundhog new`; it catches exported
+# Keep the host cdylib lane aligned with `thruput new`; it catches exported
 # symbol names that an rlib-only build never presents to the platform linker.
 crate-type = ["cdylib", "rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. `groundhog build -p counter` derives `--bin counter` from
+# The rv32 artifact. `thruput build -p counter` derives `--bin counter` from
 # the package name, so the name here must stay the underscored package name.
 # `required-features` keeps it out of host builds.
 [[bin]]
