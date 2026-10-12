@@ -1,6 +1,6 @@
 use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SyscallNo};
-use groundhog_xdr::types::{BlockHeight, NetworkHash, SHA256Hash, TimePoint};
+use thruput_xdr::types::{BlockHeight, NetworkHash, SHA256Hash, TimePoint};
 
 /// The height of the block the current transaction executes in.
 ///

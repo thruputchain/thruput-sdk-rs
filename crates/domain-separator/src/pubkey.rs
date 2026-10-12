@@ -8,8 +8,8 @@
 
 use core::mem::MaybeUninit;
 
-use groundhog_xdr::auth_claim::PubkeyAccountPreimage;
-use groundhog_xdr::types::ContractAddress;
+use thruput_xdr::auth_claim::PubkeyAccountPreimage;
+use thruput_xdr::types::ContractAddress;
 use xdrs::cxs::ConstMaxSize;
 
 use crate::PUBKEY_ACCOUNT;
@@ -80,7 +80,7 @@ mod tests {
     use super::*;
     use crate::backend::Sha2;
     use crate::sha2::pubkey_account_address;
-    use groundhog_xdr::types::{Ed25519PublicKey, PublicKey};
+    use thruput_xdr::types::{Ed25519PublicKey, PublicKey};
 
     fn sample() -> PubkeyAccountPreimage {
         PubkeyAccountPreimage {

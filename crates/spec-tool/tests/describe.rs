@@ -1,11 +1,9 @@
-use groundhog_contract_spec::{
-    ContractSpecId, ContractType, ContractTypeDef, ContractUnionCaseType,
-};
-use groundhog_spec_tool::describe::{
-    DescribeOutput, REGISTRY, build_describe,
-};
 use std::{collections::BTreeSet, process::Command};
 use tempfile::tempdir;
+use thruput_contract_spec::{
+    ContractSpecId, ContractType, ContractTypeDef, ContractUnionCaseType,
+};
+use thruput_spec_tool::describe::{DescribeOutput, REGISTRY, build_describe};
 
 fn walk_type(ty: &ContractType, refs: &mut BTreeSet<ContractSpecId>) {
     match ty {
@@ -97,7 +95,7 @@ fn every_registered_type_has_complete_closure() {
 #[test]
 fn library_exn_has_nonzero_selector() {
     let output = build_describe(
-        groundhog_spec_tool::describe::lookup("LibraryExn")
+        thruput_spec_tool::describe::lookup("LibraryExn")
             .expect("LibraryExn registered"),
     );
     assert_ne!(output.exception.selector, 0);
@@ -114,7 +112,7 @@ fn describe_list_rejects_output_flags() {
     ];
 
     for args in cases {
-        let output = Command::new(env!("CARGO_BIN_EXE_groundhog-spec-tool"))
+        let output = Command::new(env!("CARGO_BIN_EXE_thruput-spec-tool"))
             .args(&args)
             .output()
             .unwrap();

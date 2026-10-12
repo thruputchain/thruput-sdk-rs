@@ -5,7 +5,7 @@ edition.workspace = true
 publish.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Shared ERC20 conformance test suite for Groundhog contracts"
+description = "Shared ERC20 conformance test suite for Thruput contracts"
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
@@ -17,11 +17,11 @@ test = false
 
 [dependencies]
 sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
-groundhog-erc20-metadata-if = { workspace = true, optional = true}
+thruput-erc20-if = { workspace = true }
+thruput-erc20-metadata-if = { workspace = true, optional = true}
 thiserror = { workspace = true }
 
 [features]
-metadata = ["dep:groundhog-erc20-metadata-if"]
+metadata = ["dep:thruput-erc20-metadata-if"]
 # don't check operations expected to cause erc20 abort
 no_check_aborts = []

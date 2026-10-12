@@ -1,15 +1,15 @@
 use crate::test_environment::TestEnvironment;
 
 use crate::invoke_error::invoke_wrapper;
-use groundhog_xdr::contract::Contract;
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::types::ContractAddress;
-use groundhog_xdr::types::SHA256Hash;
 use sha2::{Digest, Sha256};
 use std::boxed::Box;
 use std::collections::HashMap;
 use std::panic::UnwindSafe;
 use std::rc::Rc;
+use thruput_xdr::contract::Contract;
+use thruput_xdr::contract::ContractEntrypointID;
+use thruput_xdr::types::ContractAddress;
+use thruput_xdr::types::SHA256Hash;
 use xdrs::txs;
 
 /// Backing storage for a mock contract, owned by the [`TestEnvironment`];
@@ -20,7 +20,7 @@ pub struct MockContractInner {
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
     funcs: HashMap<
         ContractEntrypointID,
-        Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync>,
+        Box<dyn Fn() -> thruput_sys::ForeignInvokeResult + Send + Sync>,
     >,
     /// Run instead of a deterministic failure when an invoked method id
     /// matches no entry in `funcs`. `None` (the default) keeps the
@@ -28,7 +28,7 @@ pub struct MockContractInner {
     /// `LibraryExn::UnknownMethod` throw, so a mock standing in for a real
     /// contract agrees with the rv32 guest dispatcher.
     unknown: Option<
-        Box<dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync>,
+        Box<dyn Fn() -> thruput_sys::ForeignInvokeResult + Send + Sync>,
     >,
 }
 
@@ -159,7 +159,7 @@ impl MockContractInner {
     pub fn get_func(
         &self,
         method: ContractEntrypointID,
-    ) -> Option<&(dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync)>
+    ) -> Option<&(dyn Fn() -> thruput_sys::ForeignInvokeResult + Send + Sync)>
     {
         self.funcs.get(&method).map(|boxed| boxed.as_ref())
     }
@@ -167,7 +167,7 @@ impl MockContractInner {
     /// The handler for undefined method ids, if one was registered.
     pub fn get_unknown_func(
         &self,
-    ) -> Option<&(dyn Fn() -> groundhog_sys::ForeignInvokeResult + Send + Sync)>
+    ) -> Option<&(dyn Fn() -> thruput_sys::ForeignInvokeResult + Send + Sync)>
     {
         self.unknown.as_ref().map(|boxed| boxed.as_ref())
     }

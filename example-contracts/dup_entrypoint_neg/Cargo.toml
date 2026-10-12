@@ -2,12 +2,12 @@
 name = "dup_entrypoint_neg"
 description = "Negative fixture: two colliding traits with the same method name — the duplicate entrypoint ID must fail every build (host cargo build and the rv32 link)"
 version = "0.4.0"
-authors = ["Groundhog Team"]
+authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["thruput"]
 repository = "https://github.com/groundhogchain/example-contracts.git"
 homepage = "https://github.com/groundhogchain/example-contracts.git"
-keywords = ["groundhog"]
+keywords = ["thruput"]
 categories = ["blockchain"]
 edition = "2024"
 
@@ -32,4 +32,4 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.50.1" }
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.51.0" }

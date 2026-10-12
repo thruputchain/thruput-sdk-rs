@@ -4,7 +4,7 @@
 
 sdk::declare_mock_contract!();
 
-use groundhog_erc20_if as interface;
+use thruput_erc20_if as interface;
 
 // A client stub that provides the interface via cross-contract calls
 pub use interface::ERC20Client;

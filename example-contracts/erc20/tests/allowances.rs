@@ -8,8 +8,8 @@ const OTHER: ContractAddress = ContractAddress::new([0x34; 32]);
 fn client() -> ERC20Client {
     ERC20Client::new(&TOKEN)
 }
-fn expiry() -> groundhog_erc20_if::ERC20AllowanceExpiryClient {
-    groundhog_erc20_if::ERC20AllowanceExpiryClient::new(&TOKEN)
+fn expiry() -> thruput_erc20_if::ERC20AllowanceExpiryClient {
+    thruput_erc20_if::ERC20AllowanceExpiryClient::new(&TOKEN)
 }
 fn call(
     env: &TestEnvironmentHandle,
@@ -126,7 +126,7 @@ fn partial_spends_merge_and_failed_spend_leaves_allowance_intact() {
                 .try_transfer_from(&OWNER, &OTHER, 100)
                 .unwrap_err()
                 .try_as(),
-            Some(groundhog_erc20_if::ERC20Error::TooLarge)
+            Some(thruput_erc20_if::ERC20Error::TooLarge)
         );
         assert_eq!(client().allowance(&OWNER, &SPENDER), 1000);
     })
@@ -143,7 +143,7 @@ fn partial_spends_merge_and_failed_spend_leaves_allowance_intact() {
 
 #[test]
 fn adjustment_emits_delta_at_the_amount_bound() {
-    use groundhog_erc20_if::AllowanceChangeEvent;
+    use thruput_erc20_if::AllowanceChangeEvent;
     let env = setup();
     let result = call(&env, &OWNER, || {
         client().adjust_allowance(&SPENDER, i128::MAX - 50);
@@ -168,8 +168,8 @@ fn adjustment_rejects_overflow_without_writing() {
         client().adjust_allowance(&SPENDER, i128::MAX)
     });
     assert_eq!(
-        result.assert_abort_as::<groundhog_erc20_if::ERC20Error>(),
-        groundhog_erc20_if::ERC20Error::TooLarge
+        result.assert_abort_as::<thruput_erc20_if::ERC20Error>(),
+        thruput_erc20_if::ERC20Error::TooLarge
     );
     result.assert_no_events();
     env.advance_block();
@@ -189,7 +189,7 @@ fn signed_deltas_merge_and_spending_emits_only_a_transfer() {
         result.assert_success();
         result.assert_event_count(1);
         result.assert_raw_event(0, |raw| {
-            let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+            let event = thruput_erc20_if::AllowanceChangeEvent::try_from(
                 EmittedEvent::from(raw.raw()),
             )
             .unwrap();
@@ -206,7 +206,7 @@ fn signed_deltas_merge_and_spending_emits_only_a_transfer() {
     result.assert_raw_event(0, |raw| {
         assert_eq!(
             raw.topic(0),
-            Some(groundhog_erc20_if::TransferEvent::SIGNATURE)
+            Some(thruput_erc20_if::TransferEvent::SIGNATURE)
         );
     });
     env.advance_block();
@@ -290,7 +290,7 @@ fn temporary_grant_nested_spend_and_clear_commit_atomically() {
     result.assert_success();
     result.assert_event_count(3);
     result.assert_raw_event(2, |raw| {
-        let event = groundhog_erc20_if::AllowanceDeleteEvent::try_from(
+        let event = thruput_erc20_if::AllowanceDeleteEvent::try_from(
             EmittedEvent::from(raw.raw()),
         )
         .unwrap();
@@ -350,8 +350,8 @@ fn clearing_removes_allowance_and_zero_balance_storage_and_accepts_missing_cells
     );
     let rejected = call(&env, &OWNER, || client().delete_balance());
     assert_eq!(
-        rejected.assert_abort_as::<groundhog_erc20_if::ERC20Error>(),
-        groundhog_erc20_if::ERC20Error::BalanceNotZero
+        rejected.assert_abort_as::<thruput_erc20_if::ERC20Error>(),
+        thruput_erc20_if::ERC20Error::BalanceNotZero
     );
     rejected.assert_no_events();
     call(&env, &OWNER, || client().transfer(&OTHER, 100)).assert_success();
@@ -482,7 +482,7 @@ fn deleting_emits_the_removed_amount_and_allows_regrant_in_one_transaction() {
     result.assert_event_count(3);
     for (index, removed) in [50, 0].into_iter().enumerate() {
         result.assert_raw_event(index, |raw| {
-            let event = groundhog_erc20_if::AllowanceDeleteEvent::try_from(
+            let event = thruput_erc20_if::AllowanceDeleteEvent::try_from(
                 EmittedEvent::from(raw.raw()),
             )
             .unwrap();
@@ -492,7 +492,7 @@ fn deleting_emits_the_removed_amount_and_allows_regrant_in_one_transaction() {
         });
     }
     result.assert_raw_event(2, |raw| {
-        let event = groundhog_erc20_if::AllowanceChangeEvent::try_from(
+        let event = thruput_erc20_if::AllowanceChangeEvent::try_from(
             EmittedEvent::from(raw.raw()),
         )
         .unwrap();
@@ -576,7 +576,7 @@ fn assert_spend_rejected(env: &TestEnvironmentHandle) {
                 .try_transfer_from(&OWNER, &OTHER, 1)
                 .unwrap_err()
                 .try_as(),
-            Some(groundhog_erc20_if::ERC20Error::TooLarge)
+            Some(thruput_erc20_if::ERC20Error::TooLarge)
         );
     })
     .assert_success();
@@ -611,7 +611,7 @@ fn reset_zeroes_the_allowance_and_emits_the_removed_amount() {
     result.assert_success();
     result.assert_event_count(1);
     result.assert_raw_event(0, |raw| {
-        let event = groundhog_erc20_if::AllowanceResetEvent::try_from(
+        let event = thruput_erc20_if::AllowanceResetEvent::try_from(
             EmittedEvent::from(raw.raw()),
         )
         .unwrap();
@@ -708,7 +708,7 @@ fn delete_reports_the_stored_amount_even_after_expiry() {
     result.assert_success();
     result.assert_event_count(1);
     result.assert_raw_event(0, |raw| {
-        let event = groundhog_erc20_if::AllowanceDeleteEvent::try_from(
+        let event = thruput_erc20_if::AllowanceDeleteEvent::try_from(
             EmittedEvent::from(raw.raw()),
         )
         .unwrap();

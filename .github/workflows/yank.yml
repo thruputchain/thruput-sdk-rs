@@ -23,17 +23,17 @@ on:
         # Keep in sync with INTERFACE_PACKAGES in publish.yml.
         options:
           - workspace
-          - groundhog-erc20-if
-          - groundhog-erc20-metadata-if
-          - groundhog-erc20-pausable-if
-          - groundhog-signed-op-if
-          - groundhog-signed-op
-          - groundhog-erc20-permit-if
-          - groundhog-erc165-if
-          - groundhog-erc721-if
-          - groundhog-sep41
-          - groundhog-access-control-if
-          - groundhog-access-control
+          - thruput-erc20-if
+          - thruput-erc20-metadata-if
+          - thruput-erc20-pausable-if
+          - thruput-signed-op-if
+          - thruput-signed-op
+          - thruput-erc20-permit-if
+          - thruput-erc165-if
+          - thruput-erc721-if
+          - thruput-sep41
+          - thruput-access-control-if
+          - thruput-access-control
       undo:
         description: 'Un-yank (restore) instead of yank'
         required: false
@@ -49,21 +49,21 @@ env:
   # Everything published under the `v<version>` tag: PRIMARY_PACKAGES plus
   # INTERFACE_DEPENDENT_PACKAGES in publish.yml. Keep in sync with those.
   WORKSPACE_PACKAGES: >-
-    groundhog-event
-    groundhog-exn
-    groundhog-storage-cost
-    groundhog-contract-util
-    groundhog-contract-spec
-    groundhog-sys
-    groundhog-macros
-    groundhog-domain-separator
-    groundhog-native-exec
-    groundhog-u256
-    groundhog-test-vectors
-    groundhog-rv32-runtime
+    thruput-event
+    thruput-exn
+    thruput-storage-cost
+    thruput-contract-util
+    thruput-contract-spec
+    thruput-sys
+    thruput-macros
+    thruput-domain-separator
+    thruput-native-exec
+    thruput-u256
+    thruput-test-vectors
+    thruput-rv32-runtime
     sdk
     bottle-test-if
-    groundhog-spec-tool
+    thruput-spec-tool
     erc20-test
     erc20-native-test
     erc20-bottle-test

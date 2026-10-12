@@ -11,7 +11,7 @@
 
 sdk::declare_mock_contract!();
 
-use groundhog_signed_op::{Operation, SignedOp, SignedOpReplayCache};
+use thruput_signed_op::{Operation, SignedOp, SignedOpReplayCache};
 use sdk::mintable::AuthTokenPreimage;
 use sdk::signer::{Opaque, Signed};
 use sdk::storage::Value;

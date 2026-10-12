@@ -17,7 +17,7 @@
 
 use crate::sys::{self, SysResult as Result};
 use crate::types::StorageKey;
-use groundhog_xdr::storage_item::{StorageDeltaFlagSet, StorageDeltaFlags};
+use thruput_xdr::storage_item::{StorageDeltaFlagSet, StorageDeltaFlags};
 
 /// Returns the flags the current transaction requests for `key`, as seen by
 /// the current call frame. A key with no pending write has none.

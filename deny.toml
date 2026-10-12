@@ -42,7 +42,7 @@ wildcards = "deny"
 # publish = false, so path wildcards are safe. Registry wildcards stay denied.
 allow-wildcard-paths = true
 
-# bindgen (groundhog-sys's `source-build` feature) takes `syn = ">=2, <4"` and
+# bindgen (thruput-sys's `source-build` feature) takes `syn = ">=2, <4"` and
 # `prettyplease = ">=0.2.7, <0.4"` as independent ranges, but the two have to
 # agree: prettyplease 0.2 is syn 2 and prettyplease 0.3 is syn 3. syn 2 is
 # already in the graph, so cargo reuses it for bindgen rather than adding a
@@ -56,7 +56,7 @@ allow-wildcard-paths = true
 # and prettyplease 0.3 is what agrees with it. Today the sole holder is
 # curve25519-dalek-derive 0.1.1 (`syn = "^2.0.27"`; 0.1.0 and 0.1.1 are its
 # only releases, both syn 2), reached through curve25519-dalek 5.0.0 ->
-# ed25519-dalek 3.0.0 -> groundhog-native-exec [dev-dependencies]. Every
+# ed25519-dalek 3.0.0 -> thruput-native-exec [dev-dependencies]. Every
 # published curve25519-dalek from 4.1.2 on requires that derive crate
 # unconditionally, so there is no upgrade out of it -- only dropping
 # ed25519-dalek from native-exec's dev-dependencies.

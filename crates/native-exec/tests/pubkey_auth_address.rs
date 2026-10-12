@@ -11,19 +11,19 @@
 /// the positive test would actually catch a wrong address rather than always
 /// returning success.
 use ed25519_dalek::{Signer, SigningKey};
-use groundhog_domain_separator::sha2::pubkey_account_address;
-use groundhog_domain_separator::transaction_signature_preimage;
-use groundhog_native_exec::test_environment::{
+use thruput_domain_separator::sha2::pubkey_account_address;
+use thruput_domain_separator::transaction_signature_preimage;
+use thruput_native_exec::test_environment::{
     TestEnvironment, test_network_hash,
 };
-use groundhog_xdr::auth_claim::{
+use thruput_xdr::auth_claim::{
     AuthClaim, AuthVerifyErrorCode, PubkeyAccountPreimage,
 };
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::transaction::{
+use thruput_xdr::contract::ContractEntrypointID;
+use thruput_xdr::transaction::{
     DecoratedSignature, Invocation, SignedTransaction, Transaction, Uniquifier,
 };
-use groundhog_xdr::types::{
+use thruput_xdr::types::{
     BlockHeight, ContractAddress, Ed25519PublicKey, Ed25519Signature,
     PublicKey, Signature as XdrSignature,
 };

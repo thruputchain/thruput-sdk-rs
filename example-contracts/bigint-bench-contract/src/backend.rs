@@ -121,9 +121,9 @@ pub mod u256 {
 
     /// Newtype so this crate owns the trait impl.
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-    pub struct GroundhogU256(pub U256);
+    pub struct ThruputU256(pub U256);
 
-    impl Backend for GroundhogU256 {
+    impl Backend for ThruputU256 {
         const NAME: &'static str = "u256";
         const BITS: u32 = U256::BITS;
 
@@ -300,7 +300,7 @@ pub mod u256 {
 
 /// Parity's `uint`: four 64-bit limbs with `u128` intermediates.
 ///
-/// The implementation `groundhog-u256` replaces, kept here as the comparison
+/// The implementation `thruput-u256` replaces, kept here as the comparison
 /// baseline. Behind `backend-uint` so a `u256` build never compiles it.
 #[cfg(feature = "backend-uint")]
 pub mod parity {

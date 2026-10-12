@@ -1,10 +1,10 @@
 //! ERC20 state and signed grant entrypoints.
 
-use groundhog_erc20_if::{
+use thruput_erc20_if::{
     AllowanceChangeEvent, AllowanceDeleteEvent, Amount, Difference, ERC20,
     ERC20Error, MintEvent, TransferEvent, check_amount,
 };
-use groundhog_erc20_permit_if::{
+use thruput_erc20_permit_if::{
     DeleteAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
 };
 use sdk::signer::Signed;

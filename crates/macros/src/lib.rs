@@ -102,7 +102,7 @@ pub fn sha256_static(item: TokenStream) -> TokenStream {
 /// so building that crate on its own emits the interface's full spec:
 ///
 /// ```ignore
-/// sdk::export_interface_spec!(groundhog_erc20_if::ERC20);
+/// sdk::export_interface_spec!(thruput_erc20_if::ERC20);
 /// ```
 #[proc_macro]
 pub fn export_interface_spec(item: TokenStream) -> TokenStream {
@@ -221,7 +221,7 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// `<Iface>Entrypoints` wrapper carries the same constant. The name is
 /// reserved on contract traits. Every `#[contract]` impl block also records
 /// its interface's id in the contract's interface table
-/// (`sdk::interface_table`), which is what `groundhog-erc165-if` answers
+/// (`sdk::interface_table`), which is what `thruput-erc165-if` answers
 /// `supports_interface` from.
 ///
 /// # Storage-domain collision detection
@@ -337,6 +337,10 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
 /// `name = "..."` renames the type in the spec as it does for
 /// `#[contract_type]`, and may not contain `::` either.
 ///
+/// `wire_crate = "..."` pins the package label used in the selector hash.
+/// Use it for a protocol-defined exception whose wire identity must survive
+/// a package rename. It does not change the type's spec name or provenance.
+///
 /// # Exception payloads cannot carry auth tokens
 ///
 /// No field may be — or contain — a `sdk::signer::Signed`.
@@ -386,6 +390,12 @@ pub fn contract_exception(
     contract_exception::expand(args, item).into()
 }
 
+/// Derive event encoding, signature and spec metadata.
+///
+/// `#[event_spec(wire_crate = "...")]` pins the package label used in the
+/// signature hash, for protocol-defined events whose wire identity must survive
+/// a package rename. Spec names still use the declaring package. Combine with
+/// `export` to retain the event's spec without an interface `emits(...)` entry.
 #[proc_macro_derive(Event, attributes(topic, event_spec))]
 pub fn derive_event(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);
@@ -452,7 +462,7 @@ pub fn contract_type(
 /// itself depends on cannot use it — naming `::sdk` from below `sdk` is a
 /// dependency cycle. But everything the derive reaches for is an `sdk`
 /// *re-export* of a crate below `sdk`: `__contract_spec` is
-/// `groundhog-contract-spec` and `__xdrs` is `xdrs`. Nothing here is owned by
+/// `thruput-contract-spec` and `__xdrs` is `xdrs`. Nothing here is owned by
 /// `sdk`.
 ///
 /// So such a crate can supply a shim matching those two names and point the
@@ -461,7 +471,7 @@ pub fn contract_type(
 /// ```ignore
 /// #[doc(hidden)]
 /// pub mod __sdk_paths {
-///     pub use groundhog_contract_spec as __contract_spec;
+///     pub use thruput_contract_spec as __contract_spec;
 ///     pub use xdrs as __xdrs;
 /// }
 ///
@@ -473,7 +483,7 @@ pub fn contract_type(
 /// Note the `crate::` prefix. The derive is applied *inside* the crate that
 /// owns the shim, and a crate cannot name itself as `::its_own_name` without a
 /// separate `extern crate self as its_own_name;` — spelling it
-/// `::groundhog_u256::__sdk_paths` there fails with E0433. An absolute path is
+/// `::thruput_u256::__sdk_paths` there fails with E0433. An absolute path is
 /// right only when some *other* crate owns the shim.
 ///
 /// The consumer still supplies its own `impl ContractTypeName`, which the

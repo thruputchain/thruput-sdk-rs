@@ -7,12 +7,12 @@
 //! The mock children return raw bytes via `raw_Return`, bypassing the
 //! SDK's (still 500-byte-capped) encode path, which is out of scope here.
 
-use groundhog_xdr::network_config::ConfigParam;
 use sdk::call::RawCallError;
 use sdk::contract::ContractEntrypointID;
 use sdk::{
     AuthHandleBuf, ContractAddress, TestEnvironment, TestEnvironmentHandle,
 };
+use thruput_xdr::network_config::ConfigParam;
 
 const CHILD_ADDR: ContractAddress = ContractAddress::new([0x42; 32]);
 const PARENT_ADDR: ContractAddress = ContractAddress::new([0x41; 32]);

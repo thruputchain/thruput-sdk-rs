@@ -1,4 +1,4 @@
-use groundhog_domain_separator::syscall::pubkey_account_address;
+use thruput_domain_separator::syscall::pubkey_account_address;
 use hex_literal::hex;
 use sdk::*;
 
@@ -27,7 +27,7 @@ impl HasherImpl {
     // linking `sha2` into the guest; on rv32 reaching the `sha2` backend
     // at all is a compile error. The expectation is the cross-implementation
     // vector from
-    // `groundhog-test-vectors domain-separator` (pubkey = [0x01; 32], nonce =
+    // `thruput-test-vectors domain-separator` (pubkey = [0x01; 32], nonce =
     // 1) — the address the C++ validator derives.
     pub fn check_pubkey_account_address() {
         const EXPECTED_ADDRESS: ContractAddress = ContractAddress::new(hex!(

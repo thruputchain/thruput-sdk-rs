@@ -26,10 +26,10 @@ fn cross_call_uses_self_type_as_default_interface_name() {
                 bare_impl_caller::BareImplCallerClient::new(&caller_addr);
             assert_eq!(client.call_add_one(&callee_addr, 41), 42);
 
-            let expected = groundhog_contract_util::contract_entrypoint_id(
+            let expected = thruput_contract_util::contract_entrypoint_id(
                 Some("BareImplCallee"),
                 bare_impl_callee::BareImplCalleeClient::INTERFACE_VERSION,
-                &groundhog_contract_util::NormalizedMethodSignature::new(
+                &thruput_contract_util::NormalizedMethodSignature::new(
                     "add_one",
                 ),
             );

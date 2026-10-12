@@ -4,7 +4,7 @@
 
 sdk::declare_mock_contract!();
 
-pub use groundhog_erc20_if as erc20_if;
+pub use thruput_erc20_if as erc20_if;
 
 use erc20_if::Amount;
 use erc20_if::ERC20Client;

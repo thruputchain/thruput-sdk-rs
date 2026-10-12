@@ -8,6 +8,7 @@ use syn::Item;
 pub struct ContractExceptionArgs {
     pub version: Option<SpannedValue<String>>,
     pub name: Option<SpannedValue<String>>,
+    pub wire_crate: Option<SpannedValue<String>>,
 }
 
 /// Expand `#[contract_exception]` or `#[contract_exception(version = "...")]`
@@ -27,6 +28,15 @@ pub fn expand(args: ContractExceptionArgs, item: Item) -> TokenStream {
     if let Some(name) = &args.name
         && let Err(err) =
             crate::common::util::validate_spec_name(name.span(), name)
+    {
+        return err.into_compile_error();
+    }
+
+    if let Some(wire_crate) = &args.wire_crate
+        && let Err(err) = crate::common::util::validate_wire_crate_name(
+            wire_crate.span(),
+            wire_crate,
+        )
     {
         return err.into_compile_error();
     }
@@ -133,11 +143,32 @@ fn compute_selector(args: &ContractExceptionArgs, type_name: &str) -> u64 {
             std::env::var("CARGO_PKG_VERSION")
                 .unwrap_or_else(|_| "0.0.0".to_string())
         });
-    let crate_name = std::env::var("CARGO_PKG_NAME")
-        .unwrap_or_else(|_| "_unknown_".to_string());
-    groundhog_contract_util::exception_selector(
-        &version,
-        &crate_name,
-        type_name,
-    )
+    let crate_name = args
+        .wire_crate
+        .as_ref()
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| {
+            std::env::var("CARGO_PKG_NAME")
+                .unwrap_or_else(|_| "_unknown_".to_string())
+        });
+    thruput_contract_util::exception_selector(&version, &crate_name, type_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_invalid_wire_crate_is_rejected_at_the_attribute() {
+        let args = ContractExceptionArgs {
+            wire_crate: Some(SpannedValue::new(
+                "other::package".into(),
+                proc_macro2::Span::call_site(),
+            )),
+            ..Default::default()
+        };
+        let output =
+            expand(args, syn::parse_quote! { enum Error { Denied = 1 } });
+        assert!(output.to_string().contains("wire_crate must be"));
+    }
 }

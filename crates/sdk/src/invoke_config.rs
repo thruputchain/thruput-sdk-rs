@@ -1,5 +1,5 @@
-pub use groundhog_xdr::invoke_flag::InvokeFlag;
-pub use groundhog_xdr::invoke_flag::InvokeFlagSet;
+pub use thruput_xdr::invoke_flag::InvokeFlag;
+pub use thruput_xdr::invoke_flag::InvokeFlagSet;
 
 #[derive(Clone, Copy)]
 pub struct InvokeConfig {

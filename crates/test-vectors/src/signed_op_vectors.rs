@@ -6,15 +6,15 @@
 //! side gets from `#[contract_type]` and a client has to reproduce from the
 //! contract spec it ships.
 
-use groundhog_contract_spec::{
+use serde_json::{Value, json};
+use thruput_contract_spec::{
     ContractSpecIdView, ContractTypeName, ContractTypeSpec,
 };
-use groundhog_domain_separator::{SIGNED_OP, SignedOp};
-use groundhog_xdr::transaction::Uniquifier;
-use groundhog_xdr::types::{
+use thruput_domain_separator::{SIGNED_OP, SignedOp};
+use thruput_xdr::transaction::Uniquifier;
+use thruput_xdr::types::{
     BlockHeight, ContractAddress, NetworkHash, SHA256Hash,
 };
-use serde_json::{Value, json};
 use xdrs::WriteXDR;
 
 use crate::hex;
@@ -32,7 +32,7 @@ const FIXTURE_MAJOR: &str = "0";
 // `#[contract_type]` payload produces.
 
 /// A two-field payload with an address, exercising a non-primitive field type.
-#[derive(WriteXDR, groundhog_macros::ContractTypeSpec)]
+#[derive(WriteXDR, thruput_macros::ContractTypeSpec)]
 #[contract_type_spec(crate = "crate::__sdk_paths")]
 struct Transfer {
     to: ContractAddress,
@@ -50,7 +50,7 @@ impl ContractTypeName for Transfer {
 
 /// Encodes byte-identically to [`Revoke`]; only the type definition separates
 /// them.
-#[derive(WriteXDR, groundhog_macros::ContractTypeSpec)]
+#[derive(WriteXDR, thruput_macros::ContractTypeSpec)]
 #[contract_type_spec(crate = "crate::__sdk_paths")]
 struct Grant {
     amount: u64,
@@ -65,7 +65,7 @@ impl ContractTypeName for Grant {
     };
 }
 
-#[derive(WriteXDR, groundhog_macros::ContractTypeSpec)]
+#[derive(WriteXDR, thruput_macros::ContractTypeSpec)]
 #[contract_type_spec(crate = "crate::__sdk_paths")]
 struct Revoke {
     id: u64,

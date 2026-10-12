@@ -766,9 +766,9 @@ logging_test_build() {
 # the overridden guest path surfaces only when a downstream crate below `sdk`
 # builds for a guest target.
 macros_crate_override_guest_build() {
-    info "BUILD groundhog-macros crate-override test (rv32)"
+    info "BUILD thruput-macros crate-override test (rv32)"
 
-    # A dedicated no_std package rather than `-p groundhog-macros --tests`:
+    # A dedicated no_std package rather than `-p thruput-macros --tests`:
     # that would build the proc-macro crate's own unit tests for rv32, and
     # its deps (proc-macro2 &co) need std.
     cargo check -p macros-crate-override-guest \
@@ -835,11 +835,11 @@ test_package() {
     # u256's self-dev-dep unifies std+fmt into every test build, so the
     # no-feature guest config is only ever compiled, never tested; check it
     # explicitly so cfg-gating mistakes fail here and not in a contract build.
-    cargo check -p groundhog-u256 --no-default-features &&
+    cargo check -p thruput-u256 --no-default-features &&
     cargo test -p sdk -Fstd --tests &&
-    cargo test -p groundhog-erc20-metadata-if --all-targets &&
-    cargo test -p groundhog-spec-tool --all-targets &&
-    cargo test -p groundhog-test-vectors &&
+    cargo test -p thruput-erc20-metadata-if --all-targets &&
+    cargo test -p thruput-spec-tool --all-targets &&
+    cargo test -p thruput-test-vectors &&
     cargo test -p vector-tests --tests &&
     true
 }

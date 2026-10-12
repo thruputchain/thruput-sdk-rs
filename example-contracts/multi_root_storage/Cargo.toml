@@ -1,6 +1,6 @@
 [package]
 name = "multi_root_storage"
-description = "Example multi-root storage contract (disjoint domains) for the Groundhog blockchain"
+description = "Example multi-root storage contract (disjoint domains) for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

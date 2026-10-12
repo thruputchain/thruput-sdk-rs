@@ -13,7 +13,7 @@ categories.workspace = true
 
 [dependencies]
 sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
+thruput-erc20-if = { workspace = true }
 erc20-test = { workspace = true }
 bottle-test-if = { workspace = true }
 

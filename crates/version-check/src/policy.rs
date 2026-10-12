@@ -58,10 +58,10 @@ pub fn in_interface_family(rel: &str) -> bool {
 /// version. A breaking change here forces a new standard-interfaces release, so
 /// that clients can request a version built against it.
 pub const PROTOCOL_CRATES: &[&str] = &[
-    "groundhog-spec",
-    "groundhog-trace",
-    "groundhog-xdr",
-    "groundhog-syscall",
+    "thruput-spec",
+    "thruput-trace",
+    "thruput-xdr",
+    "thruput-syscall",
     "hogexec-internal",
 ];
 
@@ -85,7 +85,7 @@ pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
     },
     OperatorException {
         manifest_prefix: "standard-impls/",
-        dep: "groundhog-domain-separator",
+        dep: "thruput-domain-separator",
         op: Op::Caret,
         reason: "same policy as the components' sdk pin: an exact pin on a \
                  workspace-line crate strands the published component the \
@@ -94,7 +94,7 @@ pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
     },
     OperatorException {
         manifest_prefix: "standard-impls/",
-        dep: "groundhog-contract-spec",
+        dep: "thruput-contract-spec",
         op: Op::Caret,
         reason: "same policy as the components' sdk pin: an exact pin on a \
                  workspace-line crate strands the published component the \
@@ -107,64 +107,64 @@ pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
 /// workspace version.
 pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
     Named {
-        name: "groundhog-erc20-controls-if",
+        name: "thruput-erc20-controls-if",
         reason: "standard interface with an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc20-if",
+        name: "thruput-erc20-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc20-metadata-if",
+        name: "thruput-erc20-metadata-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc20-pausable-if",
+        name: "thruput-erc20-pausable-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-access-control-if",
+        name: "thruput-access-control-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-signed-op-if",
+        name: "thruput-signed-op-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc20-permit-if",
+        name: "thruput-erc20-permit-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc165-if",
+        name: "thruput-erc165-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-erc721-if",
+        name: "thruput-erc721-if",
         reason: "standard interfaces share an independent version line, bumped \
                  on SDK semver-major rather than every release",
     },
     Named {
-        name: "groundhog-access-control",
+        name: "thruput-access-control",
         reason: "implementation component on the standard interfaces' \
                  independent version line, released in lockstep with its \
                  interface crate",
     },
     Named {
-        name: "groundhog-signed-op",
+        name: "thruput-signed-op",
         reason: "implementation component on the standard interfaces' \
                  independent version line, released in lockstep with its \
                  interface crate",
     },
     Named {
-        name: "groundhog-sep41",
+        name: "thruput-sep41",
         reason: "client component on the standard interfaces' independent \
                  version line, released in lockstep with the ERC20 interface \
                  crates it calls",
@@ -178,7 +178,7 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
 
 /// `crates/*` members deliberately absent from `default-members`.
 pub const DEFAULT_MEMBER_EXCEPTIONS: &[Named] = &[Named {
-    name: "groundhog-rv32-runtime",
+    name: "thruput-rv32-runtime",
     reason: "target-only runtime: a top-level compile_error! rejects every \
                  target but rv32, so host-wide builds must skip it",
 }];

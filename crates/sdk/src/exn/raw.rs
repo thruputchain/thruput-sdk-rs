@@ -30,7 +30,7 @@ use crate::exn::Exn;
 #[cfg(feature = "alloc")]
 use crate::exn::{CallingError, FaultString, LibraryExn};
 use crate::xdr::*;
-use groundhog_exn::RawExceptionRef;
+use thruput_exn::RawExceptionRef;
 
 /// Re-throw to our caller: abort with the original wire bytes, verbatim.
 /// Zero-copy; this is what plain (non-`try_`) generated methods do.

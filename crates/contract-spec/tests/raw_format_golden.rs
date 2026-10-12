@@ -22,18 +22,18 @@
 //! 1. bump `RAW_SPEC_FORMAT` in `src/format.rs`,
 //! 2. bump `RAW_SECTION_NAME` to match,
 //! 3. bump `raw_spec_format` in `Cargo.toml`,
-//! 4. bump the `link_section` literals in `groundhog-macros`,
+//! 4. bump the `link_section` literals in `thruput-macros`,
 //! 5. run this test with `UPDATE_SNAPSHOTS=1`, inspect the diff, and rerun
 //!    without the variable to compare the checked-in golden.
 //!
 //! Steps 1-4 are each pinned by their own test, so a partial bump fails too.
-//! Then tell the CLI: `groundhog-spec-tool`'s new version has to reach the
-//! `groundhog` CLI before contracts built with it can be built there.
+//! Then tell the CLI: `thruput-spec-tool`'s new version has to reach the
+//! `thruput` CLI before contracts built with it can be built there.
 //!
 //! If you did *not* change it on purpose, something you edited altered the
-//! encoding transitively — most likely a type in `groundhog-spec`.
+//! encoding transitively — most likely a type in `thruput-spec`.
 
-use groundhog_contract_spec::{
+use thruput_contract_spec::{
     ContractEventDef, ContractField, ContractSpecId, ContractSpecMethod,
     ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
     RAW_SPEC_FORMAT, SpecFragment, SpecInterfaceAnchor, SpecInterfaceFragment,
@@ -192,7 +192,7 @@ fn raw_spec_encoding_matches_golden() {
          desynchronizes and reports an unrelated-looking parse error. If \
          this change is intentional, bump RAW_SPEC_FORMAT, RAW_SECTION_NAME, \
          Cargo.toml's raw_spec_format, and the link_section literals in \
-         groundhog-macros, then re-bless tests/raw_format_golden.hex with \
+         thruput-macros, then re-bless tests/raw_format_golden.hex with \
          the `left` value above. See this file's module docs.\n\n",
     );
 }

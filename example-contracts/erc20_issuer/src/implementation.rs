@@ -455,4 +455,4 @@ impl ERC20Permit for TokenContract {
     }
 }
 
-groundhog_erc165_if::impl_erc165!();
+thruput_erc165_if::impl_erc165!();

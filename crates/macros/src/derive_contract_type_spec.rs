@@ -157,7 +157,7 @@ fn emit_raw_typedef_fragment(
     };
 
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
     // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn crate_override_replaces_every_sdk_path() {
         let input: syn::DeriveInput = syn::parse_quote! {
-            #[contract_type_spec(crate = "::groundhog_u256::__sdk_paths")]
+            #[contract_type_spec(crate = "::thruput_u256::__sdk_paths")]
             struct U256([u32; 8]);
         };
 
@@ -499,13 +499,13 @@ mod tests {
         assert!(!tokens.contains("sdk ::"), "{tokens}");
         assert!(
             tokens.contains(
-                ":: groundhog_u256 :: __sdk_paths :: __contract_spec :: ContractTypeSpec"
+                ":: thruput_u256 :: __sdk_paths :: __contract_spec :: ContractTypeSpec"
             ),
             "{tokens}"
         );
         assert!(
             tokens.contains(
-                ":: groundhog_u256 :: __sdk_paths :: __xdrs :: txs :: ConstWriter"
+                ":: thruput_u256 :: __sdk_paths :: __xdrs :: txs :: ConstWriter"
             ),
             "{tokens}"
         );

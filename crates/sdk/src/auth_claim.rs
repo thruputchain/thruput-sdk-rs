@@ -7,12 +7,12 @@
 
 use crate::sys::{self, SysResult};
 use core::mem::MaybeUninit;
-use groundhog_xdr::auth_claim::AuthClaim;
+use thruput_xdr::auth_claim::AuthClaim;
 
-pub use groundhog_xdr::auth_claim::BitMap;
-pub use groundhog_xdr::auth_claim::Weight;
-use groundhog_xdr::syscall_error::SyscallErrorCode;
-use groundhog_xdr::types::PublicKey;
+pub use thruput_xdr::auth_claim::BitMap;
+pub use thruput_xdr::auth_claim::Weight;
+use thruput_xdr::syscall_error::SyscallErrorCode;
+use thruput_xdr::types::PublicKey;
 
 pub fn get_auth_claim() -> SysResult<AuthClaim> {
     let mut auth_claim = MaybeUninit::uninit();

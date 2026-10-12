@@ -25,15 +25,15 @@ pub fn test_erc20_contract(
     print_events(&result);
 
     // Check that the event log matches the model
-    let expected: Vec<groundhog_erc20_if::StdERC20Event> =
+    let expected: Vec<thruput_erc20_if::StdERC20Event> =
         result.assert_return_as();
     check_events(&expected, result.events());
 }
 
 // Print out a transaction's event log
 fn print_events(result: &sdk::TransactResult) {
-    use groundhog_erc20_if::*;
     use sdk::EmittedEvent;
+    use thruput_erc20_if::*;
 
     for (i, event) in result.events().iter().enumerate() {
         let event: EmittedEvent = event.into();
@@ -56,22 +56,22 @@ hash_ident! { static SPENDER: ContractAddress; }
 ///   stored contract owner, so there is nothing to initialize. `mint`
 ///   follows the reference's owner check, with the genesis root as
 ///   the owner: any other caller gets the reference's
-///   [`groundhog_erc20_if::ERC20Error::MustBeContractOwner`] rejection.
+///   [`thruput_erc20_if::ERC20Error::MustBeContractOwner`] rejection.
 /// - `total_supply` tracks mints; nothing is pre-minted in the
 ///   test environment, so the supply is exactly what this test mints.
 ///
 /// An overdraft `transfer` used to be a third divergence: the balance check
 /// was deferred, so it passed invoke and failed at commit. As of test-ffi
 /// 0.21.0 the precompile throws
-/// [`groundhog_erc20_if::ERC20Error::TooLarge`] at invoke time like the
+/// [`thruput_erc20_if::ERC20Error::TooLarge`] at invoke time like the
 /// reference contract, so it is asserted the same way the rest of this file
 /// asserts a typed throw: `try_*` plus a match on the error.
 ///
 /// Those divergences are asserted here too, so a change on either side
 /// shows up as a regression.
 pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
-    use groundhog_erc20_if::*;
     use sdk::precompiles::{ADDRESS_GENESIS_ROOT, ADDRESS_NATIVE_TOKEN};
+    use thruput_erc20_if::*;
 
     let caller = ContractAddress::named("erc20_test");
     let token = &ADDRESS_NATIVE_TOKEN;

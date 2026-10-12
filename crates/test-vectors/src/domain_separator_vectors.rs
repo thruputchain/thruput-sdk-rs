@@ -1,8 +1,8 @@
-use groundhog_domain_separator::PUBKEY_ACCOUNT;
-use groundhog_domain_separator::sha2::pubkey_account_address;
-use groundhog_xdr::auth_claim::PubkeyAccountPreimage;
-use groundhog_xdr::types::{Ed25519PublicKey, PublicKey};
 use serde_json::{Value, json};
+use thruput_domain_separator::PUBKEY_ACCOUNT;
+use thruput_domain_separator::sha2::pubkey_account_address;
+use thruput_xdr::auth_claim::PubkeyAccountPreimage;
+use thruput_xdr::types::{Ed25519PublicKey, PublicKey};
 
 use crate::hex;
 

@@ -34,8 +34,8 @@ jobs:
         with:
           cache: rust
 
-      - name: Build and test groundhog-native-exec
-        run: cargo test -p groundhog-native-exec -- --show-output
+      - name: Build and test thruput-native-exec
+        run: cargo test -p thruput-native-exec -- --show-output
 
   test-macos-arm64:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
@@ -49,8 +49,8 @@ jobs:
         with:
           cache: rust
 
-      - name: Build and test groundhog-native-exec
-        run: cargo test -p groundhog-native-exec -- --show-output
+      - name: Build and test thruput-native-exec
+        run: cargo test -p thruput-native-exec -- --show-output
 
   # Early-warning canary: run the same suite on the latest nightly, ahead of
   # the workspace's pinned toolchain. The dev runtime's panic interception
@@ -73,5 +73,5 @@ jobs:
       - name: Install latest nightly
         run: rustup toolchain install nightly --profile minimal
 
-      - name: Build and test groundhog-native-exec on latest nightly
-        run: cargo +nightly test -p groundhog-native-exec -- --show-output
+      - name: Build and test thruput-native-exec on latest nightly
+        run: cargo +nightly test -p thruput-native-exec -- --show-output

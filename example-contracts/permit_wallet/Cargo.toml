@@ -16,8 +16,8 @@ entrypoints = []
 dev = [
     "sdk/dev",
     "dep:thiserror",
-    "groundhog-signed-op/dev",
-    "groundhog-erc20-permit-if/dev",
+    "thruput-signed-op/dev",
+    "thruput-erc20-permit-if/dev",
 ]
 
 [lib]
@@ -33,8 +33,8 @@ required-features = ["entrypoints"]
 [dependencies]
 # `alloc`: the mint functions encode the token node into a `Vec`.
 sdk = { workspace = true, features = ["alloc"] }
-groundhog-signed-op = { workspace = true }
-groundhog-erc20-permit-if = { workspace = true }
+thruput-signed-op = { workspace = true }
+thruput-erc20-permit-if = { workspace = true }
 thiserror = { workspace = true, optional = true }
 
 [dev-dependencies]

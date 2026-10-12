@@ -1,7 +1,7 @@
 //! An ERC20 whose approvals can be authorized off-chain.
 //!
 //! The owner never submits a transaction: they sign a
-//! [`PermitRequest`](groundhog_erc20_permit_if::PermitRequest) and someone
+//! [`PermitRequest`](thruput_erc20_permit_if::PermitRequest) and someone
 //! else brings it here. This contract asks the owner's wallet to validate the
 //! signature and takes the owner's identity from the resulting auth token's
 //! minter address, which the runtime supplies. Nothing the submitter asserts
@@ -19,8 +19,8 @@ sdk::declare_mock_contract!();
 
 mod implementation;
 
-pub use groundhog_erc20_if::{ERC20, ERC20Client, ERC20Error};
-pub use groundhog_erc20_permit_if::{
+pub use thruput_erc20_if::{ERC20, ERC20Client, ERC20Error};
+pub use thruput_erc20_permit_if::{
     DeleteAllowanceGrant, DeleteAllowanceRequest, ERC20Permit,
     ERC20PermitClient, ERC20PermitError, PermitGrant, PermitRequest,
 };

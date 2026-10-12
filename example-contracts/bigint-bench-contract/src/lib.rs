@@ -50,4 +50,4 @@ pub type Selected = backend::parity::PU256;
 
 /// The backend this build's kernel measures. See the `backend-uint` variant.
 #[cfg(not(feature = "backend-uint"))]
-pub type Selected = backend::u256::GroundhogU256;
+pub type Selected = backend::u256::ThruputU256;

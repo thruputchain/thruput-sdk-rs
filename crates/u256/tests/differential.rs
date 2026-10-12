@@ -11,7 +11,7 @@
 //! including the random sweeps sized to hit Knuth D's add-back correction
 //! (~2/2^32, so it needs volume).
 
-use groundhog_u256::{U256, checked_mul_div_u128, mul_div_u128};
+use thruput_u256::{U256, checked_mul_div_u128, mul_div_u128};
 
 uint::construct_uint! {
     /// The oracle: four 64-bit limbs.
@@ -752,7 +752,7 @@ fn from_str_round_trips_display() {
 
 #[test]
 fn from_str_rejects_bad_input() {
-    use groundhog_u256::ParseU256Error;
+    use thruput_u256::ParseU256Error;
     assert_eq!("".parse::<U256>(), Err(ParseU256Error::Empty));
     assert_eq!("12a".parse::<U256>(), Err(ParseU256Error::InvalidDigit));
     assert_eq!("-1".parse::<U256>(), Err(ParseU256Error::InvalidDigit));

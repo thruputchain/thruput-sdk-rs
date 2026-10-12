@@ -3,18 +3,18 @@ use std::collections::BTreeMap;
 pub mod describe;
 pub mod raw;
 
-pub use groundhog_contract_spec::{
+pub use raw::{
+    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
+    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,
+    parse_raw_fragments,
+};
+pub use thruput_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
     ContractExceptionType, ContractField, ContractSpec, ContractSpecId,
     ContractSpecInterface, ContractSpecMethod, ContractSpecString,
     ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
     ContractUnionCaseType, ContractUnionDef, SpecFragment,
     SpecInterfaceFragment, SpecMethodFragment,
-};
-pub use raw::{
-    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
-    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,
-    parse_raw_fragments,
 };
 
 /// Decode a spec string, rejecting non-UTF-8 bytes.
@@ -121,7 +121,7 @@ pub enum SpecToolError {
 /// every later fragment decodes as garbage. Both directions are therefore
 /// rejected up front, and each names the two versions and the way out: the
 /// two sides are released independently (the SDK compiled into the contract
-/// versus the `groundhog-spec-tool` linked into the CLI), so either can be
+/// versus the `thruput-spec-tool` linked into the CLI), so either can be
 /// the stale one and the fix differs.
 pub fn check_raw_spec_format(found: u32) -> Result<(), SpecToolError> {
     match found.cmp(&RAW_SPEC_FORMAT) {
@@ -187,14 +187,14 @@ impl core::fmt::Display for SpecToolError {
             }
             Self::RawSpecFormatTooNew { found, supported } => write!(
                 f,
-                "this contract was built with a newer Groundhog SDK than \
+                "this contract was built with a newer Thruput SDK than \
                  this tool understands (contract raw spec format {found}, \
                  this tool supports {supported}). Upgrade the Thruput CLI, \
                  or rebuild the contract against an SDK matching it.",
             ),
             Self::RawSpecFormatTooOld { found, supported } => write!(
                 f,
-                "this contract was built with an older Groundhog SDK than \
+                "this contract was built with an older Thruput SDK than \
                  this tool understands (contract raw spec format {found}, \
                  this tool supports {supported}). Rebuild the contract \
                  against a newer SDK, or use a Thruput CLI matching the \
@@ -244,7 +244,7 @@ pub fn canonicalize_spec(
 ///
 /// `exported_fns` is the module's set of **entrypoint export names** — the
 /// 16-hex uppercase rendering of the dispatch ID
-/// ([`groundhog_contract_util::entrypoint_export_name`]). Callers must map
+/// ([`thruput_contract_util::entrypoint_export_name`]). Callers must map
 /// their dispatch-table method IDs through `entrypoint_export_name` — NOT
 /// pass ELF symbol names (rv32 wrapper symbols carry the human-readable ID
 /// preimage, which never matches; passing them would silently disable
@@ -481,7 +481,7 @@ fn canonicalize_spec_inner(
         declarers_by_wire_identity
             .entry((
                 spec_str(name)?.to_string(),
-                groundhog_contract_util::semver::major_version_from_string(
+                thruput_contract_util::semver::major_version_from_string(
                     spec_str(vers)?,
                 ),
             ))
@@ -570,10 +570,10 @@ fn canonicalize_spec_inner(
                     .into_iter()
                     .map(|method| {
                         let export_name =
-                            groundhog_contract_util::entrypoint_export_name_for(
+                            thruput_contract_util::entrypoint_export_name_for(
                                 Some(&iface_name),
                                 &iface_vers,
-                                &groundhog_contract_util::NormalizedMethodSignature::new(
+                                &thruput_contract_util::NormalizedMethodSignature::new(
                                     spec_str(&method.name)?,
                                 ),
                             );
@@ -750,7 +750,7 @@ fn validate_interface_key(
     // Non-canonical strings ("01.0.0", components beyond u64) are rejected
     // here so crafted or corrupt raw sections produce an error, never a
     // panic in contract-util's panicking parser.
-    if groundhog_contract_util::semver::try_major_version_from_string(
+    if thruput_contract_util::semver::try_major_version_from_string(
         interface_version,
     )
     .is_none()

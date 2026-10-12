@@ -6,3 +6,5 @@
 # version when a compatible thruput-cli release is published. Until then,
 # pin its source so SDK format changes can be tested before the CLI release.
 THRUPUT_CLI_VERSION=0.27.0
+# Recognize the renamed contract-spec package during dependency preflight.
+THRUPUT_CLI_COMMIT=0aea0d8942a57038d902c7a6a23617be962fe25c

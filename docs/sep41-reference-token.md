@@ -1,26 +1,26 @@
 # Stellar asset reference token
 
-`example-contracts/erc20_issuer` uses Groundhog ERC20 with optional issuer
+`example-contracts/erc20_issuer` uses Thruput ERC20 with optional issuer
 controls. [SEP-0041](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
 informs the issuer behavior; this is not the Soroban ABI.
 
 ## SEP-41 as client code
 
-No token implements a SEP-41 interface. `SEP41View` in the `groundhog-sep41`
+No token implements a SEP-41 interface. `SEP41View` in the `thruput-sep41`
 crate provides SEP-41's operations over any token implementing `ERC20`,
 `ERC20Burn` and `ERC20Metadata`. It runs in the holder's contract, so SEP-41's
-explicit authorizers are the Groundhog caller. `is_supported` asks the token's
+explicit authorizers are the Thruput caller. `is_supported` asks the token's
 ERC-165 whether it implements all three, returning `None` for a token without
 ERC-165.
 
-`approve` takes `live_until_ledger` as an optional Groundhog `BlockHeight`.
+`approve` takes `live_until_ledger` as an optional Thruput `BlockHeight`.
 With a deadline it is `reset_allowance` then `adjust_allowance`, which needs
 the optional `ERC20AllowanceExpiry` interface (`supports_expiry` probes it).
 Without one it is `delete_allowance` then `adjust_allowance`, which any `ERC20`
 supports, and the allowance never expires. Either way the first call's
 exclusive lock covers the re-grant, so a concurrent spend conflicts instead of
 landing beside it. Zero approval is `delete_allowance`. Expiry is inclusive
-and measured in Groundhog blocks, not Stellar ledgers.
+and measured in Thruput blocks, not Stellar ledgers.
 
 ## Semantic differences
 

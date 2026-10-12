@@ -15,14 +15,14 @@ members = [
 # is.
 [workspace.package]
 version = "0.4.0"
-authors = ["Groundhog Team"]
+authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["thruput"]
 repository = "https://github.com/groundhogchain/sdk_rs"
 homepage = "https://github.com/groundhogchain/sdk_rs"
-keywords = ["groundhog"]
+keywords = ["thruput"]
 categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "thruput", version = "=0.50.1" }
+sdk = { path = "../crates/sdk", registry = "thruput", version = "=0.51.0" }

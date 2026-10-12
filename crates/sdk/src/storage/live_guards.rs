@@ -63,7 +63,7 @@ pub(crate) fn assert_no_live_guards() {
     );
     #[cfg(feature = "dev")]
     std::panic::panic_any(
-        groundhog_native_exec::invoke_error::unrecoverable_error(),
+        thruput_native_exec::invoke_error::unrecoverable_error(),
     );
     #[cfg(not(feature = "dev"))]
     panic!("contract_return with {n} live deferred-write storage guard(s)");

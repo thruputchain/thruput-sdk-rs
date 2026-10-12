@@ -15,8 +15,8 @@ edition.workspace = true
 entrypoints = []
 dev = [
     "sdk/dev",
-    "groundhog-erc20-if/dev",
-    "groundhog-erc20-permit-if/dev",
+    "thruput-erc20-if/dev",
+    "thruput-erc20-permit-if/dev",
 ]
 
 [lib]
@@ -34,12 +34,12 @@ required-features = ["entrypoints"]
 
 [dependencies]
 sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
-groundhog-erc20-permit-if = { workspace = true }
+thruput-erc20-if = { workspace = true }
+thruput-erc20-permit-if = { workspace = true }
 
 [dev-dependencies]
 erc20_permit = { path = ".", features = ["dev"] }
 permit_wallet = { path = "../permit_wallet", features = ["dev"] }
-groundhog-signed-op-if = { workspace = true, features = ["dev"] }
-groundhog-domain-separator = { workspace = true, features = ["std"] }
+thruput-signed-op-if = { workspace = true, features = ["dev"] }
+thruput-domain-separator = { workspace = true, features = ["std"] }
 ed25519-dalek = { workspace = true }

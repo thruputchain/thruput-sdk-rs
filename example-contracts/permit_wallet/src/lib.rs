@@ -17,10 +17,10 @@
 
 sdk::declare_mock_contract!();
 
-use groundhog_erc20_permit_if::{
+use thruput_erc20_permit_if::{
     DeleteAllowanceGrant, DeleteAllowanceRequest, PermitGrant, PermitRequest,
 };
-use groundhog_signed_op::{Operation, SignedOp, SignedOpReplayCache};
+use thruput_signed_op::{Operation, SignedOp, SignedOpReplayCache};
 use sdk::mintable::{AuthTokenPreimage, MintableType};
 use sdk::signer::{Opaque, Signed};
 use sdk::storage::Value;
@@ -45,7 +45,7 @@ pub enum WalletRequest {
 
 /// Why the wallet refused, as distinct from why an operation failed
 /// verification — those are
-/// [`SignedOpError`](groundhog_signed_op::SignedOpError).
+/// [`SignedOpError`](thruput_signed_op::SignedOpError).
 #[contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]

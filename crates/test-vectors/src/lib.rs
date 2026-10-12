@@ -3,7 +3,7 @@
 /// hand-writing them.
 #[doc(hidden)]
 pub mod __sdk_paths {
-    pub use groundhog_contract_spec as __contract_spec;
+    pub use thruput_contract_spec as __contract_spec;
     pub use xdrs as __xdrs;
 }
 

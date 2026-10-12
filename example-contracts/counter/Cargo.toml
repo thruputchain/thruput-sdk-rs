@@ -1,6 +1,6 @@
 [package]
 name = "counter"
-description = "Example counter contract for the Groundhog blockchain"
+description = "Example counter contract for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 #[test]
 fn entrypoint_vectors_valid_json() {
-    let output = groundhog_test_vectors::entrypoint_vectors::generate();
+    let output = thruput_test_vectors::entrypoint_vectors::generate();
 
     // Check top-level structure
     assert_eq!(output["version"], 1);
@@ -61,7 +61,7 @@ fn entrypoint_vectors_valid_json() {
 
 #[test]
 fn xdr_vectors_valid_json() {
-    let output = groundhog_test_vectors::xdr_vectors::generate();
+    let output = thruput_test_vectors::xdr_vectors::generate();
 
     // Check top-level structure
     assert_eq!(output["version"], 1);
@@ -102,21 +102,21 @@ fn xdr_vectors_valid_json() {
 
 #[test]
 fn entrypoint_vectors_deterministic() {
-    let a = groundhog_test_vectors::entrypoint_vectors::generate();
-    let b = groundhog_test_vectors::entrypoint_vectors::generate();
+    let a = thruput_test_vectors::entrypoint_vectors::generate();
+    let b = thruput_test_vectors::entrypoint_vectors::generate();
     assert_eq!(a, b, "entrypoint vectors should be deterministic");
 }
 
 #[test]
 fn xdr_vectors_deterministic() {
-    let a = groundhog_test_vectors::xdr_vectors::generate();
-    let b = groundhog_test_vectors::xdr_vectors::generate();
+    let a = thruput_test_vectors::xdr_vectors::generate();
+    let b = thruput_test_vectors::xdr_vectors::generate();
     assert_eq!(a, b, "xdr vectors should be deterministic");
 }
 
 #[test]
 fn entrypoint_vectors_roundtrip_json_string() {
-    let output = groundhog_test_vectors::entrypoint_vectors::generate();
+    let output = thruput_test_vectors::entrypoint_vectors::generate();
     let json_str = serde_json::to_string_pretty(&output).unwrap();
     let parsed: Value = serde_json::from_str(&json_str).unwrap();
     assert_eq!(
@@ -127,7 +127,7 @@ fn entrypoint_vectors_roundtrip_json_string() {
 
 #[test]
 fn xdr_vectors_roundtrip_json_string() {
-    let output = groundhog_test_vectors::xdr_vectors::generate();
+    let output = thruput_test_vectors::xdr_vectors::generate();
     let json_str = serde_json::to_string_pretty(&output).unwrap();
     let parsed: Value = serde_json::from_str(&json_str).unwrap();
     assert_eq!(

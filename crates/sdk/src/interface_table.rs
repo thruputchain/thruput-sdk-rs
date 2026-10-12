@@ -4,7 +4,7 @@
 //! Every `#[contract] impl Trait for T` (and every bare `#[contract] impl T`)
 //! expands to one 8-byte [`InterfaceId`] record via
 //! [`__interface_record!`](crate::__interface_record). [`implements!`](crate::implements)
-//! answers whether a given id is among them. This is what `groundhog-erc165-if`
+//! answers whether a given id is among them. This is what `thruput-erc165-if`
 //! builds `supports_interface` on: the claim is read off the impls that
 //! actually linked, so there is no list to maintain and nothing to get wrong.
 //!

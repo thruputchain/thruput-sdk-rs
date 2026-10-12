@@ -1,33 +1,33 @@
-use groundhog_contract_spec::{
+use sdk::{I256, U256};
+use thruput_contract_spec::{
     ContractEventDefView, ContractFieldView, ContractSpecMethodView,
     ContractType, ContractTypeRefSpec, SpecFragmentView,
     SpecInterfaceAnchorView, SpecInterfaceFragmentView,
     SpecMethodFragmentView,
 };
-use groundhog_spec_tool::{canonicalize_spec, parse_raw_fragments};
-use sdk::{I256, U256};
+use thruput_spec_tool::{canonicalize_spec, parse_raw_fragments};
 
 const INTERFACE: &str = "WideIntegers";
 const VERSION: &str = "1.0.0";
-const DECLARED_BY: groundhog_contract_spec::ContractSpecIdView<'static> =
-    groundhog_contract_spec::ContractSpecIdView {
+const DECLARED_BY: thruput_contract_spec::ContractSpecIdView<'static> =
+    thruput_contract_spec::ContractSpecIdView {
         crate_name: "native_256_if",
         major: "0.1",
         module_path: "native_256_if",
         declared: "Iface",
     };
 
-const EVENT: groundhog_contract_spec::ContractSpecIdView<'static> =
-    groundhog_contract_spec::ContractSpecIdView {
+const EVENT: thruput_contract_spec::ContractSpecIdView<'static> =
+    thruput_contract_spec::ContractSpecIdView {
         crate_name: "testcrate",
         major: "0",
         module_path: "testcrate",
         declared: "WideIntegerEvent",
     };
 
-const U256_TYPE: groundhog_contract_spec::ContractTypeView<'static> =
+const U256_TYPE: thruput_contract_spec::ContractTypeView<'static> =
     <U256 as ContractTypeRefSpec>::INFO.ty;
-const I256_TYPE: groundhog_contract_spec::ContractTypeView<'static> =
+const I256_TYPE: thruput_contract_spec::ContractTypeView<'static> =
     <I256 as ContractTypeRefSpec>::INFO.ty;
 
 const FRAGMENTS: &[SpecFragmentView<'static>] = &[

@@ -1,7 +1,7 @@
 //! Raw spec wire-format skew, in both directions.
 //!
-//! The SDK compiled into a contract and the `groundhog-spec-tool` linked into
-//! the `groundhog` CLI are released independently, so either side can be the
+//! The SDK compiled into a contract and the `thruput-spec-tool` linked into
+//! the `thruput` CLI are released independently, so either side can be the
 //! stale one. Neither direction may surface as a fragment parse error: the
 //! raw section is an unframed XDR stream, so a layout disagreement
 //! desynchronizes the reader and produces a message that points nowhere near
@@ -13,7 +13,7 @@
 //! and — for a `Raw` section — run [`check_raw_spec_format`] *before* handing
 //! the body to [`parse_raw_fragments`].
 
-use groundhog_spec_tool::{
+use thruput_spec_tool::{
     RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, SpecToolError,
     check_raw_spec_format, classify_section, parse_raw_fragments,
 };

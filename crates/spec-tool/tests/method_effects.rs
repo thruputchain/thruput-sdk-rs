@@ -1,9 +1,9 @@
-use groundhog_contract_spec::{
+use thruput_contract_spec::{
     ContractMethodEffect, ContractSpec, SpecFragmentView,
     SpecInterfaceAnchorView, SpecInterfaceFragmentView,
     SpecMethodFragmentView,
 };
-use groundhog_spec_tool::{
+use thruput_spec_tool::{
     canonicalize_spec, parse_raw_fragments, render_spec_json,
 };
 
@@ -18,7 +18,7 @@ pub trait Effects {
     fn undeclared(&mut self);
 }
 
-fn fragments() -> Vec<groundhog_contract_spec::SpecFragment> {
+fn fragments() -> Vec<thruput_contract_spec::SpecFragment> {
     let anchor = __GROUNDHOG_IFACE_ANCHOR_Effects;
     let mut raw = Vec::new();
     let mut emit =
@@ -81,14 +81,11 @@ fn conflicting_effects_and_unsupported_values_are_rejected() {
     let index = fragments
         .iter()
         .position(|f| {
-            matches!(
-                f,
-                groundhog_contract_spec::SpecFragment::SpecMethod { .. }
-            )
+            matches!(f, thruput_contract_spec::SpecFragment::SpecMethod { .. })
         })
         .unwrap();
     let mut conflicting = fragments[index].clone();
-    if let groundhog_contract_spec::SpecFragment::SpecMethod {
+    if let thruput_contract_spec::SpecFragment::SpecMethod {
         method_fragment,
     } = &mut conflicting
     {
@@ -98,7 +95,7 @@ fn conflicting_effects_and_unsupported_values_are_rejected() {
     fragments.push(conflicting);
     assert!(canonicalize_spec(&fragments).is_err());
     fragments.pop();
-    if let groundhog_contract_spec::SpecFragment::SpecMethod {
+    if let thruput_contract_spec::SpecFragment::SpecMethod {
         method_fragment,
     } = &mut fragments[index]
     {

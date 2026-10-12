@@ -6,10 +6,10 @@ sdk::declare_mock_contract!();
 
 // A trait describing the contract interface
 mod interface {
-    pub use groundhog_erc20_if::*;
+    pub use thruput_erc20_if::*;
 
     #[cfg(feature = "metadata")]
-    pub use groundhog_erc20_metadata_if::*;
+    pub use thruput_erc20_metadata_if::*;
 }
 
 // A client stub that provides the interface via cross-contract calls

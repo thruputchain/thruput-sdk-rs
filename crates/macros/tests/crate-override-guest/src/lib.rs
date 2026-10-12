@@ -16,18 +16,18 @@
 
 #![no_std]
 
-use groundhog_macros::ContractTypeSpec;
+use thruput_macros::ContractTypeSpec;
 
 /// The shim a consuming crate provides. The derive only ever reaches for
 /// `__contract_spec` and `__xdrs`, so matching those two names is the whole
 /// contract.
 #[doc(hidden)]
 pub mod sdk_paths {
-    pub use groundhog_contract_spec as __contract_spec;
+    pub use thruput_contract_spec as __contract_spec;
     pub use xdrs as __xdrs;
 }
 
-use groundhog_contract_spec as spec;
+use thruput_contract_spec as spec;
 
 const LIMBS: usize = 8;
 

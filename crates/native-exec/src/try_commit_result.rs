@@ -1,9 +1,9 @@
-use groundhog_sys::FFIDataBuffer;
-use groundhog_xdr::exec_result::ExecResult;
+use thruput_sys::FFIDataBuffer;
+use thruput_xdr::exec_result::ExecResult;
 
 // Re-exported so callers matching on `TxNonDeterministicError` have the
-// conflict types in scope without depending on groundhog-trace directly.
-pub use groundhog_trace::db_conflict::{
+// conflict types in scope without depending on thruput-trace directly.
+pub use thruput_trace::db_conflict::{
     DbConflictCode, DbConflictDiagnostic, DbConflictResult,
 };
 
@@ -15,7 +15,7 @@ pub use groundhog_trace::db_conflict::{
 /// rides on that variant alone — there is no way to reach a conflict after a
 /// successful (or otherwise-failed) commit.
 ///
-/// [`ExecResult`]: groundhog_xdr::exec_result::ExecResult
+/// [`ExecResult`]: thruput_xdr::exec_result::ExecResult
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TryCommitResult {
     /// `ExecResultOK` — the commit succeeded.

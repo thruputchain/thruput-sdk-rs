@@ -26,4 +26,4 @@ signer_callee = { path = "../signer_callee" }
 
 [dev-dependencies]
 signer_caller = { path = ".", features = ["dev"] }
-groundhog-contract-util = { workspace = true }
+thruput-contract-util = { workspace = true }

@@ -1,0 +1,29 @@
+[package]
+name = "thruput-signed-op"
+version = "0.1.55"
+edition.workspace = true
+publish.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Embeddable signed-operation verification and nonce state for Thruput smart contracts"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+dev = ["sdk/dev", "thruput-signed-op-if/dev"]
+
+[dependencies]
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.0", features = ["alloc"] }
+thruput-signed-op-if = { path = "../../standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.55" }
+thruput-domain-separator = { path = "../../crates/domain-separator", registry = "thruput", version = "0.51.0", default-features = false, features = ["alloc"] }
+thruput-contract-spec = { path = "../../crates/contract-spec", registry = "thruput", version = "0.51.0", default-features = false }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.0", features = ["std"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false

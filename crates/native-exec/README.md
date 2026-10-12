@@ -1,7 +1,7 @@
-# groundhog-native-exec Build Configuration
+# thruput-native-exec Build Configuration
 
-The `groundhog-native-exec` crate provides Rust bindings to the hogd test_ffi library,
-linked in through the `groundhog-sys` crate. `groundhog-sys`'s build script
+The `thruput-native-exec` crate provides Rust bindings to the hogd test_ffi library,
+linked in through the `thruput-sys` crate. `thruput-sys`'s build script
 obtains the library in one of three ways, selected by environment variables.
 
 ## Default Behavior
@@ -45,8 +45,8 @@ are not compiled on the default path) and the `HOGD_FFI_BUILD=1` environment
 variable (which selects the source build for this invocation):
 
 ```bash
-# Building groundhog-sys / native-exec directly:
-HOGD_FFI_BUILD=1 cargo build -p groundhog-sys --features source-build
+# Building thruput-sys / native-exec directly:
+HOGD_FFI_BUILD=1 cargo build -p thruput-sys --features source-build
 
 # From a contract crate that uses the sdk's dev/mock features for testing,
 # the feature is forwarded through the sdk:
@@ -54,8 +54,8 @@ HOGD_FFI_BUILD=1 cargo test --features sdk/source-build
 ```
 
 The feature is forwarded along the dependency chain
-`sdk/source-build` → `groundhog-native-exec/source-build` →
-`groundhog-sys/source-build`. If you build from source routinely, enable
+`sdk/source-build` → `thruput-native-exec/source-build` →
+`thruput-sys/source-build`. If you build from source routinely, enable
 `source-build` permanently in your manifest's feature forwarding and just
 toggle `HOGD_FFI_BUILD=1` per invocation — with the feature on but the
 environment variable unset, you still get the prebuilt download.

@@ -1,5 +1,5 @@
 use caller::CallerClient;
-use groundhog_erc20_if::ERC20Client;
+use thruput_erc20_if::ERC20Client;
 use sdk::*;
 
 static ERC20_NONCE: SHA256Hash = sdk::sha256_static!("ERC20_TEST_NONCE");

@@ -104,7 +104,7 @@ jobs:
           ccache --zero-stats
 
       - name: Build FFI from source
-        run: cargo build -p groundhog-sys --features source-build
+        run: cargo build -p thruput-sys --features source-build
 
       - name: ccache stats
         if: always()

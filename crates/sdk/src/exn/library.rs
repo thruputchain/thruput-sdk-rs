@@ -23,7 +23,7 @@ use thiserror::Error;
 #[derive(Debug, PartialEq, ReadXDR, WriteXDR, ConstXDRSize)]
 #[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[derive(ContractTypeSpec)]
-#[groundhog_macros::exn(version = "1.0.0")]
+#[thruput_macros::exn(version = "1.0.0")]
 #[repr(i32)]
 #[non_exhaustive]
 pub enum LibraryExn {
@@ -319,7 +319,7 @@ mod selector_tests {
 
     #[test]
     fn library_exn_selector_matches_sha256() {
-        let expected = groundhog_contract_util::exception_selector(
+        let expected = thruput_contract_util::exception_selector(
             "1.0.0",
             env!("CARGO_PKG_NAME"),
             "LibraryExn",

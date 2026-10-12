@@ -1,4 +1,4 @@
-use groundhog_contract_spec::{ContractType, ContractTypeView};
+use thruput_contract_spec::{ContractType, ContractTypeView};
 
 #[test]
 fn u256_view_converts_to_the_native_owned_type() {

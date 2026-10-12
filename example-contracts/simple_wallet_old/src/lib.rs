@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use groundhog_erc20_if::{Amount, ERC20Client};
+use thruput_erc20_if::{Amount, ERC20Client};
 use sdk::storage::Value;
 use sdk::*;
 

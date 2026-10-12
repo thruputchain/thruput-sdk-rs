@@ -67,7 +67,7 @@ fn test_frame_failure_with_live_hashers_unwinds_cleanly() {
     // The VM's live-stream budget is the chain's `max_sha256_buffers`
     // network config parameter — read it off the environment rather than
     // duplicating the value here.
-    use groundhog_xdr::network_config::{ConfigParam, NetworkConfig};
+    use thruput_xdr::network_config::{ConfigParam, NetworkConfig};
     let NetworkConfig::_0 { v0 } = env.get_network_config() else {
         panic!("unsupported test network configuration version");
     };

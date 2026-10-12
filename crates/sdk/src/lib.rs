@@ -26,9 +26,9 @@ pub extern crate xdrs as __xdrs;
 #[cfg(feature = "std")]
 extern crate std;
 
-pub use groundhog_contract_spec as contract_spec;
+pub use thruput_contract_spec as contract_spec;
 #[doc(hidden)]
-pub use groundhog_contract_spec as __contract_spec;
+pub use thruput_contract_spec as __contract_spec;
 
 /// 256-bit integer arithmetic, signed and unsigned.
 ///
@@ -54,15 +54,15 @@ pub use groundhog_contract_spec as __contract_spec;
 /// U256::from(1000)`. Narrower values go through `.into()`,
 /// [`U256::from_u32`]/[`U256::from_u64`], or
 /// [`I256::from_i32`]/[`I256::from_i64`].
-pub use groundhog_u256 as u256;
-pub use groundhog_u256::{
+pub use thruput_u256 as u256;
+pub use thruput_u256::{
     I256, Rounding, TryFromIntError, U256, checked_mul_div_u128, mul_div_u128,
 };
 
 /// A span of time, for arithmetic on [`TimePoint`].
 ///
 /// `core`'s own type, re-exported so a contract can reach for it without
-/// naming `core` itself. `groundhog-xdr` implements `+` and `-` between
+/// naming `core` itself. `thruput-xdr` implements `+` and `-` between
 /// `TimePoint` and `Duration`, so a deadline reads the way it does in
 /// Solidity:
 ///
@@ -90,7 +90,7 @@ extern crate alloc;
 // name, so without it the runtime would be pruned as an unused dependency,
 // taking the lang items with it.
 #[cfg(target_arch = "riscv32")]
-extern crate groundhog_rv32_runtime as _;
+extern crate thruput_rv32_runtime as _;
 
 // Guest-dispatch plumbing for the `#[contract]` macro on rv32. The macro
 // emits `#[link_section = "groundhog_rv32_entrypoints"]` Entrypoint statics;
@@ -98,10 +98,10 @@ extern crate groundhog_rv32_runtime as _;
 #[cfg(target_arch = "riscv32")]
 #[doc(hidden)]
 pub mod __rv32 {
-    pub use groundhog_rv32_runtime::Entrypoint;
+    pub use thruput_rv32_runtime::Entrypoint;
 
     /// The runtime dispatcher's undefined-method hook: the one definition of
-    /// the symbol `groundhog-rv32-runtime` tail-calls when no entrypoint
+    /// the symbol `thruput-rv32-runtime` tail-calls when no entrypoint
     /// matches the invoked method id.
     ///
     /// The runtime cannot build a `LibraryExn` itself — it is dependency-free
@@ -215,19 +215,19 @@ pub use xdr::{
 pub use diagnostics::*;
 
 #[doc = include_str!("../doc/macro-contract.md")]
-pub use groundhog_macros::contract;
+pub use thruput_macros::contract;
 // These must be enumerated to avoid stomping on the above docstring
-pub use groundhog_macros::ContractTypeSpec;
-pub use groundhog_macros::Event;
-pub use groundhog_macros::contract_exception;
-pub use groundhog_macros::contract_type;
-pub use groundhog_macros::exn;
-pub use groundhog_macros::export_interface_spec;
-pub use groundhog_macros::{
+pub use thruput_macros::ContractTypeSpec;
+pub use thruput_macros::Event;
+pub use thruput_macros::contract_exception;
+pub use thruput_macros::contract_type;
+pub use thruput_macros::exn;
+pub use thruput_macros::export_interface_spec;
+pub use thruput_macros::{
     hash_to_array, sha256_array_ident, sha256_ident, sha256_static, static_key,
 };
 
-pub use groundhog_contract_spec::ContractTypeName;
+pub use thruput_contract_spec::ContractTypeName;
 
 // "Storage" facility
 
@@ -257,12 +257,12 @@ macro_rules! storage_domain_uniqueness_test {
     };
 }
 
-pub use groundhog_macros::Deletable;
+pub use thruput_macros::Deletable;
 
-pub use groundhog_macros::Storage;
+pub use thruput_macros::Storage;
 
 #[doc = include_str!("../doc/macro-storage.md")]
-pub use groundhog_macros::storage;
+pub use thruput_macros::storage;
 
 // Mock contract execution environment
 

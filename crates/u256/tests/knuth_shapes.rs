@@ -21,7 +21,7 @@
 //! `q * d + r == n` with `r < d` determines `(q, r)` uniquely, so it needs no
 //! second implementation and stays cheap.
 
-use groundhog_u256::U256;
+use thruput_u256::U256;
 
 /// Builds a value with exactly `limbs` 32-bit limbs, top limb chosen so the
 /// normalisation shift is zero (`top_bit_set`) or maximal (not).

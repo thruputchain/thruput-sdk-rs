@@ -4,7 +4,7 @@
 #
 #   1. the workspace-versioned crates up through `sdk`
 #   2. the standard-interface crates, which caret-depend on `sdk`
-#   3. the crates downstream of the standard interfaces: `groundhog-spec-tool`
+#   3. the crates downstream of the standard interfaces: `thruput-spec-tool`
 #      and the `erc20-*-test` crates
 #
 # Every step tolerates re-runs: tags are recreated at HEAD and only pushed
@@ -48,21 +48,21 @@ env:
   # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
   # line but is named separately: those crates publish after the standard
   # interfaces, while these are what the interfaces depend on. Dev-dependencies
-  # count toward that order: packaging resolves them too, so `groundhog-macros`
-  # precedes `groundhog-domain-separator`, whose tests use it.
+  # count toward that order: packaging resolves them too, so `thruput-macros`
+  # precedes `thruput-domain-separator`, whose tests use it.
   PRIMARY_PACKAGES: >-
-    groundhog-event
-    groundhog-exn
-    groundhog-storage-cost
-    groundhog-contract-util
-    groundhog-contract-spec
-    groundhog-sys
-    groundhog-macros
-    groundhog-domain-separator
-    groundhog-native-exec
-    groundhog-u256
-    groundhog-test-vectors
-    groundhog-rv32-runtime
+    thruput-event
+    thruput-exn
+    thruput-storage-cost
+    thruput-contract-util
+    thruput-contract-spec
+    thruput-sys
+    thruput-macros
+    thruput-domain-separator
+    thruput-native-exec
+    thruput-u256
+    thruput-test-vectors
+    thruput-rv32-runtime
     sdk
     bottle-test-if
   # Standard-interface crates and their implementation components: versioned
@@ -70,22 +70,22 @@ env:
   # `<crate>-v<version>` tag. In dependency order: each implementation
   # component exact-pins its interface crate, so it comes after it.
   INTERFACE_PACKAGES: >-
-    groundhog-erc20-if
-    groundhog-erc20-metadata-if
-    groundhog-erc20-controls-if
-    groundhog-erc20-pausable-if
-    groundhog-signed-op-if
-    groundhog-signed-op
-    groundhog-erc20-permit-if
-    groundhog-erc165-if
-    groundhog-erc721-if
-    groundhog-sep41
-    groundhog-access-control-if
-    groundhog-access-control
+    thruput-erc20-if
+    thruput-erc20-metadata-if
+    thruput-erc20-controls-if
+    thruput-erc20-pausable-if
+    thruput-signed-op-if
+    thruput-signed-op
+    thruput-erc20-permit-if
+    thruput-erc165-if
+    thruput-erc721-if
+    thruput-sep41
+    thruput-access-control-if
+    thruput-access-control
   # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
   # PRIMARY_PACKAGES.
   INTERFACE_DEPENDENT_PACKAGES: >-
-    groundhog-spec-tool
+    thruput-spec-tool
     erc20-test
     erc20-native-test
     erc20-bottle-test
@@ -99,9 +99,9 @@ jobs:
       contents: write
     runs-on: namespace-profile-hogd-linux-2604
     env:
-      # Share one FFI download cache across every groundhog-sys build instance
+      # Share one FFI download cache across every thruput-sys build instance
       # (and across runs, via the Namespace cache below). The dry runs below
-      # package groundhog-sys once per feature combination, and each instance
+      # package thruput-sys once per feature combination, and each instance
       # would otherwise re-download the prebuilt FFI tarball into its own
       # OUT_DIR. Mirrors ci.yml and sdk_tests.yml.
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
@@ -181,40 +181,40 @@ jobs:
           # depends on come first, in dependency order — dev-dependencies
           # included.
           vendor-workspace-deps:
-            groundhog-storage-cost
-            groundhog-event
-            groundhog-exn
-            groundhog-contract-util
-            groundhog-contract-spec
-            groundhog-sys
-            groundhog-macros
-            groundhog-domain-separator
-            groundhog-native-exec
-            groundhog-u256
-            groundhog-rv32-runtime
+            thruput-storage-cost
+            thruput-event
+            thruput-exn
+            thruput-contract-util
+            thruput-contract-spec
+            thruput-sys
+            thruput-macros
+            thruput-domain-separator
+            thruput-native-exec
+            thruput-u256
+            thruput-rv32-runtime
             sdk
             bottle-test-if
-            groundhog-erc20-if
-            groundhog-erc20-metadata-if
-            groundhog-erc20-pausable-if
-            groundhog-erc20-permit-if
-            groundhog-signed-op-if
-            groundhog-erc165-if
-            groundhog-erc721-if
-            groundhog-access-control-if
+            thruput-erc20-if
+            thruput-erc20-metadata-if
+            thruput-erc20-pausable-if
+            thruput-erc20-permit-if
+            thruput-signed-op-if
+            thruput-erc165-if
+            thruput-erc721-if
+            thruput-access-control-if
             erc20-test
-          # groundhog-domain-separator's backends are additive, so most combinations
+          # thruput-domain-separator's backends are additive, so most combinations
           # are fine. The exception is a bare `syscall`: it forwards to
-          # `groundhog-xdr/syscalls`, which has no dispatch path on the host.
+          # `thruput-xdr/syscalls`, which has no dispatch path on the host.
           # `syscall-mock` needs no skip -- it supplies that dispatch itself.
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features --skip syscall
-          # On guests, reaching groundhog-domain-separator's `sha2` backend is a hard
+          # On guests, reaching thruput-domain-separator's `sha2` backend is a hard
           # error, so skip it and `default` (which pulls it in via `std`). Its
           # `syscall-mock` is host-only, like sdk's `mock`. `-F syscall` keeps the
           # guest backend compiled somewhere. All no-ops for the other packages here.
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
-          cargo-hack-rv32-packages: groundhog-rv32-runtime sdk groundhog-domain-separator
-          arch-only-packages: groundhog-rv32-runtime
+          cargo-hack-rv32-packages: thruput-rv32-runtime sdk thruput-domain-separator
+          arch-only-packages: thruput-rv32-runtime
 
       # The dry-run action leaves its vendor/ dir behind; clear it so the
       # standard-interfaces dry run below re-vendors from scratch.
@@ -248,33 +248,33 @@ jobs:
           registry-name: thruput
           packages: ${{ env.INTERFACE_PACKAGES }}
           # The implementation components exact-pin their interface crates,
-          # and the permit and issuer interfaces exact-pin groundhog-erc20-if — all
+          # and the permit and issuer interfaces exact-pin thruput-erc20-if — all
           # workspace path deps here, so their offline packaging needs those
           # pre-vendored (after the primaries they depend on).
           vendor-workspace-deps:
-            groundhog-storage-cost
-            groundhog-event
-            groundhog-exn
-            groundhog-contract-util
-            groundhog-contract-spec
-            groundhog-sys
-            groundhog-macros
-            groundhog-domain-separator
-            groundhog-native-exec
-            groundhog-u256
-            groundhog-rv32-runtime
+            thruput-storage-cost
+            thruput-event
+            thruput-exn
+            thruput-contract-util
+            thruput-contract-spec
+            thruput-sys
+            thruput-macros
+            thruput-domain-separator
+            thruput-native-exec
+            thruput-u256
+            thruput-rv32-runtime
             sdk
-            groundhog-erc20-if
-            groundhog-erc20-metadata-if
-            groundhog-erc20-controls-if
-            groundhog-erc165-if
-            groundhog-signed-op-if
-            groundhog-access-control-if
+            thruput-erc20-if
+            thruput-erc20-metadata-if
+            thruput-erc20-controls-if
+            thruput-erc165-if
+            thruput-signed-op-if
+            thruput-access-control-if
           # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
           # cannot link on the host (no `main`); it is verified by the rv32 step below.
           cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features --skip entrypoints
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
-          cargo-hack-rv32-packages: groundhog-rv32-runtime ${{ env.INTERFACE_PACKAGES }}
+          cargo-hack-rv32-packages: thruput-rv32-runtime ${{ env.INTERFACE_PACKAGES }}
 
       # Tags HEAD as `v<version>` and pushes. Re-running on the release
       # commit passes (the push is a no-op); a run on a new commit without a
@@ -296,145 +296,145 @@ jobs:
       # when it is NOT published (a previous run died between tag push and
       # publish; publishing HEAD would ship content that doesn't match the
       # tag — re-run from the tagged commit, or delete the stale tag).
-      - name: Tag groundhog-erc20-if
+      - name: Tag thruput-erc20-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-erc20-if
-          tag-prefix: 'groundhog-erc20-if-v'
+          packages: thruput-erc20-if
+          tag-prefix: 'thruput-erc20-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-erc20-controls-if
+      - name: Tag thruput-erc20-controls-if
         if: ${{ inputs.dry_run == false }}
         id: tag-token-controls-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-erc20-controls-if
-          tag-prefix: 'groundhog-erc20-controls-if-v'
+          packages: thruput-erc20-controls-if
+          tag-prefix: 'thruput-erc20-controls-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-erc20-metadata-if
+      - name: Tag thruput-erc20-metadata-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-metadata-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-erc20-metadata-if
-          tag-prefix: 'groundhog-erc20-metadata-if-v'
+          packages: thruput-erc20-metadata-if
+          tag-prefix: 'thruput-erc20-metadata-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-erc20-pausable-if
+      - name: Tag thruput-erc20-pausable-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-pausable-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-erc20-pausable-if
-          tag-prefix: 'groundhog-erc20-pausable-if-v'
+          packages: thruput-erc20-pausable-if
+          tag-prefix: 'thruput-erc20-pausable-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-signed-op
+      - name: Tag thruput-signed-op
         if: ${{ inputs.dry_run == false }}
         id: tag-signed-op
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-signed-op
-          tag-prefix: 'groundhog-signed-op-v'
+          packages: thruput-signed-op
+          tag-prefix: 'thruput-signed-op-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-access-control-if
+      - name: Tag thruput-access-control-if
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-access-control-if
-          tag-prefix: 'groundhog-access-control-if-v'
+          packages: thruput-access-control-if
+          tag-prefix: 'thruput-access-control-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-signed-op-if
+      - name: Tag thruput-signed-op-if
         if: ${{ inputs.dry_run == false }}
         id: tag-signed-op-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-signed-op-if
-          tag-prefix: 'groundhog-signed-op-if-v'
+          packages: thruput-signed-op-if
+          tag-prefix: 'thruput-signed-op-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-erc20-permit-if
+      - name: Tag thruput-erc20-permit-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc20-permit-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-erc20-permit-if
-          tag-prefix: 'groundhog-erc20-permit-if-v'
+          packages: thruput-erc20-permit-if
+          tag-prefix: 'thruput-erc20-permit-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-erc165-if
+      - name: Tag thruput-erc165-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc165-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-erc165-if
-          tag-prefix: 'groundhog-erc165-if-v'
+          packages: thruput-erc165-if
+          tag-prefix: 'thruput-erc165-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-erc721-if
+      - name: Tag thruput-erc721-if
         if: ${{ inputs.dry_run == false }}
         id: tag-erc721-if
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-erc721-if
-          tag-prefix: 'groundhog-erc721-if-v'
+          packages: thruput-erc721-if
+          tag-prefix: 'thruput-erc721-if-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-sep41
+      - name: Tag thruput-sep41
         if: ${{ inputs.dry_run == false }}
         id: tag-sep41
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-sep41
-          tag-prefix: 'groundhog-sep41-v'
+          packages: thruput-sep41
+          tag-prefix: 'thruput-sep41-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      - name: Tag groundhog-access-control
+      - name: Tag thruput-access-control
         if: ${{ inputs.dry_run == false }}
         id: tag-access-control
         uses: ./actions/cargo-release-tag
         with:
-          packages: groundhog-access-control
-          tag-prefix: 'groundhog-access-control-v'
+          packages: thruput-access-control
+          tag-prefix: 'thruput-access-control-v'
           github-token: ${{ github.token }}
           on-existing-tag: 'skip-if-published'
           registry-name: thruput
@@ -442,7 +442,7 @@ jobs:
 
       # Unlike the dry runs, the publish steps resolve deps against the live
       # registry — hence the dependency order: sdk (here) before the standard
-      # interfaces, and those before groundhog-spec-tool, whose exact-pinned
+      # interfaces, and those before thruput-spec-tool, whose exact-pinned
       # interface versions must already be published.
       - name: Publish
         if: ${{ inputs.dry_run == false }}
@@ -458,16 +458,16 @@ jobs:
           # These crates only build for their non-host target, so the publish
           # action's host doc-validation must skip them (covered by the per-target
           # verify in the dry-run step).
-          arch-only-packages: groundhog-rv32-runtime
+          arch-only-packages: thruput-rv32-runtime
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-erc20-if
+      - name: Publish thruput-erc20-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-erc20-if
+          packages: thruput-erc20-if
           git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
-          tag-prefix: 'groundhog-erc20-if-v'
+          tag-prefix: 'thruput-erc20-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           # Verification is done by the dry-run step above; the publish-time
@@ -477,61 +477,61 @@ jobs:
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-erc20-metadata-if
+      - name: Publish thruput-erc20-metadata-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-erc20-metadata-if
+          packages: thruput-erc20-metadata-if
           git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
-          tag-prefix: 'groundhog-erc20-metadata-if-v'
+          tag-prefix: 'thruput-erc20-metadata-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-erc20-controls-if
+      - name: Publish thruput-erc20-controls-if
         if: ${{ inputs.dry_run == false && steps.tag-token-controls-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-erc20-controls-if
+          packages: thruput-erc20-controls-if
           git-tag: ${{ steps.tag-token-controls-if.outputs.tag }}
-          tag-prefix: 'groundhog-erc20-controls-if-v'
+          tag-prefix: 'thruput-erc20-controls-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-erc20-pausable-if
+      - name: Publish thruput-erc20-pausable-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-erc20-pausable-if
+          packages: thruput-erc20-pausable-if
           git-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
-          tag-prefix: 'groundhog-erc20-pausable-if-v'
+          tag-prefix: 'thruput-erc20-pausable-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-erc165-if
+      - name: Publish thruput-erc165-if
         if: ${{ inputs.dry_run == false && steps.tag-erc165-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-erc165-if
+          packages: thruput-erc165-if
           git-tag: ${{ steps.tag-erc165-if.outputs.tag }}
-          tag-prefix: 'groundhog-erc165-if-v'
+          tag-prefix: 'thruput-erc165-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-erc721-if
+      - name: Publish thruput-erc721-if
         if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-erc721-if
+          packages: thruput-erc721-if
           git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
-          tag-prefix: 'groundhog-erc721-if-v'
+          tag-prefix: 'thruput-erc721-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
@@ -539,79 +539,79 @@ jobs:
 
       # After the ERC20, ERC20 controls, metadata and ERC-165 interfaces:
       # this component exact-pins all four.
-      - name: Publish groundhog-sep41
+      - name: Publish thruput-sep41
         if: ${{ inputs.dry_run == false && steps.tag-sep41.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-sep41
+          packages: thruput-sep41
           git-tag: ${{ steps.tag-sep41.outputs.tag }}
-          tag-prefix: 'groundhog-sep41-v'
+          tag-prefix: 'thruput-sep41-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-access-control-if
+      - name: Publish thruput-access-control-if
         if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-access-control-if
+          packages: thruput-access-control-if
           git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
-          tag-prefix: 'groundhog-access-control-if-v'
+          tag-prefix: 'thruput-access-control-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      - name: Publish groundhog-signed-op-if
+      - name: Publish thruput-signed-op-if
         if: ${{ inputs.dry_run == false && steps.tag-signed-op-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-signed-op-if
+          packages: thruput-signed-op-if
           git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
-          tag-prefix: 'groundhog-signed-op-if-v'
+          tag-prefix: 'thruput-signed-op-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      # After groundhog-signed-op-if: the component exact-pins it, and this
+      # After thruput-signed-op-if: the component exact-pins it, and this
       # publish resolves deps against the live registry.
-      - name: Publish groundhog-signed-op
+      - name: Publish thruput-signed-op
         if: ${{ inputs.dry_run == false && steps.tag-signed-op.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-signed-op
+          packages: thruput-signed-op
           git-tag: ${{ steps.tag-signed-op.outputs.tag }}
-          tag-prefix: 'groundhog-signed-op-v'
+          tag-prefix: 'thruput-signed-op-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      # After groundhog-erc20-if: this crate exact-pins it, and this publish
+      # After thruput-erc20-if: this crate exact-pins it, and this publish
       # resolves deps against the live registry.
-      - name: Publish groundhog-erc20-permit-if
+      - name: Publish thruput-erc20-permit-if
         if: ${{ inputs.dry_run == false && steps.tag-erc20-permit-if.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-erc20-permit-if
+          packages: thruput-erc20-permit-if
           git-tag: ${{ steps.tag-erc20-permit-if.outputs.tag }}
-          tag-prefix: 'groundhog-erc20-permit-if-v'
+          tag-prefix: 'thruput-erc20-permit-if-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'
           publish-delay-seconds: '10'
 
-      # After groundhog-access-control-if: the component exact-pins it, and
+      # After thruput-access-control-if: the component exact-pins it, and
       # this publish resolves deps against the live registry.
-      - name: Publish groundhog-access-control
+      - name: Publish thruput-access-control
         if: ${{ inputs.dry_run == false && steps.tag-access-control.outputs.released == 'true' }}
         uses: ./actions/cargo-publish
         with:
-          packages: groundhog-access-control
+          packages: thruput-access-control
           git-tag: ${{ steps.tag-access-control.outputs.tag }}
-          tag-prefix: 'groundhog-access-control-v'
+          tag-prefix: 'thruput-access-control-v'
           registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
           no-verify: 'true'

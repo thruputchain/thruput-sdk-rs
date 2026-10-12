@@ -3,10 +3,10 @@ use crate::test_environment::{
     TestEnvironment, TestEnvironmentHandle, mock_genesis_root_contract,
     test_network_hash,
 };
-use groundhog_storage_cost::StorageCostModel;
-use groundhog_xdr::contract::Contract;
-use groundhog_xdr::network_config::{ConfigParam, NetworkConfig};
-use groundhog_xdr::types::NetworkHash;
+use thruput_storage_cost::StorageCostModel;
+use thruput_xdr::contract::Contract;
+use thruput_xdr::network_config::{ConfigParam, NetworkConfig};
+use thruput_xdr::types::NetworkHash;
 
 /// Builder for a [`TestEnvironment`] that needs something other than the
 /// stock chain settings.
@@ -19,7 +19,7 @@ use groundhog_xdr::types::NetworkHash;
 /// which is otherwise only observable on a chain configured that way:
 ///
 /// ```no_run
-/// use groundhog_native_exec::test_environment::TestEnvironment;
+/// use thruput_native_exec::test_environment::TestEnvironment;
 ///
 /// let env = TestEnvironment::builder()
 ///     .no_cost()
@@ -251,9 +251,9 @@ mod tests {
         config_params, find_config_param, stock_network_config,
     };
     use crate::test_helpers::Named;
-    use groundhog_xdr::network_config::ConfigParamID;
-    use groundhog_xdr::syscalls::{raw_BytestringSet, raw_SHA256Update};
-    use groundhog_xdr::types::{ContractAddress, StorageKeyContractData};
+    use thruput_xdr::network_config::ConfigParamID;
+    use thruput_xdr::syscalls::{raw_BytestringSet, raw_SHA256Update};
+    use thruput_xdr::types::{ContractAddress, StorageKeyContractData};
 
     fn max_sha256_buffers(config: &NetworkConfig) -> u32 {
         match find_config_param(

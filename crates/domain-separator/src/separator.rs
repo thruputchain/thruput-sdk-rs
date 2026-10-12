@@ -47,7 +47,7 @@ impl WriteXDR for DomainSeparator {
     }
 }
 
-/// Mirror of `groundhog_xdr::preimage::DomainSeparator` whose opaque field is a
+/// Mirror of `thruput_xdr::preimage::DomainSeparator` whose opaque field is a
 /// borrow (`&[u8]`) rather than `BytesM<256>`, so a value can be built in a
 /// `const` (the real type's `BytesM<256>` is heap-backed under `alloc`). It
 /// encodes byte-identically; [`DomainSeparatorRepr::to_domain_separator`] and a
@@ -75,9 +75,9 @@ impl DomainSeparatorRepr<'_> {
     #[allow(dead_code)]
     pub(crate) fn to_domain_separator(
         &self,
-    ) -> groundhog_xdr::preimage::DomainSeparator {
-        groundhog_xdr::preimage::DomainSeparator {
-            ext: groundhog_xdr::types::ExtensionPoint::_0,
+    ) -> thruput_xdr::preimage::DomainSeparator {
+        thruput_xdr::preimage::DomainSeparator {
+            ext: thruput_xdr::types::ExtensionPoint::_0,
             domain_separator: xdrs::BytesM::<256>::try_from(self.name)
                 .expect("domain separator name exceeds BytesM<256>"),
         }

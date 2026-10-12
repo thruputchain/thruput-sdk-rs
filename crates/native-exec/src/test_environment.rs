@@ -5,19 +5,19 @@ use crate::test_environment_builder::TestEnvironmentBuilder;
 use crate::transact_result::TransactResult;
 use crate::transaction_builder::TransactionBuilder;
 use core::ffi::c_void;
-use groundhog_storage_cost::StorageCostModel;
-use groundhog_sys::FFIErrorCode;
-use groundhog_xdr::address_auth::AddressAuthData;
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::contract::*;
-use groundhog_xdr::network_config::NetworkConfig;
-use groundhog_xdr::storage_item::WireStorageItem;
-use groundhog_xdr::transaction::*;
-use groundhog_xdr::types::*;
 use hogexec_internal::ffi_enums::InvokeErrorCode;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::rc::Rc;
+use thruput_storage_cost::StorageCostModel;
+use thruput_sys::FFIErrorCode;
+use thruput_xdr::address_auth::AddressAuthData;
+use thruput_xdr::contract::ContractEntrypointID;
+use thruput_xdr::contract::*;
+use thruput_xdr::network_config::NetworkConfig;
+use thruput_xdr::storage_item::WireStorageItem;
+use thruput_xdr::transaction::*;
+use thruput_xdr::types::*;
 use xdrs::txs;
 
 // TODO(geoff): I cannot figure out how to prevent rust from moving objects
@@ -84,8 +84,8 @@ pub struct TestEnvironmentInner {
 ///   test uses it.
 ///
 /// ```no_run
-/// use groundhog_native_exec::test_environment::TestEnvironment;
-/// use groundhog_xdr::types::ContractAddress;
+/// use thruput_native_exec::test_environment::TestEnvironment;
+/// use thruput_xdr::types::ContractAddress;
 ///
 /// let env = TestEnvironment::no_cost();
 /// let addr = ContractAddress::new([0x11; 32]);
@@ -102,7 +102,7 @@ pub struct TestEnvironment {
 unsafe extern "C" fn trampoline(
     context: *mut c_void,
     method: u64,
-) -> groundhog_sys::ForeignInvokeResult {
+) -> thruput_sys::ForeignInvokeResult {
     let c: *mut MockContractInner = unsafe { core::mem::transmute(context) };
 
     let method: ContractEntrypointID = method.to_be_bytes().into();
@@ -121,7 +121,7 @@ unsafe extern "C" fn trampoline(
             let _in_body = crate::invoke_error::PanicHookGuard::enter();
             x()
         }
-        None => groundhog_sys::ForeignInvokeResult {
+        None => thruput_sys::ForeignInvokeResult {
             panic: InvokeErrorCode::Deterministic.0,
         },
     }
@@ -163,7 +163,7 @@ impl DBWrapper {
         // `crate::network_config::NetworkConfigBuilder`, which refuses to
         // produce anything else.
         let res = unsafe {
-            groundhog_sys::create_db(
+            thruput_sys::create_db(
                 ffi_cost_model_bytes.0,
                 ffi_cost_model_bytes.1,
                 network_hash.as_ptr(),
@@ -182,7 +182,7 @@ impl DBWrapper {
     }
 
     pub fn get_cost_model(&self) -> StorageCostModel {
-        let res = unsafe { groundhog_sys::get_cost_model(self.db) };
+        let res = unsafe { thruput_sys::get_cost_model(self.db) };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to get cost model: {}", res.ffi_error_code);
@@ -192,14 +192,14 @@ impl DBWrapper {
         }
 
         let data = xdrs::txs::decode::<
-            groundhog_xdr::storage_cost::StorageCostModelXdr,
+            thruput_xdr::storage_cost::StorageCostModelXdr,
         >(res.data.as_slice().unwrap())
         .unwrap();
         StorageCostModel::new(data)
     }
 
     pub fn get_network_config(&self) -> NetworkConfig {
-        let res = unsafe { groundhog_sys::get_network_config(self.db) };
+        let res = unsafe { thruput_sys::get_network_config(self.db) };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to get network config: {}", res.ffi_error_code);
@@ -224,13 +224,13 @@ impl DBWrapper {
             },
         };
         let serialized_addrkey = txs::encode(&addrkey).unwrap();
-        let ffi_addrkey = groundhog_sys::FFISerializedAddressAndKey {
+        let ffi_addrkey = thruput_sys::FFISerializedAddressAndKey {
             data: serialized_addrkey.as_ptr(),
             len: serialized_addrkey.len().try_into().unwrap(),
         };
 
         let res = unsafe {
-            groundhog_sys::get_snapshot_storage_item(self.db, ffi_addrkey)
+            thruput_sys::get_snapshot_storage_item(self.db, ffi_addrkey)
         };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
@@ -245,7 +245,7 @@ impl DBWrapper {
 
 impl Drop for DBWrapper {
     fn drop(&mut self) {
-        let r = unsafe { groundhog_sys::free_db(self.db) };
+        let r = unsafe { thruput_sys::free_db(self.db) };
         let err: FFIErrorCode = r.into();
         if err != FFIErrorCode::None {
             crate::drop_failure(format_args!("failed to free db: {:?}", err));
@@ -259,7 +259,7 @@ pub(crate) struct RuntimeContextWrapper {
 
 impl RuntimeContextWrapper {
     pub fn new() -> Self {
-        let res = unsafe { groundhog_sys::open_runtime_context() };
+        let res = unsafe { thruput_sys::open_runtime_context() };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to create runtime context: {}", res.ffi_error_code);
@@ -273,7 +273,7 @@ impl RuntimeContextWrapper {
 
 impl Drop for RuntimeContextWrapper {
     fn drop(&mut self) {
-        let r = unsafe { groundhog_sys::close_runtime_context(self.context) };
+        let r = unsafe { thruput_sys::close_runtime_context(self.context) };
         let err: FFIErrorCode = r.into();
         if err != FFIErrorCode::None {
             crate::drop_failure(format_args!(
@@ -312,8 +312,8 @@ impl TestEnvironmentInner {
 
     /// Turn on FFI-level syscall logging to stderr at `level` for
     /// environments created afterwards.
-    pub fn enable_syscall_logging(level: groundhog_sys::FFILogLevel) {
-        unsafe { groundhog_sys::enable_syscall_logging(level as i32) };
+    pub fn enable_syscall_logging(level: thruput_sys::FFILogLevel) {
+        unsafe { thruput_sys::enable_syscall_logging(level as i32) };
     }
 
     /// Creates a new contract within groundhog.
@@ -336,7 +336,7 @@ impl TestEnvironmentInner {
     ) -> SHA256Hash {
         let contract_bytes = txs::encode(&contract).unwrap();
         let res = unsafe {
-            groundhog_sys::setup_create_contract(
+            thruput_sys::setup_create_contract(
                 self.contract_context.context,
                 self.db.db,
                 contract_bytes.as_ptr(),
@@ -344,8 +344,8 @@ impl TestEnvironmentInner {
             )
         };
         if res != 0 {
-            let err: groundhog_sys::FFIErrorCode = res.into();
-            if err == groundhog_sys::FFIErrorCode::ContractVerificationFailed {
+            let err: thruput_sys::FFIErrorCode = res.into();
+            if err == thruput_sys::FFIErrorCode::ContractVerificationFailed {
                 panic!(
                     "setup_create_contract failed: {err}\n\
                      \n\
@@ -391,7 +391,7 @@ impl TestEnvironmentInner {
         let contract_size = deployment_contract_size(contract);
 
         let res = unsafe {
-            groundhog_sys::setup_deploy_contract(
+            thruput_sys::setup_deploy_contract(
                 self.db.db,
                 addr.as_ptr(),
                 contract_hash.as_ptr(),
@@ -418,7 +418,7 @@ impl TestEnvironmentInner {
         tokens: i64,
     ) {
         let res = unsafe {
-            groundhog_sys::setup_grant_contract_storage_tokens(
+            thruput_sys::setup_grant_contract_storage_tokens(
                 self.db.db,
                 addr.as_ptr(),
                 tokens,
@@ -453,7 +453,7 @@ impl TestEnvironmentInner {
 
     fn advance_block_inner(&mut self, block_timepoint: *const u64) {
         let res = unsafe {
-            groundhog_sys::advance_new_block(self.db.db, block_timepoint)
+            thruput_sys::advance_new_block(self.db.db, block_timepoint)
         };
         let err: FFIErrorCode = res.into();
         if err == FFIErrorCode::InvalidArgument {
@@ -469,7 +469,7 @@ impl TestEnvironmentInner {
     }
 
     /// Registers a new mock contract with the test environment.
-    /// This does not create the contract as something visible within Groundhog,
+    /// This does not create the contract as something visible within Thruput,
     /// nor does it deploy it at a particular address.
     ///
     /// This contract (a Contract(ContractType::kMockTest))
@@ -487,7 +487,7 @@ impl TestEnvironmentInner {
         self.mock_contract_index += 1;
 
         let res = unsafe {
-            groundhog_sys::register_new_contract(
+            thruput_sys::register_new_contract(
                 self.contract_context.context,
                 new_id,
                 Some(trampoline),
@@ -517,15 +517,14 @@ impl TestEnvironmentInner {
     pub fn run_auth_checks(
         &self,
         tx: &SignedTransaction,
-    ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
+    ) -> thruput_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
-        let ffi_serialized_tx =
-            groundhog_sys::FFISerializedSignedTransaction {
-                data: serialized_tx.as_ptr() as *mut u8,
-                len: serialized_tx.len().try_into().unwrap(),
-            };
+        let ffi_serialized_tx = thruput_sys::FFISerializedSignedTransaction {
+            data: serialized_tx.as_ptr() as *mut u8,
+            len: serialized_tx.len().try_into().unwrap(),
+        };
         let res = unsafe {
-            groundhog_sys::verify_signed_transaction_auth_from_db(
+            thruput_sys::verify_signed_transaction_auth_from_db(
                 self.db.db,
                 ffi_serialized_tx,
             )
@@ -613,7 +612,7 @@ impl TestEnvironment {
     /// finish with [`build`](TestEnvironmentBuilder::build):
     ///
     /// ```no_run
-    /// use groundhog_native_exec::test_environment::TestEnvironment;
+    /// use thruput_native_exec::test_environment::TestEnvironment;
     ///
     /// let env = TestEnvironment::builder()
     ///     .no_cost()
@@ -659,7 +658,7 @@ impl TestEnvironment {
     /// Environment in which every storage operation costs zero.
     pub fn no_cost() -> TestEnvironmentHandle {
         Self::new(Some(
-            &groundhog_storage_cost::StorageCostModel::no_cost_model(),
+            &thruput_storage_cost::StorageCostModel::no_cost_model(),
         ))
     }
 
@@ -667,7 +666,7 @@ impl TestEnvironment {
     /// created after the call.
     pub fn enable_syscall_logging() {
         TestEnvironmentInner::enable_syscall_logging(
-            groundhog_sys::FFILogLevel::Trace,
+            thruput_sys::FFILogLevel::Trace,
         );
     }
 
@@ -850,7 +849,7 @@ impl TestEnvironment {
     pub fn verify_signed_transaction_auth(
         self: &TestEnvironmentHandle,
         tx: &SignedTransaction,
-    ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
+    ) -> thruput_xdr::auth_claim::AuthVerifyErrorCode {
         self.inner.borrow().run_auth_checks(tx)
     }
 
@@ -863,20 +862,19 @@ impl TestEnvironment {
     ///
     /// `network_hash` is part of every signature preimage, so it must be the
     /// network the signatures were produced for — see
-    /// `groundhog_domain_separator::transaction_signature_preimage`. There is
+    /// `thruput_domain_separator::transaction_signature_preimage`. There is
     /// no database here to read it from, so it is passed explicitly;
     /// [`test_network_hash`] is what a [`TestEnvironment`] would use.
     pub fn verify_signed_transaction_auth_static(
         tx: &SignedTransaction,
         source_auth_data: Option<&AddressAuthData>,
         network_hash: &NetworkHash,
-    ) -> groundhog_xdr::auth_claim::AuthVerifyErrorCode {
+    ) -> thruput_xdr::auth_claim::AuthVerifyErrorCode {
         let serialized_tx = txs::encode(tx).unwrap();
-        let ffi_serialized_tx =
-            groundhog_sys::FFISerializedSignedTransaction {
-                data: serialized_tx.as_ptr() as *mut u8,
-                len: serialized_tx.len().try_into().unwrap(),
-            };
+        let ffi_serialized_tx = thruput_sys::FFISerializedSignedTransaction {
+            data: serialized_tx.as_ptr() as *mut u8,
+            len: serialized_tx.len().try_into().unwrap(),
+        };
 
         // `None` → null pointer with len=0 (pubkey-claim path, 0.20.1+).
         // `Some(d)` → serialize and pass as before.
@@ -884,18 +882,18 @@ impl TestEnvironment {
             source_auth_data.map(|d| txs::encode(d).unwrap());
         let ffi_serialized_source_auth_data =
             match &serialized_source_auth_data {
-                Some(bytes) => groundhog_sys::FFISourceAuthData {
+                Some(bytes) => thruput_sys::FFISourceAuthData {
                     data: bytes.as_ptr() as *mut u8,
                     len: bytes.len().try_into().unwrap(),
                 },
-                None => groundhog_sys::FFISourceAuthData {
+                None => thruput_sys::FFISourceAuthData {
                     data: core::ptr::null_mut(),
                     len: 0,
                 },
             };
 
         let res = unsafe {
-            groundhog_sys::verify_signed_transaction_auth(
+            thruput_sys::verify_signed_transaction_auth(
                 ffi_serialized_tx,
                 ffi_serialized_source_auth_data,
                 network_hash.as_ptr(),
@@ -956,7 +954,7 @@ mod tests {
 
         let result = env.transact(|tx| {
             tx.call(&TEST_ADDR).run(|| {
-                groundhog_xdr::syscalls::raw_BytestringSet(&key, b"hello")
+                thruput_xdr::syscalls::raw_BytestringSet(&key, b"hello")
                     .unwrap();
             })
         });
@@ -992,7 +990,7 @@ mod tests {
         // native precompiles are banned from redeployment (hogd #3592).
         // A fresh environment hands out mock contract ids from zero.
         let _mock = env.inner.borrow_mut().add_contract();
-        let contract = groundhog_xdr::contract::Contract::kMockTest {
+        let contract = thruput_xdr::contract::Contract::kMockTest {
             mock_contract_id: 0,
         };
         env.inner.borrow_mut().setup_create_contract(&contract);
@@ -1002,7 +1000,7 @@ mod tests {
 
         let result = env.transact(|tx| {
             tx.call(&TEST_ADDR).run(|| {
-                groundhog_xdr::syscalls::raw_BytestringSet(&key, b"hello")
+                thruput_xdr::syscalls::raw_BytestringSet(&key, b"hello")
                     .unwrap();
             })
         });

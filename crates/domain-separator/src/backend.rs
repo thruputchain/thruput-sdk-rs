@@ -47,9 +47,9 @@ pub struct Syscall;
 impl Sha256Backend for Syscall {
     fn sha256(bytes: &[u8]) -> [u8; 32] {
         use core::mem::MaybeUninit;
-        use groundhog_xdr::types::SHA256Hash;
+        use thruput_xdr::types::SHA256Hash;
         let mut out = MaybeUninit::<SHA256Hash>::uninit();
-        groundhog_xdr::syscalls::uninit_SHA256(bytes, &mut out)
+        thruput_xdr::syscalls::uninit_SHA256(bytes, &mut out)
             .unwrap_or_else(|e| panic!("SHA256 syscall failed: {e:?}"));
         // SAFETY: the syscall returned Ok, so `out` is initialized.
         unsafe { out.assume_init() }.into_inner()

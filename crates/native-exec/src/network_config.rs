@@ -1,12 +1,12 @@
 use crate::test_environment::{
     DBWrapper, mock_genesis_root_contract, test_network_hash,
 };
-use groundhog_xdr::network_config::{
-    ConfigParam, ConfigParamID, NetworkConfig, NetworkConfigV0,
-};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
+use thruput_xdr::network_config::{
+    ConfigParam, ConfigParamID, NetworkConfig, NetworkConfigV0,
+};
 
 /// The configuration a database takes when none is supplied: the stock
 /// genesis values of the hogd build this crate is linked against.
@@ -51,8 +51,8 @@ pub fn config_params(config: &NetworkConfig) -> &[ConfigParam] {
 /// The value `config` states for `param`, or `None` when it states none.
 ///
 /// ```no_run
-/// use groundhog_native_exec::network_config;
-/// use groundhog_xdr::network_config::{ConfigParam, ConfigParamID};
+/// use thruput_native_exec::network_config;
+/// use thruput_xdr::network_config::{ConfigParam, ConfigParamID};
 ///
 /// let config = network_config::stock_network_config();
 /// let cap = match network_config::find_config_param(
@@ -81,7 +81,7 @@ pub fn find_config_param(
 /// parameter leaves every other one at the value the chain would have used:
 ///
 /// ```no_run
-/// use groundhog_native_exec::network_config::NetworkConfigBuilder;
+/// use thruput_native_exec::network_config::NetworkConfigBuilder;
 ///
 /// let config = NetworkConfigBuilder::new()
 ///     .with_max_sha256_buffers(2)

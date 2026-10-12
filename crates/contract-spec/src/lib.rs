@@ -14,7 +14,7 @@ pub use format::{
 };
 
 #[cfg(feature = "owned-model")]
-pub use groundhog_spec::{
+pub use thruput_spec::{
     ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
     ContractExceptionType, ContractField, ContractMethodEffect,
     ContractSignedTokenPreimage, ContractSpec, ContractSpecId,

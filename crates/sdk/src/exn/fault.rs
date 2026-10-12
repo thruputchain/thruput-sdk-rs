@@ -29,7 +29,7 @@ use core::fmt::Display;
 /// The harness's own types, held directly rather than mirrored — see
 /// [`FaultInfo`].
 #[cfg(feature = "dev")]
-use groundhog_native_exec::invoke_error::{PanicLocation, PanicRecord};
+use thruput_native_exec::invoke_error::{PanicLocation, PanicRecord};
 
 /// Capacity of the host-side message. Host-only: a guest has no field to size.
 #[cfg(not(target_arch = "riscv32"))]

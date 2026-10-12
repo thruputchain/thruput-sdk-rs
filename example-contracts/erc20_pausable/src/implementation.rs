@@ -6,7 +6,7 @@
 //!   while paused, every balance-changing operation throws
 //!   [`ERC20PausableError::EnforcedPause`].
 //! - [`AccessControl`]: implemented by embedding
-//!   [`AccessControlState`] from the `groundhog-access-control`
+//!   [`AccessControlState`] from the `thruput-access-control`
 //!   component crate and delegating the trait methods to it.
 //!   `initialize` grants [`DEFAULT_ADMIN_ROLE`] and [`PAUSER_ROLE`] to
 //!   the administrator; the component's flat default administers every
@@ -16,7 +16,7 @@
 //!   blocks in this file.
 
 use crate::interface::*;
-use groundhog_access_control::AccessControlState;
+use thruput_access_control::AccessControlState;
 use sdk::storage::{Balance, Deletable, Map, Value};
 use sdk::*;
 
@@ -310,7 +310,7 @@ impl ERC20Pausable for PausableTokenContract {
 
 // Pure delegation into the embedded component: the storage layout, the
 // admin checks, and the event emission all live in
-// `groundhog-access-control`.
+// `thruput-access-control`.
 #[contract]
 impl AccessControl for PausableTokenContract {
     fn has_role(&self, role: &Role, account: &ContractAddress) -> bool {
@@ -338,4 +338,4 @@ impl AccessControl for PausableTokenContract {
 // table the impl blocks above leave behind, so there is no list here to
 // keep in sync, and it needs no storage, so it lives on the macro's own
 // stateless carrier rather than on the token.
-groundhog_erc165_if::impl_erc165!();
+thruput_erc165_if::impl_erc165!();

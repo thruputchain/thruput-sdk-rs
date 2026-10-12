@@ -1,4 +1,4 @@
-use groundhog_xdr::types::ContractAddress;
+use thruput_xdr::types::ContractAddress;
 
 use crate::mintable::MintableType;
 use crate::{AuthTokenError, FaultString, xdr::*};
@@ -277,14 +277,14 @@ impl<T> ReceiveAuthHandles for Signed<T> {
 /// unreachable in practice — `Opaque` has no XDR impls, so it cannot
 /// appear in a method signature outside `Signed<Opaque>`, whose spec node
 /// uses only `SIGNED_PREIMAGE`.
-impl groundhog_contract_spec::ContractTypeRefSpec for Opaque {
-    const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
-        groundhog_contract_spec::ContractTypeInfo {
-            ty: groundhog_contract_spec::view::ContractTypeView::Void,
+impl thruput_contract_spec::ContractTypeRefSpec for Opaque {
+    const INFO: thruput_contract_spec::ContractTypeInfo<'static> =
+        thruput_contract_spec::ContractTypeInfo {
+            ty: thruput_contract_spec::view::ContractTypeView::Void,
         };
 
     const SIGNED_PREIMAGE: Option<
-        &'static groundhog_contract_spec::view::ContractTypeView<'static>,
+        &'static thruput_contract_spec::view::ContractTypeView<'static>,
     > = None;
 }
 
@@ -292,13 +292,13 @@ impl groundhog_contract_spec::ContractTypeRefSpec for Opaque {
 /// band); its spec node is `SignedToken` carrying `T`'s type as the token
 /// preimage (`None` for `Signed<Opaque>`), so spec-driven encoders neither
 /// reserve calldata bytes for it nor lose the preimage shape.
-impl<T> groundhog_contract_spec::ContractTypeRefSpec for Signed<T>
+impl<T> thruput_contract_spec::ContractTypeRefSpec for Signed<T>
 where
-    T: groundhog_contract_spec::ContractTypeRefSpec,
+    T: thruput_contract_spec::ContractTypeRefSpec,
 {
-    const INFO: groundhog_contract_spec::ContractTypeInfo<'static> =
-        groundhog_contract_spec::ContractTypeInfo {
-            ty: groundhog_contract_spec::view::ContractTypeView::SignedToken(
+    const INFO: thruput_contract_spec::ContractTypeInfo<'static> =
+        thruput_contract_spec::ContractTypeInfo {
+            ty: thruput_contract_spec::view::ContractTypeView::SignedToken(
                 T::SIGNED_PREIMAGE,
             ),
         };
@@ -309,9 +309,9 @@ where
         unsafe(link_section = "groundhogspecanchortextv0")
     )]
     fn __groundhog_spec_anchor() -> usize {
-        groundhog_contract_spec::mix_anchor_fn(
+        thruput_contract_spec::mix_anchor_fn(
             0,
-            <T as groundhog_contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as thruput_contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -356,7 +356,7 @@ where
 /// Aborts the transaction if the `MintAuthToken` syscall fails.
 #[cfg(feature = "alloc")]
 pub fn mint_auth_token<T: Mintable>(
-    expiry: groundhog_xdr::types::BlockHeight,
+    expiry: thruput_xdr::types::BlockHeight,
     preimage: crate::mintable::AuthTokenPreimage<
         <T as MintableType>::Preimage,
     >,
@@ -385,7 +385,7 @@ where
 /// [`AuthTokenNode`]: crate::types::AuthTokenNode
 #[cfg(feature = "alloc")]
 pub fn mint_opaque_auth_token(
-    expiry: groundhog_xdr::types::BlockHeight,
+    expiry: thruput_xdr::types::BlockHeight,
     encoded_node: &[u8],
 ) -> Signed<Opaque> {
     mint_encoded_node(expiry, encoded_node)
@@ -394,7 +394,7 @@ pub fn mint_opaque_auth_token(
 /// Shared `MintAuthToken` syscall path for the typed and opaque mint fns.
 #[cfg(feature = "alloc")]
 fn mint_encoded_node<T>(
-    expiry: groundhog_xdr::types::BlockHeight,
+    expiry: thruput_xdr::types::BlockHeight,
     encoded_node: &[u8],
 ) -> Signed<T> {
     use crate::re_throw::OrSyscallThrow;
@@ -570,8 +570,8 @@ mod tests {
 
     #[test]
     fn signed_spec_is_signed_token_of_payload_type() {
-        use groundhog_contract_spec::type_ref;
-        use groundhog_contract_spec::view::ContractTypeView;
+        use thruput_contract_spec::type_ref;
+        use thruput_contract_spec::view::ContractTypeView;
 
         assert_eq!(
             type_ref::<Signed<u64>>(),

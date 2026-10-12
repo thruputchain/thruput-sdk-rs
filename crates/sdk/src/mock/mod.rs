@@ -7,7 +7,8 @@ mod contract_test;
 mod mock_public {
     pub use super::contract_test::*;
 
-    pub use groundhog_native_exec::{
+    pub use hogexec_internal::ffi_enums::*;
+    pub use thruput_native_exec::{
         frame_builder::{
             ContinuableFrame, FrameAction, FrameBuilder, FrameHandle,
         },
@@ -35,9 +36,8 @@ mod mock_public {
             TryCommitResult,
         },
     };
-    pub use hogexec_internal::ffi_enums::*;
 
-    pub use groundhog_storage_cost::*;
+    pub use thruput_storage_cost::*;
 }
 
 #[cfg(feature = "dev")]

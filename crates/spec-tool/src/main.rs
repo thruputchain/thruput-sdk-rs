@@ -1,10 +1,10 @@
 use std::{env, fs, io, path::PathBuf};
 
-use groundhog_spec_tool::SpecToolError;
 use thiserror::Error;
+use thruput_spec_tool::SpecToolError;
 
 const USAGE: &str = "\
-Usage: groundhog-spec-tool <SUBCOMMAND>
+Usage: thruput-spec-tool <SUBCOMMAND>
 
 Subcommands:
   describe [--list | <TYPE> [--json | --xdr] [-o <PATH>]]
@@ -46,7 +46,7 @@ fn run() -> Result<(), CliError> {
 }
 
 fn run_describe(args: impl Iterator<Item = String>) -> Result<(), CliError> {
-    use groundhog_spec_tool::describe::{
+    use thruput_spec_tool::describe::{
         OutputFormat, REGISTRY, build_describe, lookup, write_output,
     };
 

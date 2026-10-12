@@ -1,13 +1,13 @@
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
-use groundhog_trace::InvocationFrameTrace;
-use groundhog_xdr::event::TxEmittedEvent;
-use groundhog_xdr::transaction::InvocationFrameOutput;
-use groundhog_xdr::transaction::SignedTransaction;
 use std::rc::Rc;
+use thruput_trace::InvocationFrameTrace;
+use thruput_xdr::event::TxEmittedEvent;
+use thruput_xdr::transaction::InvocationFrameOutput;
+use thruput_xdr::transaction::SignedTransaction;
 use xdrs::txs;
 
-use groundhog_sys::FFIErrorCode;
+use thruput_sys::FFIErrorCode;
 
 /// Executes one, and only one, full [`SignedTransaction`] against the
 /// environment: [`root_invoke`](Self::root_invoke), then
@@ -45,10 +45,10 @@ impl TransactionHandler {
         let tx_bytes = txs::encode(stx).unwrap();
 
         let handler_res = unsafe {
-            groundhog_sys::open_syscall_handler(
+            thruput_sys::open_syscall_handler(
                 env.inner.borrow().db.db,
                 env.inner.borrow().contract_context.context,
-                groundhog_sys::FFISerializedSignedTransaction {
+                thruput_sys::FFISerializedSignedTransaction {
                     data: tx_bytes.as_ptr() as *mut u8,
                     len: tx_bytes.len().try_into().unwrap(),
                 },
@@ -94,8 +94,8 @@ impl TransactionHandler {
         // code -- rv32 contracts run in the interpreter, and the rest is this
         // crate's own marshalling, where a panic is a harness bug that should
         // stay unrecoverable and print in full.
-        let foreign_result: groundhog_sys::ForeignTracedInvokeResult = unsafe {
-            groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
+        let foreign_result: thruput_sys::ForeignTracedInvokeResult = unsafe {
+            thruput_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
 
         let err: FFIErrorCode = foreign_result.ffi_error_code.into();
@@ -170,8 +170,7 @@ impl TransactionHandler {
             );
         }
         self.committed = true;
-        let res =
-            unsafe { groundhog_sys::try_commit_transaction(self.handler) };
+        let res = unsafe { thruput_sys::try_commit_transaction(self.handler) };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to try to commit transaction: {err}");
@@ -196,7 +195,7 @@ impl TransactionHandler {
         }
         self.aborted = true;
 
-        let res = unsafe { groundhog_sys::abort_transaction(self.handler) };
+        let res = unsafe { thruput_sys::abort_transaction(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             panic!("failed to abort transaction: {:?}", err);
@@ -212,8 +211,7 @@ impl Drop for TransactionHandler {
             // unwinding from a test failure, and a panic in `drop` would
             // double-panic into a SIGABRT that hides the original message.
             self.aborted = true;
-            let res =
-                unsafe { groundhog_sys::abort_transaction(self.handler) };
+            let res = unsafe { thruput_sys::abort_transaction(self.handler) };
             let err: FFIErrorCode = res.into();
             if err != FFIErrorCode::None {
                 crate::drop_failure(format_args!(
@@ -223,8 +221,7 @@ impl Drop for TransactionHandler {
             }
         }
 
-        let res =
-            unsafe { groundhog_sys::close_syscall_handler(self.handler) };
+        let res = unsafe { thruput_sys::close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             crate::drop_failure(format_args!(
