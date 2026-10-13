@@ -14,7 +14,7 @@ jobs:
     name: Check dependency policy
     permissions:
       contents: read
-    uses: groundhogchain/actions/.github/workflows/rust-dependency-policy.yml@af074672d3a6f3ddedcacd758224ea5a5cf2a8f3
+    uses: thruputchain/actions/.github/workflows/rust-dependency-policy.yml@6693fac8133585728ad3a4ca14e3441073b6def8
     with:
       runs-on: namespace-profile-hogd-linux-2604
       checks: advisories
@@ -29,4 +29,4 @@ jobs:
     permissions:
       contents: read
       issues: write
-    uses: groundhogchain/actions/.github/workflows/rust-advisory-issue.yml@af074672d3a6f3ddedcacd758224ea5a5cf2a8f3
+    uses: thruputchain/actions/.github/workflows/rust-advisory-issue.yml@6693fac8133585728ad3a4ca14e3441073b6def8
