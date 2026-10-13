@@ -44,17 +44,17 @@ default-members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.51.0"
+version = "0.51.1"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["thruput"]
-repository = "https://github.com/groundhogchain/sdk_rs"
-homepage = "https://github.com/groundhogchain/sdk_rs"
+repository = "https://github.com/thruputchain/thruput-sdk-rs"
+homepage = "https://github.com/thruputchain/thruput-sdk-rs"
 keywords = ["thruput"]
 categories = ["blockchain"]
 
 [workspace.dependencies]
-thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.55" }
+thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.56" }
 # Thruput crates from local repository
 #
 # These version numbers need to match the overall workspace package
@@ -75,38 +75,38 @@ thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls
 # previously-published versions will be incompatible with the new
 # SDK.)
 #
-sdk = { path = "crates/sdk", registry = "thruput", version = "=0.51.0" }
-thruput-macros = { path = "crates/macros", registry = "thruput", version = "=0.51.0" }
-thruput-contract-util = { path = "crates/contract-util" , registry = "thruput", version = "=0.51.0" }
-thruput-contract-spec = { path = "crates/contract-spec", registry = "thruput", version = "=0.51.0", default-features = false }
-thruput-native-exec = { path = "crates/native-exec" , registry = "thruput", version = "=0.51.0" }
-thruput-sys = { path = "crates/hogd-sys" , registry = "thruput", version = "=0.51.0" }
-thruput-storage-cost = { path = "crates/storage-cost" , registry = "thruput", version = "=0.51.0" }
-thruput-event = { path = "crates/event", registry = "thruput", version = "=0.51.0" }
-thruput-exn = { path = "crates/exn", registry = "thruput", version = "=0.51.0" }
-thruput-rv32-runtime = { path = "crates/rv32-runtime", registry = "thruput", version = "=0.51.0" }
-thruput-spec-tool = { path = "crates/spec-tool", registry = "thruput", version = "=0.51.0" }
-thruput-domain-separator = { path = "crates/domain-separator", registry = "thruput", version = "=0.51.0" }
-thruput-test-vectors = { path = "crates/test-vectors", registry = "thruput", version = "=0.51.0" }
-thruput-u256 = { path = "crates/u256", registry = "thruput", version = "=0.51.0", default-features = false }
+sdk = { path = "crates/sdk", registry = "thruput", version = "=0.51.1" }
+thruput-macros = { path = "crates/macros", registry = "thruput", version = "=0.51.1" }
+thruput-contract-util = { path = "crates/contract-util" , registry = "thruput", version = "=0.51.1" }
+thruput-contract-spec = { path = "crates/contract-spec", registry = "thruput", version = "=0.51.1", default-features = false }
+thruput-native-exec = { path = "crates/native-exec" , registry = "thruput", version = "=0.51.1" }
+thruput-sys = { path = "crates/hogd-sys" , registry = "thruput", version = "=0.51.1" }
+thruput-storage-cost = { path = "crates/storage-cost" , registry = "thruput", version = "=0.51.1" }
+thruput-event = { path = "crates/event", registry = "thruput", version = "=0.51.1" }
+thruput-exn = { path = "crates/exn", registry = "thruput", version = "=0.51.1" }
+thruput-rv32-runtime = { path = "crates/rv32-runtime", registry = "thruput", version = "=0.51.1" }
+thruput-spec-tool = { path = "crates/spec-tool", registry = "thruput", version = "=0.51.1" }
+thruput-domain-separator = { path = "crates/domain-separator", registry = "thruput", version = "=0.51.1" }
+thruput-test-vectors = { path = "crates/test-vectors", registry = "thruput", version = "=0.51.1" }
+thruput-u256 = { path = "crates/u256", registry = "thruput", version = "=0.51.1", default-features = false }
 # Standard interfaces (also this repository)
-thruput-erc165-if = { path = "standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.55" }
-thruput-erc20-if = { path = "standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.55" }
-thruput-erc20-metadata-if = { path = "standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.55" }
-thruput-erc20-pausable-if = { path = "standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.55" }
-thruput-access-control-if = { path = "standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.55" }
-thruput-signed-op-if = { path = "standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.55" }
-thruput-erc20-permit-if = { path = "standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.55" }
-thruput-erc721-if = { path = "standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.55" }
+thruput-erc165-if = { path = "standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.56" }
+thruput-erc20-if = { path = "standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.56" }
+thruput-erc20-metadata-if = { path = "standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.56" }
+thruput-erc20-pausable-if = { path = "standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.56" }
+thruput-access-control-if = { path = "standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.56" }
+thruput-signed-op-if = { path = "standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.56" }
+thruput-erc20-permit-if = { path = "standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.56" }
+thruput-erc721-if = { path = "standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.56" }
 # Standard-interface implementation components (also this repository)
-thruput-access-control = { path = "standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.55" }
-thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.55" }
-thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.55" }
+thruput-access-control = { path = "standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.56" }
+thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.56" }
+thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.56" }
 # Test-support crates
-erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.51.0" }
-erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.51.0" }
-erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "thruput", version = "=0.51.0" }
-bottle-test-if = { path = "crates/bottle-test-if", registry = "thruput", version = "=0.51.0" }
+erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.51.1" }
+erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.51.1" }
+erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "thruput", version = "=0.51.1" }
+bottle-test-if = { path = "crates/bottle-test-if", registry = "thruput", version = "=0.51.1" }
 # Unpublished test crates
 bigint-bench-if = { path = "crates/bigint-bench-if" }
 
