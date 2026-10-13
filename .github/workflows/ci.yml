@@ -30,9 +30,12 @@ jobs:
   workflow-lint:
     permissions:
       contents: read
-    uses: thruputchain/actions/.github/workflows/workflow-lint.yml@6693fac8133585728ad3a4ca14e3441073b6def8
+    uses: thruputchain/actions/.github/workflows/workflow-lint.yml@f40cda4f022ce0d9a6af3c7ec80baaab0bd6372f
     with:
+      lint-app-id: ${{ vars.PROTOCOL_SYNCHRONIZER_APP_ID }}
       runs-on: ubuntu-24.04
+    secrets:
+      lint-app-private-key: ${{ secrets.PROTOCOL_SYNCHRONIZER_SECRET_KEY }}
 
   build:
     needs: dependency-policy # check deps before building anything
