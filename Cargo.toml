@@ -113,11 +113,11 @@ bigint-bench-if = { path = "crates/bigint-bench-if" }
 # Public XDR types must use one qualified dependency family.
 # Keep these exact so fresh consumers cannot mix incompatible XDR traits.
 # Deps from protocol-rs repo:
-thruput-spec = { registry = "thruput", version = "=0.54.0", default-features = false }
-thruput-trace = { registry = "thruput", version = "=0.54.0" }
-thruput-xdr = { registry = "thruput", version = "=0.54.0", features = ["xdrs"] }
-thruput-syscall = { registry = "thruput", version = "=0.54.0" }
-hogexec-internal = { registry = "thruput", version = "=0.54.0" }
+thruput-spec = { registry = "thruput", version = "=0.54.1", default-features = false }
+thruput-trace = { registry = "thruput", version = "=0.54.1" }
+thruput-xdr = { registry = "thruput", version = "=0.54.1", features = ["xdrs"] }
+thruput-syscall = { registry = "thruput", version = "=0.54.1" }
+hogexec-internal = { registry = "thruput", version = "=0.54.1" }
 
 # Deps from xdrs repo.  Caret rather than exact so an xdrs patch release
 # reaches consumers without an SDK release.
