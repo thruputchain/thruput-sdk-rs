@@ -1,4 +1,4 @@
-use sdk::storage::*;
+use thruput_sdk::storage::*;
 
 fn main() {
     let mut m: Map<u64, Value<u64>> = Map::from(Keypath::default());

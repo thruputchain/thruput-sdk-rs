@@ -13,8 +13,8 @@ help: the trait `Exn` is not implemented for `NotAnExn`
 help: the following other types implement trait `Exn`
   --> src/exn/library.rs
    |
-   | #[thruput_macros::exn(version = "1.0.0")]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `LibraryExn`
+   | #[thruput_macros::exn(version = "1.0.0", wire_crate = "sdk")]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `LibraryExn`
    |
   ::: $WORKSPACE/crates/exn/src/lib.rs
    |

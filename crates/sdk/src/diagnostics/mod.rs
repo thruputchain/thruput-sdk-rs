@@ -28,7 +28,7 @@ macro_rules! with_debug_context {
 #[macro_export]
 macro_rules! with_call_tracking {
     { $call_info:expr, $body:expr } => {
-        ::sdk::with_debug_context(&$call_info, || { $body })
+        $crate::with_debug_context(&$call_info, || { $body })
     };
 }
 

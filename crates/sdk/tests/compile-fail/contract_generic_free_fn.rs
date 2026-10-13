@@ -1,6 +1,6 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract]
 pub fn hash_it<T>(value: T) -> u32 {

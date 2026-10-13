@@ -8,10 +8,10 @@
 //! of those are collisions any more.
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 mod errors {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract_exception]
     pub struct Library;
@@ -27,7 +27,7 @@ mod errors {
     errors::Library,
     errors::Fault,
     errors::Unknown,
-    sdk::exn::LibraryExn
+    thruput_sdk::exn::LibraryExn
 ))]
 pub trait FormerlyReservedNames {
     fn ping();

@@ -7,8 +7,8 @@ in one or more impl or trait blocks marked
 and a typed client that other contracts and tests call through.
 
 ```rust,ignore
-use sdk::storage::Value;
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 #[derive(Storage)]
 pub struct MyContract {
@@ -64,7 +64,7 @@ host-side test build enables `dev`.
   forwards this from its own `dev` feature. It is the only feature that pulls
   `thruput-native-exec`, and through it the hogd FFI library, into the
   dependency graph. That is why it is a feature: crates that only read
-  contract specs build `sdk` without it and never fetch that library.
+  contract specs build `thruput-sdk` without it and never fetch that library.
 - **`logging`** — trace contract calls during native tests. Not implied by
   `dev`; enable it when you want the trace.
 - **`source-build`** — compile the cmake source-build path into
@@ -81,7 +81,7 @@ A contract crate wires them up like this:
 # Yours, not the SDK's. `#[contract]` gates guest entrypoint codegen on it,
 # so a dependency cannot inject entrypoints into your binary.
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -97,7 +97,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [dev-dependencies]
 my-contract = { path = ".", features = ["dev"] }
@@ -442,13 +442,13 @@ Three testing lanes, all behind feature `dev`:
 - [`test_rv32()`]: run a built rv32 contract artifact in the test harness
 
 Typical native client test, with the contract crate calling
-`sdk::declare_mock_contract!();` in its `lib.rs` to generate
+`thruput_sdk::declare_mock_contract!();` in its `lib.rs` to generate
 `register_mock_contract`:
 
 ```rust,ignore
 use my_contract::MyContractClient;
 
-sdk::client_test(
+thruput_sdk::client_test(
     |env| my_contract::register_mock_contract(env),
     |client: &MyContractClient| {
         // Call methods on `client`
@@ -459,7 +459,7 @@ sdk::client_test(
 Direct environment control:
 
 ```rust,ignore
-use sdk::{ContractAddress, Named, StorageKey, TestEnvironment};
+use thruput_sdk::{ContractAddress, Named, StorageKey, TestEnvironment};
 
 let env = TestEnvironment::no_cost();
 let addr = ContractAddress::named("my_test");
@@ -467,7 +467,7 @@ let addr = ContractAddress::named("my_test");
 env.transact(|tx| {
     tx.call(&addr).run(|| {
         let key = StorageKey::default();
-        sdk::bytestring_set(&key, b"hello");
+        thruput_sdk::bytestring_set(&key, b"hello");
     })
 })
 .assert_success();

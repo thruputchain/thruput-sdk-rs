@@ -1,9 +1,9 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::storage::{Deletable, Map, NNInt, Value, Vector};
-use sdk::*;
+use thruput_sdk::storage::{Deletable, Map, NNInt, Value, Vector};
+use thruput_sdk::*;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct VectorTestContract {
     values: Vector<Value<u64>>,
     nnints: Vector<NNInt>,

@@ -107,7 +107,7 @@ mod tests {
     use super::*;
 
     fn sdk_path() -> syn::Path {
-        syn::parse_quote! { ::sdk }
+        syn::parse_quote! { ::thruput_sdk }
     }
 
     /// A crate's own identity must not vary by module.

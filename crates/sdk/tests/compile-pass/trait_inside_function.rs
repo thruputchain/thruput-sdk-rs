@@ -2,7 +2,7 @@
 #![deny(non_local_definitions)]
 
 fn main() {
-    #[sdk::contract]
+    #[thruput_sdk::contract]
     pub trait Local {
         fn ping() -> u32;
     }

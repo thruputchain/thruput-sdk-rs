@@ -23,15 +23,16 @@
 
 pub(crate) mod abort_encode;
 pub(crate) mod cross_exn;
-/// Identity version carried by every spec id in the sdk's exception tree.
+/// Identity version carried by every spec id in the SDK's exception tree.
 ///
-/// `LibraryExn` pins `#[exn(version = "1.0.0")]` so its selector holds still
-/// across sdk releases, and the docs on `ContractTypeName` require an id to
-/// track whatever its type's other identity derivations use. The types
-/// reachable from it (`SyscallExn`, `FaultString`, and the `wrapper` errors)
-/// are part of that same pinned ABI, so they take the same major rather than
-/// the crate's own -- otherwise every breaking sdk release would silently
-/// rename them in every spec that mentions them.
+/// `LibraryExn` pins `#[exn(version = "1.0.0", wire_crate = "sdk")]` so its
+/// selector holds still across SDK releases and package renames, and the
+/// docs on `ContractTypeName` require an id to track whatever its type's
+/// other identity derivations use. The types reachable from it
+/// (`SyscallExn`, `FaultString`, and the `wrapper` errors) are part of that
+/// same pinned ABI, so they take the same major rather than the crate's own
+/// -- otherwise every breaking SDK release would silently rename them in
+/// every spec that mentions them.
 pub(crate) const EXN_ABI_MAJOR: &str = "1";
 
 mod fault;

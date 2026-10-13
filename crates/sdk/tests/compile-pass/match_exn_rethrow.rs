@@ -4,7 +4,7 @@
 //! it must not actually run here.
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract_exception]
 pub enum AlphaError {

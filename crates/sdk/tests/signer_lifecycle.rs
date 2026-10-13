@@ -10,12 +10,12 @@
 
 #![allow(unexpected_cfgs)]
 
-use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::MintableType;
-use sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
-use sdk::receive_auth_handles::ReceiveAuthHandles;
-use sdk::signer::Signed;
-use sdk::*;
+use thruput_sdk::collect_auth_handles::CollectAuthHandles;
+use thruput_sdk::mintable::MintableType;
+use thruput_sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
+use thruput_sdk::receive_auth_handles::ReceiveAuthHandles;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 // ── Contract C's auth data (leaf, no nested signers) ──
 
@@ -148,12 +148,12 @@ fn collect_handles_for_forwarding() {
     let mut iter = [10u32, 20u32, 30u32].into_iter();
     middle.receive_auth_handles(&mut iter).unwrap();
 
-    let mut buf = sdk::collect_auth_handles::AuthHandleBuf::new();
+    let mut buf = thruput_sdk::collect_auth_handles::AuthHandleBuf::new();
     middle.collect_auth_handles(&mut buf).unwrap();
     assert_eq!(buf.as_slice(), &[10, 20, 30]);
 
     let call_args = (42u64, middle.single_child);
-    let mut buf2 = sdk::collect_auth_handles::AuthHandleBuf::new();
+    let mut buf2 = thruput_sdk::collect_auth_handles::AuthHandleBuf::new();
     call_args.collect_auth_handles(&mut buf2).unwrap();
     assert_eq!(buf2.as_slice(), &[10]);
 }
@@ -188,10 +188,10 @@ fn encode_auth_token_node_roundtrip() {
 
     let node = build_auth_token_node::<LeafAuth>(preimage);
 
-    let encoded = sdk::mintable::encode_auth_token_node(&node);
+    let encoded = thruput_sdk::mintable::encode_auth_token_node(&node);
     assert!(!encoded.is_empty());
 
-    let decoded: sdk::AuthTokenNode =
+    let decoded: thruput_sdk::AuthTokenNode =
         xdrs::txs::decode(&encoded).expect("AuthTokenNode decode failed");
     assert_eq!(decoded.consumer_address, addr(0xBB));
     assert!(decoded.child_nodes.is_empty());

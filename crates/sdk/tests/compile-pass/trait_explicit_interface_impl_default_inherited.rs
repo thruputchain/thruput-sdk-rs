@@ -1,5 +1,5 @@
 #![allow(unexpected_cfgs)]
-use sdk::*;
+use thruput_sdk::*;
 
 pub struct MyContract;
 

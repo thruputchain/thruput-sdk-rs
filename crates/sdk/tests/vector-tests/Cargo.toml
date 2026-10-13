@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -21,10 +21,10 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { workspace = true, features = ["std"] }
+thruput-sdk = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 vector-tests = { path = ".", features = ["dev"] }

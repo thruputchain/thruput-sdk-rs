@@ -8,8 +8,8 @@
 //! ID must panic at test setup rather than silently shadowing the earlier
 //! method, which is what an on-chain first-match dispatch would never do.
 
-use sdk::contract::ContractEntrypointID;
-use sdk::*;
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::*;
 
 #[test]
 #[should_panic(expected = "duplicate entrypoint registration")]
@@ -33,12 +33,12 @@ fn rejected_duplicate_leaves_original_handler_installed() {
     let env = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(id, || {
-            sdk::internal::contract_return_encoded(&1u32)
+            thruput_sdk::internal::contract_return_encoded(&1u32)
         });
         let dup =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 c.register_method(id, || {
-                    sdk::internal::contract_return_encoded(&2u32)
+                    thruput_sdk::internal::contract_return_encoded(&2u32)
                 });
             }));
         assert!(dup.is_err(), "duplicate registration must panic");
@@ -47,7 +47,7 @@ fn rejected_duplicate_leaves_original_handler_installed() {
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || {
-            let returned: u32 = sdk::call::try_call_raw_with(
+            let returned: u32 = thruput_sdk::call::try_call_raw_with(
                 &CHILD_ADDR,
                 id,
                 u64::MAX,

@@ -54,20 +54,20 @@ fn storage_domain_impl(input: &syn::DeriveInput) -> Result<TokenStream> {
 
     Ok(quote! {
         const _: () = {
-            use ::sdk::storage::StorageDomain;
+            use ::thruput_sdk::storage::StorageDomain;
             impl #impl_generics StorageDomain for #ident #ty_generics
                 #where_clause
             {
-                const DOMAIN: ::sdk::storage::FramedDomain = {
+                const DOMAIN: ::thruput_sdk::storage::FramedDomain = {
                     // Sizes are concrete at expansion time (the domain is a
                     // literal), so no generic_const_exprs is needed, and the
                     // inner consts are legal even under generic impls
                     // because they capture no generic params.
                     const N: usize =
-                        ::sdk::storage::framed_domain_len(#domain_lit);
+                        ::thruput_sdk::storage::framed_domain_len(#domain_lit);
                     const BYTES: [u8; N] =
-                        ::sdk::storage::frame_domain::<N>(#domain_lit);
-                    ::sdk::storage::FramedDomain::new(&BYTES)
+                        ::thruput_sdk::storage::frame_domain::<N>(#domain_lit);
+                    ::thruput_sdk::storage::FramedDomain::new(&BYTES)
                 };
             }
         };
@@ -129,7 +129,7 @@ fn impl_from_keypath(
                 generics.split_for_impl();
             return Ok(quote! {
                 const _: () = {
-                    use ::sdk::storage::*;
+                    use ::thruput_sdk::storage::*;
 
                     impl #impl_generics From<Keypath> for #ident #ty_generics #where_clause {
                         fn from(_keypath: Keypath) -> Self {
@@ -220,12 +220,12 @@ fn impl_from_keypath(
                 // The frame bytes are concrete at expansion time (the index
                 // is a literal), so the inner const is legal even under
                 // generic impls — it captures no generic params.
-                const __SLOT_FRAME: ::sdk::storage::FramedComponent =
-                    ::sdk::storage::FramedComponent::from_u32(#idx);
+                const __SLOT_FRAME: ::thruput_sdk::storage::FramedComponent =
+                    ::thruput_sdk::storage::FramedComponent::from_u32(#idx);
                 // Through the helper rather than `.into()`: the bound is
                 // the same, but raising it from a call puts the error on
                 // the field instead of the derive's span.
-                ::sdk::storage::__field_from_keypath::<#field_type>(
+                ::thruput_sdk::storage::__field_from_keypath::<#field_type>(
                     keypath.child_framed(&__SLOT_FRAME),
                 )
             };
@@ -249,7 +249,7 @@ fn impl_from_keypath(
 
     Ok(quote! {
         const _: () = {
-            use ::sdk::storage::*;
+            use ::thruput_sdk::storage::*;
 
             impl #impl_generics From<Keypath> for #ident #ty_generics
                 #where_clause

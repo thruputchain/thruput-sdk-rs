@@ -3,8 +3,8 @@
 //! `generate_key` forks once more and finalizes — and must produce exactly
 //! the sha256 of the framed preimage.
 
-use sdk::storage::Keypath;
-use sdk::*;
+use thruput_sdk::storage::Keypath;
+use thruput_sdk::*;
 
 // The golden vector from the keypath unit tests: the preimage of
 // `child(&1u32).child(&0u32)` is [01 01 01 00].

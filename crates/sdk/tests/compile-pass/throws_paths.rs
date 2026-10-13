@@ -4,10 +4,10 @@
 //! instead, the enum is gone and only the type identity matters.
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 mod alpha {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract_exception]
     pub enum AlphaError {
@@ -21,7 +21,7 @@ mod alpha {
 }
 
 mod beta {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract_exception]
     pub enum BetaError {

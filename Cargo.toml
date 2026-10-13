@@ -75,7 +75,7 @@ thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls
 # previously-published versions will be incompatible with the new
 # SDK.)
 #
-sdk = { path = "crates/sdk", registry = "thruput", version = "=0.51.1" }
+thruput-sdk = { path = "crates/sdk", registry = "thruput", version = "=0.51.1" }
 thruput-macros = { path = "crates/macros", registry = "thruput", version = "=0.51.1" }
 thruput-contract-util = { path = "crates/contract-util" , registry = "thruput", version = "=0.51.1" }
 thruput-contract-spec = { path = "crates/contract-spec", registry = "thruput", version = "=0.51.1", default-features = false }

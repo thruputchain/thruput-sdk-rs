@@ -1,9 +1,9 @@
-use sdk::call::RawCallError;
-use sdk::event::*;
-use sdk::exn::{Exn, HandlingError, LibraryExn};
-use sdk::internal::decode_xdr;
-use sdk::types::event::TxEmittedEvent;
-use sdk::*;
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::event::*;
+use thruput_sdk::exn::{Exn, HandlingError, LibraryExn};
+use thruput_sdk::internal::decode_xdr;
+use thruput_sdk::types::event::TxEmittedEvent;
+use thruput_sdk::*;
 
 macro_rules! single_event_test {
     {
@@ -345,7 +345,7 @@ fn assert_logevent_runtime_rejection(result: TransactResult) {
             match exn.try_as::<LibraryExn>() {
                 Some(le)
                     if le.as_syscall_exn().map(|se| se.callno())
-                        == Some(sdk::sys::SyscallNo::kLogEvent) => {}
+                        == Some(thruput_sdk::sys::SyscallNo::kLogEvent) => {}
                 other => panic!(
                     "expected LibraryExn::Syscall(kLogEvent), got {:?}",
                     other
@@ -572,7 +572,7 @@ fn test_mixed_topic_event() {
     // The string remains hashed even though this particular value is short.
     use sha2::{Digest, Sha256};
     let expected_category: [u8; 32] = {
-        let xdr = sdk::internal::encode_xdr(&"transfer").unwrap();
+        let xdr = thruput_sdk::internal::encode_xdr(&"transfer").unwrap();
         Sha256::digest(xdr.as_slice()).into()
     };
     let mut expected_amount = [0u8; 32];

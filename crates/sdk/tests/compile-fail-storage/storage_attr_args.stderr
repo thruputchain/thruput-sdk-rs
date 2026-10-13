@@ -1,5 +1,5 @@
 error: #[storage] only accepts `domain = "..."`
- --> tests/compile-fail-storage/storage_attr_args.rs:3:16
+ --> tests/compile-fail-storage/storage_attr_args.rs:3:24
   |
-3 | #[sdk::storage(anything = "here")]
-  |                ^^^^^^^^
+3 | #[thruput_sdk::storage(anything = "here")]
+  |                        ^^^^^^^^

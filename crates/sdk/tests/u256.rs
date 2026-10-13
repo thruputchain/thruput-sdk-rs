@@ -1,4 +1,5 @@
-//! End-to-end `sdk::U256` and `sdk::I256` coverage in the native harness.
+//! End-to-end `thruput_sdk::U256` and `thruput_sdk::I256` coverage in the
+//! native harness.
 //!
 //! The root-exported 256-bit integers are exercised the two ways a contract
 //! moves one: through a contract entrypoint (calldata argument + typed
@@ -9,9 +10,9 @@
 //! through a real compiled artifact are covered by
 //! `example-contracts/u256_roundtrip/tests/rv32.rs`.
 
-use sdk::contract::ContractEntrypointID;
-use sdk::storage::{Keypath, Value};
-use sdk::*;
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::storage::{Keypath, Value};
+use thruput_sdk::*;
 
 const CHILD_ADDR: ContractAddress = ContractAddress::new([0x51; 32]);
 const PARENT_ADDR: ContractAddress = ContractAddress::new([0x52; 32]);
@@ -46,12 +47,14 @@ fn u256_roundtrips_through_entrypoint_calldata_and_return() {
     let env = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
-            let mut calldata = sdk::internal::new_scratch();
-            sdk::contract_op::fetch_calldata_and_auth_tokens(&mut calldata);
-            let arg: U256 = sdk::xdr::cxs::decode(calldata.as_slice())
+            let mut calldata = thruput_sdk::internal::new_scratch();
+            thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
+                &mut calldata,
+            );
+            let arg: U256 = thruput_sdk::xdr::cxs::decode(calldata.as_slice())
                 .expect("calldata must decode as U256");
             let out = arg.checked_add(U256::from(1)).unwrap();
-            sdk::internal::contract_return_encoded(&out)
+            thruput_sdk::internal::contract_return_encoded(&out)
         });
     });
     mock.deploy_contract_to(&CHILD_ADDR);
@@ -59,7 +62,7 @@ fn u256_roundtrips_through_entrypoint_calldata_and_return() {
     let arg = test_value();
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || {
-            let returned: U256 = sdk::call::try_call_raw_with(
+            let returned: U256 = thruput_sdk::call::try_call_raw_with(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
@@ -110,12 +113,14 @@ fn i256_roundtrips_through_entrypoint_calldata_and_return() {
     let env = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(signed_entrypoint(), || {
-            let mut calldata = sdk::internal::new_scratch();
-            sdk::contract_op::fetch_calldata_and_auth_tokens(&mut calldata);
-            let arg: I256 = sdk::xdr::cxs::decode(calldata.as_slice())
+            let mut calldata = thruput_sdk::internal::new_scratch();
+            thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
+                &mut calldata,
+            );
+            let arg: I256 = thruput_sdk::xdr::cxs::decode(calldata.as_slice())
                 .expect("calldata must decode as I256");
             let out = arg.checked_neg().unwrap();
-            sdk::internal::contract_return_encoded(&out)
+            thruput_sdk::internal::contract_return_encoded(&out)
         });
     });
     mock.deploy_contract_to(&CHILD_ADDR);
@@ -123,7 +128,7 @@ fn i256_roundtrips_through_entrypoint_calldata_and_return() {
     let arg = signed_test_value();
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(move || {
-            let returned: I256 = sdk::call::try_call_raw_with(
+            let returned: I256 = thruput_sdk::call::try_call_raw_with(
                 &CHILD_ADDR,
                 signed_entrypoint(),
                 u64::MAX,

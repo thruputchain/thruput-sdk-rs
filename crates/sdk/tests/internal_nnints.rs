@@ -5,14 +5,14 @@
 mod common;
 use common::*;
 
-use sdk::call::RawCallError;
-use sdk::exn::{Exn, LibraryExn};
-use sdk::sys::{SyscallErrorCode, SyscallNo};
-use sdk::sys_exn::bytestring::*;
-use sdk::sys_exn::nnint_internal::*;
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::exn::{Exn, LibraryExn};
+use thruput_sdk::sys::{SyscallErrorCode, SyscallNo};
+use thruput_sdk::sys_exn::bytestring::*;
+use thruput_sdk::sys_exn::nnint_internal::*;
 
 const SHARED: bool = false;
-use sdk::*;
+use thruput_sdk::*;
 
 /// Run `f` as a single transaction at this file's test address.
 fn run_tx(f: impl FnOnce() + std::panic::UnwindSafe) -> TransactResult {

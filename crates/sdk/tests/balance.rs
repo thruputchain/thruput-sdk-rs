@@ -1,9 +1,9 @@
 //! Test the high-level Balance API over the NNInt storage representation.
 
-use sdk::Named;
-use sdk::contract_test;
-use sdk::exn::LibraryExn;
-use sdk::storage::{Balance, Keypath, NNInt};
+use thruput_sdk::Named;
+use thruput_sdk::contract_test;
+use thruput_sdk::exn::LibraryExn;
+use thruput_sdk::storage::{Balance, Keypath, NNInt};
 
 contract_test!(balance_defaults_to_zero {
     let balance: Balance = Keypath::default().into();
@@ -94,8 +94,9 @@ contract_test!(balance_rejects_negative_amounts {
 
 #[test]
 fn balance_and_nnint_share_committed_storage_representation() {
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("balance_nnint_compatibility");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address =
+        thruput_sdk::ContractAddress::named("balance_nnint_compatibility");
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
@@ -127,8 +128,8 @@ fn balance_and_nnint_share_committed_storage_representation() {
 
 #[test]
 fn lazy_increase_defers_committed_base_overflow() {
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("balance_lazy_increase");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address = thruput_sdk::ContractAddress::named("balance_lazy_increase");
 
     // Set balance to max value
     env.transact(|tx| {
@@ -165,8 +166,8 @@ fn lazy_increase_defers_committed_base_overflow() {
 
 #[test]
 fn lazy_increase_accepts_overflow_of_loaded_value() {
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("balance_lazy_increase");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address = thruput_sdk::ContractAddress::named("balance_lazy_increase");
 
     // Set balance to max value
     env.transact(|tx| {
@@ -196,8 +197,8 @@ fn lazy_increase_accepts_overflow_of_loaded_value() {
 
 #[test]
 fn lazy_decrease_defers_committed_base_underflow() {
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("balance_lazy_decrease");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address = thruput_sdk::ContractAddress::named("balance_lazy_decrease");
 
     env.transact(|tx| {
         tx.call(&address).run(|| {
@@ -233,8 +234,8 @@ fn lazy_decrease_defers_committed_base_underflow() {
 
 #[test]
 fn lazy_decrease_accepts_underflow_of_loaded_value() {
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("balance_lazy_decrease");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address = thruput_sdk::ContractAddress::named("balance_lazy_decrease");
 
     env.transact(|tx| {
         tx.call(&address).run(|| {

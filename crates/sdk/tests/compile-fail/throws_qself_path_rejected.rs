@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 trait ErrorTrait {
     type Assoc;

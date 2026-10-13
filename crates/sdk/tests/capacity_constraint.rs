@@ -2,9 +2,9 @@
 //! consumption, drop-time merging across handles, and the set-capacity
 //! first-write rule.
 
-use sdk::contract_test;
-use sdk::exn::LibraryExn;
-use sdk::storage::*;
+use thruput_sdk::contract_test;
+use thruput_sdk::exn::LibraryExn;
+use thruput_sdk::storage::*;
 
 contract_test!(test_consumption_merges_across_handles {
     // Two sequential handles to the same cell within one transaction: the

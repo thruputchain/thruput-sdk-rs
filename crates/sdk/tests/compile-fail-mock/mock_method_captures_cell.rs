@@ -7,8 +7,8 @@
 // `Cell` that way would race it, so this must not compile. `AtomicU32` is the
 // fix for a counter.
 
-use sdk::contract::ContractEntrypointID;
-use sdk::TestEnvironment;
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::TestEnvironment;
 use std::cell::Cell;
 
 fn main() {

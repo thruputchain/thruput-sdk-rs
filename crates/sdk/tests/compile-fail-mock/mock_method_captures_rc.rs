@@ -10,8 +10,8 @@
 // `Rc<RefCell<_>>` would also trip the pre-existing `UnwindSafe` bound, and
 // this case would then still fail with the `Send + Sync` requirement removed.
 
-use sdk::contract::ContractEntrypointID;
-use sdk::TestEnvironment;
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::TestEnvironment;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
 

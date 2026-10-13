@@ -1,5 +1,5 @@
 [package]
-name = "sdk"
+name = "thruput-sdk"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -50,7 +50,7 @@ linkme = { workspace = true, optional = true }
 
 [dev-dependencies]
 # When running tests, enable recommended development features
-sdk = { path = ".", features = ["dev"] }
+thruput-sdk = { path = ".", features = ["dev"] }
 
 hex-literal = { workspace = true }
 thruput-contract-util = { workspace = true }
@@ -83,7 +83,8 @@ std = [
 # native executor is in the dependency graph at all -- pulling
 # `thruput-native-exec` and through it the hogd FFI library. Host crates
 # that only read specs (`spec-tool`, `erc20-test`, the `*-if` crates) build
-# `sdk` without it and should not have to fetch a shared object to do so.
+# `thruput-sdk` without it and should not have to fetch a shared object to do
+# so.
 #
 # `syscalls_mock` and `linkme` are not listed: the host target table below
 # supplies both unconditionally.
@@ -118,9 +119,9 @@ required-features = ["dev"]
 #
 # `thruput-u256/nightly` rides the same gate: guest builds always run a
 # nightly toolchain, so contracts get the exact `cfg(overflow_checks)` keying,
-# while host builds of `sdk` (the CLI's spec-tool path) stay compilable on
-# stable. Resolver v2+ keeps features of an inactive target's dependencies out
-# of unification, so this cannot leak into host builds.
+# while host builds of `thruput-sdk` (the CLI's spec-tool path) stay compilable
+# on stable. Resolver v2+ keeps features of an inactive target's dependencies
+# out of unification, so this cannot leak into host builds.
 #
 # The guest runtime is force-linked from lib.rs (`extern crate ... as _`) so
 # contracts and the rv32 bin wrapper don't declare it. It is a target-specific

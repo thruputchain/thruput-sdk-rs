@@ -1,4 +1,4 @@
-error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::Map<u32, sdk::storage::NNInt>>`, but its trait bounds were not satisfied
+error[E0599]: the method `set` exists for struct `thruput_sdk::storage::Value<thruput_sdk::storage::Map<u32, thruput_sdk::storage::NNInt>>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_map.rs:5:7
   |
 5 |     v.set(&Map::from(Keypath::default()));
@@ -10,4 +10,4 @@ error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::stora
   | -------------------- doesn't satisfy `_: WriteXDR`
   |
   = note: the following trait bounds were not satisfied:
-          `sdk::storage::Map<u32, sdk::storage::NNInt>: WriteXDR`
+          `thruput_sdk::storage::Map<u32, thruput_sdk::storage::NNInt>: WriteXDR`

@@ -5,8 +5,8 @@
 //! same key(s) collide at commit; the loser's commit fails nondeterministically
 //! and carries a decoded [`DbConflictResult`] listing the conflicting slots.
 
-use sdk::sys_exn::bytestring::*;
-use sdk::*;
+use thruput_sdk::sys_exn::bytestring::*;
+use thruput_sdk::*;
 
 const ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 const KEY_A: StorageKey = StorageKey::new([0xAA; 32]);

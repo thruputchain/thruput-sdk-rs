@@ -1,4 +1,4 @@
-use sdk::{ContractAddress, Named, TestEnvironment};
+use thruput_sdk::{ContractAddress, Named, TestEnvironment};
 
 #[test]
 fn test_root_frame_revert() {
@@ -7,13 +7,13 @@ fn test_root_frame_revert() {
     let result = env.transact(|tx| {
         tx.call(&ContractAddress::named("root_error_codes"))
             .run(|| -> () {
-                sdk::sys::raw_Return(&[], true, &[]);
+                thruput_sdk::sys::raw_Return(&[], true, &[]);
             })
     });
 
     result.assert_abort();
     assert_eq!(
         *result.exec_result(),
-        sdk::ExecResult::ExecResultTxRootFrameReverted
+        thruput_sdk::ExecResult::ExecResultTxRootFrameReverted
     );
 }

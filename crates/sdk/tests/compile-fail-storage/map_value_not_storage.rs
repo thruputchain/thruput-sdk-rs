@@ -6,10 +6,10 @@
 // that the fix is to wrap the value, not to reach for a different type.
 #![allow(unexpected_cfgs)]
 
-use sdk::ContractAddress;
-use sdk::storage::*;
+use thruput_sdk::ContractAddress;
+use thruput_sdk::storage::*;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct Balances {
     by_owner: Map<ContractAddress, u64>,
 }

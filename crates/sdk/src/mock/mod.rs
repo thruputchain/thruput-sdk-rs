@@ -60,9 +60,9 @@ macro_rules! declare_mock_contract {
     () => {
         #[doc(hidden)]
         pub fn register_mock_contract(
-            env: &::sdk::TestEnvironmentHandle,
-        ) -> ::sdk::MockContract {
-            ::sdk::register_mock_package(env, env!("CARGO_PKG_NAME"))
+            env: &$crate::TestEnvironmentHandle,
+        ) -> $crate::MockContract {
+            $crate::register_mock_package(env, env!("CARGO_PKG_NAME"))
         }
     };
 }

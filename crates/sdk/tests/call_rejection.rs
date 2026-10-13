@@ -6,13 +6,13 @@
 //! used to be stringified into the `Fault` variant's message, which made them
 //! indistinguishable from a panicking callee.
 
-use sdk::PanicRecord;
-use sdk::call::{RawCallError, try_call_raw_with};
-use sdk::contract::ContractEntrypointID;
-use sdk::exn::FaultInfo;
-use sdk::invoke_config::InvokeFlagSet;
-use sdk::*;
 use std::sync::{Arc, Mutex};
+use thruput_sdk::PanicRecord;
+use thruput_sdk::call::{RawCallError, try_call_raw_with};
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::exn::FaultInfo;
+use thruput_sdk::invoke_config::InvokeFlagSet;
+use thruput_sdk::*;
 
 /// Call `target` from inside a frame already running at `caller`.
 fn call_from_frame_at(

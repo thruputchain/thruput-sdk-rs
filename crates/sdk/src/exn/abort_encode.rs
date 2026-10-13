@@ -110,7 +110,7 @@ pub(crate) fn client_library_abort(exn: &LibraryExn) -> ! {
 // on every target and feature combination -- empty -- so `ABORT_MAX` and
 // every assertion below are the same here as in a guest build, and the
 // integer and discriminant rules were already cfg-independent. (Before
-// `FaultString` carried its message host-side, sdk's dev-dependency on
+// `FaultString` carried its message host-side, the SDK's dev-dependency on
 // itself forced `debugging` on for every test build, and the encoding
 // that actually shipped was asserted by construction rather than run.)
 #[cfg(test)]

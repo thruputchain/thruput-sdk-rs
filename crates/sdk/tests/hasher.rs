@@ -1,6 +1,6 @@
 //! Test the semantics of hashers
 
-use sdk::*;
+use thruput_sdk::*;
 
 // This uses the sha2 module during macro expansion
 const EXPECTED: SHA256Hash = SHA256Hash::new(hash_to_array!(b"foobar"));

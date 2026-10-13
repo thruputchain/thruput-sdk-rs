@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 const ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 const KEY: StorageKey = static_key!("my rcq");

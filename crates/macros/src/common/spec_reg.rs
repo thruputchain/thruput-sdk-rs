@@ -262,20 +262,20 @@ fn generate_trait_method_fragments_tokens(
     quote! {
         #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
-            const METHODS: &[::sdk::__contract_spec::ContractSpecMethodView<'static>] =
+            const METHODS: &[::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHODS;
             const NAME: &str = <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
             const VERS: &str =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION;
             const DECLARED_BY:
-                ::sdk::__contract_spec::ContractSpecIdView<'static> =
+                ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_DECLARED_BY;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
                 while i < METHODS.len() {
-                    total += ::sdk::__contract_spec::SpecFragmentView::Method(
-                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                    total += ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                             interface_name: NAME,
                             interface_version: VERS,
                             declared_by: DECLARED_BY,
@@ -297,11 +297,11 @@ fn generate_trait_method_fragments_tokens(
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_METHOD_FRAGMENTS: [u8; RAW_LEN] = {
                 let mut w =
-                    ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                    ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
                 let mut i = 0;
                 while i < METHODS.len() {
-                    ::sdk::__contract_spec::SpecFragmentView::Method(
-                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                    ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                             interface_name: NAME,
                             interface_version: VERS,
                             declared_by: DECLARED_BY,
@@ -330,13 +330,13 @@ fn generate_trait_event_fragments_tokens(
     quote! {
         #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
-            const EVENTS: &[::sdk::__contract_spec::ContractEventDefView<'static>] =
+            const EVENTS: &[::thruput_sdk::__contract_spec::ContractEventDefView<'static>] =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENTS;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
                 while i < EVENTS.len() {
-                    total += ::sdk::__contract_spec::SpecFragmentView::Event(
+                    total += ::thruput_sdk::__contract_spec::SpecFragmentView::Event(
                         EVENTS[i],
                     )
                     .const_txs_size();
@@ -354,10 +354,10 @@ fn generate_trait_event_fragments_tokens(
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_EVENT_FRAGMENTS: [u8; RAW_LEN] = {
                 let mut w =
-                    ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                    ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
                 let mut i = 0;
                 while i < EVENTS.len() {
-                    ::sdk::__contract_spec::SpecFragmentView::Event(EVENTS[i])
+                    ::thruput_sdk::__contract_spec::SpecFragmentView::Event(EVENTS[i])
                         .const_write_txs(&mut w);
                     i += 1;
                 }
@@ -413,7 +413,7 @@ pub fn generate_interface_anchor_for_trait(path: &syn::Path) -> TokenStream {
     let anchor = emit_raw_fragment_tokens_with_cfg(
         target_cfg(),
         quote! {
-            ::sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(#anchor_path)
+            ::thruput_sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(#anchor_path)
         },
     );
     let methods =
@@ -440,19 +440,19 @@ fn generate_carrier_method_fragments_tokens(
     quote! {
         #[cfg(#cfg)]
         const _: () = {
-            const METHODS: &[::sdk::__contract_spec::ContractSpecMethodView<'static>] =
+            const METHODS: &[::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] =
                 #methods_path;
             const NAME: &str = #anchor_path.interface_name;
             const VERS: &str = #anchor_path.interface_version;
             const DECLARED_BY:
-                ::sdk::__contract_spec::ContractSpecIdView<'static> =
+                ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> =
                 #anchor_path.declared_by;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
                 while i < METHODS.len() {
-                    total += ::sdk::__contract_spec::SpecFragmentView::Method(
-                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                    total += ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                             interface_name: NAME,
                             interface_version: VERS,
                             declared_by: DECLARED_BY,
@@ -473,11 +473,11 @@ fn generate_carrier_method_fragments_tokens(
             // CLI can extract it.
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_CARRIER_METHOD_FRAGMENTS: [u8; RAW_LEN] = {
-                let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                let mut w = ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
                 let mut i = 0;
                 while i < METHODS.len() {
-                    ::sdk::__contract_spec::SpecFragmentView::Method(
-                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                    ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                             interface_name: NAME,
                             interface_version: VERS,
                             declared_by: DECLARED_BY,
@@ -504,8 +504,8 @@ fn generate_interface_anchor_tokens(
     emit_raw_fragment_tokens_with_cfg(
         cfg,
         quote! {
-            ::sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(
-                ::sdk::__contract_spec::SpecInterfaceAnchorView {
+            ::thruput_sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(
+                ::thruput_sdk::__contract_spec::SpecInterfaceAnchorView {
                     interface_name: #interface_name,
                     interface_version: #interface_version,
                     declared_by: #declared_by,
@@ -523,8 +523,8 @@ fn generate_config_event_fragments_tokens(
 ) -> TokenStream {
     let fragments = config.emits_list().into_iter().map(|path| {
         emit_raw_fragment_tokens_with_cfg(cfg.clone(), quote! {
-            ::sdk::__contract_spec::SpecFragmentView::Event(
-                <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
+            ::thruput_sdk::__contract_spec::SpecFragmentView::Event(
+                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
             )
         })
     });
@@ -539,7 +539,7 @@ fn config_event_anchor_tokens(config: &Config) -> Vec<TokenStream> {
         .into_iter()
         .map(|path| {
             quote! {
-                <#path as ::sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
             }
         })
         .collect()
@@ -553,7 +553,7 @@ fn config_emits_name_tokens(config: &Config) -> Vec<TokenStream> {
         .into_iter()
         .map(|path| {
             quote! {
-                <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
+                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
             }
         })
         .collect()
@@ -570,8 +570,8 @@ fn generate_interface_fragment_tokens(
     emit_raw_fragment_tokens_with_cfg(
         cfg.clone(),
         quote! {
-            ::sdk::__contract_spec::SpecFragmentView::Interface(
-                ::sdk::__contract_spec::SpecInterfaceFragmentView {
+            ::thruput_sdk::__contract_spec::SpecFragmentView::Interface(
+                ::thruput_sdk::__contract_spec::SpecInterfaceFragmentView {
                     interface_name: #interface_name,
                     interface_version: #interface_version,
                     declared_by: #declared_by,
@@ -598,14 +598,14 @@ fn generate_method_fragment_tokens(
     Ok(emit_raw_fragment_tokens_with_cfg(
         cfg.clone(),
         quote! {{
-            const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
+            const METHOD_ARGS: &[::thruput_sdk::__contract_spec::ContractFieldView<'static>] =
                 &[#(#args),*];
-            ::sdk::__contract_spec::SpecFragmentView::Method(
-                ::sdk::__contract_spec::SpecMethodFragmentView {
+            ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                     interface_name: #interface_name,
                     interface_version: #interface_version,
                     declared_by: #declared_by,
-                    method: ::sdk::__contract_spec::ContractSpecMethodView {
+                    method: ::thruput_sdk::__contract_spec::ContractSpecMethodView {
                         name: #method_name,
                         args: METHOD_ARGS,
                         return_type: #return_type,
@@ -628,11 +628,11 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     quote! {
         #[cfg(#cfg_guard)]
         const _: () = {
-            const FRAGMENT: ::sdk::__contract_spec::SpecFragmentView<'static> =
+            const FRAGMENT: ::thruput_sdk::__contract_spec::SpecFragmentView<'static> =
                 #fragment;
             const RAW_LEN: usize = FRAGMENT.const_txs_size();
             const RAW_FRAGMENT: [u8; RAW_LEN] = {
-                let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                let mut w = ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
                 FRAGMENT.const_write_txs(&mut w);
                 w.into_bytes()
             };
@@ -719,7 +719,7 @@ mod tests {
     #[test]
     fn free_function_fragments_include_method_record() {
         let item: syn::ItemFn = syn::parse_quote! {
-            fn transfer(to: &sdk::ContractAddress, amount: u32) -> u32 { amount }
+            fn transfer(to: &thruput_sdk::ContractAddress, amount: u32) -> u32 { amount }
         };
         let config = parse_config(r#"interface = "ERC20", version = "0.1.0""#);
 
@@ -868,7 +868,7 @@ mod tests {
     fn trait_fragments_carry_the_interface_but_not_its_methods() {
         let item: syn::ItemTrait = syn::parse_quote! {
             pub trait ERC20 {
-                fn transfer(&mut self, receiver: &sdk::ContractAddress, amount: u128);
+                fn transfer(&mut self, receiver: &thruput_sdk::ContractAddress, amount: u128);
                 fn total_supply(&self) -> u128;
             }
         };
@@ -947,7 +947,7 @@ mod tests {
 
         assert!(tokens.contains("ContractExceptionTypeView"), "{tokens}");
         assert!(
-            tokens.contains("events :: TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"),
+            tokens.contains("events :: TransferEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"),
             "{tokens}"
         );
         assert!(
@@ -1039,7 +1039,7 @@ mod emits_tests {
         assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
         assert!(
             tokens.contains(
-                "events :: TouchEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
+                "events :: TouchEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
             ),
             "{tokens}"
         );
@@ -1065,7 +1065,7 @@ mod emits_tests {
         assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
         assert!(
             tokens.contains(
-                "PingEvent as :: sdk :: __contract_spec :: ContractEventSpec"
+                "PingEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec"
             ),
             "{tokens}"
         );

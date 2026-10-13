@@ -1,5 +1,5 @@
 error: invalid version "1.2": expected a full semver triplet like "1.0.0" (optionally with -PRERELEASE and +BUILD suffixes)
- --> tests/compile-fail/contract_exception_invalid_version.rs:3:37
+ --> tests/compile-fail/contract_exception_invalid_version.rs:3:45
   |
-3 | #[sdk::contract_exception(version = "1.2")]
-  |                                     ^^^^^
+3 | #[thruput_sdk::contract_exception(version = "1.2")]
+  |                                             ^^^^^

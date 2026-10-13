@@ -1,8 +1,8 @@
 error[E0080]: evaluation panicked: storage domain too long; shorten it with #[storage_domain = "..."]
  --> tests/compile-fail-storage/storage_domain_too_long.rs:5:10
   |
-5 | #[derive(sdk::Storage)]
-  |          ^^^^^^^^^^^^ evaluation of `_s_storage_impls::_::<impl sdk::storage::StorageDomain for S>::DOMAIN::N` failed inside this call
+5 | #[derive(thruput_sdk::Storage)]
+  |          ^^^^^^^^^^^^^^^^^^^^ evaluation of `_s_storage_impls::_::<impl thruput_sdk::storage::StorageDomain for S>::DOMAIN::N` failed inside this call
   |
 note: inside `framed_domain_len`
  --> $RUST/core/src/panic.rs
@@ -21,7 +21,7 @@ note: inside `framed_domain_len`
 note: erroneous constant encountered
  --> tests/compile-fail-storage/storage_domain_too_long.rs:5:10
   |
-5 | #[derive(sdk::Storage)]
-  |          ^^^^^^^^^^^^
+5 | #[derive(thruput_sdk::Storage)]
+  |          ^^^^^^^^^^^^^^^^^^^^
   |
-  = note: this note originates in the derive macro `sdk::Storage` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this note originates in the derive macro `thruput_sdk::Storage` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -5,7 +5,7 @@
 // `IntoTopic`'s `on_unimplemented` never fired at all.
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[derive(Event, Clone, Debug)]
 pub struct Ping {

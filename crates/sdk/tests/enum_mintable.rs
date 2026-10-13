@@ -4,10 +4,12 @@
 
 #![allow(unexpected_cfgs)]
 
-use sdk::mintable::{AuthTokenPreimage, MintableType, build_auth_token_node};
-use sdk::receive_auth_handles::ReceiveAuthHandles;
-use sdk::signer::Signed;
-use sdk::*;
+use thruput_sdk::mintable::{
+    AuthTokenPreimage, MintableType, build_auth_token_node,
+};
+use thruput_sdk::receive_auth_handles::ReceiveAuthHandles;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 #[contract_type]
 pub struct PermitData {
