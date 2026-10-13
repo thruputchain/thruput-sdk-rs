@@ -60,6 +60,24 @@ jobs:
             ${{ secrets.SDK_TO_HOGX_KEY }}
             ${{ secrets.SDK_TO_SCP_KEY }}
 
+      # SDK_TO_ITC is commented with the moved repo's URL, so ssh-agent maps
+      # only that URL to it. The pinned hogd FFI tag's .gitmodules still names
+      # the pre-move URL; send that through the same key alias.
+      - name: Map the pre-move integration test contracts URL
+        run: |
+          set -euo pipefail
+          new=thruputchain/thruput-integration-test-contracts
+          old=groundhogchain/integration_test_contracts
+          alias="$(git config --global --get-regexp '^url\..*\.insteadof$' |
+            awk -v u="git@github.com:$new" '$2 == u { sub(/^url\./, "", $1); sub(/\.insteadof$/, "", $1); print $1; exit }')"
+          if [ -z "$alias" ]; then
+            echo "::error::ssh-agent set no URL rewrite for $new; check the SDK_TO_ITC key comment"
+            exit 1
+          fi
+          for from in "git@github.com:$old" "ssh://git@github.com/$old" "https://github.com/$old"; do
+            git config --global --add "url.$alias.insteadOf" "$from"
+          done
+
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
