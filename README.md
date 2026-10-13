@@ -85,10 +85,10 @@ dev = ["thruput-sdk/dev"]
 # `thruput-sdk` is declared per target: it needs `std` on the host and forbids
 # it on the guest, and Cargo resolves features per platform.
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-thruput-sdk = { version = "=0.49.0", registry = "thruput" }  # the pinned CLI's exact SDK version
+thruput-sdk = { version = "=0.51.1", registry = "thruput" }  # the pinned CLI's exact SDK version
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { version = "=0.49.0", registry = "thruput", features = ["std"] }
+thruput-sdk = { version = "=0.51.1", registry = "thruput", features = ["std"] }
 
 # Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
 # keeping the library itself no_std for guest builds.
