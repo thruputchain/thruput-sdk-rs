@@ -3,13 +3,14 @@
 //! The raw spec fragment the derive emits is behind `cfg(target_arch =
 //! "riscv32")`, so the host test (`crates/macros/tests/crate_override.rs`,
 //! which pins the derived fragment and its wire bytes) never compiles it.
-//! Every other consumer of that code path reaches it through `::sdk`, which
-//! the example and integration rv32 builds cover — but nothing else builds a
-//! crate that resolves the macro's paths through a shim instead.
+//! Every other consumer of that code path reaches it through `::thruput_sdk`,
+//! which the example and integration rv32 builds cover — but nothing else
+//! builds a crate that resolves the macro's paths through a shim instead.
 //!
 //! This package exists to be built for rv32: `scripts/dev.sh` checks it under
 //! `--target riscv32im-unknown-none-elf`, so a regression in the overridden
-//! guest path fails there rather than in a downstream crate below `sdk`.
+//! guest path fails there rather than in a downstream crate below
+//! `thruput-sdk`.
 //!
 //! Kept deliberately minimal and in step with `crate_override.rs`: the type
 //! mirrors `crates/u256`'s `U256`, the motivating consumer.

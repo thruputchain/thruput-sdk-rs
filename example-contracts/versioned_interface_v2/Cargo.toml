@@ -13,11 +13,11 @@ publish = false
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { path = "../../crates/sdk" }
+thruput-sdk = { path = "../../crates/sdk" }

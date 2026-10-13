@@ -41,7 +41,7 @@ pub use error::*;
 mod events;
 pub use events::*;
 
-use sdk::{ContractAddress, SHA256Hash, contract};
+use thruput_sdk::{ContractAddress, SHA256Hash, contract};
 
 /// Identifies one token within a contract: 32 opaque bytes, where
 /// Ethereum uses a `uint256`. How a collection assigns them is its own
@@ -75,7 +75,7 @@ pub type MetadataImage = heapless::String<512>;
 
 /// Token metadata stored on chain: the fields of the ERC721 metadata JSON
 /// schema, as values rather than a document at a URI.
-#[sdk::contract_type]
+#[thruput_sdk::contract_type]
 #[cfg_attr(feature = "dev", derive(Debug, PartialEq, Eq))]
 pub struct OnchainMetadata {
     pub name: MetadataName,
@@ -90,7 +90,7 @@ pub struct OnchainMetadata {
 /// themselves. [`ERC721Metadata::token_metadata`] returns either form;
 /// [`ERC721Metadata::token_uri`] keeps the ERC721 shape for the off-chain
 /// one.
-#[sdk::contract_type]
+#[thruput_sdk::contract_type]
 #[cfg_attr(feature = "dev", derive(Debug, PartialEq, Eq))]
 // A contract type is XDR-encoded and `no_std`, so the on-chain variant
 // cannot be boxed; the enum is built, encoded, and dropped within one call.

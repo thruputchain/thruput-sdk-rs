@@ -25,13 +25,13 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::*;
+use thruput_sdk::*;
 
 /// Reuses `vault::Config`'s ident inside one crate.
 pub mod ledger {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract_type]
     pub struct Config {
@@ -41,7 +41,7 @@ pub mod ledger {
 
 /// Reuses `ledger::Config`'s ident, with a different shape.
 pub mod vault {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract_type]
     pub struct Config {

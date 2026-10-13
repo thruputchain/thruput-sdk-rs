@@ -1,5 +1,5 @@
 use crate::NamedInterfaceCallee;
-use sdk::*;
+use thruput_sdk::*;
 
 pub struct NamedInterfaceCalleeContract;
 

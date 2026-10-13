@@ -7,13 +7,15 @@
 mod error;
 pub use error::*;
 
-use sdk::{BlockHeight, ContractAddress, ensure, get_block_height, throw};
 use thruput_erc20_controls_if::ERC20BurnClient;
 use thruput_erc20_if::{
     Amount, ERC20AllowanceExpiryClient, ERC20Client, check_amount,
 };
 use thruput_erc20_metadata_if::{ERC20MetadataClient, Name, Symbol};
 use thruput_erc165_if::ERC165Client;
+use thruput_sdk::{
+    BlockHeight, ContractAddress, ensure, get_block_height, throw,
+};
 
 /// SEP-41 token operations over any token implementing `ERC20`, `ERC20Burn`
 /// and `ERC20Metadata`. Tokens implement no SEP-41 interface of their own.

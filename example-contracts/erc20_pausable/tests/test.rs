@@ -12,8 +12,8 @@ use thruput_erc20_pausable_if::{
     ERC20PausableClient, ERC20PausableError, PausedEvent, UnpausedEvent,
 };
 use thruput_erc165_if::{ERC165Client, InterfaceIds, InterfaceSupport};
-use sdk::call::CallError;
-use sdk::*;
+use thruput_sdk::call::CallError;
+use thruput_sdk::*;
 
 hash_ident! { static TEST_NONCE: SHA256Hash; }
 hash_ident! { static ADMIN: ContractAddress; }

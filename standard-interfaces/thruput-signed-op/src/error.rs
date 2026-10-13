@@ -3,7 +3,7 @@
 /// There is no "wrong operation type" variant: the payload type's definition
 /// is part of the signed bytes, so a message of another shape fails as
 /// [`InvalidSignature`](Self::InvalidSignature).
-#[sdk::contract_exception]
+#[thruput_sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum SignedOpError {

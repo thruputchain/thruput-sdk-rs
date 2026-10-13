@@ -48,13 +48,13 @@ variable (which selects the source build for this invocation):
 # Building thruput-sys / native-exec directly:
 HOGD_FFI_BUILD=1 cargo build -p thruput-sys --features source-build
 
-# From a contract crate that uses the sdk's dev/mock features for testing,
-# the feature is forwarded through the sdk:
-HOGD_FFI_BUILD=1 cargo test --features sdk/source-build
+# From a contract crate that uses the SDK's dev/mock features for testing,
+# the feature is forwarded through the SDK:
+HOGD_FFI_BUILD=1 cargo test --features thruput-sdk/source-build
 ```
 
 The feature is forwarded along the dependency chain
-`sdk/source-build` → `thruput-native-exec/source-build` →
+`thruput-sdk/source-build` → `thruput-native-exec/source-build` →
 `thruput-sys/source-build`. If you build from source routinely, enable
 `source-build` permanently in your manifest's feature forwarding and just
 toggle `HOGD_FFI_BUILD=1` per invocation — with the feature on but the

@@ -33,7 +33,7 @@ cargo run -p version-check -- sync
 
 It repoints every in-repo pin at the version its package already declares and
 regenerates the lockfiles, moving no version line. A requirement that is still
-satisfied is left alone, so the deliberately-caret `sdk` pins under
+satisfied is left alone, so the deliberately-caret `thruput-sdk` pins under
 `standard-interfaces/` keep naming the start of their series.
 
 Reach for it after merging the default branch into a long-lived branch that
@@ -51,9 +51,9 @@ pin, regenerates all six lockfiles, and re-verifies. Review with `git diff`;
 Decide which of the three you want, then let it do the arithmetic:
 
 - **patch** — a normal SDK release. The standard interfaces are correctly left
-  alone; their caret `sdk` pin already contains the new version.
+  alone; their caret `thruput-sdk` pin already contains the new version.
 - **breaking** — the SDK's own API broke. Also patch-bumps the standard
-  interfaces and refreshes their `sdk` pins.
+  interfaces and refreshes their `thruput-sdk` pins.
 - **--protocol X.Y.Z** — a breaking protocol-rs change. Implies an SDK patch
   bump and an interfaces patch bump. Combine with `breaking` if the SDK's own
   API broke too.
@@ -96,7 +96,7 @@ when the SDK undergoes a semver-major change.
 
 ### 2. Standard interface crates and implementation components
 
-Each carries its own `sdk` dep rather than inheriting from the workspace. Update
+Each carries its own `thruput-sdk` dep rather than inheriting from the workspace. Update
 the pin in **both** `[dependencies]` and
 `[target.'cfg(not(target_arch = "riscv32"))'.dependencies]`:
 
@@ -116,7 +116,7 @@ published interface crates are compatible with any SDK patch release. Do not
 ### 3. Sub-workspace `Cargo.toml` files
 
 Separate workspaces with their own `[workspace.dependencies]`. Update **every**
-`=X.Y.Z` pin pointing at this repo, not just `sdk` — both currently pin several
+`=X.Y.Z` pin pointing at this repo, not just `thruput-sdk` — both currently pin several
 in-repo crates plus the standard interfaces:
 
 - `example-contracts/Cargo.toml`

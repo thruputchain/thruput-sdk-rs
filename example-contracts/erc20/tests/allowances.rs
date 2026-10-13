@@ -1,5 +1,5 @@
 use erc20::*;
-use sdk::*;
+use thruput_sdk::*;
 
 const TOKEN: ContractAddress = ContractAddress::new([0x31; 32]);
 const OWNER: ContractAddress = ContractAddress::new([0x32; 32]);
@@ -22,9 +22,9 @@ fn setup() -> TestEnvironmentHandle {
     let env = TestEnvironment::no_cost();
     let contract = if let Some(path) = std::env::var_os("ERC20_RV32_ARTIFACT")
     {
-        sdk::types::Contract::kRv32 {
-            rv32_contract: sdk::types::contract::ContractBlob {
-                data: sdk::xdr::BytesM(
+        thruput_sdk::types::Contract::kRv32 {
+            rv32_contract: thruput_sdk::types::contract::ContractBlob {
+                data: thruput_sdk::xdr::BytesM(
                     std::fs::read(path).expect("read ERC20 RV32 artifact"),
                 ),
             },
@@ -265,17 +265,18 @@ fn temporary_grant_nested_spend_and_clear_commit_atomically() {
     call(&env, &OWNER, || client().delete_allowance(&SPENDER))
         .assert_success();
     env.advance_block();
-    let entrypoint = sdk::contract::ContractEntrypointID::from_u64(0x1234);
+    let entrypoint =
+        thruput_sdk::contract::ContractEntrypointID::from_u64(0x1234);
     let mock = env.register_mock(|contract| {
         contract.register_method(entrypoint, || {
             client().transfer_from(&OWNER, &OTHER, 7);
-            sdk::internal::contract_return_encoded(&());
+            thruput_sdk::internal::contract_return_encoded(&());
         });
     });
     mock.deploy_contract_to(&SPENDER);
     let result = call(&env, &OWNER, || {
         client().adjust_allowance(&SPENDER, 10);
-        sdk::call::try_call_raw_with::<(), (), _>(
+        thruput_sdk::call::try_call_raw_with::<(), (), _>(
             &SPENDER,
             entrypoint,
             u64::MAX,
@@ -317,7 +318,7 @@ fn storage_key(
 ) -> StorageKey {
     let result = env.transact(|tx| {
         tx.call(&OTHER).run(|| {
-            use sdk::storage::{Keypath, StorageDomain};
+            use thruput_sdk::storage::{Keypath, StorageDomain};
             let path = Keypath::root(TokenContract::DOMAIN)
                 .child(&field)
                 .child(account);
@@ -553,8 +554,9 @@ fn balance_delete_exclusivity_survives_later_credit() {
 /// The current height, read from inside a frame because that is the only
 /// place the syscall answers.
 fn current_height(env: &TestEnvironmentHandle) -> i64 {
-    let result =
-        env.transact(|tx| tx.call(&OWNER).run(sdk::block::get_block_height));
+    let result = env.transact(|tx| {
+        tx.call(&OWNER).run(thruput_sdk::block::get_block_height)
+    });
     result.assert_success();
     *result.assert_return_as::<BlockHeight>()
 }

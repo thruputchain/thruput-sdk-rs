@@ -1,8 +1,8 @@
 use multi_root_storage::{Ledger, Registry};
-use sdk::storage::{
+use thruput_sdk::storage::{
     DomainRecord, STORAGE_DOMAINS, check_duplicate, contract_state_root,
 };
-use sdk::{ContractAddress, Named, TestEnvironment};
+use thruput_sdk::{ContractAddress, Named, TestEnvironment};
 
 #[test]
 fn both_roots_register_and_do_not_collide() {
@@ -19,7 +19,7 @@ fn both_roots_register_and_do_not_collide() {
         .assert_success();
     let records: &[DomainRecord] = &STORAGE_DOMAINS;
     // Records identify roots by type path (the framed domain bytes are
-    // opaque outside the sdk crate).
+    // opaque outside the thruput-sdk crate).
     let type_paths: std::collections::HashSet<&str> =
         records.iter().map(|r| r.type_path).collect();
     assert!(type_paths.iter().any(|t| t.ends_with("::Ledger")));

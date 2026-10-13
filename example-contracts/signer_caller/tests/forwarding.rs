@@ -1,8 +1,8 @@
-use sdk::*;
+use thruput_sdk::*;
 
 #[test]
 fn signer_pass_back_and_forth() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
 
     let callee_mock = signer_callee::register_mock_contract(&env);
     let caller_mock = signer_caller::register_mock_contract(&env);

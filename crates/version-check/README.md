@@ -130,7 +130,7 @@ Deliberate deviations live in `src/policy.rs`, and every entry carries a
 The current set:
 
 - Manifests under `standard-interfaces/` and `standard-impls/` caret-depend on
-  `sdk` rather than pinning it, because the published interface and
+  `thruput-sdk` rather than pinning it, because the published interface and
   implementation-component crates are compatible with any SDK patch release.
 - The standard-interface crates (`thruput-erc20-controls-if`, `thruput-erc20-if`,
   `thruput-erc20-metadata-if`,
@@ -208,7 +208,7 @@ cargo run -p version-check -- bump --protocol 0.21.0    # move protocol-rs
 ```
 
 The `standard-interfaces` are deliberately untouched by a patch bump. Their
-`sdk` pin is a caret, so `^0.17.4` still contains `0.17.5` and nothing needs to
+`thruput-sdk` pin is a caret, so `^0.17.4` still contains `0.17.5` and nothing needs to
 change — the pins are *supposed* to drift between breaking releases, and a
 breaking bump refreshes them to the current workspace version, absorbing
 however much drift accumulated.

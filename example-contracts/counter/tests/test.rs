@@ -1,10 +1,11 @@
 use counter::CounterClient;
-use sdk::*;
+use thruput_sdk::*;
 
-static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
+static COUNTER_NONCE: SHA256Hash =
+    thruput_sdk::sha256_static!("COUNTER_TEST_NONCE");
 
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let test_contract = counter::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
     (env, contract_hash)
@@ -80,7 +81,10 @@ fn test_gas_limit_does_not_propagate() {
             // no_cost() disables storage costs, not syscall gas accounting.
             let result = client.with_gas_limit(1).try_get();
             assert!(
-                matches!(&result, Err(sdk::call::RawCallError::Fault(_))),
+                matches!(
+                    &result,
+                    Err(thruput_sdk::call::RawCallError::Fault(_))
+                ),
                 "gas-limited mock call should fault, got {result:?}"
             );
 

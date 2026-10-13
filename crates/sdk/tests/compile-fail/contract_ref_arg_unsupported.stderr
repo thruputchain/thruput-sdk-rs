@@ -5,7 +5,7 @@ error[E0277]: `&&thruput_sdk::ContractAddress` cannot be a `#[contract]` method 
    |                                      ^^^^^^^^^^^^^^^^ no `RefArg` impl for `&thruput_sdk::ContractAddress`
    |
    = help: the trait `thruput_sdk::call::OwnedRefArg` is not implemented for `&thruput_sdk::ContractAddress`
-   = note: take the parameter by value; a slice `&[T]` of anything but bytes needs the thruput-sdk `alloc` feature; a type of your own becomes usable by reference with `#[contract_type]` or an `thruput_sdk::call::OwnedRefArg` impl
+   = note: take the parameter by value; a slice `&[T]` of anything but bytes needs the thruput-sdk `alloc` feature; a type of your own becomes usable by reference with `#[contract_type]` or a `thruput_sdk::call::OwnedRefArg` impl
    = help: the following other types implement trait `thruput_sdk::call::OwnedRefArg`:
              ()
              (A, B)

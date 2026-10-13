@@ -1,19 +1,19 @@
 //! An implementation of ERC20
 
 use crate::interface::*;
-use sdk::block::get_block_height;
-use sdk::storage::{Balance, Deletable, Map, NNInt, Node, Value};
-use sdk::*;
+use thruput_sdk::block::get_block_height;
+use thruput_sdk::storage::{Balance, Deletable, Map, NNInt, Node, Value};
+use thruput_sdk::*;
 
-#[sdk::storage]
-#[derive(sdk::Deletable)]
+#[thruput_sdk::storage]
+#[derive(thruput_sdk::Deletable)]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct Allowance {
     amount: NNInt,
     expiry: Value<BlockHeight>,
 }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct TokenContract {
     config: Value<Config>,

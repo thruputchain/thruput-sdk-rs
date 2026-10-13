@@ -15,10 +15,10 @@
 
 extern crate alloc;
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::xdr::{BytesM, VecM};
-use sdk::*;
+use thruput_sdk::xdr::{BytesM, VecM};
+use thruput_sdk::*;
 
 /// A bounded byte list, decoded with no allocator.
 pub type Bytes = heapless::Vec<u8, 16>;
@@ -185,8 +185,9 @@ pub mod expected {
     /// The offsets `borrowed_offsets` returns when every argument points
     /// into the calldata the client sent.
     pub fn borrowed_offsets() -> [u32; 3] {
-        let encoded = sdk::encode_xdr(&(&ADDRESS, BYTES, TEXT, &FIXED))
-            .unwrap_or_else(|_| panic!("arguments encode"));
+        let encoded =
+            thruput_sdk::encode_xdr(&(&ADDRESS, BYTES, TEXT, &FIXED))
+                .unwrap_or_else(|_| panic!("arguments encode"));
         let base = position(&encoded, ADDRESS.as_ref());
         [
             position(&encoded, BYTES) - base,
@@ -200,7 +201,7 @@ pub mod expected {
     pub fn borrowed_list_offsets() -> [u32; 3] {
         let strings: &[&[u8]] = &[STRING_0, STRING_1];
         let words: &[&str] = &[WORD];
-        let encoded = sdk::encode_xdr(&(&HASH, strings, words))
+        let encoded = thruput_sdk::encode_xdr(&(&HASH, strings, words))
             .unwrap_or_else(|_| panic!("arguments encode"));
         let base = position(&encoded, HASH.as_ref());
         [

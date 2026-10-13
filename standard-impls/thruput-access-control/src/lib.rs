@@ -10,7 +10,7 @@
 //! one-line delegation into the embedded state:
 //!
 //! ```ignore
-//! #[sdk::storage]
+//! #[thruput_sdk::storage]
 //! pub struct MyContract {
 //!     access: AccessControlState,
 //!     // ...
@@ -35,8 +35,8 @@
 
 pub use thruput_access_control_if::*;
 
-use sdk::storage::{Map, Value};
-use sdk::{ContractAddress, NoneIfMissing, ensure, get_caller};
+use thruput_sdk::storage::{Map, Value};
+use thruput_sdk::{ContractAddress, NoneIfMissing, ensure, get_caller};
 
 /// Role-based access control state: who holds which role, and which role
 /// administers which.
@@ -48,7 +48,7 @@ use sdk::{ContractAddress, NoneIfMissing, ensure, get_caller};
 /// is administered by [`DEFAULT_ADMIN_ROLE`] until
 /// [`set_role_admin_unchecked`](Self::set_role_admin_unchecked) rewires
 /// it.
-#[sdk::storage]
+#[thruput_sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct AccessControlState {
     roles: Map<Role, Map<ContractAddress, Value<bool>>>,

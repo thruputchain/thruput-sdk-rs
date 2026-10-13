@@ -2,12 +2,12 @@
 
 extern crate alloc;
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 use alloc::vec::Vec;
-use sdk::signer::Signed;
-use sdk::*;
 use signer_leaf::{LeafAuth, SignerLeafClient};
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 #[contract_type]
 pub struct MiddleAuth {

@@ -495,8 +495,9 @@ mod tests {
 
         let tokens = expand(&input).unwrap().to_string();
 
-        // The point of the option: a crate below `sdk` in the dependency graph
-        // cannot name `sdk` at all, so a single leaked path breaks the build.
+        // The point of the option: a crate below `thruput-sdk` in the
+        // dependency graph cannot name `thruput-sdk` at all, so a single
+        // leaked path breaks the build.
         assert!(!tokens.contains("thruput_sdk ::"), "{tokens}");
         assert!(
             tokens.contains(

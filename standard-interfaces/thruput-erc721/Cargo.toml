@@ -16,10 +16,10 @@ categories.workspace = true
 # `-F entrypoints` like every other contract's spec build. A plain
 # `cargo build`/`test` skips the entry-point-less bin without it.
 entrypoints = []
-dev = ["sdk/dev", "dep:thiserror"]
+dev = ["thruput-sdk/dev", "dep:thiserror"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1" }
 thiserror = { workspace = true, optional = true }
 heapless = { workspace = true }
 
@@ -27,7 +27,7 @@ heapless = { workspace = true }
 thruput-erc721-if = { path = ".", features = ["dev"] }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

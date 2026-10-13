@@ -1,4 +1,4 @@
-use sdk::{ContractAddress, Event};
+use thruput_sdk::{ContractAddress, Event};
 
 // These are the established Thruput token movement events. Re-exporting
 // keeps their signatures and encoding recognizable to existing consumers.
@@ -36,24 +36,24 @@ pub struct SetMinterEvent<'a> {
 
 impl ClawbackEvent<'_> {
     pub fn log(&self) {
-        sdk::log_event(self);
+        thruput_sdk::log_event(self);
     }
 }
 
 impl SetAuthorizedEvent<'_> {
     pub fn log(&self) {
-        sdk::log_event(self);
+        thruput_sdk::log_event(self);
     }
 }
 
 impl SetAdminEvent<'_> {
     pub fn log(&self) {
-        sdk::log_event(self);
+        thruput_sdk::log_event(self);
     }
 }
 
 impl SetMinterEvent<'_> {
     pub fn log(&self) {
-        sdk::log_event(self);
+        thruput_sdk::log_event(self);
     }
 }

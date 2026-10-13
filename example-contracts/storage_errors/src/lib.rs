@@ -1,11 +1,11 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::storage::{Map, Value, Vector};
-use sdk::*;
+use thruput_sdk::storage::{Map, Value, Vector};
+use thruput_sdk::*;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct StorageErrorContract {
     numbers: Vector<Value<u64>>,
     names: Map<u64, Value<u64>>,
@@ -72,7 +72,7 @@ impl StorageErrorContract {
         let mut guard = self.plain.load_mut();
         *guard += 7;
         drop(guard);
-        sdk::internal::contract_return_encoded(&());
+        thruput_sdk::internal::contract_return_encoded(&());
     }
 
     /// Early-exit while a deferred-write guard is live: on a real guest the
@@ -81,7 +81,7 @@ impl StorageErrorContract {
     pub fn early_return_with_live_guard(&mut self) {
         let mut guard = self.plain.load_mut();
         *guard += 1;
-        sdk::internal::contract_return_encoded(&());
+        thruput_sdk::internal::contract_return_encoded(&());
     }
 
     /// Holding a guard across a nested call is legitimate (the callee frame

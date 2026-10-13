@@ -18,10 +18,10 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 pub mod side_a {
-    use sdk::*;
+    use thruput_sdk::*;
 
     pub struct ContractA;
 
@@ -39,7 +39,7 @@ pub mod side_a {
 }
 
 pub mod side_b {
-    use sdk::*;
+    use thruput_sdk::*;
 
     pub struct ContractB;
 

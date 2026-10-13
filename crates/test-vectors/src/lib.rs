@@ -1,6 +1,6 @@
-/// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what `sdk`
-/// re-exports, so vector payload types can derive their spec impls instead of
-/// hand-writing them.
+/// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what
+/// `thruput-sdk` re-exports, so vector payload types can derive their spec
+/// impls instead of hand-writing them.
 #[doc(hidden)]
 pub mod __sdk_paths {
     pub use thruput_contract_spec as __contract_spec;

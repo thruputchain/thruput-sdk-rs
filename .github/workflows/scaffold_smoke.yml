@@ -1,7 +1,7 @@
 name: Scaffold Smoke
 
 # Builds a `thruput new` scaffold from the Thruput CLI this repo pins
-# (scripts/thruput-cli-version.sh) against the sdk at head (see
+# (scripts/thruput-cli-version.sh) against the SDK at head (see
 # scripts/scaffold-smoke.sh). Guards the CLI x sdk-head combination — the
 # class of breakage sdk 0.17.8 shipped (scaffold build broken by an xdrs
 # feature edge) — so it runs on pushes to main rather than on every PR
@@ -31,7 +31,7 @@ jobs:
     steps:
       # No submodules or FFI secrets: the workspace has no git
       # dependencies, the only submodule (integration_test/contracts) is not
-      # a workspace member, and the scaffold build never enables sdk/dev.
+      # a workspace member, and the scaffold build never enables the SDK's `dev` feature.
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 

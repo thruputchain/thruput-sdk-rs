@@ -1,6 +1,6 @@
 #[test]
 fn run_test() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let test_contract = erc20_low_level::register_mock_contract(&env);
     let test_contract_hash = *test_contract.as_hash();
 

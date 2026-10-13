@@ -14,8 +14,8 @@ use thruput_erc721_if::{
     ERC721ReceiverEntrypoints, MintEvent, OnchainMetadata, TokenId,
     TokenMetadata, TransferData, TransferEvent,
 };
-use sdk::call::CallError;
-use sdk::*;
+use thruput_sdk::call::CallError;
+use thruput_sdk::*;
 
 hash_ident! { static TOKEN_NONCE: SHA256Hash; }
 hash_ident! { static RECEIVER_NONCE: SHA256Hash; }

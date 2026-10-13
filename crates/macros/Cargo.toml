@@ -23,9 +23,10 @@ sha2 = { workspace = true }
 syn = { version = "3.0.3" , features = [ "full" , "extra-traits", "visit", "printing", "fold" ] }
 thruput-xdr = { workspace = true, features = ["std", "xdrs"] }
 
-# `tests/crate_override.rs` stands in for a crate that sits below `sdk` in the
-# dependency graph. Deliberately no `sdk` here: that the test compiles at all is
-# the proof `#[contract_type_spec(crate = "...")]` breaks the cycle.
+# `tests/crate_override.rs` stands in for a crate that sits below `thruput-sdk`
+# in the dependency graph. Deliberately no `thruput-sdk` here: that the test
+# compiles at all is the proof `#[contract_type_spec(crate = "...")]` breaks
+# the cycle.
 [dev-dependencies]
 thruput-contract-spec = { workspace = true }
 xdrs = { workspace = true }

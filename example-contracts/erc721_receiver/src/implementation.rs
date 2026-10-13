@@ -1,11 +1,11 @@
 use thruput_erc721_if::{ERC721Receiver, TokenId, TransferData};
-use sdk::storage::Value;
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 /// Attached data that makes the receiver reject the token.
 pub const REJECT_DATA: &[u8] = b"reject";
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct Receiver {
     last: Value<Delivery>,

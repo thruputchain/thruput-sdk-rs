@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "typedef_shaking_if_v1/dev", "typedef_shaking_if_v2/dev"]
+dev = ["thruput-sdk/dev", "typedef_shaking_if_v1/dev", "typedef_shaking_if_v2/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -28,7 +28,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 typedef_shaking_if_v1 = { path = "../typedef_shaking_if_v1" }
 typedef_shaking_if_v2 = { path = "../typedef_shaking_if_v2" }
 

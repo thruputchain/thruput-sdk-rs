@@ -14,17 +14,17 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 # The host runner (crates/bigint-bench) links this crate to get the client, and
-# needs `sdk/std` for it. Guest targets must not: rv32 builds stay no_std.
-# Mirrors thruput-erc20-if's split.
+# needs `thruput-sdk/std` for it. Guest targets must not: rv32 builds stay
+# no_std. Mirrors thruput-erc20-if's split.
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { workspace = true, features = ["std"] }
+thruput-sdk = { workspace = true, features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
 doctest = false
 
 [features]
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]

@@ -493,7 +493,7 @@ pub fn contract_type(
 /// derive references but never emits.
 ///
 /// Note this covers *spec* impls only. `#[contract_type]` additionally emits
-/// impls of traits genuinely owned by `sdk` (`CollectAuthHandles`,
+/// impls of traits genuinely owned by `thruput-sdk` (`CollectAuthHandles`,
 /// `ReceiveAuthHandles`, `MintableType`), which a lower crate cannot implement
 /// — that is a dependency problem, not a path problem, and has no override.
 #[proc_macro_derive(ContractTypeSpec, attributes(contract_type_spec))]

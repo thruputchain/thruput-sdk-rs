@@ -24,7 +24,7 @@
 //! ## Layout
 //!
 //! - [`backend`] -- the operation set, and one impl per implementation under
-//!   test (`sdk::U256`, Parity's `uint`).
+//!   test (`thruput_sdk::U256`, Parity's `uint`).
 //! - [`ops`] -- the operations, generic over the backend.
 //! - [`kernel`] -- the measured loop, and the `op-*` feature that selects it.
 //!
@@ -41,10 +41,11 @@ mod contract;
 /// The backend this build's kernel measures.
 ///
 /// `backend-uint` (off by default) selects Parity's `uint`; with it off the
-/// kernel measures `sdk::U256`. Enabling the feature does not remove the
-/// `sdk::U256` backend -- both impls exist whenever their dependencies do,
-/// which is what lets `tests/differential.rs` link them side by side. Only this
-/// alias changes, and the build driver passes at most one backend feature.
+/// kernel measures `thruput_sdk::U256`. Enabling the feature does not remove
+/// the `thruput_sdk::U256` backend -- both impls exist whenever their
+/// dependencies do, which is what lets `tests/differential.rs` link them side
+/// by side. Only this alias changes, and the build driver passes at most one
+/// backend feature.
 #[cfg(feature = "backend-uint")]
 pub type Selected = backend::parity::PU256;
 

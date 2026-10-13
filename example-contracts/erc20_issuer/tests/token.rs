@@ -1,6 +1,6 @@
 //! Runtime tests; transactions in one block share a snapshot.
 use erc20_issuer::*;
-use sdk::*;
+use thruput_sdk::*;
 
 const TOKEN: ContractAddress = ContractAddress::new([0x10; 32]);
 const ADMIN: ContractAddress = ContractAddress::new([0x11; 32]);
@@ -41,11 +41,11 @@ fn call(
 }
 fn register(
     env: &TestEnvironmentHandle,
-) -> (sdk::types::Contract, SHA256Hash) {
+) -> (thruput_sdk::types::Contract, SHA256Hash) {
     if let Some(path) = std::env::var_os("ISSUER_TOKEN_RV32_ARTIFACT") {
-        let contract = sdk::types::Contract::kRv32 {
-            rv32_contract: sdk::types::contract::ContractBlob {
-                data: sdk::xdr::BytesM(
+        let contract = thruput_sdk::types::Contract::kRv32 {
+            rv32_contract: thruput_sdk::types::contract::ContractBlob {
+                data: thruput_sdk::xdr::BytesM(
                     std::fs::read(path).expect("read RV32 artifact"),
                 ),
             },
@@ -492,15 +492,15 @@ fn zero_self_transfer_and_delegated_burn_use_standard_events() {
 
 #[test]
 fn signed_transfer_checks_holder_policy_and_leaves_no_allowance() {
-    use sdk::mintable::{AuthTokenPreimage, MintableType};
-    use sdk::signer::mint_auth_token;
+    use thruput_sdk::mintable::{AuthTokenPreimage, MintableType};
+    use thruput_sdk::signer::mint_auth_token;
     type GrantData = <PermitGrant as MintableType>::Preimage;
     let env = setup();
     mint(&env, 20);
     let send = || {
         call(&env, &ALICE, || {
             let grant = mint_auth_token::<PermitGrant>(
-                sdk::block::get_block_height(),
+                thruput_sdk::block::get_block_height(),
                 AuthTokenPreimage {
                     consumer: TOKEN,
                     data: GrantData {
@@ -556,11 +556,11 @@ fn export_cli_event_fixture() {
                 .map(|i| {
                     format!(
                         "\"0x{}\"",
-                        sdk::hex_encode(event.topic(i).unwrap())
+                        thruput_sdk::hex_encode(event.topic(i).unwrap())
                     )
                 })
                 .collect();
-            records.push(format!("  {{\"operation\":\"{operation}\",\"event\":{{\"contractAddress\":\"0x{}\",\"topics\":[{}],\"data\":\"0x{}\"}}}}", sdk::hex_encode(&event.raw().contract_address), topics.join(","), sdk::hex_encode(&event.payload().unwrap())));
+            records.push(format!("  {{\"operation\":\"{operation}\",\"event\":{{\"contractAddress\":\"0x{}\",\"topics\":[{}],\"data\":\"0x{}\"}}}}", thruput_sdk::hex_encode(&event.raw().contract_address), topics.join(","), thruput_sdk::hex_encode(&event.payload().unwrap())));
         }
         env.advance_block();
     }

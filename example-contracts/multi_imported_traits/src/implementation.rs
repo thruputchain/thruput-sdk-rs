@@ -1,5 +1,5 @@
 pub struct MultiImportedTraitsContract;
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(interface = "ExplicitNamedInterface")]
 impl named_interface_callee::NamedInterfaceCallee

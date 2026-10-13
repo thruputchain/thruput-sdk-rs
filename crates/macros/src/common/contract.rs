@@ -609,10 +609,10 @@ pub fn method_anchor_tokens(
 
 /// The crate path spec-emitting macros use unless told otherwise.
 ///
-/// Everything reached through it (`__contract_spec`, `__xdrs`) is an `sdk`
-/// re-export of a crate *below* `sdk`, so a crate that `sdk` depends on can
-/// name those targets directly and pass its own shim path instead. See
-/// `#[contract_type_spec(crate = "...")]`.
+/// Everything reached through it (`__contract_spec`, `__xdrs`) is a
+/// `thruput-sdk` re-export of a crate *below* `thruput-sdk`, so a crate that
+/// `thruput-sdk` depends on can name those targets directly and pass its own
+/// shim path instead. See `#[contract_type_spec(crate = "...")]`.
 pub fn sdk_crate_path() -> syn::Path {
     syn::parse_quote!(::thruput_sdk)
 }

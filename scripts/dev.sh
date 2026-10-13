@@ -744,7 +744,7 @@ check_trait_sourced_method_spec() {
 }
 
 # Regression guard: the logging-test workspace unconditionally enables
-# sdk/logging, which makes the codegen emit debug_log! calls in client
+# thruput-sdk/logging, which makes the codegen emit debug_log! calls in client
 # stubs.  This catches use-after-move bugs for non-Copy by-value params
 # (e.g. BlockHeight) that only surface under feature unification.
 logging_test_build() {
@@ -759,12 +759,12 @@ logging_test_build() {
 
 # Regression guard: the raw spec fragment `#[derive(ContractTypeSpec)]` emits
 # is behind a `cfg(target_arch = "riscv32")`, so a host build never compiles
-# it. Every other consumer reaches that code through `::sdk`, which the
+# it. Every other consumer reaches that code through `::thruput_sdk`, which the
 # example/integration rv32 builds cover -- but nothing else builds a crate
 # that uses `#[contract_type_spec(crate = "...")]`, and its whole point is
 # resolving those paths through a shim instead. Without this, a regression in
-# the overridden guest path surfaces only when a downstream crate below `sdk`
-# builds for a guest target.
+# the overridden guest path surfaces only when a downstream crate below
+# `thruput-sdk` builds for a guest target.
 macros_crate_override_guest_build() {
     info "BUILD thruput-macros crate-override test (rv32)"
 
@@ -836,7 +836,7 @@ test_package() {
     # no-feature guest config is only ever compiled, never tested; check it
     # explicitly so cfg-gating mistakes fail here and not in a contract build.
     cargo check -p thruput-u256 --no-default-features &&
-    cargo test -p sdk -Fstd --tests &&
+    cargo test -p thruput-sdk -Fstd --tests &&
     cargo test -p thruput-erc20-metadata-if --all-targets &&
     cargo test -p thruput-spec-tool --all-targets &&
     cargo test -p thruput-test-vectors &&
@@ -1021,16 +1021,16 @@ build_docs() {
         cargo doc --features=dev "$@"
 }
 
-# Build the sdk itself for the guest target.
+# Build the SDK itself for the guest target.
 #
 # The host test suite never compiles for rv32, so a guest-only break -- a
 # `cfg` slip, or a bound that only the host can satisfy -- reaches CI only
 # through the contract sweeps much later in this run. This is the same
-# compile, seconds in, with the error pointing at `sdk` rather than at
+# compile, seconds in, with the error pointing at `thruput-sdk` rather than at
 # whichever example contract happened to instantiate it first.
 sdk_rv32_build() {
-    info "BUILD(rv32) sdk"
-    cargo build -p sdk --release --target "$RV32_TARGET"
+    info "BUILD(rv32) thruput-sdk"
+    cargo build -p thruput-sdk --release --target "$RV32_TARGET"
 }
 
 skip() {

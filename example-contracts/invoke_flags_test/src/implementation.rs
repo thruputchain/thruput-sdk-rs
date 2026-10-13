@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 static KEY: StorageKey = static_key!("invoke_flags_test_key");
 

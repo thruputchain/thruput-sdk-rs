@@ -1,5 +1,5 @@
 use super::*;
-use sdk::*;
+use thruput_sdk::*;
 
 #[derive(Default)]
 pub struct Contract;
@@ -9,7 +9,7 @@ pub struct Contract;
 pub struct SecretError;
 
 #[derive(WriteXDR, Debug, PartialEq, Eq)]
-#[xdrs(crate = "sdk::__xdrs")]
+#[xdrs(crate = "thruput_sdk::__xdrs")]
 pub struct UndecodableError {
     pub selector: u64,
     pub extra_payload: u32,
@@ -121,9 +121,9 @@ impl MultiThrows for Contract {
         let _ = 42u32.hash();
 
         let decoded1: u32 =
-            sdk::xdr::cxs::decode(caught1.payload()).unwrap_or(0);
+            thruput_sdk::xdr::cxs::decode(caught1.payload()).unwrap_or(0);
         let decoded2: u32 =
-            sdk::xdr::cxs::decode(caught2.payload()).unwrap_or(0);
+            thruput_sdk::xdr::cxs::decode(caught2.payload()).unwrap_or(0);
         if caught1.selector() != AlphaError::SELECTOR
             || caught2.selector() != AlphaError::SELECTOR
             || decoded1 != 42

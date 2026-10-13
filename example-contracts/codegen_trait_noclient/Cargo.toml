@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [dev-dependencies]
 codegen_trait_noclient = { path = ".", features = ["dev"] }

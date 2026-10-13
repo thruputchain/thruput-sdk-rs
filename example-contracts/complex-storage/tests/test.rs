@@ -5,16 +5,17 @@ use complex_storage::*;
 
 #[test]
 fn contract_root_registers_its_domain() {
-    use sdk::storage::{DomainRecord, STORAGE_DOMAINS};
+    use thruput_sdk::storage::{DomainRecord, STORAGE_DOMAINS};
 
     // The test binary links this crate's #[contract] impls; at least one
     // root domain must be registered, and none may collide.
     let records: &[DomainRecord] = &STORAGE_DOMAINS;
     assert!(!records.is_empty(), "no storage domains registered");
-    assert_eq!(sdk::storage::check_duplicate(records), None);
+    assert_eq!(thruput_sdk::storage::check_duplicate(records), None);
 }
 
-static NONCE: SHA256Hash = sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
+static NONCE: SHA256Hash =
+    thruput_sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
 
 /// Helper: set up the fibonacci contract in a test environment.
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
@@ -32,7 +33,7 @@ fn test_basic_usage() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -59,7 +60,7 @@ fn test_persistence_across_blocks() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -98,7 +99,7 @@ fn test_load_mut() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
 

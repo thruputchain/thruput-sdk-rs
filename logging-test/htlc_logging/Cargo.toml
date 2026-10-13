@@ -6,7 +6,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [lib]
 crate-type = ["rlib"]
@@ -15,5 +15,5 @@ test = false
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
-std = ["sdk/std"]
+dev = ["thruput-sdk/dev"]
+std = ["thruput-sdk/std"]

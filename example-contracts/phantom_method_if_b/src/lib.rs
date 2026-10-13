@@ -6,7 +6,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 /// Referenced only by `steal`'s signature; must be shaken from the spec of
 /// any contract where `steal` itself is shaken.

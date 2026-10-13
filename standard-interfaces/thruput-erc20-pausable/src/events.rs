@@ -9,7 +9,9 @@
 //! Solidity events, which do not index it.
 
 use core::fmt;
-use sdk::{ContractAddress, EmittedEvent, Event, hex_encode, log_event};
+use thruput_sdk::{
+    ContractAddress, EmittedEvent, Event, hex_encode, log_event,
+};
 
 /// Log that `account` paused the token.
 /// An event emitted when the token is paused.
@@ -44,8 +46,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for PausedEvent {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let account: ContractAddress = sdk::internal::decode_xdr(payload)
-            .map_err(|_| "Couldn't parse event payload")?;
+        let account: ContractAddress =
+            thruput_sdk::internal::decode_xdr(payload)
+                .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(PausedEvent::new(account))
     }
@@ -92,8 +95,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for UnpausedEvent {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let account: ContractAddress = sdk::internal::decode_xdr(payload)
-            .map_err(|_| "Couldn't parse event payload")?;
+        let account: ContractAddress =
+            thruput_sdk::internal::decode_xdr(payload)
+                .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(UnpausedEvent::new(account))
     }

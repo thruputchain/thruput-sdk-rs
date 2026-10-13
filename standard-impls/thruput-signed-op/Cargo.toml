@@ -12,16 +12,16 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-dev = ["sdk/dev", "thruput-signed-op-if/dev"]
+dev = ["thruput-sdk/dev", "thruput-signed-op-if/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["alloc"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["alloc"] }
 thruput-signed-op-if = { path = "../../standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.56" }
 thruput-domain-separator = { path = "../../crates/domain-separator", registry = "thruput", version = "0.51.1", default-features = false, features = ["alloc"] }
 thruput-contract-spec = { path = "../../crates/contract-spec", registry = "thruput", version = "0.51.1", default-features = false }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

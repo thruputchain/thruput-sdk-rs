@@ -1,5 +1,5 @@
-//! End-to-end `sdk::U256` and `sdk::I256` coverage through a real rv32
-//! artifact.
+//! End-to-end `thruput_sdk::U256` and `thruput_sdk::I256` coverage through a
+//! real rv32 artifact.
 //!
 //! Complements `crates/sdk/tests/u256.rs`, which drives U256 through a
 //! host-side mock contract: here the compiled `.rv32a` image runs under the
@@ -9,22 +9,23 @@
 //! Requires the lowered `u256_roundtrip` artifact: `scripts/dev.sh
 //! build-examples-rv32` writes it.
 
-use sdk::*;
+use thruput_sdk::*;
 use u256_roundtrip::U256RoundtripClient;
 
 // Test working directory is the example contract directory.
 const RV32_PATH: &str = "../../target/thruput/u256_roundtrip.rv32a";
 
-static NONCE: SHA256Hash = sdk::sha256_static!("U256_ROUNDTRIP_TEST_NONCE");
+static NONCE: SHA256Hash =
+    thruput_sdk::sha256_static!("U256_ROUNDTRIP_TEST_NONCE");
 
 /// A distinct deploy nonce, so the signed test gets its own contract instance
 /// and cannot read storage the unsigned one wrote.
 static SIGNED_NONCE: SHA256Hash =
-    sdk::sha256_static!("I256_ROUNDTRIP_TEST_NONCE");
+    thruput_sdk::sha256_static!("I256_ROUNDTRIP_TEST_NONCE");
 
 /// And one more, for the `I256::MIN` case below.
 static MIN_NONCE: SHA256Hash =
-    sdk::sha256_static!("I256_MIN_ROUNDTRIP_TEST_NONCE");
+    thruput_sdk::sha256_static!("I256_MIN_ROUNDTRIP_TEST_NONCE");
 
 /// A value whose limbs all differ and whose top bit is set, so any limb
 /// reordering or truncation in the calldata/return/storage paths shows up.
@@ -46,8 +47,8 @@ fn signed_test_value() -> I256 {
 /// typed return, and persisted in `Value<U256>` across a block boundary.
 #[test]
 fn u256_roundtrips_through_rv32_entrypoint_and_storage() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
-    let env = sdk::TestEnvironment::no_cost();
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
     let arg = test_value();
@@ -85,8 +86,8 @@ fn u256_roundtrips_through_rv32_entrypoint_and_storage() {
 /// a negative value, and only once it has crossed the ABI.
 #[test]
 fn i256_roundtrips_through_rv32_entrypoint_and_storage() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
-    let env = sdk::TestEnvironment::no_cost();
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
     let arg = signed_test_value();
@@ -146,8 +147,8 @@ fn i256_roundtrips_through_rv32_entrypoint_and_storage() {
 /// catches it -- checked by the same mutation.
 #[test]
 fn i256_min_negates_to_itself_through_rv32() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
-    let env = sdk::TestEnvironment::no_cost();
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
     // Not `-I256::MIN`: that is the overflow this test exists to pin, and

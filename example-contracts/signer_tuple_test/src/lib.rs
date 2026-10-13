@@ -1,9 +1,9 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::signer::Signed;
-use sdk::*;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 /// A tuple struct contract_type with a Signed field.
 #[contract_type]

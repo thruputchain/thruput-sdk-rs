@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["erc20/dev", "sdk/dev", "thruput-erc20-if/dev"]
+dev = ["erc20/dev", "thruput-sdk/dev", "thruput-erc20-if/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -29,7 +29,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 erc20 = { path = "../erc20" }
 thruput-erc20-if = { workspace = true }
 

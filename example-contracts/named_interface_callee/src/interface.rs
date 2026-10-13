@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(interface = "ExplicitNamedInterface")]
 pub trait NamedInterfaceCallee {

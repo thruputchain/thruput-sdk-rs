@@ -1,7 +1,7 @@
 use bottle_test_if::*;
 
-use sdk::load_rv32_contract;
-use sdk::*;
+use thruput_sdk::load_rv32_contract;
+use thruput_sdk::*;
 
 pub fn main() {
     let stem = std::env::args()
@@ -61,8 +61,8 @@ fn bottle_test(stem: &str) {
 
     // Print out the transaction's event log
     {
-        use sdk::EmittedEvent;
         use thruput_erc20_if::*;
+        use thruput_sdk::EmittedEvent;
 
         for (i, event) in result.events().iter().enumerate() {
             let event: EmittedEvent = event.into();

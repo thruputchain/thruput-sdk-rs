@@ -2,13 +2,13 @@
 //! typed `LibraryExn::UnknownMethod`, not as an undifferentiated
 //! deterministic failure.
 
-use sdk::call::RawCallError;
-use sdk::contract::ContractEntrypointID;
-use sdk::exn::Exn;
-use sdk::*;
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::exn::Exn;
+use thruput_sdk::*;
 use unknown_method::DefinedClient;
 
-static NONCE: SHA256Hash = sdk::sha256_static!("UNKNOWN_METHOD_TEST_NONCE");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("UNKNOWN_METHOD_TEST_NONCE");
 
 const CALLER: ContractAddress = ContractAddress::new([0x71; 32]);
 
@@ -21,7 +21,7 @@ fn absent() -> ContractEntrypointID {
 
 #[test]
 fn undefined_method_throws_unknown_method() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = unknown_method::register_mock_contract(&env);
     let contract_hash = *contract.as_hash();
 
@@ -32,7 +32,7 @@ fn undefined_method_throws_unknown_method() {
             // The defined method still works.
             assert_eq!(DefinedClient::new(&addr).defined(), 1);
 
-            let err = sdk::call::try_call_raw_with::<(), (), sdk::exn::RawException>(
+            let err = thruput_sdk::call::try_call_raw_with::<(), (), thruput_sdk::exn::RawException>(
                 &addr,
                 absent(),
                 u64::MAX,

@@ -1,12 +1,12 @@
-use sdk::storage::*;
-use sdk::*;
+use thruput_sdk::storage::*;
+use thruput_sdk::*;
 
 /// Limit can be reset once more than `period_frequency` blocks have passed
 /// since the last reset.
 ///
 /// Epoch-based limits would be a small change to this implementation.
 #[derive(WriteXDR, ReadXDR)]
-#[xdrs(crate = "sdk::__xdrs")]
+#[xdrs(crate = "thruput_sdk::__xdrs")]
 struct WithdrawalConfiguration {
     per_period_limit: i128,
     period_frequency: BlockHeight,
@@ -20,7 +20,7 @@ struct VelocityLimit {
 }
 
 #[derive(ReadXDR, WriteXDR)]
-#[xdrs(crate = "sdk::__xdrs")]
+#[xdrs(crate = "thruput_sdk::__xdrs")]
 struct VelocityLimitConfiguration {
     token: ContractAddress,
     owner: ContractAddress,

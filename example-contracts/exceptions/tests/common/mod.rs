@@ -1,11 +1,11 @@
 #![allow(unused)]
 
 use exceptions::*;
-use sdk::sys::{SyscallErrorCode, SyscallNo};
-use sdk::*;
+use thruput_sdk::sys::{SyscallErrorCode, SyscallNo};
+use thruput_sdk::*;
 
-pub static TEST_NONCE: sdk::SHA256Hash =
-    sdk::sha256_static!("EXCEPTIONS_TEST_NONCE");
+pub static TEST_NONCE: thruput_sdk::SHA256Hash =
+    thruput_sdk::sha256_static!("EXCEPTIONS_TEST_NONCE");
 
 pub fn exceptions_test(contract_hash: &SHA256Hash) {
     // Deploy the contract under test

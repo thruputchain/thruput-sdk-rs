@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 // The contract interface
 mod interface;

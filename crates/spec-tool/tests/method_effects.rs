@@ -7,7 +7,7 @@ use thruput_spec_tool::{
     canonicalize_spec, parse_raw_fragments, render_spec_json,
 };
 
-#[sdk::contract(version = "1.0.0")]
+#[thruput_sdk::contract(version = "1.0.0")]
 pub trait Effects {
     #[contract(effect = "pure")]
     fn calculate(&self, value: u32) -> u32;

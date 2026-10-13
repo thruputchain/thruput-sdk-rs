@@ -7,7 +7,7 @@ pub use error::*;
 mod events;
 pub use events::*;
 
-use sdk::{BlockHeight, ContractAddress, contract};
+use thruput_sdk::{BlockHeight, ContractAddress, contract};
 
 /// A token amount: a balance, allowance, supply or transfer. Always in
 /// `0..=i128::MAX`, the range of the storage cells that hold it; operations

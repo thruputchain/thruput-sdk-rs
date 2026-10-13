@@ -12,14 +12,14 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-dev = ["sdk/dev", "thruput-access-control-if/dev"]
+dev = ["thruput-sdk/dev", "thruput-access-control-if/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1" }
 thruput-access-control-if = { path = "../../standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.56" }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

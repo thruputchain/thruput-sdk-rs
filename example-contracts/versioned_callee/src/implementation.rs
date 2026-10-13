@@ -1,5 +1,5 @@
 use crate::VersionedCallee;
-use sdk::*;
+use thruput_sdk::*;
 
 pub struct VersionedCalleeContract;
 

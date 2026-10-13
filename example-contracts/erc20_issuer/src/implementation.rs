@@ -1,17 +1,17 @@
 use crate::*;
-use sdk::block::get_block_height;
-use sdk::signer::Signed;
-use sdk::storage::{Balance, Deletable, Map, NNInt, Node, Value};
-use sdk::*;
+use thruput_sdk::block::get_block_height;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::storage::{Balance, Deletable, Map, NNInt, Node, Value};
+use thruput_sdk::*;
 
-#[sdk::storage]
-#[derive(sdk::Deletable)]
+#[thruput_sdk::storage]
+#[derive(thruput_sdk::Deletable)]
 pub(crate) struct Allowance {
     amount: NNInt,
     expiry: Value<BlockHeight>,
 }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct TokenContract {
     settings: Value<Settings>,
     administrator: Value<ContractAddress>,

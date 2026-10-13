@@ -7,7 +7,7 @@
 //! Ethereum's `int256` uses and what any non-Rust SDK would guess.
 //!
 //! `CollectAuthHandles`, `ReceiveAuthHandles` and `MintableType` are owned by
-//! `sdk` and implemented there, for this type.
+//! `thruput-sdk` and implemented there, for this type.
 
 use crate::{I256, U256};
 use thruput_contract_spec as spec;

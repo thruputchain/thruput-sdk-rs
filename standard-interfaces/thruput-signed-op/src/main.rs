@@ -14,4 +14,4 @@
 extern crate thruput_signed_op_if;
 
 // Anchor the SignedOp interface so its candidate spec survives shaking.
-sdk::export_interface_spec!(thruput_signed_op_if::SignedOp);
+thruput_sdk::export_interface_spec!(thruput_signed_op_if::SignedOp);

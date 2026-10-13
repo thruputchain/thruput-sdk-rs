@@ -15,7 +15,7 @@ use crate::xdr::ReadXDR;
     label = "no `RefArg` impl for `{Self}`",
     note = "take the parameter by value; a slice `&[T]` of anything but bytes \
             needs the thruput-sdk `alloc` feature; a type of your own becomes \
-            usable by reference with `#[contract_type]` or an \
+            usable by reference with `#[contract_type]` or a \
             `thruput_sdk::call::OwnedRefArg` impl"
 )]
 pub trait RefArg<'r> {

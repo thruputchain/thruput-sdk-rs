@@ -15,7 +15,7 @@
 #![no_std]
 
 use iface_conflict_if_a::TokenClient;
-use sdk::*;
+use thruput_sdk::*;
 
 pub fn ping_token() {
     let token = ContractAddress::new([0u8; 32]);
@@ -24,11 +24,11 @@ pub fn ping_token() {
 
 #[cfg(target_arch = "riscv32")]
 mod rv32_entries {
-    use sdk::__rv32::Entrypoint;
+    use thruput_sdk::__rv32::Entrypoint;
 
     extern "C" fn ping_token() {
         super::ping_token();
-        sdk::sys::raw_Return(&[], false, &[])
+        thruput_sdk::sys::raw_Return(&[], false, &[])
     }
 
     #[used]

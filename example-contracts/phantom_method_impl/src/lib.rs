@@ -12,10 +12,10 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 use phantom_method_if_b::{LedgerClient as LedgerClientB, LootConfig};
-use sdk::*;
+use thruput_sdk::*;
 
 pub struct PhantomMethodContract;
 
@@ -33,7 +33,7 @@ impl phantom_method_if_a::Ledger for PhantomMethodContract {
 /// therefore the same interface key) as the implemented one.  Nothing
 /// anchors it, so `phantom_local` must likewise stay out of the spec.
 pub mod local_collider {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract]
     pub trait Ledger {

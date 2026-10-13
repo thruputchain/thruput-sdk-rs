@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract]
 pub fn first() -> u32 {

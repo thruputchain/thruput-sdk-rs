@@ -1,5 +1,5 @@
 use invoke_flags_test::*;
-use sdk::*;
+use thruput_sdk::*;
 
 const DEPLOYED_ADDR: ContractAddress = ContractAddress::new([0x42; 32]);
 

@@ -1,9 +1,9 @@
-use sdk::Named;
 use stateless::*;
+use thruput_sdk::Named;
 
 #[test]
 fn test_run() {
-    sdk::client_test(
+    thruput_sdk::client_test(
         |env| stateless::register_mock_contract(env),
         |c: &StatelessClient| {
             c.run();
@@ -16,14 +16,14 @@ use stateless::interface2;
 
 #[test]
 fn test_ifaces() {
-    sdk::client_test(
+    thruput_sdk::client_test(
         |env| stateless::register_mock_contract(env),
         |c: &interface1::Client| {
             assert_eq!(c.perform_task(), 1);
         },
     );
 
-    sdk::client_test(
+    thruput_sdk::client_test(
         |env| stateless::register_mock_contract(env),
         |c: &interface2::Client| {
             assert_eq!(c.perform_task(), 2);
@@ -33,59 +33,62 @@ fn test_ifaces() {
 
 #[test]
 fn test_register_mock_contract_supports_direct_contract_client() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = stateless::register_mock_contract(&env);
-    let addr: sdk::ContractAddress = [0x11; 32].into();
+    let addr: thruput_sdk::ContractAddress = [0x11; 32].into();
 
     contract.deploy_contract_to(&addr);
 
     env.transact(|tx| {
-        tx.call(&sdk::ContractAddress::named("test")).run(move || {
-            let client = StatelessClient::new(&addr);
-            client.run();
-        })
+        tx.call(&thruput_sdk::ContractAddress::named("test"))
+            .run(move || {
+                let client = StatelessClient::new(&addr);
+                client.run();
+            })
     })
     .assert_success();
 }
 
 #[test]
 fn test_register_mock_contract_supports_all_exported_interfaces() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = stateless::register_mock_contract(&env);
-    let addr: sdk::ContractAddress = [0x22; 32].into();
+    let addr: thruput_sdk::ContractAddress = [0x22; 32].into();
 
     contract.deploy_contract_to(&addr);
 
     env.transact(|tx| {
-        tx.call(&sdk::ContractAddress::named("test")).run(move || {
-            let client1 = interface1::Client::new(&addr);
-            let client2 = interface2::Client::new(&addr);
+        tx.call(&thruput_sdk::ContractAddress::named("test"))
+            .run(move || {
+                let client1 = interface1::Client::new(&addr);
+                let client2 = interface2::Client::new(&addr);
 
-            assert_eq!(client1.perform_task(), 1);
-            assert_eq!(client2.perform_task(), 2);
-        })
+                assert_eq!(client1.perform_task(), 1);
+                assert_eq!(client2.perform_task(), 2);
+            })
     })
     .assert_success();
 }
 
 #[test]
 fn test_register_mock_contract_all_exports() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = stateless::register_mock_contract(&env);
-    let addr: sdk::ContractAddress = [0x33; 32].into();
+    let addr: thruput_sdk::ContractAddress = [0x33; 32].into();
 
     contract.deploy_contract_to(&addr);
 
     env.transact(|tx| {
-        tx.call(&sdk::ContractAddress::named("test")).run(move || {
-            let stateless = StatelessClient::new(&addr);
-            let client1 = interface1::Client::new(&addr);
-            let client2 = interface2::Client::new(&addr);
+        tx.call(&thruput_sdk::ContractAddress::named("test"))
+            .run(move || {
+                let stateless = StatelessClient::new(&addr);
+                let client1 = interface1::Client::new(&addr);
+                let client2 = interface2::Client::new(&addr);
 
-            stateless.run();
-            assert_eq!(client1.perform_task(), 1);
-            assert_eq!(client2.perform_task(), 2);
-        })
+                stateless.run();
+                assert_eq!(client1.perform_task(), 1);
+                assert_eq!(client2.perform_task(), 2);
+            })
     })
     .assert_success();
 }

@@ -24,7 +24,7 @@ pub struct MockContractInner {
     >,
     /// Run instead of a deterministic failure when an invoked method id
     /// matches no entry in `funcs`. `None` (the default) keeps the
-    /// historical behavior; `sdk::register_mock_package` installs a
+    /// historical behavior; `thruput_sdk::register_mock_package` installs a
     /// `LibraryExn::UnknownMethod` throw, so a mock standing in for a real
     /// contract agrees with the rv32 guest dispatcher.
     unknown: Option<
@@ -118,7 +118,7 @@ impl MockContract {
     ///
     /// The registered closure runs inside the same `invoke_wrapper` catch
     /// site as a real method, so aborting out of it (e.g. via
-    /// `sdk::exn::library_throw`) reaches the caller as an ordinary
+    /// `thruput_sdk::exn::library_throw`) reaches the caller as an ordinary
     /// exception rather than escaping the frame.
     pub fn register_unknown_method<F>(&mut self, func: F)
     where

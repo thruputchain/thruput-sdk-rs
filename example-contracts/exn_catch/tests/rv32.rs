@@ -6,12 +6,12 @@ const RV32_PATH: &str = "../../target/thruput/exn_catch.rv32a";
 
 mod common;
 use common::*;
-use sdk::*;
+use thruput_sdk::*;
 
 #[test]
 fn rv32_exn_catch() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
-    let env = sdk::TestEnvironment::no_cost();
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
     env.transact(|tx| {

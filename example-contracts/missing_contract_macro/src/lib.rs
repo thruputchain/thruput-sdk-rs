@@ -15,7 +15,7 @@
 #![no_std]
 
 use iface_conflict_if_a::TokenClient;
-use sdk::*;
+use thruput_sdk::*;
 
 pub struct ForgotTheMacro;
 

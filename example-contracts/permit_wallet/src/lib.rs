@@ -15,18 +15,18 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 use thruput_erc20_permit_if::{
     DeleteAllowanceGrant, DeleteAllowanceRequest, PermitGrant, PermitRequest,
 };
 use thruput_signed_op::{Operation, SignedOp, SignedOpReplayCache};
-use sdk::mintable::{AuthTokenPreimage, MintableType};
-use sdk::signer::{Opaque, Signed};
-use sdk::storage::Value;
-use sdk::types::transaction::Uniquifier;
-use sdk::types::{Ed25519PublicKey, Ed25519Signature};
-use sdk::*;
+use thruput_sdk::mintable::{AuthTokenPreimage, MintableType};
+use thruput_sdk::signer::{Opaque, Signed};
+use thruput_sdk::storage::Value;
+use thruput_sdk::types::transaction::Uniquifier;
+use thruput_sdk::types::{Ed25519PublicKey, Ed25519Signature};
+use thruput_sdk::*;
 
 /// What goes into a grant mint: `#[contract_type]` generates a preimage mirror
 /// of every mintable type, and these name them.
@@ -60,7 +60,7 @@ pub enum WalletError {
     NotAdministrator = 2,
 }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct PermitWallet {
     /// Who may rotate the owner key. A wallet with richer governance would put
     /// a multisig or a timelock here; the point is only that rotation is not
@@ -139,7 +139,7 @@ impl SignedOp for PermitWallet {
         // ERC20 the owner also holds.
         let node = match request {
             WalletRequest::Permit(request) => {
-                sdk::mintable::build_auth_token_node::<PermitGrant>(
+                thruput_sdk::mintable::build_auth_token_node::<PermitGrant>(
                     AuthTokenPreimage {
                         consumer: request.token,
                         data: PermitGrantPreimage {
@@ -150,7 +150,7 @@ impl SignedOp for PermitWallet {
                 )
             }
             WalletRequest::DeleteAllowance(request) => {
-                sdk::mintable::build_auth_token_node::<DeleteAllowanceGrant>(
+                thruput_sdk::mintable::build_auth_token_node::<DeleteAllowanceGrant>(
                     AuthTokenPreimage {
                         consumer: request.token,
                         data: DeleteAllowanceGrantPreimage {
@@ -163,9 +163,9 @@ impl SignedOp for PermitWallet {
 
         // The submitter carries the token to the ERC20 in this same frame, so
         // it need not outlive the current block.
-        sdk::signer::mint_opaque_auth_token(
-            sdk::block::get_block_height(),
-            &sdk::mintable::encode_auth_token_node(&node),
+        thruput_sdk::signer::mint_opaque_auth_token(
+            thruput_sdk::block::get_block_height(),
+            &thruput_sdk::mintable::encode_auth_token_node(&node),
         )
     }
 }

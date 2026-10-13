@@ -7,7 +7,7 @@ pub use error::*;
 mod events;
 pub use events::*;
 
-use sdk::contract;
+use thruput_sdk::contract;
 
 /// The pausable extension to the standard ERC20 interface.
 ///

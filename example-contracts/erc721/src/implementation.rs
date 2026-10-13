@@ -23,11 +23,11 @@
 //! authorized, as in OpenZeppelin's `ERC721Burnable`.
 
 use crate::interface::*;
-use sdk::call::CallError;
-use sdk::storage::{Deletable, Map, NNInt, Value};
-use sdk::*;
+use thruput_sdk::call::CallError;
+use thruput_sdk::storage::{Deletable, Map, NNInt, Value};
+use thruput_sdk::*;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct NftContract {
     config: Value<Config>,

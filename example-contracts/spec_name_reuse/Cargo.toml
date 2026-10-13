@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "dup_name_if_a/dev", "dup_name_if_b/dev"]
+dev = ["thruput-sdk/dev", "dup_name_if_a/dev", "dup_name_if_b/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -26,7 +26,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 dup_name_if_a = { path = "../dup_name_if_a" }
 dup_name_if_b = { path = "../dup_name_if_b" }
 

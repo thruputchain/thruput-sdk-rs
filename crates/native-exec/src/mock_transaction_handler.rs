@@ -161,7 +161,7 @@ fn frame_refusal_message(code: SyscallErrorCode) -> String {
     };
     format!(
         "mock invocation frame refused: {rule} ({code}); a contract handles \
-         this through Invoke (sdk::call::try_call_raw_with)"
+         this through Invoke (thruput_sdk::call::try_call_raw_with)"
     )
 }
 

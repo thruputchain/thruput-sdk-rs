@@ -51,16 +51,17 @@ fn entrypoints() -> &'static [Entrypoint] {
     }
 }
 
-// The dispatcher's terminal arm, defined by `sdk` (see `sdk::__rv32`): abort
-// the frame with the typed `LibraryExn::UnknownMethod`, which the caller can
-// decode by selector. It replaced an `ebreak` here — a `Trap::kBreakpoint` the
-// caller could not tell apart from an OOB access or a bad instruction — for 20
-// bytes of .text, since `library_abort` is already linked into every contract.
+// The dispatcher's terminal arm, defined by `thruput-sdk` (see
+// `thruput_sdk::__rv32`): abort the frame with the typed
+// `LibraryExn::UnknownMethod`, which the caller can decode by selector. It
+// replaced an `ebreak` here — a `Trap::kBreakpoint` the caller could not tell
+// apart from an OOB access or a bad instruction — for 20 bytes of .text, since
+// `library_abort` is already linked into every contract.
 //
 // This crate cannot build the exception itself: it is dependency-free by
-// design and `sdk` depends on *it*, so the two meet at this symbol. Nothing
-// links this crate without `sdk` (`sdk` force-links it on rv32), so the
-// definition is always there.
+// design and `thruput-sdk` depends on *it*, so the two meet at this symbol.
+// Nothing links this crate without `thruput-sdk` (`thruput-sdk` force-links it
+// on rv32), so the definition is always there.
 unsafe extern "C" {
     #[link_name = "__groundhog_unknown_method"]
     safe fn unknown_method_exn() -> !;

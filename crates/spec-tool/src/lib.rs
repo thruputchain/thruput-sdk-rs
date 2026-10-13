@@ -1023,7 +1023,7 @@ fn validate_event(event: &ContractEventDef) -> Result<(), SpecToolError> {
     }
     spec_id_str(&event.name)?;
     // Topic 0 is reserved for the event signature.
-    let max_user_topics = (sdk::EVENT_MAX_TOPICS - 1) as usize;
+    let max_user_topics = (thruput_sdk::EVENT_MAX_TOPICS - 1) as usize;
     if event.topics.len() > max_user_topics {
         return Err(SpecToolError::InvalidRawFragment(format!(
             "event {} declares {} topics, but at most {max_user_topics} are allowed",

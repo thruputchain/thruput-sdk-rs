@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(version = "1.2.3")]
 pub trait VersionedCallee {

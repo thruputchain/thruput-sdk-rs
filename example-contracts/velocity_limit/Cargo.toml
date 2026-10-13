@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 thruput-erc20-if = { workspace = true }
 
 [dev-dependencies]

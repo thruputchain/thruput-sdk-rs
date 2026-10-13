@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "event_shaking_if/dev"]
+dev = ["thruput-sdk/dev", "event_shaking_if/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -29,7 +29,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 event_shaking_if = { path = "../event_shaking_if" }
 
 [dev-dependencies]

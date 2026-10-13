@@ -1,13 +1,13 @@
 #![allow(unused)]
 
 use exn_catch::*;
-use sdk::*;
+use thruput_sdk::*;
 
-pub static TEST_NONCE: sdk::SHA256Hash =
-    sdk::sha256_static!("EXN_CATCH_TEST_NONCE");
+pub static TEST_NONCE: thruput_sdk::SHA256Hash =
+    thruput_sdk::sha256_static!("EXN_CATCH_TEST_NONCE");
 
-pub static TEST_NONCE_2: sdk::SHA256Hash =
-    sdk::sha256_static!("EXN_CATCH_TEST_NONCE_2");
+pub static TEST_NONCE_2: thruput_sdk::SHA256Hash =
+    thruput_sdk::sha256_static!("EXN_CATCH_TEST_NONCE_2");
 
 /// Drive `classify` across every outcome, so the guest-side dispatch is
 /// actually exercised rather than merely compiled.

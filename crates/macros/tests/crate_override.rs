@@ -1,10 +1,11 @@
-//! `#[contract_type_spec(crate = "...")]` from a crate below `sdk`.
+//! `#[contract_type_spec(crate = "...")]` from a crate below `thruput-sdk`.
 //!
-//! This test crate deliberately has no `sdk` dependency — only
-//! `thruput-contract-spec` and `xdrs`, both of which `sdk` merely re-exports
-//! as `__contract_spec` and `__xdrs`. That it compiles at all is the proof: a
-//! crate that `sdk` depends on can derive its contract-spec impls instead of
-//! hand-writing them, without forming a dependency cycle.
+//! This test crate deliberately has no `thruput-sdk` dependency — only
+//! `thruput-contract-spec` and `xdrs`, both of which `thruput-sdk` merely
+//! re-exports as `__contract_spec` and `__xdrs`. That it compiles at all is
+//! the proof: a crate that `thruput-sdk` depends on can derive its
+//! contract-spec impls instead of hand-writing them, without forming a
+//! dependency cycle.
 //!
 //! The type mirrors `crates/u256`'s `U256`, the motivating consumer.
 
@@ -78,7 +79,7 @@ fn derived_fragment_matches_hand_written_reference() {
 #[test]
 fn derived_type_def_round_trips_through_the_shim_paths() {
     // Exercises the `ContractTypeSpec` / `ContractTypeRefSpec` impls the derive
-    // emitted through `crate::sdk_paths`, not through `::sdk`.
+    // emitted through `crate::sdk_paths`, not through `::thruput_sdk`.
     use spec::{ContractTypeRefSpec, ContractTypeSpec};
 
     assert_eq!(

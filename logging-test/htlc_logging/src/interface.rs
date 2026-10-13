@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 /// Minimal HTLC-like interface whose `create_htlc` method takes a non-Copy
 /// `BlockHeight` by value.  When compiled with the `logging` feature active

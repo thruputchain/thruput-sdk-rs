@@ -2,8 +2,8 @@
 #
 # Publishing runs in dependency order:
 #
-#   1. the workspace-versioned crates up through `sdk`
-#   2. the standard-interface crates, which caret-depend on `sdk`
+#   1. the workspace-versioned crates up through `thruput-sdk`
+#   2. the standard-interface crates, which caret-depend on `thruput-sdk`
 #   3. the crates downstream of the standard interfaces: `thruput-spec-tool`
 #      and the `erc20-*-test` crates
 #
@@ -63,7 +63,7 @@ env:
     thruput-u256
     thruput-test-vectors
     thruput-rv32-runtime
-    sdk
+    thruput-sdk
     bottle-test-if
   # Standard-interface crates and their implementation components: versioned
   # independently of the workspace, each published under its own
@@ -182,7 +182,7 @@ jobs:
             thruput-native-exec
             thruput-u256
             thruput-rv32-runtime
-            sdk
+            thruput-sdk
             bottle-test-if
             thruput-erc20-if
             thruput-erc20-metadata-if
@@ -200,10 +200,10 @@ jobs:
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features --skip syscall
           # On guests, reaching thruput-domain-separator's `sha2` backend is a hard
           # error, so skip it and `default` (which pulls it in via `std`). Its
-          # `syscall-mock` is host-only, like sdk's `mock`. `-F syscall` keeps the
+          # `syscall-mock` is host-only, like thruput-sdk's `mock`. `-F syscall` keeps the
           # guest backend compiled somewhere. All no-ops for the other packages here.
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
-          cargo-hack-rv32-packages: thruput-rv32-runtime sdk thruput-domain-separator
+          cargo-hack-rv32-packages: thruput-rv32-runtime thruput-sdk thruput-domain-separator
           arch-only-packages: thruput-rv32-runtime
 
       # The dry-run action leaves its vendor/ dir behind; clear it so the
@@ -253,7 +253,7 @@ jobs:
             thruput-native-exec
             thruput-u256
             thruput-rv32-runtime
-            sdk
+            thruput-sdk
             thruput-erc20-if
             thruput-erc20-metadata-if
             thruput-erc20-controls-if
@@ -431,7 +431,7 @@ jobs:
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       # Unlike the dry runs, the publish steps resolve deps against the live
-      # registry — hence the dependency order: sdk (here) before the standard
+      # registry — hence the dependency order: thruput-sdk (here) before the standard
       # interfaces, and those before thruput-spec-tool, whose exact-pinned
       # interface versions must already be published.
       - name: Publish

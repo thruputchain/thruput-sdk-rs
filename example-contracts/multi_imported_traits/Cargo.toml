@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "named_interface_callee/dev", "versioned_callee/dev"]
+dev = ["thruput-sdk/dev", "named_interface_callee/dev", "versioned_callee/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -29,7 +29,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 named_interface_callee = { path = "../named_interface_callee" }
 versioned_callee = { path = "../versioned_callee" }
 

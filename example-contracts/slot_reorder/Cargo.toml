@@ -13,14 +13,14 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [dev-dependencies]
 slot_reorder = { path = ".", features = ["dev"] }

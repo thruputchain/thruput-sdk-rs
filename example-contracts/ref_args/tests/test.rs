@@ -1,8 +1,8 @@
 extern crate alloc;
 
 use ref_args::{Bytes, Label, Point, RefArgsClient, Words, expected};
-use sdk::xdr::{BytesM, VecM};
-use sdk::*;
+use thruput_sdk::xdr::{BytesM, VecM};
+use thruput_sdk::*;
 
 hash_ident! { static NONCE: SHA256Hash; }
 hash_ident! { static CALLER: ContractAddress; }
@@ -141,7 +141,7 @@ fn vectors_of_borrowed_byte_strings() {
         let (total, gap) = client.byte_string_lists(strings.clone(), &more);
         assert_eq!(total, 11);
 
-        let encoded = sdk::encode_xdr(&strings).unwrap();
+        let encoded = thruput_sdk::encode_xdr(&strings).unwrap();
         let first_at = encoded.windows(5).position(|w| w == first).unwrap();
         let second_at = encoded.windows(3).position(|w| w == second).unwrap();
         assert_eq!(gap as usize, second_at - first_at);

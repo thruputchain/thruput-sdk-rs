@@ -1,10 +1,10 @@
 use recursive_type::*;
-use sdk::*;
+use thruput_sdk::*;
 
-static NONCE: SHA256Hash = sdk::sha256_static!("RECURSIVE_TYPE_TEST");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("RECURSIVE_TYPE_TEST");
 
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let test_contract = recursive_type::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
     (env, contract_hash)

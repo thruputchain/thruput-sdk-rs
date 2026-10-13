@@ -16,7 +16,9 @@
 
 use crate::TokenId;
 use core::fmt;
-use sdk::{ContractAddress, EmittedEvent, Event, hex_encode, log_event};
+use thruput_sdk::{
+    ContractAddress, EmittedEvent, Event, hex_encode, log_event,
+};
 
 fn token_id_payload(
     event: &EmittedEvent<'_>,
@@ -24,7 +26,7 @@ fn token_id_payload(
     let payload = event
         .payload()
         .ok_or("Malformed event: topics overrun body")?;
-    sdk::internal::decode_xdr(payload)
+    thruput_sdk::internal::decode_xdr(payload)
         .map_err(|_| "Couldn't parse event payload")
 }
 
@@ -313,7 +315,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for ApprovalForAllEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let approved: bool = sdk::internal::decode_xdr(payload)
+        let approved: bool = thruput_sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(ApprovalForAllEvent::new(

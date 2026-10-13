@@ -11,9 +11,9 @@ members = [
 ]
 # The guest runtime crate (crates/rv32-runtime) only compiles for its target —
 # a top-level compile_error! rejects every other target. It stays a workspace
-# member (for field inheritance, `-p` builds, and publishing via sdk), but is
-# excluded from default-members so host-wide `cargo build/test/doc` (which
-# build all default members) skip it. Add new crates/* packages here too
+# member (for field inheritance, `-p` builds, and publishing via thruput-sdk),
+# but is excluded from default-members so host-wide `cargo build/test/doc`
+# (which build all default members) skip it. Add new crates/* packages here too
 # unless they are target-only runtimes.
 default-members = [
     "crates/bigint-bench",

@@ -1,5 +1,5 @@
 use super::{BigExn, Interface, MyExn};
-use sdk::*;
+use thruput_sdk::*;
 
 #[derive(Default)]
 pub struct Contract;

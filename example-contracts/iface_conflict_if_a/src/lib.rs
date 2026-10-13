@@ -11,7 +11,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 /// Declared by A's `Token` via `emits(...)`; absent from B's `Token`.
 #[derive(Event)]

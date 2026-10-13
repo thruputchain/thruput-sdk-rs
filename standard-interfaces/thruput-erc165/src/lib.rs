@@ -3,12 +3,12 @@
 //!
 //! On Ethereum an interface id is the XOR of the interface's function
 //! selectors and `supportsInterface` is a hand-maintained claim. Here every
-//! `#[contract]` trait already carries an `INTERFACE_ID` derived from its
-//! name and major version — the pair that namespaces its entrypoint IDs —
-//! and every `#[contract]` impl block leaves a record of that id in the
-//! contract's interface table (see `sdk::interface_table`). So the claim
-//! is not written at all: [`implements!`] reads it off the impls that
-//! actually linked.
+//! `#[contract]` trait already carries an `INTERFACE_ID` derived from its name
+//! and major version — the pair that namespaces its entrypoint IDs — and every
+//! `#[contract]` impl block leaves a record of that id in the contract's
+//! interface table (see `thruput_sdk::interface_table`). So the claim is not
+//! written at all: [`implements!`] reads it off the impls that actually
+//! linked.
 //!
 //! ```ignore
 //! thruput_erc165_if::impl_erc165!();
@@ -37,10 +37,10 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 
-use sdk::contract;
+use thruput_sdk::contract;
 
-pub use sdk::InterfaceId;
-pub use sdk::implements;
+pub use thruput_sdk::InterfaceId;
+pub use thruput_sdk::implements;
 
 /// Upper bound on the number of interface ids one [`ERC165::supports_interfaces`]
 /// query carries.
@@ -99,7 +99,7 @@ macro_rules! impl_erc165 {
         #[doc(hidden)]
         pub struct __ThruputErc165;
 
-        #[::sdk::contract]
+        #[::thruput_sdk::contract]
         impl $crate::ERC165 for __ThruputErc165 {
             fn supports_interface(interface_id: $crate::InterfaceId) -> bool {
                 $crate::implements!(interface_id)
@@ -139,12 +139,12 @@ mod sealed {
 
 macro_rules! interface_query {
     ($n:literal: $($client:ident),+) => {
-        impl<$($client: sdk::ContractClient),+> sealed::Sealed
+        impl<$($client: thruput_sdk::ContractClient),+> sealed::Sealed
             for ($($client,)+)
         {
         }
 
-        impl<$($client: sdk::ContractClient),+> InterfaceQuery
+        impl<$($client: thruput_sdk::ContractClient),+> InterfaceQuery
             for ($($client,)+)
         {
             type Answer = [bool; $n];

@@ -1,14 +1,14 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-pub use sdk::storage::*;
-pub use sdk::*;
+pub use thruput_sdk::storage::*;
+pub use thruput_sdk::*;
 
-#[sdk::storage(domain = "Shared")]
+#[thruput_sdk::storage(domain = "Shared")]
 pub struct Alpha { v: Value<u64> }
 
-#[sdk::storage(domain = "Shared")]   // deliberate collision
+#[thruput_sdk::storage(domain = "Shared")]   // deliberate collision
 pub struct Beta { v: Value<u64> }
 
 #[contract]

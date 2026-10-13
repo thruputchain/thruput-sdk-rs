@@ -5,6 +5,6 @@
 
 #[test]
 fn run_test() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     erc20_native_test::test_native_token_precompile(env);
 }

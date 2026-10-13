@@ -16,10 +16,10 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 use iface_conflict_if_b::TokenClient as TokenClientB;
-use sdk::*;
+use thruput_sdk::*;
 
 pub struct ConflictImpl;
 

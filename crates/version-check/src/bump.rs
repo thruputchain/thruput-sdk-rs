@@ -4,12 +4,12 @@
 //!
 //! 1. **Patch-bump the SDK**. The workspace version and every `=` pin on a
 //!    workspace-versioned crate move. The standard interfaces are left alone:
-//!    their `sdk` pin is a caret, so `^0.17.4` still contains `0.17.5` and
-//!    nothing needs to change.
+//!    their `thruput-sdk` pin is a caret, so `^0.17.4` still contains
+//!    `0.17.5` and nothing needs to change.
 //! 2. **A breaking change** — to the SDK itself, or to protocol-rs Everything
 //!    in (1), plus a patch bump of the standard interfaces, plus refreshing
-//!    their caret `sdk` pins to the workspace version, which absorbs however
-//!    much drift accumulated since the last breaking release.
+//!    their caret `thruput-sdk` pins to the workspace version, which absorbs
+//!    however much drift accumulated since the last breaking release.
 //!
 //! There is no hardcoded file list here. The two crate families are told apart
 //! by how they declare their own version — [`VersionSpec::Inherited`] for the
@@ -240,7 +240,8 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
         ..Plan::default()
     };
 
-    // The version every standard-interface `sdk` pin should end up naming.
+    // The version every standard-interface `thruput-sdk` pin should end up
+    // naming.
     let ws_final = ws_new.clone().unwrap_or_else(|| ws_old.clone());
     let interface_names: Vec<&str> =
         interface_pkgs.iter().map(|(n, _, _)| *n).collect();
@@ -286,11 +287,11 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
 
         // A sync rewrites exactly the requirements `in-repo-req` would reject:
         // those no longer satisfied by the version their package declares. A
-        // requirement that still matches is left alone, which is what keeps the
-        // deliberately-caret `sdk` pins under standard-interfaces/ intact --
-        // they name the start of a compatible series, not the current version.
-        // An unparseable or multi-part requirement is left for a human, and the
-        // closing verify still reports it.
+        // requirement that still matches is left alone, which is what keeps
+        // the deliberately-caret `thruput-sdk` pins under standard-interfaces/
+        // intact -- they name the start of a compatible series, not the
+        // current version. An unparseable or multi-part requirement is left
+        // for a human, and the closing verify still reports it.
         if req.sync {
             let Some(local) = repo.local_for_edge(edge) else {
                 continue;
@@ -333,8 +334,9 @@ pub fn plan(repo: &Repo, req: &Request) -> Result<Plan, Error> {
                     None => continue,
                 }
             } else if family == Some(VersionSpec::Inherited) {
-                // A workspace-family crate. Inside standard-interfaces/ this is the
-                // caret `sdk` pin, which only moves on a breaking release.
+                // A workspace-family crate. Inside standard-interfaces/ this
+                // is the caret `thruput-sdk` pin, which only moves on a
+                // breaking release.
                 if in_interfaces {
                     if if_new.is_none() {
                         continue;
@@ -595,8 +597,8 @@ pub fn require_clean_worktree(state: &Worktree) -> Result<(), Error> {
 ///
 /// Tolerating untracked files rests on `git checkout` being able to undo the
 /// bump. That is not true of a manifest git has never seen — a brand-new
-/// `standard-interfaces/` crate, say, whose version and `sdk` pin the bump would
-/// happily rewrite with no way back.
+/// `standard-interfaces/` crate, say, whose version and `thruput-sdk` pin the
+/// bump would happily rewrite with no way back.
 pub fn require_targets_tracked(
     state: &Worktree,
     plan: &Plan,

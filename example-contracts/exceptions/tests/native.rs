@@ -1,10 +1,10 @@
 mod common;
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[test]
 fn native_exceptions() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
     let test_contract = exceptions::register_mock_contract(&env);
@@ -19,7 +19,7 @@ fn native_exceptions() {
 
 #[test]
 fn native_panic() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
 
     // Register the contract with the test environment
     let test_contract = exceptions::register_mock_contract(&env);

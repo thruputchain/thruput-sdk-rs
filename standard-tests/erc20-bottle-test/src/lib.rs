@@ -2,8 +2,8 @@
 
 pub use bottle_test_if::*;
 use erc20_test::*;
-use sdk::storage::Value;
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 #[derive(Debug)]
 #[storage]

@@ -17,14 +17,14 @@
 
 use crate::interface::*;
 use thruput_access_control::AccessControlState;
-use sdk::storage::{Balance, Deletable, Map, Value};
-use sdk::*;
+use thruput_sdk::storage::{Balance, Deletable, Map, Value};
+use thruput_sdk::*;
 
-type Allowance = sdk::storage::NNInt;
+type Allowance = thruput_sdk::storage::NNInt;
 
 hash_ident! { pub static PAUSER_ROLE: SHA256Hash; }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct PausableTokenContract {
     config: Value<Config>,

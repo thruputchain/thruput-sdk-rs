@@ -132,8 +132,8 @@ impl NetworkConfigBuilder {
         self
     }
 
-    /// Concurrently open incremental SHA-256 buffers permitted per
-    /// invocation frame (the cap `sdk::hasher::Hasher` allocates against).
+    /// Concurrently open incremental SHA-256 buffers permitted per invocation
+    /// frame (the cap `thruput_sdk::hasher::Hasher` allocates against).
     pub fn with_max_sha256_buffers(self, max_sha256_buffers: u32) -> Self {
         self.with_config_param(ConfigParam::kConfigParamMaxSHA256Buffers {
             max_sha256_buffers,
@@ -142,11 +142,11 @@ impl NetworkConfigBuilder {
 
     /// Invocation frames one transaction may have open at once.
     ///
-    /// The harness opens its frames directly, so one the executor refuses
-    /// is an unrecoverable panic rather than the error a contract would
-    /// observe. To assert on the cap, have the frame call through the
-    /// Invoke syscall (`sdk::call::try_call_raw_with`), which reports it
-    /// as `RawCallError::DepthExceeded`.
+    /// The harness opens its frames directly, so one the executor refuses is
+    /// an unrecoverable panic rather than the error a contract would observe.
+    /// To assert on the cap, have the frame call through the Invoke syscall
+    /// (`thruput_sdk::call::try_call_raw_with`), which reports it as
+    /// `RawCallError::DepthExceeded`.
     pub fn with_max_cross_invoke_depth(
         self,
         max_cross_invoke_depth: u32,
