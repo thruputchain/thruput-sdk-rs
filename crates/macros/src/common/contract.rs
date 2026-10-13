@@ -420,8 +420,8 @@ pub fn throws_spec_tokens(
             let ty: syn::Type = syn::parse_quote! { #path };
             let type_view = contract_type_view_tokens(&ty)?;
             Ok(quote! {
-                ::sdk::__contract_spec::ContractExceptionTypeView {
-                    selector: <#ty as ::sdk::exn::Exn>::SELECTOR,
+                ::thruput_sdk::__contract_spec::ContractExceptionTypeView {
+                    selector: <#ty as ::thruput_sdk::exn::Exn>::SELECTOR,
                     ty: #type_view,
                 }
             })
@@ -503,7 +503,7 @@ pub fn method_arg_spec_tokens(
             };
             let ty = contract_type_view_tokens(pat_type.ty.as_ref())?;
             Ok(quote! {
-                ::sdk::__contract_spec::ContractFieldView {
+                ::thruput_sdk::__contract_spec::ContractFieldView {
                     name: #name,
                     ty: #ty,
                 }
@@ -516,9 +516,9 @@ pub fn method_return_spec_token(
     method: &impl Method,
 ) -> Result<proc_macro2::TokenStream> {
     match &method.sig().output {
-        syn::ReturnType::Default => {
-            Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Void })
-        }
+        syn::ReturnType::Default => Ok(
+            quote! { ::thruput_sdk::__contract_spec::ContractTypeView::Void },
+        ),
         syn::ReturnType::Type(_, ty) => contract_type_view_tokens(ty),
     }
 }
@@ -538,7 +538,7 @@ pub fn method_spec_view_tokens(
     let return_type = method_return_spec_token(method)?;
     let effect = method_effect_tokens(method)?;
     Ok(quote! {
-        ::sdk::__contract_spec::ContractSpecMethodView {
+        ::thruput_sdk::__contract_spec::ContractSpecMethodView {
             name: #name,
             args: &[#(#args),*],
             return_type: #return_type,
@@ -575,7 +575,7 @@ pub fn method_effect_tokens(method: &impl Method) -> Result<TokenStream> {
     }
     Ok(match effect {
         Some(effect) => {
-            quote! { ::core::option::Option::Some(::sdk::__contract_spec::ContractMethodEffectView::#effect) }
+            quote! { ::core::option::Option::Some(::thruput_sdk::__contract_spec::ContractMethodEffectView::#effect) }
         }
         None => quote! { ::core::option::Option::None },
     })
@@ -597,7 +597,7 @@ pub fn method_anchor_tokens(
 
     match &method.sig().output {
         syn::ReturnType::Default => tokens.push(quote! {
-            <() as ::sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            <() as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
         }),
         syn::ReturnType::Type(_, ty) => {
             tokens.push(contract_type_anchor_token(ty)?);
@@ -609,12 +609,12 @@ pub fn method_anchor_tokens(
 
 /// The crate path spec-emitting macros use unless told otherwise.
 ///
-/// Everything reached through it (`__contract_spec`, `__xdrs`) is an `sdk`
-/// re-export of a crate *below* `sdk`, so a crate that `sdk` depends on can
-/// name those targets directly and pass its own shim path instead. See
-/// `#[contract_type_spec(crate = "...")]`.
+/// Everything reached through it (`__contract_spec`, `__xdrs`) is a
+/// `thruput-sdk` re-export of a crate *below* `thruput-sdk`, so a crate that
+/// `thruput-sdk` depends on can name those targets directly and pass its own
+/// shim path instead. See `#[contract_type_spec(crate = "...")]`.
 pub fn sdk_crate_path() -> syn::Path {
-    syn::parse_quote!(::sdk)
+    syn::parse_quote!(::thruput_sdk)
 }
 
 fn lower_via_type_ref_trait(krate: &syn::Path, ty: &syn::Type) -> TokenStream {
@@ -633,7 +633,7 @@ pub fn contract_type_anchor_token(ty: &syn::Type) -> Result<TokenStream> {
         | syn::Type::Slice(_)
         | syn::Type::Array(_)
         | syn::Type::Tuple(_) => Ok(quote! {
-            <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            <#ty as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
         }),
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)
@@ -654,7 +654,7 @@ pub fn contract_type_view_tokens(ty: &syn::Type) -> Result<TokenStream> {
 }
 
 /// As [`contract_type_view_tokens`], but resolving the spec traits through
-/// `krate` rather than `::sdk`.
+/// `krate` rather than `::thruput_sdk`.
 pub fn contract_type_view_tokens_in(
     krate: &syn::Path,
     ty: &syn::Type,
@@ -779,9 +779,9 @@ mod tests {
     #[test]
     fn builtin_byte_blob_types_lower_to_bytes() {
         for ty in [
-            syn::parse_quote!(sdk::Ed25519Signature),
-            syn::parse_quote!(sdk::Ed25519PublicKey),
-            syn::parse_quote!(sdk::ContractEntrypointID),
+            syn::parse_quote!(thruput_sdk::Ed25519Signature),
+            syn::parse_quote!(thruput_sdk::Ed25519PublicKey),
+            syn::parse_quote!(thruput_sdk::ContractEntrypointID),
         ] {
             let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
@@ -792,7 +792,7 @@ mod tests {
 
     #[test]
     fn block_height_lowers_to_i64() {
-        let ty: syn::Type = syn::parse_quote!(sdk::BlockHeight);
+        let ty: syn::Type = syn::parse_quote!(thruput_sdk::BlockHeight);
 
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
@@ -802,7 +802,7 @@ mod tests {
 
     #[test]
     fn contract_address_lowers_via_trait_resolution() {
-        let ty: syn::Type = syn::parse_quote!(sdk::ContractAddress);
+        let ty: syn::Type = syn::parse_quote!(thruput_sdk::ContractAddress);
 
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 

@@ -25,11 +25,11 @@ check options:
 
 bump <spec>:
   patch                Patch-bump the SDK. Leaves the standard interfaces
-                       alone: their caret `sdk` pin still contains the new
+                       alone: their caret `thruput-sdk` pin still contains the new
                        version.
   breaking             Semver-incompatible SDK bump (minor while the major is
                        0). Also patch-bumps the standard interfaces and
-                       refreshes their `sdk` pins.
+                       refreshes their `thruput-sdk` pins.
   X.Y.Z                Bump the SDK to exactly this version.
 
 sync:

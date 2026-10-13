@@ -1,10 +1,10 @@
 use std::cell::Cell;
 use std::panic::AssertUnwindSafe;
 
-use sdk::*;
+use thruput_sdk::*;
 use vector_tests::*;
 
-static NONCE: SHA256Hash = sdk::sha256_static!("VECTOR_TEST_NONCE");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("VECTOR_TEST_NONCE");
 
 /// Helper: set up the fibonacci contract in a test environment.
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
@@ -22,7 +22,7 @@ fn test_vector_basic_usage() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -83,7 +83,7 @@ fn test_vector_pop() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -117,7 +117,7 @@ fn test_iter_sum() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -147,7 +147,7 @@ fn test_iter_mut_inc_all() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -186,7 +186,7 @@ fn test_concurrent_shared_delete() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -257,7 +257,7 @@ fn test_element_delete_is_a_durable_hole() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -324,7 +324,7 @@ fn test_element_delete_reverts_with_the_transaction() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -381,7 +381,7 @@ fn test_element_deletes_do_not_conflict_on_len() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -442,7 +442,7 @@ fn test_deleted_nnint_element_resurrects_on_inc() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();
@@ -500,7 +500,7 @@ fn test_nested_vector_delete_through_map_entry() {
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy_result.assert_success();

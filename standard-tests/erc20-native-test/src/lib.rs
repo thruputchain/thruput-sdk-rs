@@ -1,7 +1,7 @@
 pub use erc20_test::*;
 
-use sdk::hash_ident;
-use sdk::{
+use thruput_sdk::hash_ident;
+use thruput_sdk::{
     ContractAddress, MatchExn, Named, SHA256Hash, TestEnvironmentHandle,
 };
 
@@ -31,9 +31,9 @@ pub fn test_erc20_contract(
 }
 
 // Print out a transaction's event log
-fn print_events(result: &sdk::TransactResult) {
-    use sdk::EmittedEvent;
+fn print_events(result: &thruput_sdk::TransactResult) {
     use thruput_erc20_if::*;
+    use thruput_sdk::EmittedEvent;
 
     for (i, event) in result.events().iter().enumerate() {
         let event: EmittedEvent = event.into();
@@ -70,8 +70,10 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// Those divergences are asserted here too, so a change on either side
 /// shows up as a regression.
 pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
-    use sdk::precompiles::{ADDRESS_GENESIS_ROOT, ADDRESS_NATIVE_TOKEN};
     use thruput_erc20_if::*;
+    use thruput_sdk::precompiles::{
+        ADDRESS_GENESIS_ROOT, ADDRESS_NATIVE_TOKEN,
+    };
 
     let caller = ContractAddress::named("erc20_test");
     let token = &ADDRESS_NATIVE_TOKEN;

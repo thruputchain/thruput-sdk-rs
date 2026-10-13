@@ -1,13 +1,13 @@
-error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::NNInt>`, but its trait bounds were not satisfied
+error[E0599]: the method `set` exists for struct `thruput_sdk::storage::Value<thruput_sdk::storage::NNInt>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_nnint.rs:5:7
   |
 5 |     v.set(&NNInt::from(Keypath::default()));
-  |       ^^^ method cannot be called on `sdk::storage::Value<sdk::storage::NNInt>` due to unsatisfied trait bounds
+  |       ^^^ method cannot be called due to unsatisfied trait bounds
   |
  ::: src/storage/nnint.rs
   |
   | pub struct NNInt {
-  | ---------------- doesn't satisfy `sdk::storage::NNInt: WriteXDR`
+  | ---------------- doesn't satisfy `thruput_sdk::storage::NNInt: WriteXDR`
   |
   = note: the following trait bounds were not satisfied:
-          `sdk::storage::NNInt: WriteXDR`
+          `thruput_sdk::storage::NNInt: WriteXDR`

@@ -24,7 +24,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 bigint-bench-if = { workspace = true }
 # The comparison backend. Optional so a `u256` build does not compile it at all
 # -- the codesize numbers are only meaningful if the artifact under measurement
@@ -47,10 +47,11 @@ default = ["op-none"]
 # --- backend selection -------------------------------------------------------
 #
 # `backend-uint` swaps the kernel onto Parity's `uint`; with it off the kernel
-# measures `sdk::U256`. Enabling it does not *remove* the `sdk::U256` backend --
-# both impls exist whenever their dependencies do, which is what lets the host
-# differential test link them side by side. Only the guest kernel's choice
-# changes, so scripts/bigint-bench.sh passes exactly one backend per build.
+# measures `thruput_sdk::U256`. Enabling it does not *remove* the
+# `thruput_sdk::U256` backend -- both impls exist whenever their dependencies
+# do, which is what lets the host differential test link them side by side.
+# Only the guest kernel's choice changes, so scripts/bigint-bench.sh passes
+# exactly one backend per build.
 backend-uint = ["dep:uint"]
 
 # --- operation selection -----------------------------------------------------

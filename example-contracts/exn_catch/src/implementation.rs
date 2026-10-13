@@ -1,5 +1,5 @@
 use super::interface::*;
-use sdk::*;
+use thruput_sdk::*;
 
 #[derive(Default)]
 pub struct Contract;

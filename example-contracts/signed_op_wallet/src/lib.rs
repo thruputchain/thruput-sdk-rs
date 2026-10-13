@@ -9,15 +9,15 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 use thruput_signed_op::{Operation, SignedOp, SignedOpReplayCache};
-use sdk::mintable::AuthTokenPreimage;
-use sdk::signer::{Opaque, Signed};
-use sdk::storage::Value;
-use sdk::types::transaction::Uniquifier;
-use sdk::types::{Ed25519PublicKey, Ed25519Signature};
-use sdk::*;
+use thruput_sdk::mintable::AuthTokenPreimage;
+use thruput_sdk::signer::{Opaque, Signed};
+use thruput_sdk::storage::Value;
+use thruput_sdk::types::transaction::Uniquifier;
+use thruput_sdk::types::{Ed25519PublicKey, Ed25519Signature};
+use thruput_sdk::*;
 
 /// What the owner signs: mint one token carrying `amount` for the caller.
 #[contract_type]
@@ -33,7 +33,7 @@ pub enum WalletError {
     AlreadyInitialized = 1,
 }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct SignedOpWallet {
     owner: Value<Ed25519PublicKey>,
     replay: SignedOpReplayCache,
@@ -82,13 +82,13 @@ impl SignedOp for SignedOpWallet {
             self.replay.consume(&op, signature, &self.owner.get());
 
         let node =
-            sdk::mintable::build_auth_token_node::<u64>(AuthTokenPreimage {
+            thruput_sdk::mintable::build_auth_token_node::<u64>(AuthTokenPreimage {
                 consumer: get_caller(),
                 data: grant.amount,
             });
-        sdk::signer::mint_opaque_auth_token(
-            sdk::block::get_block_height(),
-            &sdk::mintable::encode_auth_token_node(&node),
+        thruput_sdk::signer::mint_opaque_auth_token(
+            thruput_sdk::block::get_block_height(),
+            &thruput_sdk::mintable::encode_auth_token_node(&node),
         )
     }
 }

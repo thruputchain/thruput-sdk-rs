@@ -1,8 +1,8 @@
 #![allow(unexpected_cfgs)]
 
-#[sdk::storage(anything = "here")]
+#[thruput_sdk::storage(anything = "here")]
 pub struct S {
-    v: sdk::storage::NNInt,
+    v: thruput_sdk::storage::NNInt,
 }
 
 fn main() {}

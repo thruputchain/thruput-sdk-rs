@@ -70,9 +70,9 @@ pub fn rem<B: Backend>(a: B, b: B) -> B {
 /// `a * b / d` through a 256-bit intermediate.
 ///
 /// `d = b | 1` keeps the quotient inside a `u128` for every input: with `b`
-/// odd, `d == b` and the quotient is exactly `a`; with `b` even, `d > b` and it
-/// is smaller. `sdk::mul_div_u128` panics when the quotient overflows, so this
-/// is a precondition, not a nicety.
+/// odd, `d == b` and the quotient is exactly `a`; with `b` even, `d > b` and
+/// it is smaller. `thruput_sdk::mul_div_u128` panics when the quotient
+/// overflows, so this is a precondition, not a nicety.
 #[inline]
 pub fn mul_div_u128<B: Backend>(a: B, b: B) -> B {
     let b = b.low_u128();
@@ -120,9 +120,9 @@ pub fn signed_div<B: Backend>(a: B, b: B) -> B {
 
 /// Left shift.
 ///
-/// The distance is reduced modulo the width: `sdk::U256::wrapping_shl` masks
-/// the distance the way `u128::wrapping_shl` does, while `uint`'s `Shl` shifts
-/// bits off the top. Reducing first is where the two agree.
+/// The distance is reduced modulo the width: `thruput_sdk::U256::wrapping_shl`
+/// masks the distance the way `u128::wrapping_shl` does, while `uint`'s `Shl`
+/// shifts bits off the top. Reducing first is where the two agree.
 #[inline]
 pub fn shl<B: Backend>(a: B, b: B) -> B {
     a.shl(b.low_u32() % B::BITS)

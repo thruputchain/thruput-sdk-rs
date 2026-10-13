@@ -19,12 +19,12 @@ pub struct DescribableType {
 }
 
 const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
-    sdk::exn::__groundhog_spec_fragment_LibraryExn,
-    sdk::exn::__groundhog_spec_fragment_SyscallExn,
-    sdk::exn::__groundhog_spec_fragment_CallingError,
-    sdk::exn::__groundhog_spec_fragment_HandlingError,
-    sdk::exn::__groundhog_spec_fragment_AuthTokenError,
-    sdk::exn::__groundhog_spec_fragment_FaultString,
+    thruput_sdk::exn::__groundhog_spec_fragment_LibraryExn,
+    thruput_sdk::exn::__groundhog_spec_fragment_SyscallExn,
+    thruput_sdk::exn::__groundhog_spec_fragment_CallingError,
+    thruput_sdk::exn::__groundhog_spec_fragment_HandlingError,
+    thruput_sdk::exn::__groundhog_spec_fragment_AuthTokenError,
+    thruput_sdk::exn::__groundhog_spec_fragment_FaultString,
 ];
 
 const ERC20_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
@@ -47,41 +47,41 @@ const ERC20_PERMIT_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {
         name: "LibraryExn",
-        selector: <sdk::exn::LibraryExn as sdk::exn::Exn>::SELECTOR,
+        selector: <thruput_sdk::exn::LibraryExn as thruput_sdk::exn::Exn>::SELECTOR,
         fragments: LIBRARY_EXN_FRAGMENTS,
-        root: <sdk::exn::LibraryExn as ContractTypeName>::NAME,
+        root: <thruput_sdk::exn::LibraryExn as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20Error",
-        selector: <thruput_erc20_if::ERC20Error as sdk::exn::Exn>::SELECTOR,
+        selector: <thruput_erc20_if::ERC20Error as thruput_sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_ERROR_FRAGMENTS,
         root: <thruput_erc20_if::ERC20Error as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20PausableError",
         selector: <thruput_erc20_pausable_if::ERC20PausableError
-            as sdk::exn::Exn>::SELECTOR,
+            as thruput_sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PAUSABLE_ERROR_FRAGMENTS,
         root: <thruput_erc20_pausable_if::ERC20PausableError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "AccessControlError",
         selector: <thruput_access_control_if::AccessControlError
-            as sdk::exn::Exn>::SELECTOR,
+            as thruput_sdk::exn::Exn>::SELECTOR,
         fragments: ACCESS_CONTROL_ERROR_FRAGMENTS,
         root: <thruput_access_control_if::AccessControlError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "SignedOpError",
         selector:
-            <thruput_signed_op_if::SignedOpError as sdk::exn::Exn>::SELECTOR,
+            <thruput_signed_op_if::SignedOpError as thruput_sdk::exn::Exn>::SELECTOR,
         fragments: SIGNED_OP_ERROR_FRAGMENTS,
         root: <thruput_signed_op_if::SignedOpError as ContractTypeName>::NAME,
     },
     DescribableType {
         name: "ERC20PermitError",
         selector:
-            <thruput_erc20_permit_if::ERC20PermitError as sdk::exn::Exn>::SELECTOR,
+            <thruput_erc20_permit_if::ERC20PermitError as thruput_sdk::exn::Exn>::SELECTOR,
         fragments: ERC20_PERMIT_ERROR_FRAGMENTS,
         root: <thruput_erc20_permit_if::ERC20PermitError as ContractTypeName>::NAME,
     },
@@ -184,6 +184,13 @@ mod registry_tests {
     }
 
     #[test]
+    fn library_exn_selector_survives_the_package_rename() {
+        // sha256("1::sdk::LibraryExn"): every deployed contract throws and
+        // matches this, so it must not move with the package name.
+        assert_eq!(lookup("LibraryExn").unwrap().selector, 0xe562d59059c60ac3);
+    }
+
+    #[test]
     fn selectors_match_recorded_preimage() {
         for entry in REGISTRY {
             // These protocol-defined selectors retain their pre-rename package
@@ -191,6 +198,7 @@ mod registry_tests {
             let wire_crate = match entry.name {
                 "ERC20Error" => "groundhog-erc20-if",
                 "ERC20PermitError" => "groundhog-erc20-permit-if",
+                "LibraryExn" => "sdk",
                 _ => entry.root.crate_name,
             };
             let expected =

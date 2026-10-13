@@ -12,5 +12,5 @@ categories.workspace = true
 description = "Measures rv32 runtime gas for the big-integer benchmark contract, and joins it with codesize"
 
 [dependencies]
-sdk = { workspace = true, features = ["dev"] }
+thruput-sdk = { workspace = true, features = ["dev"] }
 bigint-bench-if = { workspace = true, features = ["dev"] }

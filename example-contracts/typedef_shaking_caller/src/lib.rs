@@ -11,9 +11,9 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::*;
+use thruput_sdk::*;
 use typedef_shaking_if_v1::{MarketV1Client, SharedConfig as ConfigV1};
 use typedef_shaking_if_v2::{MarketV2Client, SharedConfig as ConfigV2};
 

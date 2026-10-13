@@ -1,5 +1,5 @@
-use sdk::storage::Value;
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 #[storage]
 pub struct U256Roundtrip {

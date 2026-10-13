@@ -214,7 +214,7 @@ dependencies = [
 name = "htlc-logging"
 version = "0.2.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -359,27 +359,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "sdk"
-version = "0.51.1"
-dependencies = [
- "heapless",
- "hogexec-internal",
- "linkme",
- "sha2",
- "thiserror",
- "thruput-contract-spec",
- "thruput-event",
- "thruput-exn",
- "thruput-macros",
- "thruput-native-exec",
- "thruput-rv32-runtime",
- "thruput-storage-cost",
- "thruput-u256",
- "thruput-xdr",
- "xdrs",
-]
 
 [[package]]
 name = "serde"
@@ -582,6 +561,27 @@ dependencies = [
 [[package]]
 name = "thruput-rv32-runtime"
 version = "0.51.1"
+
+[[package]]
+name = "thruput-sdk"
+version = "0.51.1"
+dependencies = [
+ "heapless",
+ "hogexec-internal",
+ "linkme",
+ "sha2",
+ "thiserror",
+ "thruput-contract-spec",
+ "thruput-event",
+ "thruput-exn",
+ "thruput-macros",
+ "thruput-native-exec",
+ "thruput-rv32-runtime",
+ "thruput-storage-cost",
+ "thruput-u256",
+ "thruput-xdr",
+ "xdrs",
+]
 
 [[package]]
 name = "thruput-spec"

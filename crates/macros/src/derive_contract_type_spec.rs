@@ -87,10 +87,11 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
 struct Args {
     export: bool,
     /// Crate path the emitted spec traits resolve through. Defaults to
-    /// `::sdk`; `#[contract_type_spec(crate = "...")]` overrides it so a crate
-    /// that `sdk` depends on can derive without a dependency cycle. Everything
-    /// reached through it is an `sdk` re-export of a crate below `sdk`, so the
-    /// override only has to supply `__contract_spec` and `__xdrs`.
+    /// `::thruput_sdk`; `#[contract_type_spec(crate = "...")]` overrides it so
+    /// a crate that `thruput-sdk` depends on can derive without a dependency
+    /// cycle. Everything reached through it is a `thruput-sdk` re-export of a
+    /// crate below `thruput-sdk`, so the override only has to supply
+    /// `__contract_spec` and `__xdrs`.
     krate: syn::Path,
 }
 
@@ -445,7 +446,7 @@ mod tests {
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
         assert!(tokens.contains("groundhogspecanchortextv0"), "{tokens}");
         assert!(
-            tokens.contains("Option < Vec < Payload > > as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
+            tokens.contains("Option < Vec < Payload > > as :: thruput_sdk :: __contract_spec :: ContractTypeRefSpec"),
             "{tokens}"
         );
     }
@@ -494,9 +495,10 @@ mod tests {
 
         let tokens = expand(&input).unwrap().to_string();
 
-        // The point of the option: a crate below `sdk` in the dependency graph
-        // cannot name `sdk` at all, so a single leaked path breaks the build.
-        assert!(!tokens.contains("sdk ::"), "{tokens}");
+        // The point of the option: a crate below `thruput-sdk` in the
+        // dependency graph cannot name `thruput-sdk` at all, so a single
+        // leaked path breaks the build.
+        assert!(!tokens.contains("thruput_sdk ::"), "{tokens}");
         assert!(
             tokens.contains(
                 ":: thruput_u256 :: __sdk_paths :: __contract_spec :: ContractTypeSpec"
@@ -523,7 +525,7 @@ mod tests {
         let tokens = expand(&input).unwrap().to_string();
 
         // Field types route through `common::contract`, which is shared with
-        // the out-of-scope macros; easy to leave behind on `::sdk`.
+        // the out-of-scope macros; easy to leave behind on `::thruput_sdk`.
         assert!(
             tokens.contains(":: shim :: __contract_spec :: type_ref"),
             "{tokens}"
@@ -534,7 +536,7 @@ mod tests {
             ),
             "{tokens}"
         );
-        assert!(!tokens.contains("sdk ::"), "{tokens}");
+        assert!(!tokens.contains("thruput_sdk ::"), "{tokens}");
     }
 
     #[test]
@@ -554,7 +556,7 @@ mod tests {
             ),
             "{tokens}"
         );
-        assert!(!tokens.contains("sdk ::"), "{tokens}");
+        assert!(!tokens.contains("thruput_sdk ::"), "{tokens}");
     }
 
     #[test]
@@ -603,15 +605,17 @@ mod tests {
         let tokens = expand(&input).unwrap().to_string();
 
         assert!(
-            tokens.contains(":: sdk :: __contract_spec :: ContractTypeSpec"),
+            tokens.contains(
+                ":: thruput_sdk :: __contract_spec :: ContractTypeSpec"
+            ),
             "{tokens}"
         );
         assert!(
-            tokens.contains(":: sdk :: __xdrs :: txs :: ConstWriter"),
+            tokens.contains(":: thruput_sdk :: __xdrs :: txs :: ConstWriter"),
             "{tokens}"
         );
         assert!(
-            tokens.contains(":: sdk :: __contract_spec :: type_ref"),
+            tokens.contains(":: thruput_sdk :: __contract_spec :: type_ref"),
             "{tokens}"
         );
     }

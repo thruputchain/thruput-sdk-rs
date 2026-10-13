@@ -84,7 +84,7 @@ fn field_view_tokens(field: &syn::Field) -> Result<TokenStream> {
     let ty = fold_lifetimes_to_static(&field.ty);
     let ty_tokens = contract_type_view_tokens(&ty)?;
     Ok(quote! {
-        ::sdk::__contract_spec::ContractFieldView {
+        ::thruput_sdk::__contract_spec::ContractFieldView {
             name: #name,
             ty: #ty_tokens,
         }
@@ -142,7 +142,7 @@ fn emit_event_spec(
         .collect::<Result<Vec<_>>>()?;
     let anchor_stmts = anchor_tokens.iter().map(|anchor| {
         quote! {
-            acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+            acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
         }
     });
 
@@ -156,8 +156,8 @@ fn emit_event_spec(
 
     Ok(quote! {
         #[doc(hidden)]
-        pub const #def_ident: ::sdk::__contract_spec::ContractEventDefView<'static> =
-            ::sdk::__contract_spec::ContractEventDefView {
+        pub const #def_ident: ::thruput_sdk::__contract_spec::ContractEventDefView<'static> =
+            ::thruput_sdk::__contract_spec::ContractEventDefView {
                 name: #id,
                 signature: [#(#sig_array),*],
                 topics: &[#(#topic_views),*],
@@ -183,8 +183,8 @@ fn emit_event_spec(
             }
         }
 
-        impl #impl_generics ::sdk::__contract_spec::ContractEventSpec for #ident #ty_generics #where_clause {
-            const EVENT_DEF: ::sdk::__contract_spec::ContractEventDefView<'static> =
+        impl #impl_generics ::thruput_sdk::__contract_spec::ContractEventSpec for #ident #ty_generics #where_clause {
+            const EVENT_DEF: ::thruput_sdk::__contract_spec::ContractEventDefView<'static> =
                 #def_ident;
 
             const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = #anchor_fn_ident;
@@ -219,8 +219,8 @@ fn emit_exported_event_fragment(
     // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[doc(hidden)]
-        pub const #fragment_ident: ::sdk::__contract_spec::SpecFragmentView<'static> =
-            ::sdk::__contract_spec::SpecFragmentView::ExportedEvent(#def_ident);
+        pub const #fragment_ident: ::thruput_sdk::__contract_spec::SpecFragmentView<'static> =
+            ::thruput_sdk::__contract_spec::SpecFragmentView::ExportedEvent(#def_ident);
 
         #[doc(hidden)]
         const #raw_len_ident: usize = #fragment_ident.const_txs_size();
@@ -233,7 +233,7 @@ fn emit_exported_event_fragment(
         #[used]
         static #raw_fragment_ident: [u8; #raw_len_ident] = {
             let mut w =
-                ::sdk::__xdrs::txs::ConstWriter::<#raw_len_ident>::new();
+                ::thruput_sdk::__xdrs::txs::ConstWriter::<#raw_len_ident>::new();
             #fragment_ident.const_write_txs(&mut w);
             w.into_bytes()
         };
@@ -341,7 +341,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         // `ContractAddress` and `&T` in event.rs are what make the qualified
         // form accept every real topic type.
         let call = quote::quote_spanned! { field.ty.span() =>
-            <_ as ::sdk::event::IntoTopic>::into_topic(&self.#field_ident)
+            <_ as ::thruput_sdk::event::IntoTopic>::into_topic(&self.#field_ident)
         };
         quote! {
             #index => ::core::option::Option::Some(#call),
@@ -352,14 +352,14 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
     let payload_writes = payload.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         quote! {
-            ::sdk::WriteXDR::write_xdr(&self.#field_ident, w)?;
+            ::thruput_sdk::WriteXDR::write_xdr(&self.#field_ident, w)?;
         }
     });
     let payload_writes_unchecked = payload.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         quote! {
             unsafe {
-                ::sdk::WriteXDR::write_xdr_unchecked(&self.#field_ident, w);
+                ::thruput_sdk::WriteXDR::write_xdr_unchecked(&self.#field_ident, w);
             }
         }
     });
@@ -415,11 +415,11 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
         #event_spec
 
         impl #impl_generics #ident #ty_generics #where_clause {
-            pub const SIGNATURE: &'static ::sdk::Topic = &[#(#sig_array),*];
+            pub const SIGNATURE: &'static ::thruput_sdk::Topic = &[#(#sig_array),*];
         }
 
-        #[derive(::sdk::ReadXDR)]
-        #[xdrs(crate = "::sdk::__xdrs")]
+        #[derive(::thruput_sdk::ReadXDR)]
+        #[xdrs(crate = "::thruput_sdk::__xdrs")]
         #[allow(dead_code)]
         #vis struct #payload_ident #payload_generics {
             #(#payload_fields,)*
@@ -427,25 +427,25 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
             __phantom: ::core::marker::PhantomData<( #(&#lifetime_params ()),* )>,
         }
 
-        impl #impl_generics ::sdk::Event for #ident #ty_generics #where_clause {
+        impl #impl_generics ::thruput_sdk::Event for #ident #ty_generics #where_clause {
             type Payload<'__payload> = #payload_ty_in_gat;
 
             fn num_topics() -> u32 {
                 #num_topics
             }
 
-            fn signature() -> ::core::option::Option<&'static ::sdk::Topic> {
+            fn signature() -> ::core::option::Option<&'static ::thruput_sdk::Topic> {
                 ::core::option::Option::Some(Self::SIGNATURE)
             }
 
             fn topic<'__event>(
                 &'__event self,
                 index: u32,
-            ) -> ::core::option::Option<::sdk::TopicSrc<'__event>> {
-                use ::sdk::IntoTopic as _;
+            ) -> ::core::option::Option<::thruput_sdk::TopicSrc<'__event>> {
+                use ::thruput_sdk::IntoTopic as _;
                 match index {
                     0 => ::core::option::Option::Some(
-                        ::sdk::TopicSrc::Shared(Self::SIGNATURE)
+                        ::thruput_sdk::TopicSrc::Shared(Self::SIGNATURE)
                     ),
                     #(#topic_arms)*
                     _ => ::core::option::Option::None,
@@ -454,16 +454,16 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
 
             fn decode_payload<'__payload>(
                 bytes: &'__payload [u8],
-            ) -> ::core::result::Result<#payload_ty_in_gat, ::sdk::ReadError> {
-                ::sdk::__xdrs::cxs::decode(bytes)
+            ) -> ::core::result::Result<#payload_ty_in_gat, ::thruput_sdk::ReadError> {
+                ::thruput_sdk::__xdrs::cxs::decode(bytes)
             }
         }
 
-        impl #impl_generics ::sdk::WriteXDR for #ident #ty_generics #where_clause {
-            fn write_xdr<__F, __W: ::sdk::Writer<__F>>(
+        impl #impl_generics ::thruput_sdk::WriteXDR for #ident #ty_generics #where_clause {
+            fn write_xdr<__F, __W: ::thruput_sdk::Writer<__F>>(
                 &self,
                 w: &mut __W,
-            ) -> ::sdk::WriteResult<()> {
+            ) -> ::thruput_sdk::WriteResult<()> {
                 #(#payload_writes)*
                 ::core::result::Result::Ok(())
             }
@@ -471,7 +471,7 @@ pub fn expand(input: &DeriveInput) -> Result<TokenStream> {
             #[allow(unused_variables)]
             unsafe fn write_xdr_unchecked<
                 __F,
-                __W: ::sdk::__xdrs::WriterUnchecked<__F>,
+                __W: ::thruput_sdk::__xdrs::WriterUnchecked<__F>,
             >(
                 &self,
                 w: &mut __W,

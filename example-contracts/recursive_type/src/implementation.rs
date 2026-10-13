@@ -2,7 +2,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract_type]
 pub struct Tree {

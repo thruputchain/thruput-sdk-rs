@@ -9,7 +9,7 @@
 #![allow(clippy::useless_conversion)]
 
 use crate::interface::*;
-use sdk::*;
+use thruput_sdk::*;
 
 // Compute keys for storing things
 

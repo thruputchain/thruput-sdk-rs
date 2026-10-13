@@ -16,7 +16,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 thruput-erc20-if = { workspace = true }
 thruput-erc20-metadata-if = { workspace = true, optional = true}
 thiserror = { workspace = true }

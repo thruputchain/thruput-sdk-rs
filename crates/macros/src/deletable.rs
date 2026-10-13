@@ -54,7 +54,7 @@ fn generate_from_struct(
 
     Ok(quote! {
         const _: () = {
-            use ::sdk::storage::Deletable;
+            use ::thruput_sdk::storage::Deletable;
 
             impl #impl_generics Deletable for #ident #ty_generics
                 #where_clause

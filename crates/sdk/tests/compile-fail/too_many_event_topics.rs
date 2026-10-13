@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 #[derive(Event)]
 struct TooManyTopics<'a> {

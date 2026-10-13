@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 pub trait ExternalTokenLike {
     fn try_transfer(&self, to: ContractAddress, amount: u64);

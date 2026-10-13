@@ -7,13 +7,13 @@
 //! `docs/superpowers/specs/2026-08-12-bigint-bench-design.md`.
 //!
 //! Operands cross the ABI as four `u128` halves rather than a 256-bit contract
-//! type on purpose: no big-integer implementation appears in the calldata path,
-//! so a build measuring Parity's `uint` links no `sdk::U256` code at all (and
-//! vice versa).
+//! type on purpose: no big-integer implementation appears in the calldata
+//! path, so a build measuring Parity's `uint` links no `thruput_sdk::U256`
+//! code at all (and vice versa).
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::contract;
+use thruput_sdk::contract;
 
 /// The benchmark kernel.
 ///

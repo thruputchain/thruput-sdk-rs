@@ -7,9 +7,9 @@
 //! one side, a shift whose out-of-range behaviour differs -- which would
 //! otherwise show up as a plausible-looking performance win.
 //!
-//! Runs on the host, so it needs neither rv32 nor the node. `crates/u256`'s own
-//! tests already assert `sdk::U256` agrees with `uint` at the *library* level;
-//! this covers the benchmark's own wiring on top of it.
+//! Runs on the host, so it needs neither rv32 nor the node. `crates/u256`'s
+//! own tests already assert `thruput_sdk::U256` agrees with `uint` at the
+//! *library* level; this covers the benchmark's own wiring on top of it.
 
 use bigint_bench_contract::backend::Backend;
 use bigint_bench_contract::backend::parity::PU256;
@@ -165,9 +165,10 @@ fn digest_depends_on_every_bit() {
 
 /// `mul_div_u128`'s derived divisor must keep the quotient inside a `u128`.
 ///
-/// `sdk::mul_div_u128` panics when it does not, so the op would abort mid-sweep
-/// instead of reporting gas. The sweep above would catch it, but only as a
-/// panic in an unrelated-looking test; this states the precondition directly.
+/// `thruput_sdk::mul_div_u128` panics when it does not, so the op would abort
+/// mid-sweep instead of reporting gas. The sweep above would catch it, but
+/// only as a panic in an unrelated-looking test; this states the precondition
+/// directly.
 #[test]
 fn mul_div_quotient_always_fits() {
     let mut rng = Rng(0x5EED_5EED_5EED_5EED);
@@ -176,7 +177,7 @@ fn mul_div_quotient_always_fits() {
         let b = rng.next_u128();
         let d = b | 1;
         assert!(
-            sdk::checked_mul_div_u128(a, b, d).is_some(),
+            thruput_sdk::checked_mul_div_u128(a, b, d).is_some(),
             "a={a:#x} b={b:#x} d={d:#x} overflows u128"
         );
     }

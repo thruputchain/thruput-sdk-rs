@@ -7,14 +7,14 @@ pub use error::*;
 mod events;
 pub use events::*;
 
-use sdk::{ContractAddress, SHA256Hash, contract};
+use thruput_sdk::{ContractAddress, SHA256Hash, contract};
 
-/// Identifies a role: an opaque 32-byte value, conventionally the SHA-256
-/// hash of the role's name. `sdk::hash_ident!` produces one from a bare
+/// Identifies a role: an opaque 32-byte value, conventionally the SHA-256 hash
+/// of the role's name. `thruput_sdk::hash_ident!` produces one from a bare
 /// identifier:
 ///
 /// ```ignore
-/// sdk::hash_ident! { pub static PAUSER_ROLE: SHA256Hash; }
+/// thruput_sdk::hash_ident! { pub static PAUSER_ROLE: SHA256Hash; }
 /// ```
 pub type Role = SHA256Hash;
 

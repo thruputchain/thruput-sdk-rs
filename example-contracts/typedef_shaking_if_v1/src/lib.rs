@@ -10,7 +10,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 /// The "v1" shape of the shared config type.  Collides by name with the
 /// differently-shaped `SharedConfig` in `typedef_shaking_if_v2`.

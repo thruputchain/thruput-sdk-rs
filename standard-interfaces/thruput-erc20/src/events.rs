@@ -7,7 +7,7 @@
 //! involving the zero address is still an ordinary transfer.
 
 use core::fmt;
-use sdk::{
+use thruput_sdk::{
     BlockHeight, ContractAddress, EmittedEvent, Event, ReadXDR, WriteXDR,
     hex_encode, log_event,
 };
@@ -61,7 +61,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for TransferEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let amount: i128 = sdk::internal::decode_xdr(payload)
+        let amount: i128 = thruput_sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(TransferEvent::new(from, to, amount))
@@ -145,7 +145,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for AllowanceChangeEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let difference: i128 = sdk::internal::decode_xdr(payload)
+        let difference: i128 = thruput_sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(AllowanceChangeEvent::new(owner, spender, difference))
@@ -227,7 +227,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for AllowanceDeleteEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let removed: i128 = sdk::internal::decode_xdr(payload)
+        let removed: i128 = thruput_sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(AllowanceDeleteEvent::new(owner, spender, removed))
@@ -236,7 +236,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for AllowanceDeleteEvent<'a> {
 
 /// Owned form of [`AllowanceDeleteEvent`].
 #[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[xdrs(crate = "::thruput_sdk::__xdrs")]
 pub struct StdAllowanceDeleteEvent {
     pub owner_address: ContractAddress,
     pub spender_address: ContractAddress,
@@ -336,7 +336,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for AllowanceResetEvent<'a> {
 
 /// Owned form of [`AllowanceResetEvent`].
 #[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[xdrs(crate = "::thruput_sdk::__xdrs")]
 pub struct StdAllowanceResetEvent {
     pub owner_address: ContractAddress,
     pub spender_address: ContractAddress,
@@ -408,7 +408,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for MintEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let amount: i128 = sdk::internal::decode_xdr(payload)
+        let amount: i128 = thruput_sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(MintEvent::new(to, amount))
@@ -466,7 +466,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for BurnEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let amount: i128 = sdk::internal::decode_xdr(payload)
+        let amount: i128 = thruput_sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(BurnEvent::new(from, amount))
@@ -542,7 +542,7 @@ impl<'a> fmt::Display for ERC20Event<'a> {
 /// Owned, XDR-encodable form of [`MintEvent`], for event logs that cross a
 /// contract boundary (there is no `standard_asset_events` counterpart).
 #[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[xdrs(crate = "::thruput_sdk::__xdrs")]
 pub struct StdMintEvent {
     pub to_address: ContractAddress,
     pub amount: i128,
@@ -559,7 +559,7 @@ impl<'a> From<&MintEvent<'a>> for StdMintEvent {
 
 /// Owned, XDR-encodable form of [`BurnEvent`].
 #[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[xdrs(crate = "::thruput_sdk::__xdrs")]
 pub struct StdBurnEvent {
     pub from_address: ContractAddress,
     pub amount: i128,
@@ -575,7 +575,7 @@ impl<'a> From<&BurnEvent<'a>> for StdBurnEvent {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[xdrs(crate = "::thruput_sdk::__xdrs")]
 #[repr(i32)]
 pub enum StdERC20Event {
     Transfer(stdevt::TransferEvent),
@@ -607,7 +607,7 @@ impl<'a> From<&ERC20Event<'a>> for StdERC20Event {
 
 /// Owned representation of a signed allowance adjustment.
 #[derive(Clone, Debug, PartialEq, Eq, WriteXDR, ReadXDR)]
-#[xdrs(crate = "::sdk::__xdrs")]
+#[xdrs(crate = "::thruput_sdk::__xdrs")]
 pub struct StdAllowanceChangeEvent {
     pub owner_address: ContractAddress,
     pub spender_address: ContractAddress,

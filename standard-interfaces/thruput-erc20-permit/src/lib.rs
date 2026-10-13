@@ -42,9 +42,9 @@
 mod error;
 pub use error::*;
 
-use sdk::signer::Signed;
-use sdk::{ContractAddress, contract};
 use thruput_erc20_if::{Amount, ERC20Error};
+use thruput_sdk::signer::Signed;
+use thruput_sdk::{ContractAddress, contract};
 
 /// What an owner approves to grant a spender up to `amount`: the request a
 /// wallet validates and turns into a [`PermitGrant`].
@@ -62,7 +62,7 @@ use thruput_erc20_if::{Amount, ERC20Error};
 /// is for, so without naming it here a submitter could have the grant minted
 /// for a different ERC20 the owner also holds. The wallet uses it as the
 /// grant's consumer.
-#[sdk::contract_type]
+#[thruput_sdk::contract_type]
 pub struct PermitRequest {
     /// The token contract the approval is for.
     pub token: ContractAddress,
@@ -80,7 +80,7 @@ pub struct PermitRequest {
 /// [`Signed::consume`] returns, which the runtime supplies and no caller can
 /// forge. It carries no token address either — the mint names the token as
 /// the node's consumer, so no other contract can consume it.
-#[sdk::contract_type]
+#[thruput_sdk::contract_type]
 pub struct PermitGrant {
     pub spender: ContractAddress,
     /// The most the grant authorizes; see each consuming method for how it is
@@ -96,7 +96,7 @@ pub struct PermitGrant {
 /// signed body says which operation the owner approved: a grant signed to
 /// raise an allowance can never be redeemed to delete one, or the reverse.
 /// `token` is load-bearing for the same reason it is in [`PermitRequest`].
-#[sdk::contract_type]
+#[thruput_sdk::contract_type]
 pub struct DeleteAllowanceRequest {
     /// The token contract whose allowance is deleted.
     pub token: ContractAddress,
@@ -107,7 +107,7 @@ pub struct DeleteAllowanceRequest {
 /// The auth token a wallet mints from a validated [`DeleteAllowanceRequest`],
 /// consumed by [`ERC20Permit::delete_allowance_signed`]. Like [`PermitGrant`],
 /// it carries neither the owner nor the token.
-#[sdk::contract_type]
+#[thruput_sdk::contract_type]
 pub struct DeleteAllowanceGrant {
     pub spender: ContractAddress,
 }

@@ -28,13 +28,13 @@
 //! `register_method` cannot capture one. That shape is unconstructible rather
 //! than untested.
 
-use sdk::call::{RawCallError, try_call_raw_with};
-use sdk::contract::ContractEntrypointID;
+use thruput_sdk::call::{RawCallError, try_call_raw_with};
+use thruput_sdk::contract::ContractEntrypointID;
 
-use sdk::invoke_config::InvokeFlagSet;
-use sdk::*;
 use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, Mutex};
+use thruput_sdk::invoke_config::InvokeFlagSet;
+use thruput_sdk::*;
 
 const ENTRY: [u8; 8] = [0; 8];
 
@@ -276,7 +276,7 @@ fn fault_propagating_through_a_middle_contract_is_not_misattributed() {
     // Propagates instead of catching: `or_re_throw` on a `Fault` panics, so
     // the middle contract's own frame faults too.
     deploy_mock(&env, &middle_addr, move || {
-        try_call_raw_with::<_, _, sdk::exn::RawException>(
+        try_call_raw_with::<_, _, thruput_sdk::exn::RawException>(
             &inner_addr,
             ContractEntrypointID::from(ENTRY),
             u64::MAX,
@@ -326,7 +326,7 @@ fn a_rethrown_fault_records_the_placeholder_not_the_inner_text() {
     let callee = callee_addr;
     let result = env.transact(|tx| {
         tx.call(&root_addr).run(move || -> () {
-            try_call_raw_with::<_, _, sdk::exn::RawException>(
+            try_call_raw_with::<_, _, thruput_sdk::exn::RawException>(
                 &callee,
                 ContractEntrypointID::from(ENTRY),
                 u64::MAX,
@@ -398,8 +398,8 @@ fn a_faulting_frame_records_where_it_panicked() {
 /// location was recorded rather than a formatting artifact.
 #[test]
 fn rendering_degrades_cleanly_without_a_location() {
-    use sdk::PanicRecord;
-    use sdk::exn::FaultInfo;
+    use thruput_sdk::PanicRecord;
+    use thruput_sdk::exn::FaultInfo;
 
     assert_eq!(FaultInfo::empty().to_string(), "<fault>");
     assert_eq!(

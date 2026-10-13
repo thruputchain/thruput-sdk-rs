@@ -3,7 +3,7 @@
 
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 const TEST_ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 

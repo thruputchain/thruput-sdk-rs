@@ -10,10 +10,10 @@
 
 #![no_std]
 
-use sdk::*;
+use thruput_sdk::*;
 
 pub fn write_bytestring() {
-    let mut calldata_buf = sdk::internal::new_scratch();
+    let mut calldata_buf = thruput_sdk::internal::new_scratch();
     fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
@@ -25,7 +25,7 @@ pub fn write_bytestring() {
 }
 
 pub fn log_bytestring() {
-    let mut calldata_buf = sdk::internal::new_scratch();
+    let mut calldata_buf = thruput_sdk::internal::new_scratch();
     fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
@@ -41,7 +41,7 @@ pub fn log_bytestring() {
 }
 
 pub fn expect_bytestring() {
-    let mut calldata_buf = sdk::internal::new_scratch();
+    let mut calldata_buf = thruput_sdk::internal::new_scratch();
     fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
@@ -57,13 +57,13 @@ pub fn expect_bytestring() {
 
 #[cfg(target_arch = "riscv32")]
 mod rv32_entries {
-    use sdk::__rv32::Entrypoint;
+    use thruput_sdk::__rv32::Entrypoint;
 
     macro_rules! raw_entrypoint {
         ($static_name:ident, $wrapper:ident, $method_id:expr, $body:path) => {
             extern "C" fn $wrapper() {
                 $body();
-                sdk::sys::raw_Return(&[], false, &[])
+                thruput_sdk::sys::raw_Return(&[], false, &[])
             }
 
             #[used]

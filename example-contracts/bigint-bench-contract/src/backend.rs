@@ -10,8 +10,8 @@
 //! Each method maps to the API a contract author would actually reach for in
 //! that implementation, at that implementation's native limb width -- not to
 //! the closest literal spelling. `wrapping_mul_small` is the clear case:
-//! `sdk::U256` takes a `u32` scalar (`overflowing_mul_u32`) and `uint` takes a
-//! `u64` one (`overflowing_mul_u64`), because that is each library's
+//! `thruput_sdk::U256` takes a `u32` scalar (`overflowing_mul_u32`) and `uint`
+//! takes a `u64` one (`overflowing_mul_u64`), because that is each library's
 //! single-limb multiply. Comparing U256's u32 path against a full 256x256
 //! `uint` multiply would measure the wrong thing. The mathematical results
 //! still agree for any scalar that fits in 32 bits, which is what
@@ -114,10 +114,10 @@ pub trait Backend: Copy + PartialEq + core::fmt::Debug {
     fn signed_div(self, rhs: Self) -> Self;
 }
 
-/// `sdk::U256`: eight 32-bit limbs, native to a 32-bit register file.
+/// `thruput_sdk::U256`: eight 32-bit limbs, native to a 32-bit register file.
 pub mod u256 {
     use super::Backend;
-    use sdk::U256;
+    use thruput_sdk::U256;
 
     /// Newtype so this crate owns the trait impl.
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -265,7 +265,7 @@ pub mod u256 {
 
         #[inline]
         fn mul_div_u128(a: u128, b: u128, d: u128) -> u128 {
-            sdk::mul_div_u128(a, b, d)
+            thruput_sdk::mul_div_u128(a, b, d)
         }
 
         #[inline]

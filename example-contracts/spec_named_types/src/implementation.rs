@@ -1,7 +1,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract_type]
 pub struct Payload {

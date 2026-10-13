@@ -61,7 +61,7 @@ env:
     thruput-u256
     thruput-test-vectors
     thruput-rv32-runtime
-    sdk
+    thruput-sdk
     bottle-test-if
     thruput-spec-tool
     erc20-test

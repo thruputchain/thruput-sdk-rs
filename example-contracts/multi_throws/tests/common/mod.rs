@@ -1,13 +1,13 @@
 #![allow(unused)]
 
 use multi_throws::*;
-use sdk::*;
+use thruput_sdk::*;
 
-pub static TEST_NONCE: sdk::SHA256Hash =
-    sdk::sha256_static!("MULTI_THROWS_TEST_NONCE");
+pub static TEST_NONCE: thruput_sdk::SHA256Hash =
+    thruput_sdk::sha256_static!("MULTI_THROWS_TEST_NONCE");
 
-pub static TEST_NONCE_2: sdk::SHA256Hash =
-    sdk::sha256_static!("MULTI_THROWS_TEST_NONCE_2");
+pub static TEST_NONCE_2: thruput_sdk::SHA256Hash =
+    thruput_sdk::sha256_static!("MULTI_THROWS_TEST_NONCE_2");
 
 /// One place that handles every exception this contract can produce.
 ///
@@ -116,7 +116,8 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
                 }),
                 "wildcard"
             );
-            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 =
+                thruput_sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: undecodable payload under a declared selector");
         }
@@ -138,7 +139,8 @@ pub fn multi_throws_test_relay_preserves_payload(contract_hash: &SHA256Hash) {
             // catching the exception and re-throwing it. Guards against a
             // future regression where the detach copy is skipped.
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
-            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 =
+                thruput_sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: relay preserved selector and payload verbatim");
         }
@@ -160,12 +162,13 @@ pub fn multi_throws_test_relay_payload_readable_after_interleave(
         Err(CallError::Exception(raw)) => {
             let payload_len = raw.payload().len();
             assert!(payload_len > 0, "payload must be non-empty");
-            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 =
+                thruput_sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             // Read it again to confirm the slot wasn't consumed/cleared by
             // the first read.
             let decoded_again: u32 =
-                sdk::xdr::cxs::decode(raw.payload()).unwrap();
+                thruput_sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded_again, 42);
             println!(
                 "OK: caught exception payload readable after interleaved op"
@@ -189,7 +192,8 @@ pub fn multi_throws_test_relay_undecodable_twice(contract_hash: &SHA256Hash) {
     match client.try_relay_undecodable_twice(addr2) {
         Err(CallError::Exception(raw)) => {
             assert_eq!(raw.selector(), multi_throws::AlphaError::SELECTOR);
-            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 =
+                thruput_sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!(
                 "OK: two concurrently-held caught exceptions both survived interleave; outer re-throw verbatim"
@@ -220,7 +224,8 @@ pub fn multi_throws_test_malicious_library_error(contract_hash: &SHA256Hash) {
                 }),
                 "unmatched"
             );
-            let decoded: u32 = sdk::xdr::cxs::decode(raw.payload()).unwrap();
+            let decoded: u32 =
+                thruput_sdk::xdr::cxs::decode(raw.payload()).unwrap();
             assert_eq!(decoded, 42);
             println!("OK: forged LibraryExn payload matched no typed arm");
         }

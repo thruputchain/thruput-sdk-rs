@@ -1,28 +1,30 @@
-use sdk::Named;
+use thruput_sdk::Named;
 
-static NONCE: sdk::SHA256Hash =
-    sdk::sha256_static!("MULTI_IMPORTED_TRAITS_EXAMPLE_TEST_NONCE");
+static NONCE: thruput_sdk::SHA256Hash =
+    thruput_sdk::sha256_static!("MULTI_IMPORTED_TRAITS_EXAMPLE_TEST_NONCE");
 
 #[test]
 fn package_registration_exposes_all_imported_interfaces() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = multi_imported_traits::register_mock_contract(&env);
     let contract_hash = contract.as_hash().clone();
 
     env.transact(|tx| {
-        tx.call(&sdk::ContractAddress::named("test")).run(move || {
-            let addr = sdk::deploy_contract(&NONCE, &contract_hash);
+        tx.call(&thruput_sdk::ContractAddress::named("test"))
+            .run(move || {
+                let addr =
+                    thruput_sdk::deploy_contract(&NONCE, &contract_hash);
 
-            let named =
-                named_interface_callee::ExplicitNamedInterfaceClient::new(
-                    &addr,
-                );
-            let versioned =
-                versioned_callee::VersionedCalleeClient::new(&addr);
+                let named =
+                    named_interface_callee::ExplicitNamedInterfaceClient::new(
+                        &addr,
+                    );
+                let versioned =
+                    versioned_callee::VersionedCalleeClient::new(&addr);
 
-            assert_eq!(named.add_one(41), 42);
-            assert_eq!(versioned.add_one(41), 43);
-        })
+                assert_eq!(named.add_one(41), 42);
+                assert_eq!(versioned.add_one(41), 43);
+            })
     })
     .assert_success();
 }

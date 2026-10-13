@@ -64,9 +64,9 @@ jobs:
               SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_RV32_EXAMPLES=1
               SKIP_TEST_EXAMPLES=1 SKIP_INTEGRATION=1 SKIP_LOGGING=1
               SKIP_QUALITY=1 SKIP_MACROS_GUEST=1 SKIP_SDK_RV32=1
-          # Guest build of sdk + docs + full integration block + logging
-          # build + lint/fmt/xxx. Carries the rv32 sdk build for the matrix:
-          # the examples jobs compile sdk for rv32 through their contract
+          # Guest build of thruput-sdk + docs + full integration block + logging
+          # build + lint/fmt/xxx. Carries the rv32 thruput-sdk build for the matrix:
+          # the examples jobs compile thruput-sdk for rv32 through their contract
           # sweeps anyway, so running it there too would just repeat the work.
           # Only entry needing the integration_test/contracts submodule
           # (hence the SSH keys).

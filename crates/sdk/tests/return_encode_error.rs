@@ -8,10 +8,10 @@
 mod common;
 use common::decode_library_exn;
 
-use sdk::call::RawCallError;
-use sdk::contract::ContractEntrypointID;
-use sdk::exn::Exn;
-use sdk::{
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::exn::Exn;
+use thruput_sdk::{
     AuthHandleBuf, CollectAuthHandles, ContractAddress, FaultString,
     HandlingError, LibraryExn, TestEnvironment, TestEnvironmentHandle,
     WriteError, WriteResult, WriteXDR, Writer,
@@ -34,7 +34,10 @@ impl WriteXDR for FailToEncode {
         Err(WriteError::InvalidArrayLength)
     }
 
-    unsafe fn write_xdr_unchecked<F, W: sdk::xdr::WriterUnchecked<F>>(
+    unsafe fn write_xdr_unchecked<
+        F,
+        W: thruput_sdk::xdr::WriterUnchecked<F>,
+    >(
         &self,
         _w: &mut W,
     ) {
@@ -57,17 +60,17 @@ fn failed_return_encode_reports_encoding_success_not_exception() {
     let env: TestEnvironmentHandle = TestEnvironment::no_cost();
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
-            sdk::internal::contract_return_encoded(&FailToEncode);
+            thruput_sdk::internal::contract_return_encoded(&FailToEncode);
         });
     });
     mock.deploy_contract_to(&CHILD_ADDR);
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw_with::<
+            let err = thruput_sdk::call::try_call_raw_with::<
                 (),
                 (),
-                sdk::exn::RawException,
+                thruput_sdk::exn::RawException,
             >(
                 &CHILD_ADDR,
                 entrypoint(),

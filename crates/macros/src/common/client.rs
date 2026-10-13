@@ -100,15 +100,15 @@ pub fn generate(
     let client = quote! {
 
         pub struct #client_ident {
-            address: ::sdk::ContractAddress,
-            config: ::sdk::invoke_config::InvokeConfig
+            address: ::thruput_sdk::ContractAddress,
+            config: ::thruput_sdk::invoke_config::InvokeConfig
         }
 
         const _: () = {
-            use ::sdk::{ContractAddress, RuntimeMemoryLength};
-            use ::sdk::contract::ContractEntrypointID;
-            use ::sdk::with_call_tracking;
-            use ::sdk::OrReThrow;
+            use ::thruput_sdk::{ContractAddress, RuntimeMemoryLength};
+            use ::thruput_sdk::contract::ContractEntrypointID;
+            use ::thruput_sdk::with_call_tracking;
+            use ::thruput_sdk::OrReThrow;
 
             impl #client_ident {
                 /// A client for the contract deployed at `address`, with the
@@ -117,7 +117,7 @@ pub fn generate(
                 pub fn #constructor_ident(address: &ContractAddress) -> Self {
                     Self {
                         address: address.clone(),
-                        config: ::sdk::invoke_config::InvokeConfig::new()
+                        config: ::thruput_sdk::invoke_config::InvokeConfig::new()
                     }
                 }
 
@@ -126,7 +126,7 @@ pub fn generate(
                 pub fn #gas_limit_helper_ident(&self, gas_limit: u64) -> Self {
                     Self {
                         address: self.address.clone(),
-                        config: ::sdk::invoke_config::InvokeConfig {
+                        config: ::thruput_sdk::invoke_config::InvokeConfig {
                             gas_limit,
                             ..self.config
                         },
@@ -141,9 +141,9 @@ pub fn generate(
                 pub fn #try_invoke_helper_ident(&self) -> Self {
                     Self {
                         address: self.address.clone(),
-                        config: ::sdk::invoke_config::InvokeConfig {
+                        config: ::thruput_sdk::invoke_config::InvokeConfig {
                                 flags: self.config.flags
-                                    | ::sdk::invoke_config::InvokeFlag::TryInvoke.0.cast_unsigned(),
+                                    | ::thruput_sdk::invoke_config::InvokeFlag::TryInvoke.0.cast_unsigned(),
                                 .. self.config
                         },
                     }
@@ -155,9 +155,9 @@ pub fn generate(
                 pub fn #read_only_helper_ident(&self) -> Self {
                     Self {
                         address: self.address.clone(),
-                        config: ::sdk::invoke_config::InvokeConfig {
+                        config: ::thruput_sdk::invoke_config::InvokeConfig {
                                 flags: self.config.flags
-                                    | ::sdk::invoke_config::InvokeFlag::ReadOnly.0.cast_unsigned(),
+                                    | ::thruput_sdk::invoke_config::InvokeFlag::ReadOnly.0.cast_unsigned(),
                                 .. self.config
                         },
                     }
@@ -168,10 +168,10 @@ pub fn generate(
                 pub const INTERFACE_VERSION: &str = #iface_vers;
             }
 
-            impl ::sdk::call::ContractClient for #client_ident {
-                const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
+            impl ::thruput_sdk::call::ContractClient for #client_ident {
+                const INTERFACE_ID: ::thruput_sdk::InterfaceId = #interface_id_lit;
 
-                fn new(address: &::sdk::ContractAddress) -> Self {
+                fn new(address: &::thruput_sdk::ContractAddress) -> Self {
                     #client_ident::#constructor_ident(address)
                 }
             }
@@ -220,7 +220,7 @@ fn generate_client_fn(
         let print_string = format!("[sdk] Client: Calling method {}", ident);
 
         quote! {
-            ::sdk::debug_log!("{} with args {:?}", #print_string, __gh_args);
+            ::thruput_sdk::debug_log!("{} with args {:?}", #print_string, __gh_args);
         }
     } else {
         quote! {}
@@ -232,7 +232,7 @@ fn generate_client_fn(
         None => quote! { None },
     };
     let call_info = quote! {
-        ::sdk::internal::CallMethod::new(#call_iface, #iface_vers, #call_ident)
+        ::thruput_sdk::internal::CallMethod::new(#call_iface, #iface_vers, #call_ident)
     };
 
     let try_ident = try_client_method_ident(ident);
@@ -262,9 +262,9 @@ fn generate_client_fn(
             #log_call
 
             with_call_tracking!(#call_info, {
-                ::sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
+                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
                     &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| ::sdk::ReThrow::re_throw(exn),
+                    |exn| ::thruput_sdk::ReThrow::re_throw(exn),
                 )
                 .or_re_throw()
             })
@@ -274,13 +274,14 @@ fn generate_client_fn(
         // inspected.
         ///
         /// An `Err` may hold a caught exception, kept untyped as an owned
-        /// [`RawException`](::sdk::exn::RawException) — see that type's docs
-        /// for size/ownership, and [`match_exn!`](::sdk::match_exn) for
-        /// matching it against the exception types you care about,
-        /// whatever this interface declares it `throws`.
+        /// [`RawException`](::thruput_sdk::exn::RawException) — see that
+        /// type's docs for size/ownership, and
+        /// [`match_exn!`](::thruput_sdk::match_exn) for matching it against
+        /// the exception types you care about, whatever this interface
+        /// declares it `throws`.
         #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
-        pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, ::sdk::call::CallError>
+        pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, ::thruput_sdk::call::CallError>
         {
             let __gh_entrypoint = #entrypoint_lit;
             let __gh_args = #args_tuple;
@@ -291,7 +292,7 @@ fn generate_client_fn(
                 // The exception is copied out of the call scratch verbatim
                 // and decoded on demand, rather than eagerly downcast to a
                 // type this interface happens to declare.
-                ::sdk::call::try_call_raw_with::<_, #return_type, ::sdk::exn::RawException>(
+                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, ::thruput_sdk::exn::RawException>(
                     &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
                     |exn| exn.to_owned(),
                 )

@@ -3,7 +3,7 @@ use std::panic::AssertUnwindSafe;
 
 use slot_reorder::*;
 
-static NONCE: SHA256Hash = sdk::sha256_static!("SLOT_REORDER_NONCE");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("SLOT_REORDER_NONCE");
 
 /// Slots >= 63 take multi-byte CXS index encodings (2-, 3-, and 5-byte
 /// forms). Lock the derive's field derivation against runtime `child()`
@@ -42,7 +42,7 @@ fn slot_pins_control_storage_placement() {
     let deploy = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy.assert_success();

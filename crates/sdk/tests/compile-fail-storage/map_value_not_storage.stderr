@@ -13,9 +13,9 @@ error[E0277]: `u64` cannot be stored in a `Map` or `Vector`
              Node<T>
              RCQ<S>
              Value<T>
-             sdk::storage::Map<K, V>
-             sdk::storage::Vector<S>
-note: required by a bound in `sdk::storage::Map::<K, V>::at`
+             thruput_sdk::storage::Map<K, V>
+             thruput_sdk::storage::Vector<S>
+note: required by a bound in `thruput_sdk::storage::Map::<K, V>::at`
   --> src/storage/map.rs
    |
    |     pub fn at(&self, entry_key: &K) -> SlotRef<'_, Self, V>

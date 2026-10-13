@@ -98,12 +98,12 @@ fn expand_enum(
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
-        #[derive(Debug, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
-        #[xdrs(crate = "::sdk::__xdrs")]
+        #[derive(Debug, PartialEq, ::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR, ::thruput_sdk::ContractTypeSpec)]
+        #[xdrs(crate = "::thruput_sdk::__xdrs")]
         #[repr(i32)]
         #item
 
-        impl ::sdk::exn::Exn for #ident {
+        impl ::thruput_sdk::exn::Exn for #ident {
             const SELECTOR: u64 = #selector;
         }
 
@@ -122,11 +122,11 @@ fn expand_struct(
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
-        #[derive(Debug, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
-        #[xdrs(crate = "::sdk::__xdrs")]
+        #[derive(Debug, PartialEq, ::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR, ::thruput_sdk::ContractTypeSpec)]
+        #[xdrs(crate = "::thruput_sdk::__xdrs")]
         #item
 
-        impl ::sdk::exn::Exn for #ident {
+        impl ::thruput_sdk::exn::Exn for #ident {
             const SELECTOR: u64 = #selector;
         }
 

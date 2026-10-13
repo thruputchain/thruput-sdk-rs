@@ -3,8 +3,8 @@
 //! Every kind of `&T` parameter compiles: borrowed from calldata,
 //! decoded into a local, slices, and `#[contract_type]` values.
 
-use sdk::xdr::{BytesM, VecM};
-use sdk::*;
+use thruput_sdk::xdr::{BytesM, VecM};
+use thruput_sdk::*;
 
 #[contract_type]
 pub struct Point {
@@ -12,7 +12,7 @@ pub struct Point {
     pub y: u32,
 }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct BareContract;
 
 #[contract]

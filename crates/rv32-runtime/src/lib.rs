@@ -77,8 +77,9 @@ compile_error!(
 mod dispatch;
 pub use dispatch::{Entrypoint, lookup};
 
-// Allocator gated on `alloc`, matching `sdk`'s `alloc` feature. rv32-only:
-// it binds linker-script externs and installs a `#[global_allocator]`.
+// Allocator gated on `alloc`, matching `thruput-sdk`'s `alloc` feature.
+// rv32-only: it binds linker-script externs and installs a
+// `#[global_allocator]`.
 #[cfg(all(feature = "alloc", target_arch = "riscv32"))]
 mod allocator;
 

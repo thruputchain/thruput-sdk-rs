@@ -1,8 +1,8 @@
 use alloc::collections::BTreeMap as Map;
 use alloc::vec::Vec;
-use sdk::types::event::TxEmittedEvent;
-use sdk::*;
 use thruput_erc20_if::*;
+use thruput_sdk::types::event::TxEmittedEvent;
+use thruput_sdk::*;
 
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]

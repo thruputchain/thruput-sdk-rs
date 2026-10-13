@@ -290,7 +290,7 @@ env:
   PRIMARY_PACKAGES: >-
     thruput-event
     thruput-macros
-    sdk
+    thruput-sdk
   INTERFACE_PACKAGES: >-
     thruput-erc20-if
 
@@ -304,7 +304,7 @@ jobs:
           # Pre-vendored, in dependency order.
           vendor-workspace-deps:
             thruput-event
-            sdk
+            thruput-sdk
           cargo-hack-feature-options: --feature-powerset
 "#;
 
@@ -322,13 +322,16 @@ jobs:
         assert_eq!(lists.len(), 3);
         assert_eq!(
             names(list(&lists, "PRIMARY_PACKAGES")),
-            ["thruput-event", "thruput-macros", "sdk"]
+            ["thruput-event", "thruput-macros", "thruput-sdk"]
         );
         assert_eq!(
             names(list(&lists, "INTERFACE_PACKAGES")),
             ["thruput-erc20-if"]
         );
-        assert_eq!(names(list(&lists, VENDOR_KEY)), ["thruput-event", "sdk"]);
+        assert_eq!(
+            names(list(&lists, VENDOR_KEY)),
+            ["thruput-event", "thruput-sdk"]
+        );
     }
 
     #[test]
@@ -354,7 +357,10 @@ jobs:
         // `cargo-hack-feature-options` follows the vendor list and must not
         // be swallowed into it.
         let lists = parse_lists(WORKFLOW_SHAPE);
-        assert_eq!(names(list(&lists, VENDOR_KEY)), ["thruput-event", "sdk"]);
+        assert_eq!(
+            names(list(&lists, VENDOR_KEY)),
+            ["thruput-event", "thruput-sdk"]
+        );
     }
 
     #[test]

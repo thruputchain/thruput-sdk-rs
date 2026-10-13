@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "dep:thiserror", "thruput-signed-op/dev"]
+dev = ["thruput-sdk/dev", "dep:thiserror", "thruput-signed-op/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -27,7 +27,7 @@ required-features = ["entrypoints"]
 
 [dependencies]
 # `alloc`: the mint functions encode the token node into a `Vec`.
-sdk = { workspace = true, features = ["alloc"] }
+thruput-sdk = { workspace = true, features = ["alloc"] }
 thruput-signed-op = { workspace = true }
 thiserror = { workspace = true, optional = true }
 

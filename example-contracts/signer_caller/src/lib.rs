@@ -1,10 +1,10 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::signer::Signed;
-use sdk::*;
 use signer_callee::{SignerCalleeClient, TransferAuth};
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 pub struct SignerCaller;
 
@@ -29,7 +29,7 @@ impl SignerCaller {
         target: &ContractAddress,
         amount: u64,
     ) -> Signed<TransferAuth> {
-        let address = sdk::get_current_address();
+        let address = thruput_sdk::get_current_address();
         SignerCalleeClient::new(target).mint_and_return(&address, amount)
     }
 

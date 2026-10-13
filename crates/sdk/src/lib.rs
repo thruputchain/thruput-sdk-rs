@@ -13,13 +13,13 @@ compile_error!(
 #[cfg(all(not(feature = "std"), not(target_arch = "riscv32")))]
 compile_error!("Feature 'std' is required when compiling natively");
 
-// Allow `#[exn]` to emit `::sdk::exn::Exn` and have it resolve
+// Allow `#[exn]` to emit `::thruput_sdk::exn::Exn` and have it resolve
 // inside this crate itself. (Same pattern as serde.)
-extern crate self as sdk;
+extern crate self as thruput_sdk;
 
 // Re-export the xdrs crate so that derive macros (ReadXDR, WriteXDR) can
-// reference internal xdrs module paths via `::sdk::__xdrs::…` — this lets
-// contracts depend only on `sdk`, not on `xdrs` directly.
+// reference internal xdrs module paths via `::thruput_sdk::__xdrs::…` — this
+// lets contracts depend only on `thruput_sdk`, not on `xdrs` directly.
 #[doc(hidden)]
 pub extern crate xdrs as __xdrs;
 
@@ -67,7 +67,7 @@ pub use thruput_u256::{
 /// Solidity:
 ///
 /// ```ignore
-/// let now = sdk::block::get_block_timepoint();
+/// let now = thruput_sdk::block::get_block_timepoint();
 /// let deadline = &now + 7 * Duration::from_hours(24);
 /// if now > deadline { ... }
 /// ```
@@ -105,8 +105,8 @@ pub mod __rv32 {
     /// matches the invoked method id.
     ///
     /// The runtime cannot build a `LibraryExn` itself — it is dependency-free
-    /// by design, and `sdk` depends on *it*, not the other way round — so the
-    /// two meet at this C symbol.
+    /// by design, and `thruput_sdk` depends on *it*, not the other way round —
+    /// so the two meet at this C symbol.
     ///
     /// Takes no `method_id`: the caller chose the id it invoked, so echoing
     /// it back buys nothing, and the unit variant keeps both the encoded
@@ -204,8 +204,8 @@ pub use throw::*;
 pub use types::*;
 pub use util::*;
 // XDR serialization vocabulary that is part of the SDK's public API (macro
-// expansions reference these as `::sdk::…`). The rest of the xdrs surface
-// stays namespaced under `sdk::xdr`.
+// expansions reference these as `::thruput_sdk::…`). The rest of the xdrs
+// surface stays namespaced under `thruput_sdk::xdr`.
 pub use xdr::{
     ReadError, ReadResult, ReadXDR, Reader, WriteError, WriteResult, WriteXDR,
     Writer,
@@ -244,7 +244,7 @@ pub mod storage;
 ///
 /// ```ignore
 /// use counter as _;
-/// sdk::storage_domain_uniqueness_test!();
+/// thruput_sdk::storage_domain_uniqueness_test!();
 /// ```
 #[macro_export]
 macro_rules! storage_domain_uniqueness_test {

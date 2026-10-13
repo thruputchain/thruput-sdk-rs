@@ -7,9 +7,9 @@
 //! The mock children return raw bytes via `raw_Return`, bypassing the
 //! SDK's (still 500-byte-capped) encode path, which is out of scope here.
 
-use sdk::call::RawCallError;
-use sdk::contract::ContractEntrypointID;
-use sdk::{
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::contract::ContractEntrypointID;
+use thruput_sdk::{
     AuthHandleBuf, ContractAddress, TestEnvironment, TestEnvironmentHandle,
 };
 use thruput_xdr::network_config::ConfigParam;
@@ -55,14 +55,14 @@ fn env_with_child_at_limit(
 fn contract_call_receives_returns_larger_than_500_bytes() {
     let env = env_with_child(|| {
         let payload = [0xAB_u8; 700];
-        sdk::sys::raw_Return(&payload, false, &[]);
+        thruput_sdk::sys::raw_Return(&payload, false, &[]);
     });
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let mut return_buf = sdk::call::ReturnBuf::new();
+            let mut return_buf = thruput_sdk::call::ReturnBuf::new();
             let mut returned_auth = AuthHandleBuf::new();
-            let outcome = sdk::call::contract_call(
+            let outcome = thruput_sdk::call::contract_call(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
@@ -73,7 +73,7 @@ fn contract_call_receives_returns_larger_than_500_bytes() {
                 &mut returned_auth,
             )
             .expect("invoke failed");
-            assert_eq!(outcome, sdk::call::CallOutcome::Return);
+            assert_eq!(outcome, thruput_sdk::call::CallOutcome::Return);
             assert_eq!(return_buf.as_slice(), &[0xAB_u8; 700][..]);
         })
     })
@@ -83,20 +83,20 @@ fn contract_call_receives_returns_larger_than_500_bytes() {
 #[test]
 fn try_call_raw_with_decodes_returns_larger_than_500_bytes() {
     // The child returns the CXS encoding of a 600-byte Vec<u8>.
-    let encoded =
-        sdk::xdr::cxs::encode(&vec![0xCD_u8; 600]).expect("encode failed");
+    let encoded = thruput_sdk::xdr::cxs::encode(&vec![0xCD_u8; 600])
+        .expect("encode failed");
     let env = env_with_child(move || {
-        sdk::sys::raw_Return(&encoded, false, &[]);
+        thruput_sdk::sys::raw_Return(&encoded, false, &[]);
     });
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
             // Call twice: the second call exercises scratch-buffer reuse.
             for _ in 0..2 {
-                let result: Vec<u8> = sdk::call::try_call_raw_with::<
+                let result: Vec<u8> = thruput_sdk::call::try_call_raw_with::<
                     _,
                     _,
-                    sdk::exn::RawException,
+                    thruput_sdk::exn::RawException,
                 >(
                     &CHILD_ADDR,
                     entrypoint(),
@@ -118,18 +118,18 @@ fn try_call_raw_with_preserves_abort_payloads_larger_than_500_bytes() {
     // Abort buffer layout: [u64 selector][payload bytes...].
     let selector: u64 = 0xDEAD_BEEF_CAFE_F00D;
     let mut abort_buf =
-        sdk::xdr::cxs::encode(&selector).expect("encode failed");
+        thruput_sdk::xdr::cxs::encode(&selector).expect("encode failed");
     abort_buf.extend_from_slice(&[0xEF_u8; 700]);
     let env = env_with_child(move || {
-        sdk::sys::raw_Return(&abort_buf, true, &[]);
+        thruput_sdk::sys::raw_Return(&abort_buf, true, &[]);
     });
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw_with::<
+            let err = thruput_sdk::call::try_call_raw_with::<
                 (),
                 Vec<u8>,
-                sdk::exn::RawException,
+                thruput_sdk::exn::RawException,
             >(
                 &CHILD_ADDR,
                 entrypoint(),
@@ -179,11 +179,11 @@ fn contract_call_clears_buffers_even_when_the_call_fails() {
     let env = TestEnvironment::no_cost();
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let mut return_buf = sdk::call::ReturnBuf::new();
+            let mut return_buf = thruput_sdk::call::ReturnBuf::new();
             return_buf.extend_from_slice(b"stale-from-previous-call");
             let mut returned_auth = AuthHandleBuf::new();
             returned_auth.push(7);
-            let result = sdk::call::contract_call(
+            let result = thruput_sdk::call::contract_call(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
@@ -215,14 +215,14 @@ fn contract_call_clears_buffers_even_when_the_call_fails() {
 fn contract_call_receives_returns_past_the_default_limit() {
     let env = env_with_child_at_limit(4096, || {
         let payload = [0xAB_u8; 2000];
-        sdk::sys::raw_Return(&payload, false, &[]);
+        thruput_sdk::sys::raw_Return(&payload, false, &[]);
     });
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let mut return_buf = sdk::call::ReturnBuf::new();
+            let mut return_buf = thruput_sdk::call::ReturnBuf::new();
             let mut returned_auth = AuthHandleBuf::new();
-            let outcome = sdk::call::contract_call(
+            let outcome = thruput_sdk::call::contract_call(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
@@ -233,7 +233,7 @@ fn contract_call_receives_returns_past_the_default_limit() {
                 &mut returned_auth,
             )
             .expect("invoke failed");
-            assert_eq!(outcome, sdk::call::CallOutcome::Return);
+            assert_eq!(outcome, thruput_sdk::call::CallOutcome::Return);
             assert_eq!(return_buf.as_slice(), &[0xAB_u8; 2000][..]);
         })
     })
@@ -244,18 +244,18 @@ fn contract_call_receives_returns_past_the_default_limit() {
 fn try_call_raw_with_preserves_abort_payloads_past_the_default_limit() {
     let selector: u64 = 0xDEAD_BEEF_CAFE_F00D;
     let mut abort_buf =
-        sdk::xdr::cxs::encode(&selector).expect("encode failed");
+        thruput_sdk::xdr::cxs::encode(&selector).expect("encode failed");
     abort_buf.extend_from_slice(&[0xEF_u8; 2000]);
     let env = env_with_child_at_limit(4096, move || {
-        sdk::sys::raw_Return(&abort_buf, true, &[]);
+        thruput_sdk::sys::raw_Return(&abort_buf, true, &[]);
     });
 
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let err = sdk::call::try_call_raw_with::<
+            let err = thruput_sdk::call::try_call_raw_with::<
                 (),
                 Vec<u8>,
-                sdk::exn::RawException,
+                thruput_sdk::exn::RawException,
             >(
                 &CHILD_ADDR,
                 entrypoint(),
@@ -281,9 +281,9 @@ fn try_call_raw_with_preserves_abort_payloads_past_the_default_limit() {
 fn assert_child_faults(env: &TestEnvironmentHandle) {
     env.transact(|tx| {
         tx.call(&PARENT_ADDR).run(|| {
-            let mut return_buf = sdk::call::ReturnBuf::new();
+            let mut return_buf = thruput_sdk::call::ReturnBuf::new();
             let mut returned_auth = AuthHandleBuf::new();
-            let err = sdk::call::contract_call(
+            let err = thruput_sdk::call::contract_call(
                 &CHILD_ADDR,
                 entrypoint(),
                 u64::MAX,
@@ -310,7 +310,7 @@ fn assert_child_faults(env: &TestEnvironmentHandle) {
 #[test]
 fn return_over_the_configured_limit_faults_the_child() {
     let env = env_with_child_at_limit(128, || {
-        sdk::sys::raw_Return(&[0xAB_u8; 129], false, &[]);
+        thruput_sdk::sys::raw_Return(&[0xAB_u8; 129], false, &[]);
     });
     assert_child_faults(&env);
 }
@@ -318,7 +318,7 @@ fn return_over_the_configured_limit_faults_the_child() {
 #[test]
 fn return_over_the_default_limit_faults_the_child() {
     let env = env_with_child(|| {
-        sdk::sys::raw_Return(&[0xAB_u8; 1025], false, &[]);
+        thruput_sdk::sys::raw_Return(&[0xAB_u8; 1025], false, &[]);
     });
     assert_child_faults(&env);
 }
@@ -326,7 +326,7 @@ fn return_over_the_default_limit_faults_the_child() {
 // The Exit syscall itself takes the same path.
 #[test]
 fn contract_revert_faults_the_child() {
-    let env = env_with_child(|| sdk::contract_op::contract_revert());
+    let env = env_with_child(|| thruput_sdk::contract_op::contract_revert());
     assert_child_faults(&env);
 }
 
@@ -335,7 +335,7 @@ fn contract_revert_faults_the_child() {
 #[test]
 fn reverting_return_with_auth_tokens_faults_the_child() {
     let env = env_with_child(|| {
-        sdk::sys::raw_Return(&[], true, &[0]);
+        thruput_sdk::sys::raw_Return(&[], true, &[0]);
     });
     assert_child_faults(&env);
 }

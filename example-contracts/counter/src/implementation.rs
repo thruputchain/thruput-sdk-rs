@@ -1,5 +1,5 @@
-use sdk::storage::NNInt;
-use sdk::*;
+use thruput_sdk::storage::NNInt;
+use thruput_sdk::*;
 
 #[contract_exception]
 pub enum Error {
@@ -7,7 +7,7 @@ pub enum Error {
 }
 
 #[derive(Debug)]
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct Counter {
     value: NNInt,
 }

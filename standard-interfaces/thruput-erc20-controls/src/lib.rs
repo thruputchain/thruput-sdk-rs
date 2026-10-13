@@ -10,9 +10,9 @@ mod error;
 mod events;
 pub use error::*;
 pub use events::*;
-use sdk::{ContractAddress, contract, contract_type};
 use thruput_erc20_if::{Amount, ERC20Error};
 pub use thruput_erc20_metadata_if::{Name, Symbol};
+use thruput_sdk::{ContractAddress, contract, contract_type};
 
 /// Policy fixed at initialization. `clawback_enabled` requires
 /// `auth_revocable`. SAC trustline history and cross-chain policy

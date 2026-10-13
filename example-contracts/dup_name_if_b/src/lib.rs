@@ -6,7 +6,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 /// Shares its ident with `dup_name_if_a::Error`. Neither crate knows the
 /// other exists.

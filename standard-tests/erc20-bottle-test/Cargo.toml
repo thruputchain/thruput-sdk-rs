@@ -12,7 +12,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 thruput-erc20-if = { workspace = true }
 erc20-test = { workspace = true }
 bottle-test-if = { workspace = true }

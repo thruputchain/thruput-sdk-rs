@@ -69,25 +69,25 @@ pub const PROTOCOL_CRATES: &[&str] = &[
 pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
     OperatorException {
         manifest_prefix: "standard-interfaces/",
-        dep: "sdk",
+        dep: "thruput-sdk",
         op: Op::Caret,
-        reason: "the published interface crates are compatible with any sdk \
+        reason: "the published interface crates are compatible with any SDK \
                  patch release, so they deliberately do not pin the SDK in \
                  lockstep",
     },
     OperatorException {
         manifest_prefix: "standard-impls/",
-        dep: "sdk",
+        dep: "thruput-sdk",
         op: Op::Caret,
         reason: "the published implementation components follow the interface \
-                 crates' policy: compatible with any sdk patch release, so \
+                 crates' policy: compatible with any SDK patch release, so \
                  they deliberately do not pin the SDK in lockstep",
     },
     OperatorException {
         manifest_prefix: "standard-impls/",
         dep: "thruput-domain-separator",
         op: Op::Caret,
-        reason: "same policy as the components' sdk pin: an exact pin on a \
+        reason: "same policy as the components' SDK pin: an exact pin on a \
                  workspace-line crate strands the published component the \
                  moment an SDK patch release moves that line without \
                  republishing it",
@@ -96,7 +96,7 @@ pub const OPERATOR_EXCEPTIONS: &[OperatorException] = &[
         manifest_prefix: "standard-impls/",
         dep: "thruput-contract-spec",
         op: Op::Caret,
-        reason: "same policy as the components' sdk pin: an exact pin on a \
+        reason: "same policy as the components' SDK pin: an exact pin on a \
                  workspace-line crate strands the published component the \
                  moment an SDK patch release moves that line without \
                  republishing it",

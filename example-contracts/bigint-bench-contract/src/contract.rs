@@ -6,7 +6,7 @@
 use crate::Selected;
 use crate::backend::Backend;
 use bigint_bench_if::BigIntBench;
-use sdk::contract;
+use thruput_sdk::contract;
 
 #[derive(Default)]
 struct Bench;

@@ -3,13 +3,13 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-use sdk::*;
+use thruput_sdk::*;
 
 pub type Name = heapless::String<100>;
 /// Includes the 12-character codes of classic Stellar assets.
 pub type Symbol = heapless::String<12>;
 
-#[sdk::contract]
+#[thruput_sdk::contract]
 pub trait ERC20Metadata {
     fn initialize(
         &mut self,

@@ -2,8 +2,9 @@
 //!
 //! Low-level Rust FFI bindings to the `hogd` test harness runtime.
 //!
-//! This crate is an internal implementation detail exposing C bindings and constants needed for the
-//! higher-level `sdk` Rust crate. The contents are auto-generated from the `hogd` C headers via bindgen.
+//! This crate is an internal implementation detail exposing C bindings and
+//! constants needed for the higher-level `thruput-sdk` Rust crate. The
+//! contents are auto-generated from the `hogd` C headers via bindgen.
 
 // suppress spurious warnings from bindgen
 #![allow(non_camel_case_types)]

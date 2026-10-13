@@ -3,7 +3,8 @@
 # fixture crates. Two fixtures are checked:
 #   1. multi_root_collision: two roots in one crate sharing a domain (within-crate).
 #   2. cross_crate_collision/wrapper: two contract crates linked into one bin
-#      wrapper, caught by sdk::storage_domain_uniqueness_test!() (cross-crate).
+#      wrapper, caught by thruput_sdk::storage_domain_uniqueness_test!()
+#      (cross-crate).
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,8 +34,8 @@ check_collision_detected \
     "${SCRIPT_DIR}/../example-contracts/multi_root_collision" \
     "cargo test --features dev"
 
-# Cross-crate: two contract crates linked into one bin-wrapper; caught by
-# the wrapper's sdk::storage_domain_uniqueness_test!() aggregation test.
+# Cross-crate: two contract crates linked into one bin-wrapper; caught by the
+# wrapper's thruput_sdk::storage_domain_uniqueness_test!() aggregation test.
 check_collision_detected \
     "${SCRIPT_DIR}/../example-contracts/cross_crate_collision/wrapper" \
     "cargo test"

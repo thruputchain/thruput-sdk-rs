@@ -5,10 +5,10 @@
 mod common;
 use common::*;
 
-use sdk::call::RawCallError;
-use sdk::exn::{Exn, LibraryExn};
-use sdk::sys::{SyscallErrorCode, SyscallNo};
-use sdk::*;
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::exn::{Exn, LibraryExn};
+use thruput_sdk::sys::{SyscallErrorCode, SyscallNo};
+use thruput_sdk::*;
 
 /// Run `f` as a single transaction at this file's test address.
 fn run_tx(f: impl FnOnce() + std::panic::UnwindSafe) -> TransactResult {
@@ -26,8 +26,8 @@ fn run_tx_result(
 }
 
 contract_test!(test_nnints_exn {
-    use sdk::sys_exn::nnint::*;
-    use sdk::sys_exn::delete::*;
+    use thruput_sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::delete::*;
 
     static KEY: StorageKey = static_key!("my nnint");
     let key = &KEY;
@@ -98,7 +98,7 @@ contract_test!(test_nnints_exn {
 //
 #[test]
 fn set_negative_then_increment_succeeds() {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     run_tx(|| {
         let key = StorageKey::default();
@@ -118,7 +118,7 @@ fn set_negative_then_increment_succeeds() {
 //
 #[test]
 fn set_negative_sum_fails() {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     let res = run_tx_result(|| {
         let key = StorageKey::default();
@@ -142,7 +142,7 @@ fn set_negative_sum_fails() {
 //
 #[test]
 fn set_negative_then_positive_then_negative_sum_fails() {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     let res = run_tx_result(|| {
         let key = StorageKey::default();
@@ -165,7 +165,7 @@ fn set_negative_then_positive_then_negative_sum_fails() {
 //
 #[test]
 fn get_unset_fails() {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     let res = run_tx_result(|| {
         let _ = non_negative_int_get(&StorageKey::default());
@@ -182,7 +182,7 @@ fn get_unset_fails() {
 //
 #[test]
 fn get_wrong_type_fails() {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     let res = run_tx_result(|| {
         let key = StorageKey::default();
@@ -204,7 +204,7 @@ fn get_wrong_type_fails() {
 //
 #[test]
 fn try_get_wrong_type_reports_err() {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     run_tx(|| {
         let key = StorageKey::default();
@@ -225,8 +225,8 @@ fn try_get_wrong_type_reports_err() {
 //
 #[test]
 fn delete_actually_deletes() {
-    use sdk::sys_exn::delete::*;
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::delete::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     let res = run_tx_result(|| {
         let key = StorageKey::default();
@@ -248,7 +248,7 @@ fn delete_actually_deletes() {
 // library exception (decodable by selector), not a generic fault.
 #[test]
 fn try_strict_inc_or_re_throw_throws_library_exn() {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     let res = run_tx_result(|| {
         let key = StorageKey::default();
@@ -269,7 +269,7 @@ fn try_strict_inc_or_re_throw_throws_library_exn() {
 }
 
 contract_test!(test_try_strict_inc {
-    use sdk::sys_exn::nnint::*;
+    use thruput_sdk::sys_exn::nnint::*;
 
     static KEY: StorageKey = static_key!("try strict inc");
     let key = &KEY;

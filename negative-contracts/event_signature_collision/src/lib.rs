@@ -25,12 +25,12 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::*;
+use thruput_sdk::*;
 
 pub mod ledger {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[derive(Event)]
     pub struct Updated {
@@ -41,7 +41,7 @@ pub mod ledger {
 }
 
 pub mod vault {
-    use sdk::*;
+    use thruput_sdk::*;
 
     /// Same ident as `ledger::Updated`, different module, different payload —
     /// and the same signature, because the signature does not carry the module.

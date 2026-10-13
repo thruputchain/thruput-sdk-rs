@@ -26,10 +26,10 @@ required-features = ["entrypoints"]
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [dependencies]
-sdk = { workspace = true, features = ["alloc"] }
+thruput-sdk = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 genesis_deployer = { path = ".", features = ["dev"] }

@@ -57,15 +57,14 @@
 ENTRY(_start)
 
 /* Stack reserve size. 30K by default: a no-alloc contract's scratch buffers
- * (SCRATCH_MAX = 4K each, see `sdk::call::with_call_scratch`) are plain
- * stack locals, and several are live at once — an entrypoint holds the 4K
- * calldata buffer for its whole frame, and a chain like
- * entrypoint -> method -> storage helper carries a scratch per frame that
- * encodes. Measured worst case is ~9K; 30K leaves headroom for a deeper
- * chain rather than trapping on overflow. The reserve costs nothing in the
- * stored artifact — the lowerer trims it via `initial_memory_start` — only
- * address space shared with the heap, which no-alloc contracts don't use at
- * all.
+ * (SCRATCH_MAX = 4K each, see `thruput_sdk::call::with_call_scratch`) are
+ * plain stack locals, and several are live at once — an entrypoint holds the
+ * 4K calldata buffer for its whole frame, and a chain like entrypoint ->
+ * method -> storage helper carries a scratch per frame that encodes. Measured
+ * worst case is ~9K; 30K leaves headroom for a deeper chain rather than
+ * trapping on overflow. The reserve costs nothing in the stored artifact — the
+ * lowerer trims it via `initial_memory_start` — only address space shared with
+ * the heap, which no-alloc contracts don't use at all.
  *
  * Per-contract override (must be a multiple of 16, enforced by the ASSERT
  * at the bottom): pass a linker --defsym in the contract's rustflags,
@@ -170,18 +169,18 @@ SECTIONS
   } > DATA
 
   /* Interface table: one 8-byte InterfaceId record per #[contract] impl
-   * block, emitted by the groundhog-macros expansion via
-   * #[link_section = "groundhog_rv32_interfaces"] and read by
-   * sdk::interface_table. Same shape as the dispatch table above: KEEP'd
-   * (nothing references the records) and bracketed by script-defined
-   * symbols. Its own output section rather than a slice of .rodata because
-   * the lowerer decides whether it reaches the deployed image: the section
-   * is copied into VM memory only when groundhog_rv32_interfaces_anchor is
-   * present, and that anchor is an ordinary GC-able word that survives the
-   * link only if sdk::interface_table::implements was instantiated (an
-   * ERC-165 impl). Both live at the top of the data image so a dropped
-   * table shortens it rather than leaving a hole. Section names are shared
-   * with the SDK macros and the groundhog-rpc lowerer's allowlist. */
+   * block, emitted by the groundhog-macros expansion via #[link_section =
+   * "groundhog_rv32_interfaces"] and read by thruput_sdk::interface_table.
+   * Same shape as the dispatch table above: KEEP'd (nothing references the
+   * records) and bracketed by script-defined symbols. Its own output section
+   * rather than a slice of .rodata because the lowerer decides whether it
+   * reaches the deployed image: the section is copied into VM memory only when
+   * groundhog_rv32_interfaces_anchor is present, and that anchor is an
+   * ordinary GC-able word that survives the link only if
+   * thruput_sdk::interface_table::implements was instantiated (an ERC-165
+   * impl). Both live at the top of the data image so a dropped table shortens
+   * it rather than leaving a hole. Section names are shared with the SDK
+   * macros and the groundhog-rpc lowerer's allowlist. */
   groundhog_rv32_interfaces : ALIGN(8)
   {
     __groundhog_rv32_interfaces_start = .;

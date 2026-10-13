@@ -80,15 +80,15 @@ bench = false
 # `thruput test` runs host tests with `--features dev`.
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
-# `sdk` is declared per target: it needs `std` on the host and forbids it on
-# the guest, and Cargo resolves features per platform.
+# `thruput-sdk` is declared per target: it needs `std` on the host and forbids
+# it on the guest, and Cargo resolves features per platform.
 [target.'cfg(target_arch = "riscv32")'.dependencies]
-sdk = { version = "=0.49.0", registry = "thruput" }  # the pinned CLI's exact SDK version
+thruput-sdk = { version = "=0.51.1", registry = "thruput" }  # the pinned CLI's exact SDK version
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { version = "=0.49.0", registry = "thruput", features = ["std"] }
+thruput-sdk = { version = "=0.51.1", registry = "thruput", features = ["std"] }
 
 # Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
 # keeping the library itself no_std for guest builds.
@@ -111,9 +111,9 @@ executes a closure as a contract frame at that address, and the returned
 result is asserted on:
 
 ```rust,ignore
-use sdk::*;
+use thruput_sdk::*;
 
-static NONCE: SHA256Hash = sdk::sha256_static!("my-test-nonce");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("my-test-nonce");
 
 let env = TestEnvironment::no_cost();
 let test_contract = my_contract::register_mock_contract(&env);
@@ -129,14 +129,14 @@ env.transact(|tx| {
 .assert_success();
 ```
 
-(`sdk::declare_mock_contract!();` once in `src/lib.rs` generates
+(`thruput_sdk::declare_mock_contract!();` once in `src/lib.rs` generates
 `register_mock_contract`.)
 
-For the common single-transaction case, `sdk::client_test` is thin sugar
+For the common single-transaction case, `thruput_sdk::client_test` is thin sugar
 over that pattern — it deploys the contract and hands the closure a client:
 
 ```rust,ignore
-sdk::client_test(
+thruput_sdk::client_test(
     |env| my_contract::register_mock_contract(env),
     |client: &MyContractClient| {
         // exercise the generated client here
@@ -146,7 +146,7 @@ sdk::client_test(
 
 Use the full `env.transact` form when a test needs multiple transactions,
 asserts on aborts/faults, or decodes typed results via
-`sdk::into_root_call_result`.
+`thruput_sdk::into_root_call_result`.
 
 Generated clients default to `FooClient` for `#[contract] trait Foo` and for
 `#[contract] impl Foo { ... }`. Use `client = CustomClient` only when you want
@@ -157,7 +157,7 @@ to override that default.
 Deployed contracts are built with `overflow-checks = false` (see
 `[profile.release]` in `example-contracts/.cargo/config.toml` and its
 integration_test twin), so on-chain integer arithmetic — including
-`sdk::U256` and `sdk::I256`, which deliberately mirror the primitives —
+`thruput_sdk::U256` and `thruput_sdk::I256`, which deliberately mirror the primitives —
 **silently wraps on overflow**. The native test harness compiles with
 cargo's dev profile, where overflow checks are on, so the same expression
 that panics (and fails the test) on the host wraps to a small number
@@ -167,8 +167,8 @@ behavior in deployment.**
 For money math, be explicit instead of relying on operators:
 
 - `checked_add` / `checked_sub` / `checked_mul` on the primitives and on
-  `sdk::U256` / `sdk::I256`, combined with a typed throw on `None`;
-- `sdk::mul_div_u128` / `sdk::checked_mul_div_u128` for `a * b / d` with
+  `thruput_sdk::U256` / `thruput_sdk::I256`, combined with a typed throw on `None`;
+- `thruput_sdk::mul_div_u128` / `thruput_sdk::checked_mul_div_u128` for `a * b / d` with
   a 256-bit intermediate, or `U256::mul_div` / `I256::mul_div` to stay at
   256 bits throughout, on an exact 512-bit intermediate (the panics of the
   `mul_div` family are unconditional, not `overflow-checks`-gated);
@@ -178,7 +178,7 @@ For money math, be explicit instead of relying on operators:
 
 ### 256-bit math utilities
 
-`sdk::U256` and `sdk::I256` carry OpenZeppelin's `Math.sol` and
+`thruput_sdk::U256` and `thruput_sdk::I256` carry OpenZeppelin's `Math.sol` and
 `SignedMath.sol` surfaces, so a port from Solidity keeps its vocabulary:
 `mul_div` and `mul_shr` (full precision, 512-bit intermediate), `mul_mod` /
 `add_mod` / `mod_exp` / `inv_mod`, `average`, `ceil_div`, `pow`, and
@@ -267,7 +267,7 @@ dev expand example-contracts/erc20
 ### Benchmarking 256-bit arithmetic
 
 `dev bigint-bench` reports rv32 codesize and runtime gas per operation for each
-256-bit integer implementation under test — today `sdk::U256` against Parity's
+256-bit integer implementation under test — today `thruput_sdk::U256` against Parity's
 `uint` — so a change to `crates/u256` can be diffed against the implementation it
 replaced. Where `uint` has no equivalent entry point (its full-precision
 `mulDiv`), the backend supplies the one a contract author on that backend would

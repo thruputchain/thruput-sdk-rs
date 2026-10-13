@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 /// Deploy the velocity-limit and token contracts, mint tokens to the
 /// velocity-limit contract, and give `spender` a limit of 100 per 2 blocks.
@@ -48,7 +48,7 @@ fn setup(env: &TestEnvironmentHandle) -> (ContractAddress, ContractAddress) {
 
 #[test]
 fn velocity_limit_smoke_test() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let (velocity_limit_addr, spender) = setup(&env);
 
     // withdraw the full limit in one tx
@@ -106,7 +106,7 @@ fn velocity_limit_smoke_test() {
 
 #[test]
 fn withdrawals_accumulate_within_a_transaction() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let (velocity_limit_addr, spender) = setup(&env);
 
     // Two withdrawals in one transaction accumulate: 60 + 60 exceeds the

@@ -14,9 +14,9 @@ use crate::xdr::ReadXDR;
     message = "`&{Self}` cannot be a `#[contract]` method parameter",
     label = "no `RefArg` impl for `{Self}`",
     note = "take the parameter by value; a slice `&[T]` of anything but bytes \
-            needs the sdk `alloc` feature; a type of your own becomes \
-            usable by reference with `#[contract_type]` or an \
-            `sdk::call::OwnedRefArg` impl"
+            needs the thruput-sdk `alloc` feature; a type of your own becomes \
+            usable by reference with `#[contract_type]` or a \
+            `thruput_sdk::call::OwnedRefArg` impl"
 )]
 pub trait RefArg<'r> {
     /// What the entrypoint decodes from calldata for this parameter: a

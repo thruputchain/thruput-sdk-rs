@@ -17,14 +17,14 @@ edition = "2024"
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.51.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.51.1" }
 
 [dev-dependencies]
 multi_root_collision = { path = ".", features = ["dev"] }

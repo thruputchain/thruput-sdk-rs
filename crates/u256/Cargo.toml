@@ -62,8 +62,8 @@ fmt = []
 
 # Requires a nightly compiler: enables `#![feature(cfg_overflow_checks)]` so
 # the operators key their overflow panics off the real `-C overflow-checks`
-# flag, exactly like the primitives. Off (the default, so stable consumers
-# like the CLI's spec-tool build still compile) overflow checks are always
-# on -- see lib.rs. `sdk` turns this on for guest targets only, which always
+# flag, exactly like the primitives. Off (the default, so stable consumers like
+# the CLI's spec-tool build still compile) overflow checks are always on -- see
+# lib.rs. `thruput-sdk` turns this on for guest targets only, which always
 # build nightly.
 nightly = []

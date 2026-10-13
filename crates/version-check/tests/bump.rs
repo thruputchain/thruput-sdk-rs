@@ -22,10 +22,10 @@ fn write(root: &Path, rel: &str, content: &str) {
 }
 
 /// A minimal repository the checks pass on: a root workspace at 0.17.4, a
-/// `tool` crate pinning `sdk` exactly, a standard-interface crate with its
-/// own version line and a caret-family `sdk` pin, and a standard-impls
-/// component on the same interface version line that exact-pins the
-/// interface crate.
+/// `tool` crate pinning `thruput-sdk` exactly, a standard-interface crate with
+/// its own version line and a caret-family `thruput-sdk` pin, and a
+/// standard-impls component on the same interface version line that exact-pins
+/// the interface crate.
 ///
 /// The `.gitmodules` entry mirrors the real repo so the agreement exceptions
 /// scoped to `integration_test/contracts/` count as unscanned rather than
@@ -49,7 +49,7 @@ default-members = ["crates/sdk", "crates/tool"]
 version = "0.17.4"
 
 [workspace.dependencies]
-sdk = { path = "crates/sdk", version = "=0.17.4" }
+thruput-sdk = { path = "crates/sdk", version = "=0.17.4" }
 thruput-xdr = { version = "=0.21.0" }
 "#,
     );
@@ -57,7 +57,7 @@ thruput-xdr = { version = "=0.21.0" }
         dir,
         "crates/sdk/Cargo.toml",
         r#"[package]
-name = "sdk"
+name = "thruput-sdk"
 version.workspace = true
 
 [dependencies]
@@ -72,7 +72,7 @@ name = "tool"
 version.workspace = true
 
 [dependencies]
-sdk = { path = "../sdk", version = "=0.17.4" }
+thruput-sdk = { path = "../sdk", version = "=0.17.4" }
 "#,
     );
     write(
@@ -83,7 +83,7 @@ name = "thruput-erc20-if"
 version = "0.4.2"
 
 [dependencies]
-sdk = { path = "../../crates/sdk", version = "0.17.0" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.17.0" }
 "#,
     );
     write(
@@ -94,7 +94,7 @@ name = "thruput-access-control"
 version = "0.4.2"
 
 [dependencies]
-sdk = { path = "../../crates/sdk", version = "0.17.0" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.17.0" }
 thruput-erc20-if = { path = "../../standard-interfaces/erc20-if", version = "=0.4.2" }
 "#,
     );
@@ -181,17 +181,28 @@ fn patch_bump_roundtrip() {
     let after = load(tmp.path());
     let root = after.manifest("Cargo.toml").unwrap();
     assert_eq!(root.workspace_version, Some(Version::new(0, 17, 5)));
-    assert_eq!(req_of(&after, "Cargo.toml", "sdk"), "=0.17.5");
-    assert_eq!(req_of(&after, "crates/tool/Cargo.toml", "sdk"), "=0.17.5");
-    // Interface line and its caret-family sdk pin untouched — the
+    assert_eq!(req_of(&after, "Cargo.toml", "thruput-sdk"), "=0.17.5");
+    assert_eq!(
+        req_of(&after, "crates/tool/Cargo.toml", "thruput-sdk"),
+        "=0.17.5"
+    );
+    // Interface line and its caret-family thruput-sdk pin untouched — the
     // standard-impls component included.
     assert_eq!(interface_version(&after), Version::new(0, 4, 2));
     assert_eq!(
-        req_of(&after, "standard-interfaces/erc20-if/Cargo.toml", "sdk"),
+        req_of(
+            &after,
+            "standard-interfaces/erc20-if/Cargo.toml",
+            "thruput-sdk"
+        ),
         "0.17.0"
     );
     assert_eq!(
-        req_of(&after, "standard-impls/access-control/Cargo.toml", "sdk"),
+        req_of(
+            &after,
+            "standard-impls/access-control/Cargo.toml",
+            "thruput-sdk"
+        ),
         "0.17.0"
     );
     assert_eq!(
@@ -230,17 +241,24 @@ fn breaking_bump_moves_interfaces_and_refreshes_sdk_pins() {
     let after = load(tmp.path());
     let root = after.manifest("Cargo.toml").unwrap();
     assert_eq!(root.workspace_version, Some(Version::new(0, 18, 0)));
-    assert_eq!(req_of(&after, "crates/tool/Cargo.toml", "sdk"), "=0.18.0");
+    assert_eq!(
+        req_of(&after, "crates/tool/Cargo.toml", "thruput-sdk"),
+        "=0.18.0"
+    );
     assert_eq!(interface_version(&after), Version::new(0, 4, 3));
     // The caret-family pin is refreshed to the new workspace version, and the
     // requirement keeps its operator (a bare caret stays bare).
     assert_eq!(
-        req_of(&after, "standard-interfaces/erc20-if/Cargo.toml", "sdk"),
+        req_of(
+            &after,
+            "standard-interfaces/erc20-if/Cargo.toml",
+            "thruput-sdk"
+        ),
         "0.18.0"
     );
     // The standard-impls component rides the interface line: its version and
-    // caret sdk pin move like an interface crate's, and its exact pin on the
-    // interface crate tracks the new interface version.
+    // caret thruput-sdk pin move like an interface crate's, and its exact pin
+    // on the interface crate tracks the new interface version.
     assert_eq!(
         after
             .manifest("standard-impls/access-control/Cargo.toml")
@@ -254,7 +272,11 @@ fn breaking_bump_moves_interfaces_and_refreshes_sdk_pins() {
         Version::new(0, 4, 3)
     );
     assert_eq!(
-        req_of(&after, "standard-impls/access-control/Cargo.toml", "sdk"),
+        req_of(
+            &after,
+            "standard-impls/access-control/Cargo.toml",
+            "thruput-sdk"
+        ),
         "0.18.0"
     );
     assert_eq!(
@@ -292,10 +314,17 @@ fn explicit_target_roundtrip() {
     let after = load(tmp.path());
     let root = after.manifest("Cargo.toml").unwrap();
     assert_eq!(root.workspace_version, Some(Version::new(1, 0, 0)));
-    assert_eq!(req_of(&after, "Cargo.toml", "sdk"), "=1.0.0");
-    assert_eq!(req_of(&after, "crates/tool/Cargo.toml", "sdk"), "=1.0.0");
+    assert_eq!(req_of(&after, "Cargo.toml", "thruput-sdk"), "=1.0.0");
     assert_eq!(
-        req_of(&after, "standard-interfaces/erc20-if/Cargo.toml", "sdk"),
+        req_of(&after, "crates/tool/Cargo.toml", "thruput-sdk"),
+        "=1.0.0"
+    );
+    assert_eq!(
+        req_of(
+            &after,
+            "standard-interfaces/erc20-if/Cargo.toml",
+            "thruput-sdk"
+        ),
         "1.0.0"
     );
     assert_clean(&after);
@@ -327,7 +356,7 @@ fn protocol_bump_implies_sdk_patch_and_interface_bump() {
 
     let after = load(tmp.path());
     assert_eq!(req_of(&after, "Cargo.toml", "thruput-xdr"), "=0.22.0");
-    assert_eq!(req_of(&after, "Cargo.toml", "sdk"), "=0.17.5");
+    assert_eq!(req_of(&after, "Cargo.toml", "thruput-sdk"), "=0.17.5");
     assert_eq!(interface_version(&after), Version::new(0, 4, 3));
     assert_clean(&after);
 }
@@ -359,7 +388,7 @@ name = "tool"
 version.workspace = true
 
 [dependencies]
-sdk = { path = "../sdk", version = ">=0.17, <0.18" }
+thruput-sdk = { path = "../sdk", version = ">=0.17, <0.18" }
 "#,
     );
     let repo = load(tmp.path());
@@ -392,7 +421,7 @@ name = "thruput-erc20-pausable-if"
 version = "0.4.1"
 
 [dependencies]
-sdk = { path = "../../crates/sdk", version = "0.17.0" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.17.0" }
 "#,
     );
     let repo = load(tmp.path());
@@ -431,7 +460,7 @@ members = ["fixture"]
 version = "0.1.0"
 
 [workspace.dependencies]
-sdk = {{ path = "../crates/sdk", version = "{pin}" }}
+thruput-sdk = {{ path = "../crates/sdk", version = "{pin}" }}
 "#
         ),
     );
@@ -443,7 +472,7 @@ name = "neg-fixture"
 version.workspace = true
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 "#,
     );
 }
@@ -487,7 +516,7 @@ fn sync_repairs_a_pin_a_release_left_behind() {
     bump::apply(&repo, &plan).unwrap();
 
     let after = load(tmp.path());
-    assert_eq!(req_of(&after, "neg/Cargo.toml", "sdk"), "=0.17.4");
+    assert_eq!(req_of(&after, "neg/Cargo.toml", "thruput-sdk"), "=0.17.4");
     assert_clean(&after);
 }
 
@@ -498,11 +527,16 @@ fn sync_leaves_a_consistent_repo_alone() {
     sibling_workspace(tmp.path(), "=0.17.4");
     let repo = load(tmp.path());
 
-    // The caret `sdk` pins under standard-interfaces/ name the start of a
-    // compatible series (0.17.0) rather than the current version (0.17.4).
-    // They are satisfied, so a sync must not "helpfully" retarget them.
+    // The caret `thruput-sdk` pins under standard-interfaces/ name the start
+    // of a compatible series (0.17.0) rather than the current version
+    // (0.17.4). They are satisfied, so a sync must not "helpfully" retarget
+    // them.
     assert_eq!(
-        req_of(&repo, "standard-interfaces/erc20-if/Cargo.toml", "sdk"),
+        req_of(
+            &repo,
+            "standard-interfaces/erc20-if/Cargo.toml",
+            "thruput-sdk"
+        ),
         "0.17.0"
     );
 
@@ -527,7 +561,7 @@ name = "thruput-erc20-if"
 version = "0.4.2"
 
 [dependencies]
-sdk = { path = "../../crates/sdk", version = "0.16.0" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.16.0" }
 "#,
     );
     let repo = load(tmp.path());
@@ -558,7 +592,7 @@ members = ["contracts/authclaim_test"]
 version = "0.1.0"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", version = "=0.17.4" }
+thruput-sdk = { path = "../crates/sdk", version = "=0.17.4" }
 "#,
     );
     let repo = load(tmp.path());

@@ -72,10 +72,10 @@ pub fn generate(
     };
 
     // One interface-table record per impl block (see
-    // `sdk::interface_table`): the same `#[used]` + KEEP'd-section shape as
-    // the entrypoint records, and gated like them on rv32 — a dependency
-    // that does not enable `entrypoints` exports nothing, so it must not
-    // advertise anything either.
+    // `thruput_sdk::interface_table`): the same `#[used]` + KEEP'd-section
+    // shape as the entrypoint records, and gated like them on rv32 — a
+    // dependency that does not enable `entrypoints` exports nothing, so it
+    // must not advertise anything either.
     let interface_record = contract.self_ty().map(|_| {
         let id_lit = if let Some(trait_path) = contract.trait_path() {
             let self_ty = contract.self_ty();
@@ -85,7 +85,7 @@ pub fn generate(
         };
         quote! {
             #[cfg(any(not(target_arch = "riscv32"), feature = "entrypoints"))]
-            ::sdk::__interface_record!(#id_lit);
+            ::thruput_sdk::__interface_record!(#id_lit);
         }
     });
 
@@ -111,7 +111,7 @@ pub fn generate(
                     &#iface_name_suffix_lit;
                 const FULL: [u8; {
                     PREFIX.len() + 27 + #iface_name.len() + TRAIT_INTERFACE.len() + SUFFIX.len()
-                }] = ::sdk::internal::const_iface_name_mismatch_diagnostic_bytes::<
+                }] = ::thruput_sdk::internal::const_iface_name_mismatch_diagnostic_bytes::<
                     { PREFIX.len() },
                     { #iface_name.len() },
                     { TRAIT_INTERFACE.len() },
@@ -122,7 +122,7 @@ pub fn generate(
                     },
                 >(PREFIX, #iface_name, TRAIT_INTERFACE, SUFFIX);
 
-                if !::sdk::internal::const_str_eq(#iface_name, TRAIT_INTERFACE) {
+                if !::thruput_sdk::internal::const_str_eq(#iface_name, TRAIT_INTERFACE) {
                     panic!("{}", unsafe { core::str::from_utf8_unchecked(&FULL) });
                 }
             };
@@ -131,7 +131,7 @@ pub fn generate(
             // Resolve the inherited identity even when guest entrypoints are
             // disabled. This also keeps a private contract type live when
             // its generated entrypoint wrappers are all cfg'd out.
-            const _: ::sdk::InterfaceId = <#self_ty as #trait_path>::INTERFACE_ID;
+            const _: ::thruput_sdk::InterfaceId = <#self_ty as #trait_path>::INTERFACE_ID;
             #name_assertion
         }
     } else {
@@ -177,15 +177,15 @@ pub fn generate(
         );
         let registration = quote! {
             #[cfg(not(target_arch = "riscv32"))]
-            #[::sdk::__linkme::distributed_slice(::sdk::storage::STORAGE_DOMAINS)]
-            #[linkme(crate = ::sdk::__linkme)]
+            #[::thruput_sdk::__linkme::distributed_slice(::thruput_sdk::storage::STORAGE_DOMAINS)]
+            #[linkme(crate = ::thruput_sdk::__linkme)]
             #[allow(non_upper_case_globals)]
-            static #reg_ident: ::sdk::storage::DomainRecord =
-                ::sdk::storage::DomainRecord {
+            static #reg_ident: ::thruput_sdk::storage::DomainRecord =
+                ::thruput_sdk::storage::DomainRecord {
                     // The framed domain bytes themselves: the registry
                     // compares them for byte equality, which is exactly
                     // on-chain root collision (the framing is injective).
-                    domain: <#self_ty as ::sdk::storage::StorageDomain>::DOMAIN,
+                    domain: <#self_ty as ::thruput_sdk::storage::StorageDomain>::DOMAIN,
                     type_path: concat!(module_path!(), "::", stringify!(#self_ty)),
                 };
         };
@@ -198,7 +198,7 @@ pub fn generate(
             #[test]
             #[allow(non_snake_case)]
             fn #test_ident() {
-                ::sdk::storage::assert_unique_storage_domains();
+                ::thruput_sdk::storage::assert_unique_storage_domains();
             }
         };
         (registration, test)
@@ -270,9 +270,9 @@ fn generate_entrypoints_wrapper(
     quote! {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
         #[repr(transparent)]
-        pub struct #entrypoints_ident(::sdk::contract::ContractEntrypointID);
+        pub struct #entrypoints_ident(::thruput_sdk::contract::ContractEntrypointID);
 
-        impl From<#entrypoints_ident> for ::sdk::contract::ContractEntrypointID {
+        impl From<#entrypoints_ident> for ::thruput_sdk::contract::ContractEntrypointID {
             fn from(value: #entrypoints_ident) -> Self {
                 value.0
             }
@@ -284,7 +284,7 @@ fn generate_entrypoints_wrapper(
             /// by every entrypoint below and derived by
             /// `thruput_contract_util::interface_id`. Equal to the trait's
             /// `INTERFACE_ID` for trait-defined interfaces.
-            pub const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
+            pub const INTERFACE_ID: ::thruput_sdk::InterfaceId = #interface_id_lit;
 
             pub fn into_u64(self) -> u64 {
                 self.0.into_u64()
@@ -334,7 +334,7 @@ fn method_call_args(sig: &syn::Signature) -> TokenStream {
         syn::Type::Reference(reference) if reference.mutability.is_none() => {
             let elem = &reference.elem;
             quote::quote_spanned!(elem.span()=>
-                ::sdk::call::RefArg::get(&#ident)
+                ::thruput_sdk::call::RefArg::get(&#ident)
             )
         }
         _ => quote!(#ident),
@@ -432,8 +432,8 @@ pub fn generate_method(
 
         quote! {
             use core::ops::{Deref, DerefMut};
-            let #mutability __gh_state_node: ::sdk::storage::Node<#self_ty> =
-                ::sdk::storage::contract_state_root::<#self_ty>();
+            let #mutability __gh_state_node: ::thruput_sdk::storage::Node<#self_ty> =
+                ::thruput_sdk::storage::contract_state_root::<#self_ty>();
             let #mutability __gh_state :&#mutability #self_ty = #deref;
         }
     } else {
@@ -455,7 +455,7 @@ pub fn generate_method(
 
     let log_guest_call = if cfg!(feature = "logging") {
         let print_string = format!("[sdk] Guest: Calling method {}", ident);
-        quote! { ::sdk::debug_log!("{} ", #print_string); }
+        quote! { ::thruput_sdk::debug_log!("{} ", #print_string); }
     } else {
         quote! {}
     };
@@ -479,10 +479,10 @@ pub fn generate_method(
         // If debug mode: log the method-call
         #log_guest_call
 
-        let mut __gh_calldata: ::sdk::contract_op::Calldata =
-            ::sdk::internal::new_scratch();
+        let mut __gh_calldata: ::thruput_sdk::contract_op::Calldata =
+            ::thruput_sdk::internal::new_scratch();
         let __gh_auth_token_count: u32 =
-            ::sdk::contract_op::fetch_calldata_and_auth_tokens(
+            ::thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
                 &mut __gh_calldata,
             );
 
@@ -495,12 +495,12 @@ pub fn generate_method(
             // contract_call_decode then fills in Signer handles from the auth
             // token ids 0..N-1, in order)
             let mut __args =
-                ::sdk::call::contract_call_decode(
+                ::thruput_sdk::call::contract_call_decode(
                     __gh_calldata.as_ref(),
                     0..__gh_auth_token_count,
                 )
                     .unwrap_or_else(|e|
-                        ::sdk::exn::decoding_args_throw(&e));
+                        ::thruput_sdk::exn::decoding_args_throw(&e));
 
             // Destructure into named args
             let (#arg_names) = __args;
@@ -514,18 +514,18 @@ pub fn generate_method(
         };
 
         // Return the result to the VM
-        ::sdk::internal::contract_return_encoded(&__gh_res);
+        ::thruput_sdk::internal::contract_return_encoded(&__gh_res);
     }};
 
     // Include method info in debugging context (when enabled)
     let wrapped_call = {
         let method_name = ident.to_string();
         let call_info = quote! {
-            ::sdk::internal::HandlingMethod::new(#call_iface, #call_version, #method_name)
+            ::thruput_sdk::internal::HandlingMethod::new(#call_iface, #call_version, #method_name)
         };
 
         quote! {
-            ::sdk::with_call_tracking!(#call_info, #wrapped_call)
+            ::thruput_sdk::with_call_tracking!(#call_info, #wrapped_call)
         }
     };
 
@@ -565,8 +565,8 @@ pub fn generate_method(
         #[used]
         #[unsafe(link_section = "groundhog_rv32_entrypoints")]
         #[allow(non_upper_case_globals)]
-        static #rv32_entry_static: ::sdk::__rv32::Entrypoint =
-            ::sdk::__rv32::Entrypoint {
+        static #rv32_entry_static: ::thruput_sdk::__rv32::Entrypoint =
+            ::thruput_sdk::__rv32::Entrypoint {
                 method_id: #method_id_lit,
                 wrapper: #extern_name,
             };
@@ -903,9 +903,9 @@ mod tests {
             args,
             quote! {
                 a,
-                ::sdk::call::RefArg::get(&b),
+                ::thruput_sdk::call::RefArg::get(&b),
                 c,
-                ::sdk::call::RefArg::get(&d)
+                ::thruput_sdk::call::RefArg::get(&d)
             }
             .to_string()
         );

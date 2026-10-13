@@ -114,7 +114,7 @@ edition = "2024"
 [workspace.dependencies]
 thruput-erc20-controls-if = { path = "../standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.56" }
 thruput-erc165-if = { path = "../standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.56" }
-sdk = { path = "../crates/sdk", registry = "thruput", version = "=0.51.1" }
+thruput-sdk = { path = "../crates/sdk", registry = "thruput", version = "=0.51.1" }
 thruput-contract-util = { path = "../crates/contract-util", registry = "thruput", version = "=0.51.1" }
 thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.51.1", default-features = false }
 

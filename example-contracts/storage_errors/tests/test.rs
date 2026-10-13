@@ -1,18 +1,20 @@
-use sdk::*;
 use storage_errors::StorageErrorClient;
+use thruput_sdk::*;
 
 /// The contract under test.
 const CONTRACT_ADDR: ContractAddress = ContractAddress::new([0x01; 32]);
 /// A separate "caller" address — client calls originate from here.
 const CALLER_ADDR: ContractAddress = ContractAddress::new([0xFF; 32]);
 
-static NONCE: SHA256Hash = sdk::sha256_static!("STORAGE_ERRORS_NONCE");
-static NONCE_A: SHA256Hash = sdk::sha256_static!("STORAGE_ERRORS_NONCE_A");
-static NONCE_B: SHA256Hash = sdk::sha256_static!("STORAGE_ERRORS_NONCE_B");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE");
+static NONCE_A: SHA256Hash =
+    thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_A");
+static NONCE_B: SHA256Hash =
+    thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_B");
 
 /// Register the mock contract and pre-deploy at CONTRACT_ADDR.
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = storage_errors::register_mock_contract(&env);
     let contract_hash = contract.as_hash().clone();
     contract.deploy_contract_to(&CONTRACT_ADDR);
@@ -195,7 +197,7 @@ fn map_get_missing_key_is_library_storage_error() {
                 LibraryExn::Syscall(exn) => {
                     assert!(
                         exn.has_code(
-                            sdk::sys::SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist
+                            thruput_sdk::sys::SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist
                         ),
                         "Expected StorageKeyNotExist error code, got: {:?}",
                         exn

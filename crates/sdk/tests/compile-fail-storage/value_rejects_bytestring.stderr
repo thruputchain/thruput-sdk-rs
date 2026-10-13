@@ -1,13 +1,13 @@
-error[E0599]: the method `set` exists for struct `sdk::storage::Value<sdk::storage::Bytestring>`, but its trait bounds were not satisfied
+error[E0599]: the method `set` exists for struct `thruput_sdk::storage::Value<thruput_sdk::storage::Bytestring>`, but its trait bounds were not satisfied
  --> tests/compile-fail-storage/value_rejects_bytestring.rs:5:7
   |
 5 |     v.set(&Bytestring::from(Keypath::default()));
-  |       ^^^ method cannot be called on `sdk::storage::Value<sdk::storage::Bytestring>` due to unsatisfied trait bounds
+  |       ^^^ method cannot be called due to unsatisfied trait bounds
   |
  ::: src/storage/bytestring.rs
   |
   | pub struct Bytestring {
-  | --------------------- doesn't satisfy `sdk::storage::Bytestring: WriteXDR`
+  | --------------------- doesn't satisfy `thruput_sdk::storage::Bytestring: WriteXDR`
   |
   = note: the following trait bounds were not satisfied:
-          `sdk::storage::Bytestring: WriteXDR`
+          `thruput_sdk::storage::Bytestring: WriteXDR`

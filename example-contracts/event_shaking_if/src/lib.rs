@@ -11,7 +11,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 /// A named payload type carried by `AdoptedEvent`.  Because `AdoptedEvent`
 /// is retained (the `Adopted` trait IS implemented), this typedef must

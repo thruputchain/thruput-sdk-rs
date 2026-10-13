@@ -1,9 +1,9 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
-use sdk::signer::Signed;
+use thruput_sdk::*;
+use thruput_sdk::signer::Signed;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct SignerTestContract;
 
 #[contract]

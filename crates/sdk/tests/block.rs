@@ -1,35 +1,35 @@
 //! The block-data syscalls, exercised against the real host.
 
-use sdk::contract_test;
-use sdk::{Duration, Named, TimePoint};
+use thruput_sdk::contract_test;
+use thruput_sdk::{Duration, Named, TimePoint};
 
 contract_test!(network_hash_is_the_environments_configured_network {
     // contract_test! builds a TestEnvironment on the default test network, so
     // the syscall must report exactly that hash -- not zeros, and not some
     // other network's.
-    assert_eq!(sdk::block::get_network_hash(), sdk::test_network_hash());
+    assert_eq!(thruput_sdk::block::get_network_hash(), thruput_sdk::test_network_hash());
 });
 
 contract_test!(network_hash_is_stable_within_a_transaction {
     // Fixed for the life of the network, so every read in a transaction --
     // indeed every read ever -- agrees.
-    assert_eq!(sdk::block::get_network_hash(), sdk::block::get_network_hash());
+    assert_eq!(thruput_sdk::block::get_network_hash(), thruput_sdk::block::get_network_hash());
 });
 
 contract_test!(block_timepoint_is_fixed_for_the_block {
     // The block's timepoint, fixed before execution began, not a clock read:
     // two calls in the same block agree.
-    let first = sdk::block::get_block_timepoint();
-    let second = sdk::block::get_block_timepoint();
+    let first = thruput_sdk::block::get_block_timepoint();
+    let second = thruput_sdk::block::get_block_timepoint();
     assert_eq!(first, second);
     assert_ne!(first.clone().into_inner(), 0);
 });
 
 contract_test!(block_height_and_timepoint_are_independent {
-    let height = sdk::block::get_block_height();
-    let timepoint = sdk::block::get_block_timepoint();
-    assert_eq!(height, sdk::block::get_block_height());
-    assert_eq!(timepoint, sdk::block::get_block_timepoint());
+    let height = thruput_sdk::block::get_block_height();
+    let timepoint = thruput_sdk::block::get_block_timepoint();
+    assert_eq!(height, thruput_sdk::block::get_block_height());
+    assert_eq!(timepoint, thruput_sdk::block::get_block_timepoint());
 });
 
 // A single contract_test! runs one transaction in one block, so the properties
@@ -46,13 +46,15 @@ fn wall_clock() -> TimePoint {
 }
 
 fn read_block_timepoint(
-    env: &sdk::TestEnvironmentHandle,
-    address: &sdk::ContractAddress,
+    env: &thruput_sdk::TestEnvironmentHandle,
+    address: &thruput_sdk::ContractAddress,
 ) -> TimePoint {
-    let result = env
-        .transact(|tx| tx.call(address).run(sdk::block::get_block_timepoint));
+    let result = env.transact(|tx| {
+        tx.call(address)
+            .run(thruput_sdk::block::get_block_timepoint)
+    });
     result.assert_success();
-    result.assert_return_as::<sdk::TimePoint>()
+    result.assert_return_as::<thruput_sdk::TimePoint>()
 }
 
 #[test]
@@ -61,8 +63,9 @@ fn block_timepoint_defaults_to_a_real_clock_reading() {
     // construction, so a bound taken afterwards is already too late.
     let before = wall_clock();
 
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("block_timepoint_wall_clock");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address =
+        thruput_sdk::ContractAddress::named("block_timepoint_wall_clock");
 
     let first = read_block_timepoint(&env, &address);
     env.advance_block();
@@ -99,8 +102,9 @@ fn block_timepoint_defaults_to_a_real_clock_reading() {
 
 #[test]
 fn advance_block_at_pins_the_timepoint() {
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("block_timepoint_pinned");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address =
+        thruput_sdk::ContractAddress::named("block_timepoint_pinned");
 
     // Pin forward from where we are: the environment opens its first block on
     // the wall clock, and blocks may not move backwards.
@@ -120,8 +124,9 @@ fn advance_block_at_pins_the_timepoint() {
 #[test]
 #[should_panic(expected = "precedes the block it would follow")]
 fn advance_block_at_refuses_to_go_backwards() {
-    let env = sdk::TestEnvironment::no_cost();
-    let address = sdk::ContractAddress::named("block_timepoint_backwards");
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address =
+        thruput_sdk::ContractAddress::named("block_timepoint_backwards");
 
     let now = read_block_timepoint(&env, &address);
     env.advance_block_at(&now - Duration::from_nanos(1));

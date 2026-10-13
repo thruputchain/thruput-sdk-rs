@@ -5,7 +5,7 @@
 //! interface/method fragments come from the linked `thruput-erc20-if` lib
 //! (retained via `#[used]` on rv32). Building this crate for rv32 yields the
 //! ERC20 interface's full spec. `_start`/panic handler/allocator come via
-//! sdk → thruput-rv32-runtime.
+//! thruput-sdk → thruput-rv32-runtime.
 //!
 //! Gated behind the `entrypoints` feature (see Cargo.toml) — built with
 //! `-F entrypoints` like every other contract's spec build — so a plain
@@ -16,5 +16,5 @@
 extern crate thruput_erc20_if;
 
 // Anchor the ERC20 interface so its candidate spec survives shaking.
-sdk::export_interface_spec!(thruput_erc20_if::ERC20);
-sdk::export_interface_spec!(thruput_erc20_if::ERC20AllowanceExpiry);
+thruput_sdk::export_interface_spec!(thruput_erc20_if::ERC20);
+thruput_sdk::export_interface_spec!(thruput_erc20_if::ERC20AllowanceExpiry);

@@ -25,7 +25,7 @@ thruput-erc20-permit-if = { workspace = true }
 serde_json = { version = "1", features = ["preserve_order"] }
 thiserror = { workspace = true }
 xdrs = { workspace = true, features = ["alloc"] }
-sdk = { workspace = true, features = ["std"] }
+thruput-sdk = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 tempfile = "3"

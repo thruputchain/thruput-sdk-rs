@@ -1,8 +1,8 @@
 use adder_v1::AdderClient as AdderV1Client;
 use adder_v2::AdderClient as AdderV2Client;
 use bottle_test_if::BottleTest;
-use sdk::storage::Value;
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 #[storage]
 pub struct Tester {

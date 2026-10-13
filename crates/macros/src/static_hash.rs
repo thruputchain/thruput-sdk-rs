@@ -5,7 +5,7 @@ pub fn storage_key_static(input: syn::LitStr) -> TokenStream {
     let hash = Sha256::digest(input.value());
 
     TokenStream::from(quote::quote! {
-        ::sdk::types::StorageKey::new([#(#hash),*])
+        ::thruput_sdk::types::StorageKey::new([#(#hash),*])
     })
 }
 
@@ -13,7 +13,7 @@ pub fn sha256_static(input: syn::LitStr) -> TokenStream {
     let hash = Sha256::digest(input.value());
 
     TokenStream::from(quote::quote! {
-        ::sdk::types::SHA256Hash::new([#(#hash),*])
+        ::thruput_sdk::types::SHA256Hash::new([#(#hash),*])
     })
 }
 
@@ -22,7 +22,7 @@ pub fn sha256_ident(input: syn::Ident) -> TokenStream {
     let hash = Sha256::digest(string);
 
     TokenStream::from(quote::quote! {
-        ::sdk::types::SHA256Hash::new([#(#hash),*])
+        ::thruput_sdk::types::SHA256Hash::new([#(#hash),*])
     })
 }
 

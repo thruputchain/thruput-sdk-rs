@@ -13,12 +13,12 @@ edition.workspace = true
 
 [features]
 default = ["alloc"]
-# The guest build needs alloc: `sdk::signer::mint_auth_token` is alloc-gated,
-# and `thruput build` passes --no-default-features, so `default` does not
-# reach it. State the requirement on the feature the CLI does enable.
+# The guest build needs alloc: `thruput_sdk::signer::mint_auth_token` is
+# alloc-gated, and `thruput build` passes --no-default-features, so `default`
+# does not reach it. State the requirement on the feature the CLI does enable.
 entrypoints = ["alloc"]
-alloc = ["sdk/alloc"]
-dev = ["sdk/dev"]
+alloc = ["thruput-sdk/alloc"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -34,7 +34,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [dev-dependencies]
 signer_callee = { path = ".", features = ["dev"] }

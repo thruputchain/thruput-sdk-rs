@@ -41,8 +41,8 @@ pub fn contract_entrypoint_id(
     EntrypointSignature::new(interface_name, version_str, method).id()
 }
 
-/// The `::sdk::InterfaceId` literal for an (interface, version) pair, from
-/// [`thruput_contract_util::interface_id`].
+/// The `::thruput_sdk::InterfaceId` literal for an (interface, version)
+/// pair, from [`thruput_contract_util::interface_id`].
 pub fn interface_id_literal(
     interface_name: Option<&str>,
     version_str: &str,
@@ -57,6 +57,6 @@ pub fn entrypoint_literal(entrypoint: ContractEntrypointID) -> TokenStream {
     let lit = Literal::from_str(&format!("0x{name}")).unwrap();
 
     quote!(
-        ::sdk::contract::ContractEntrypointID::from_u64(#lit)
+        ::thruput_sdk::contract::ContractEntrypointID::from_u64(#lit)
     )
 }

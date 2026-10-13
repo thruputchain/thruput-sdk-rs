@@ -36,4 +36,6 @@ macro_rules! contract_local {
 }
 
 #[cfg(all(not(any(doc, target_arch = "riscv32")), not(feature = "std")))]
-compile_error!("When building natively, sdk feature \"std\" must be enabled.");
+compile_error!(
+    "When building natively, thruput-sdk feature \"std\" must be enabled."
+);

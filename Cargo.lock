@@ -45,14 +45,14 @@ name = "bigint-bench"
 version = "0.51.1"
 dependencies = [
  "bigint-bench-if",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "bigint-bench-if"
 version = "0.51.1"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -94,15 +94,15 @@ name = "bottle-test"
 version = "0.51.1"
 dependencies = [
  "bottle-test-if",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "bottle-test-if"
 version = "0.51.1"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -327,8 +327,8 @@ version = "0.51.1"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -336,9 +336,9 @@ name = "erc20-native-test"
 version = "0.51.1"
 dependencies = [
  "erc20-test",
- "sdk",
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -346,10 +346,10 @@ dependencies = [
 name = "erc20-test"
 version = "0.51.1"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -749,32 +749,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
-name = "sdk"
-version = "0.51.1"
-dependencies = [
- "heapless",
- "hex-literal",
- "hogexec-internal",
- "linkme",
- "sdk",
- "sha2",
- "thiserror",
- "thruput-contract-spec",
- "thruput-contract-util",
- "thruput-event",
- "thruput-exn",
- "thruput-macros",
- "thruput-native-exec",
- "thruput-rv32-runtime",
- "thruput-storage-cost",
- "thruput-u256",
- "thruput-xdr",
- "trybuild",
- "version-mismatch-helper",
- "xdrs",
-]
-
-[[package]]
 name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -991,16 +965,16 @@ dependencies = [
 name = "thruput-access-control"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thruput-access-control-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-access-control-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1040,7 +1014,7 @@ name = "thruput-erc165-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1048,19 +1022,19 @@ name = "thruput-erc20-controls-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
  "thiserror",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-erc20-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -1069,9 +1043,9 @@ name = "thruput-erc20-metadata-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
  "thiserror",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -1079,17 +1053,17 @@ dependencies = [
 name = "thruput-erc20-pausable-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-erc20-permit-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1097,9 +1071,9 @@ name = "thruput-erc721-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
  "thiserror",
  "thruput-erc721-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1155,24 +1129,50 @@ name = "thruput-rv32-runtime"
 version = "0.51.1"
 
 [[package]]
+name = "thruput-sdk"
+version = "0.51.1"
+dependencies = [
+ "heapless",
+ "hex-literal",
+ "hogexec-internal",
+ "linkme",
+ "sha2",
+ "thiserror",
+ "thruput-contract-spec",
+ "thruput-contract-util",
+ "thruput-event",
+ "thruput-exn",
+ "thruput-macros",
+ "thruput-native-exec",
+ "thruput-rv32-runtime",
+ "thruput-sdk",
+ "thruput-storage-cost",
+ "thruput-u256",
+ "thruput-xdr",
+ "trybuild",
+ "version-mismatch-helper",
+ "xdrs",
+]
+
+[[package]]
 name = "thruput-sep41"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc165-if",
  "thruput-erc20-controls-if",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-signed-op"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thruput-contract-spec",
  "thruput-domain-separator",
+ "thruput-sdk",
  "thruput-signed-op-if",
 ]
 
@@ -1180,8 +1180,8 @@ dependencies = [
 name = "thruput-signed-op-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1199,7 +1199,6 @@ dependencies = [
 name = "thruput-spec-tool"
 version = "0.51.1"
 dependencies = [
- "sdk",
  "serde_json",
  "tempfile",
  "thiserror",
@@ -1209,6 +1208,7 @@ dependencies = [
  "thruput-erc20-if",
  "thruput-erc20-pausable-if",
  "thruput-erc20-permit-if",
+ "thruput-sdk",
  "thruput-signed-op-if",
  "xdrs",
 ]
@@ -1405,7 +1405,7 @@ checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 name = "vector-tests"
 version = "0.51.1"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "vector-tests",
 ]
 
@@ -1422,7 +1422,7 @@ dependencies = [
 name = "version-mismatch-helper"
 version = "1.0.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]

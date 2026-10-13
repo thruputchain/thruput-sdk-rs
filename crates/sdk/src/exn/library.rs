@@ -23,7 +23,10 @@ use thiserror::Error;
 #[derive(Debug, PartialEq, ReadXDR, WriteXDR, ConstXDRSize)]
 #[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[derive(ContractTypeSpec)]
-#[thruput_macros::exn(version = "1.0.0")]
+// `wire_crate` pins the selector to the package's pre-rename name: every
+// contract throws and matches `LibraryExn`, so its selector must not move
+// when the package does.
+#[thruput_macros::exn(version = "1.0.0", wire_crate = "sdk")]
 #[repr(i32)]
 #[non_exhaustive]
 pub enum LibraryExn {
@@ -319,9 +322,11 @@ mod selector_tests {
 
     #[test]
     fn library_exn_selector_matches_sha256() {
+        // Spelled out, not `env!("CARGO_PKG_NAME")`: the point is that the
+        // selector stays put when the package is renamed.
         let expected = thruput_contract_util::exception_selector(
             "1.0.0",
-            env!("CARGO_PKG_NAME"),
+            "sdk",
             "LibraryExn",
         );
         assert_eq!(LibraryExn::SELECTOR, expected);

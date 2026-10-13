@@ -4,4 +4,4 @@
 
 use counter as _;
 
-sdk::storage_domain_uniqueness_test!();
+thruput_sdk::storage_domain_uniqueness_test!();

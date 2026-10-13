@@ -2,10 +2,10 @@
 //!
 //! [`ExnCatch::classify`] catches through one `match_exn!` over
 //! everything a caller can meet: two errors the interface declares, one it
-//! does not, an SDK [`LibraryExn`](sdk::LibraryExn), and a fault.
+//! does not, an SDK [`LibraryExn`](thruput_sdk::LibraryExn), and a fault.
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 mod implementation;
 mod interface;

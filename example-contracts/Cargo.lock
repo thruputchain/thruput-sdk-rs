@@ -36,7 +36,7 @@ name = "bare_impl_callee"
 version = "0.4.0"
 dependencies = [
  "bare_impl_callee",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -45,8 +45,8 @@ version = "0.4.0"
 dependencies = [
  "bare_impl_callee",
  "bare_impl_caller",
- "sdk",
  "thruput-contract-util",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -55,7 +55,7 @@ version = "0.4.0"
 dependencies = [
  "bigint-bench-contract",
  "bigint-bench-if",
- "sdk",
+ "thruput-sdk",
  "uint",
 ]
 
@@ -63,7 +63,7 @@ dependencies = [
 name = "bigint-bench-if"
 version = "0.51.1"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -79,7 +79,7 @@ dependencies = [
 name = "bottle-test-if"
 version = "0.51.1"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -94,8 +94,8 @@ version = "0.4.0"
 dependencies = [
  "caller",
  "erc20",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -109,7 +109,7 @@ name = "codegen_hygiene"
 version = "0.4.0"
 dependencies = [
  "codegen_hygiene",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -117,7 +117,7 @@ name = "codegen_impl_client"
 version = "0.4.0"
 dependencies = [
  "codegen_impl_client",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -125,7 +125,7 @@ name = "codegen_impl_noclient"
 version = "0.4.0"
 dependencies = [
  "codegen_impl_noclient",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -133,7 +133,7 @@ name = "codegen_trait_client"
 version = "0.4.0"
 dependencies = [
  "codegen_trait_client",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -141,7 +141,7 @@ name = "codegen_trait_noclient"
 version = "0.4.0"
 dependencies = [
  "codegen_trait_noclient",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -149,7 +149,7 @@ name = "complex-storage"
 version = "0.4.0"
 dependencies = [
  "complex-storage",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -169,7 +169,7 @@ name = "counter"
 version = "0.4.0"
 dependencies = [
  "counter",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -272,14 +272,14 @@ dependencies = [
 name = "dup_name_if_a"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "dup_name_if_b"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -340,10 +340,10 @@ dependencies = [
  "erc20",
  "erc20-bottle-test",
  "erc20-native-test",
- "sdk",
  "sha2",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -352,8 +352,8 @@ version = "0.51.1"
 dependencies = [
  "bottle-test-if",
  "erc20-test",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -361,9 +361,9 @@ name = "erc20-native-test"
 version = "0.51.1"
 dependencies = [
  "erc20-test",
- "sdk",
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -371,10 +371,10 @@ dependencies = [
 name = "erc20-test"
 version = "0.51.1"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -386,13 +386,13 @@ dependencies = [
  "erc20_issuer",
  "erc721",
  "permit_wallet",
- "sdk",
  "thruput-domain-separator",
  "thruput-erc165-if",
  "thruput-erc20-controls-if",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
  "thruput-erc20-permit-if",
+ "thruput-sdk",
  "thruput-sep41",
  "thruput-signed-op-if",
 ]
@@ -404,8 +404,8 @@ dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
  "erc20_low_level",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -414,13 +414,13 @@ version = "0.4.0"
 dependencies = [
  "counter",
  "erc20_pausable",
- "sdk",
  "thruput-access-control",
  "thruput-access-control-if",
  "thruput-erc165-if",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
  "thruput-erc20-pausable-if",
+ "thruput-sdk",
  "thruput-signed-op-if",
 ]
 
@@ -431,10 +431,10 @@ dependencies = [
  "ed25519-dalek",
  "erc20_permit",
  "permit_wallet",
- "sdk",
  "thruput-domain-separator",
  "thruput-erc20-if",
  "thruput-erc20-permit-if",
+ "thruput-sdk",
  "thruput-signed-op-if",
 ]
 
@@ -445,8 +445,8 @@ dependencies = [
  "erc20-bottle-test",
  "erc20-native-test",
  "erc20_raw_storage",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -456,9 +456,9 @@ dependencies = [
  "counter",
  "erc721",
  "erc721_receiver",
- "sdk",
  "thruput-erc165-if",
  "thruput-erc721-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -466,8 +466,8 @@ name = "erc721_receiver"
 version = "0.4.0"
 dependencies = [
  "erc721_receiver",
- "sdk",
  "thruput-erc721-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -480,7 +480,7 @@ checksum = "2bfcf67fea2815c2fc3b90873fae90957be12ff417335dfadc7f52927feb03b2"
 name = "event_shaking_if"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -489,7 +489,7 @@ version = "0.4.0"
 dependencies = [
  "event_shaking_if",
  "event_shaking_subset",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -497,7 +497,7 @@ name = "exceptions"
 version = "0.4.0"
 dependencies = [
  "exceptions",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -505,7 +505,7 @@ name = "exn_catch"
 version = "0.4.0"
 dependencies = [
  "exn_catch",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -519,7 +519,7 @@ name = "free_fn_unnamed"
 version = "0.4.0"
 dependencies = [
  "free_fn_unnamed",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -537,7 +537,7 @@ name = "genesis_deployer"
 version = "0.4.0"
 dependencies = [
  "genesis_deployer",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -566,8 +566,8 @@ dependencies = [
  "bottle-test-if",
  "hasher",
  "hex-literal",
- "sdk",
  "thruput-domain-separator",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -623,21 +623,21 @@ dependencies = [
  "iface_conflict_caller",
  "iface_conflict_if_a",
  "iface_conflict_if_b",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "iface_conflict_if_a"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "iface_conflict_if_b"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -647,7 +647,7 @@ dependencies = [
  "iface_conflict_if_a",
  "iface_conflict_if_b",
  "iface_conflict_impl",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -656,7 +656,7 @@ version = "0.4.0"
 dependencies = [
  "imported_error_callee",
  "imported_error_type",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -665,14 +665,14 @@ version = "0.4.0"
 dependencies = [
  "imported_error_callee",
  "imported_error_caller",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "imported_error_type"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -680,7 +680,7 @@ name = "invoke_flags_test"
 version = "0.4.0"
 dependencies = [
  "invoke_flags_test",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -727,7 +727,7 @@ version = "0.4.0"
 dependencies = [
  "iface_conflict_if_a",
  "missing_contract_macro",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -736,7 +736,7 @@ version = "0.4.0"
 dependencies = [
  "multi_imported_traits",
  "named_interface_callee",
- "sdk",
+ "thruput-sdk",
  "versioned_callee",
 ]
 
@@ -745,7 +745,7 @@ name = "multi_root_storage"
 version = "0.4.0"
 dependencies = [
  "multi_root_storage",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -753,7 +753,7 @@ name = "multi_throws"
 version = "0.4.0"
 dependencies = [
  "multi_throws",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -767,7 +767,7 @@ name = "named_interface_callee"
 version = "0.4.0"
 dependencies = [
  "named_interface_callee",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -776,7 +776,7 @@ version = "0.4.0"
 dependencies = [
  "named_interface_callee",
  "named_interface_caller",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -793,9 +793,9 @@ name = "permit_wallet"
 version = "0.4.0"
 dependencies = [
  "permit_wallet",
- "sdk",
  "thiserror",
  "thruput-erc20-permit-if",
+ "thruput-sdk",
  "thruput-signed-op",
 ]
 
@@ -803,14 +803,14 @@ dependencies = [
 name = "phantom_method_if_a"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "phantom_method_if_b"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -820,7 +820,7 @@ dependencies = [
  "phantom_method_if_a",
  "phantom_method_if_b",
  "phantom_method_impl",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -828,7 +828,7 @@ name = "prerelease_version"
 version = "0.4.0"
 dependencies = [
  "prerelease_version",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -855,7 +855,7 @@ version = "0.4.0"
 dependencies = [
  "iface_conflict_if_a",
  "raw_iface_dep",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -863,7 +863,7 @@ name = "rcq_test"
 version = "0.4.0"
 dependencies = [
  "rcq_test",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -871,7 +871,7 @@ name = "recursive_type"
 version = "0.4.0"
 dependencies = [
  "recursive_type",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -901,7 +901,7 @@ dependencies = [
  "bottle-test-if",
  "heapless",
  "ref_args",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -949,27 +949,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "sdk"
-version = "0.51.1"
-dependencies = [
- "heapless",
- "hogexec-internal",
- "linkme",
- "sha2",
- "thiserror",
- "thruput-contract-spec",
- "thruput-event",
- "thruput-exn",
- "thruput-macros",
- "thruput-native-exec",
- "thruput-rv32-runtime",
- "thruput-storage-cost",
- "thruput-u256",
- "thruput-xdr",
- "xdrs",
-]
 
 [[package]]
 name = "semver"
@@ -1067,10 +1046,10 @@ name = "signed_op_wallet"
 version = "0.4.0"
 dependencies = [
  "ed25519-dalek",
- "sdk",
  "signed_op_wallet",
  "thiserror",
  "thruput-domain-separator",
+ "thruput-sdk",
  "thruput-signed-op",
 ]
 
@@ -1078,53 +1057,53 @@ dependencies = [
 name = "signer_callee"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "signer_callee",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "signer_caller"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "signer_callee",
  "signer_caller",
  "thruput-contract-util",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "signer_leaf"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "signer_leaf",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "signer_middle"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "signer_leaf",
  "signer_middle",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "signer_minter"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "signer_leaf",
  "signer_middle",
  "signer_minter",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "signer_tuple_test"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "signer_tuple_test",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1138,17 +1117,17 @@ name = "simple_wallet_old"
 version = "0.4.0"
 dependencies = [
  "erc20_low_level",
- "sdk",
  "simple_wallet_old",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "slot_reorder"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "slot_reorder",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1163,8 +1142,8 @@ version = "0.4.0"
 dependencies = [
  "dup_name_if_a",
  "dup_name_if_b",
- "sdk",
  "spec_name_reuse",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1172,16 +1151,16 @@ name = "spec_named_types"
 version = "0.4.0"
 dependencies = [
  "heapless",
- "sdk",
  "spec_named_types",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "split_module_iface"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "split_module_iface",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1194,8 +1173,8 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "stateless"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "stateless",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1208,8 +1187,8 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "storage_errors"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "storage_errors",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1250,8 +1229,8 @@ dependencies = [
 name = "test_bytestring"
 version = "0.4.0"
 dependencies = [
- "sdk",
  "test_bytestring",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1278,16 +1257,16 @@ dependencies = [
 name = "thruput-access-control"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thruput-access-control-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-access-control-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1325,7 +1304,7 @@ name = "thruput-erc165-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1333,18 +1312,18 @@ name = "thruput-erc20-controls-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
  "thiserror",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-erc20-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -1353,8 +1332,8 @@ name = "thruput-erc20-metadata-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
  "thiserror",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -1362,17 +1341,17 @@ dependencies = [
 name = "thruput-erc20-pausable-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-erc20-permit-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1380,8 +1359,8 @@ name = "thruput-erc721-if"
 version = "0.1.56"
 dependencies = [
  "heapless",
- "sdk",
  "thiserror",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1433,24 +1412,45 @@ name = "thruput-rv32-runtime"
 version = "0.51.1"
 
 [[package]]
+name = "thruput-sdk"
+version = "0.51.1"
+dependencies = [
+ "heapless",
+ "hogexec-internal",
+ "linkme",
+ "sha2",
+ "thiserror",
+ "thruput-contract-spec",
+ "thruput-event",
+ "thruput-exn",
+ "thruput-macros",
+ "thruput-native-exec",
+ "thruput-rv32-runtime",
+ "thruput-storage-cost",
+ "thruput-u256",
+ "thruput-xdr",
+ "xdrs",
+]
+
+[[package]]
 name = "thruput-sep41"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc165-if",
  "thruput-erc20-controls-if",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "thruput-signed-op"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thruput-contract-spec",
  "thruput-domain-separator",
+ "thruput-sdk",
  "thruput-signed-op-if",
 ]
 
@@ -1458,8 +1458,8 @@ dependencies = [
 name = "thruput-signed-op-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1550,7 +1550,7 @@ dependencies = [
 name = "trait_sourced_method_spec"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "trait_sourced_method_spec",
 ]
 
@@ -1558,7 +1558,7 @@ dependencies = [
 name = "typedef_ids_coexist"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "typedef_ids_coexist",
  "typedef_shaking_if_v1",
  "typedef_shaking_if_v2",
@@ -1568,7 +1568,7 @@ dependencies = [
 name = "typedef_shaking_caller"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "typedef_shaking_caller",
  "typedef_shaking_if_v1",
  "typedef_shaking_if_v2",
@@ -1578,14 +1578,14 @@ dependencies = [
 name = "typedef_shaking_if_v1"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "typedef_shaking_if_v2"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -1599,7 +1599,7 @@ name = "u256_roundtrip"
 version = "0.4.0"
 dependencies = [
  "bottle-test-if",
- "sdk",
+ "thruput-sdk",
  "u256_roundtrip",
 ]
 
@@ -1631,7 +1631,7 @@ checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 name = "unknown_method"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "unknown_method",
 ]
 
@@ -1640,8 +1640,8 @@ name = "velocity_limit"
 version = "0.4.0"
 dependencies = [
  "erc20",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
  "velocity_limit",
 ]
 
@@ -1649,7 +1649,7 @@ dependencies = [
 name = "versioned_callee"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "versioned_callee",
 ]
 
@@ -1657,7 +1657,7 @@ dependencies = [
 name = "versioned_caller"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "versioned_callee",
  "versioned_caller",
 ]
@@ -1667,7 +1667,7 @@ name = "versioned_impl"
 version = "0.2.0"
 dependencies = [
  "bottle-test-if",
- "sdk",
+ "thruput-sdk",
  "versioned_impl",
  "versioned_interface 0.1.0",
  "versioned_interface 0.2.0",
@@ -1677,14 +1677,14 @@ dependencies = [
 name = "versioned_interface"
 version = "0.1.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "versioned_interface"
 version = "0.2.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]

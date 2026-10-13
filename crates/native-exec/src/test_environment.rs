@@ -675,13 +675,14 @@ impl TestEnvironment {
     /// neither committed nor aborted.
     ///
     /// The new block takes its timepoint from the wall clock, so
-    /// `sdk::block::get_block_timepoint` reports a plausible present-day value
-    /// that moves between blocks. Use `advance_block_at` to drive contract
-    /// logic keyed on time -- deadlines, expiry, vesting, rate limits.
+    /// `thruput_sdk::block::get_block_timepoint` reports a plausible
+    /// present-day value that moves between blocks. Use `advance_block_at` to
+    /// drive contract logic keyed on time -- deadlines, expiry, vesting, rate
+    /// limits.
     ///
-    /// The sdk path is a plain code span, not an intra-doc link: `sdk` depends
-    /// on this crate, not the other way round, so there is nothing here to
-    /// resolve it against.
+    /// The SDK path is a plain code span, not an intra-doc link:
+    /// `thruput-sdk` depends on this crate, not the other way round, so there
+    /// is nothing here to resolve it against.
     pub fn advance_block(self: &TestEnvironmentHandle) {
         self.inner.borrow_mut().advance_block()
     }
@@ -692,7 +693,8 @@ impl TestEnvironment {
     /// Blocks only move forward in time, so this panics if `block_timepoint`
     /// precedes the current block's. Note the environment opens its first
     /// block on the wall clock, so pin forward from the current
-    /// `sdk::block::get_block_timepoint` rather than at an absolute past date.
+    /// `thruput_sdk::block::get_block_timepoint` rather than at an absolute
+    /// past date.
     pub fn advance_block_at(
         self: &TestEnvironmentHandle,
         block_timepoint: TimePoint,

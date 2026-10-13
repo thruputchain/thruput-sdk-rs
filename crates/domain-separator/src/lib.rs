@@ -65,9 +65,9 @@ mod operation;
 #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 pub use operation::SignedOp;
 
-/// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what `sdk`
-/// re-exports, so test fixtures can derive their spec impls instead of
-/// hand-writing them. `thruput-u256` has the same shim.
+/// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what
+/// `thruput-sdk` re-exports, so test fixtures can derive their spec impls
+/// instead of hand-writing them. `thruput-u256` has the same shim.
 #[cfg(test)]
 #[doc(hidden)]
 pub mod __sdk_paths {

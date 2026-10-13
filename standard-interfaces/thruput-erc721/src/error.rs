@@ -3,7 +3,7 @@
 //! arguments, so the offending address or token id is not repeated in the
 //! error; the caller passed it and can name it.
 
-#[sdk::contract_exception]
+#[thruput_sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum ERC721Error {

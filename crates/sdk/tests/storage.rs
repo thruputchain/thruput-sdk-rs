@@ -1,9 +1,9 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-use sdk::contract_test;
-use sdk::exn::NoneIfMissing;
-use sdk::storage::*;
-use sdk::{Deletable, Storage};
+use thruput_sdk::contract_test;
+use thruput_sdk::exn::NoneIfMissing;
+use thruput_sdk::storage::*;
+use thruput_sdk::{Deletable, Storage};
 
 #[derive(Storage, Deletable)]
 #[allow(dead_code)]
@@ -267,7 +267,7 @@ contract_test!(test_exclusive_propagation {
 });
 
 contract_test!(test_exclusive_write_keeps_its_lock {
-    use sdk::StorageFlags;
+    use thruput_sdk::StorageFlags;
 
     let mut map: Map<u32, Value<u32>> = Keypath::default().into();
     let slot: u32 = 5;
@@ -290,8 +290,8 @@ contract_test!(test_exclusive_write_keeps_its_lock {
 });
 
 contract_test!(test_set_flags_needs_a_pending_write {
-    use sdk::StorageFlags;
-    use sdk::sys_result::flags::set_storage_flags;
+    use thruput_sdk::StorageFlags;
+    use thruput_sdk::sys_result::flags::set_storage_flags;
 
     let mut value: Value<u32> = Keypath::default().child(&1u32).into();
 
@@ -309,7 +309,7 @@ contract_test!(test_set_flags_needs_a_pending_write {
 });
 
 contract_test!(test_exclusive_delete_locks_the_deletion {
-    use sdk::StorageFlags;
+    use thruput_sdk::StorageFlags;
 
     let mut count: NNInt = Keypath::default().child(&2u32).into();
     count.set(4);
@@ -523,19 +523,22 @@ fn test_value_undecodable_read_reports_err() {
     // Write a raw bytestring that is not a valid encoding of u32 directly
     // at the storage key used by a Value<u32>. try_get reports
     // StorageSerialization as an Err — not a storage-missing error.
-    let env = sdk::TestEnvironment::no_cost();
-    let addr = <sdk::ContractAddress as sdk::Named>::named(
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let addr = <thruput_sdk::ContractAddress as thruput_sdk::Named>::named(
         "test_value_undecodable_read_reports_err",
     );
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
             let keypath = Keypath::default();
             let key = keypath.generate_key();
-            sdk::bytestring_set(&key, &[0u8; 900]);
+            thruput_sdk::bytestring_set(&key, &[0u8; 900]);
             let val: Value<u32> = keypath.into();
             let err = val.try_get().unwrap_err();
             assert!(!err.is_storage_missing());
-            assert_eq!(err, sdk::exn::LibraryExn::StorageSerialization);
+            assert_eq!(
+                err,
+                thruput_sdk::exn::LibraryExn::StorageSerialization
+            );
         })
     });
     assert!(result.is_success());
@@ -545,15 +548,15 @@ fn test_value_undecodable_read_reports_err() {
 fn test_value_undecodable_get_aborts() {
     // The plain get() on the same undecodable slot aborts with exactly the
     // exception try_get reports.
-    let env = sdk::TestEnvironment::no_cost();
-    let addr = <sdk::ContractAddress as sdk::Named>::named(
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let addr = <thruput_sdk::ContractAddress as thruput_sdk::Named>::named(
         "test_value_undecodable_get_aborts",
     );
     let result = env.transact(|tx| {
         tx.call(&addr).run(|| {
             let keypath = Keypath::default();
             let key = keypath.generate_key();
-            sdk::bytestring_set(&key, &[0u8; 900]);
+            thruput_sdk::bytestring_set(&key, &[0u8; 900]);
             let val: Value<u32> = keypath.into();
             let _ = val.get();
         })
@@ -582,8 +585,8 @@ contract_test!(test_map_at_disjoint_mut {
 
 #[test]
 fn test_map_at_disjoint_mut_duplicate_panics() {
-    let env = sdk::TestEnvironment::no_cost();
-    let addr = <sdk::ContractAddress as sdk::Named>::named(
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let addr = <thruput_sdk::ContractAddress as thruput_sdk::Named>::named(
         "test_map_at_disjoint_mut_duplicate_panics",
     );
     let result = env.transact(|tx| {
@@ -595,14 +598,14 @@ fn test_map_at_disjoint_mut_duplicate_panics() {
     assert!(!result.is_success());
 }
 
-#[derive(sdk::Storage)]
+#[derive(thruput_sdk::Storage)]
 struct StorageDomainPlain {
-    _v: sdk::storage::Value<u64>,
+    _v: thruput_sdk::storage::Value<u64>,
 }
 
-#[sdk::storage(domain = "custom")]
+#[thruput_sdk::storage(domain = "custom")]
 struct StorageDomainRenamed {
-    _v: sdk::storage::Value<u64>,
+    _v: thruput_sdk::storage::Value<u64>,
 }
 
 contract_test!(storage_domain_defaults_to_ident_and_overrides {
@@ -625,8 +628,8 @@ contract_test!(storage_domain_defaults_to_ident_and_overrides {
 
 #[test]
 fn test_data_fully_consumed() {
-    let env = sdk::TestEnvironment::no_cost();
-    let addr = <sdk::ContractAddress as sdk::Named>::named(
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let addr = <thruput_sdk::ContractAddress as thruput_sdk::Named>::named(
         "test_data_fully_consumed",
     );
 
@@ -653,7 +656,7 @@ fn test_data_fully_consumed() {
                 let value: Value<i32> = keypath.clone().into();
                 assert_eq!(
                     value.try_get(),
-                    Err(sdk::exn::LibraryExn::StorageSerialization)
+                    Err(thruput_sdk::exn::LibraryExn::StorageSerialization)
                 );
             }
         })
@@ -661,7 +664,7 @@ fn test_data_fully_consumed() {
     assert!(result.is_success());
 }
 
-#[derive(sdk::Storage)]
+#[derive(thruput_sdk::Storage)]
 #[allow(dead_code)]
 struct Pinned {
     a: Value<u64>, // positional 0
@@ -679,7 +682,7 @@ contract_test!(slot_override_remaps_field_keypath {
     assert_ne!(p.b.key(), other.key());
 });
 
-#[derive(sdk::Storage)]
+#[derive(thruput_sdk::Storage)]
 #[allow(dead_code)]
 struct PositionalAbsoluteIndex {
     #[slot(5)]
@@ -912,8 +915,8 @@ fn test_vector_get_on_a_hole_aborts() {
     // `at(i)` is only bounds-checked; it does not check occupancy. Reading a
     // deleted in-bounds element with `get()` aborts as storage-missing, so
     // callers that delete elements must read with `try_get`.
-    let env = sdk::TestEnvironment::no_cost();
-    let addr = <sdk::ContractAddress as sdk::Named>::named(
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let addr = <thruput_sdk::ContractAddress as thruput_sdk::Named>::named(
         "test_vector_get_on_a_hole_aborts",
     );
     let result = env.transact(|tx| {
@@ -1064,8 +1067,8 @@ contract_test!(test_vector_nnint_hole_resurrects_at_zero {
 fn test_vector_element_delete_is_still_bounds_checked() {
     // `at_mut` bounds-checks before handing out the slot, so an
     // out-of-bounds delete aborts rather than clearing an unrelated key.
-    let env = sdk::TestEnvironment::no_cost();
-    let addr = <sdk::ContractAddress as sdk::Named>::named(
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let addr = <thruput_sdk::ContractAddress as thruput_sdk::Named>::named(
         "test_vector_element_delete_is_still_bounds_checked",
     );
     let result = env.transact(|tx| {
@@ -1096,8 +1099,8 @@ contract_test!(test_vector_delete_at_matches_slot_delete {
 
 #[test]
 fn test_vector_delete_at_is_bounds_checked() {
-    let env = sdk::TestEnvironment::no_cost();
-    let addr = <sdk::ContractAddress as sdk::Named>::named(
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let addr = <thruput_sdk::ContractAddress as thruput_sdk::Named>::named(
         "test_vector_delete_at_is_bounds_checked",
     );
     let result = env.transact(|tx| {

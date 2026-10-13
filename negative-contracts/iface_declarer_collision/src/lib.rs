@@ -15,10 +15,10 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 pub mod ledger {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract]
     pub trait Token {
@@ -27,7 +27,7 @@ pub mod ledger {
 }
 
 pub mod vault {
-    use sdk::*;
+    use thruput_sdk::*;
 
     /// Same ident as `ledger::Token`, so the same interface key and id; a
     /// different method, so a different entrypoint and a clean link.
@@ -40,7 +40,7 @@ pub mod vault {
 pub struct TwoTokens;
 
 mod ledger_impl {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract]
     impl crate::ledger::Token for crate::TwoTokens {
@@ -51,7 +51,7 @@ mod ledger_impl {
 }
 
 mod vault_impl {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract]
     impl crate::vault::Token for crate::TwoTokens {

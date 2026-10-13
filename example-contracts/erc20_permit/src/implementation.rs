@@ -7,14 +7,14 @@ use thruput_erc20_if::{
 use thruput_erc20_permit_if::{
     DeleteAllowanceGrant, ERC20Permit, ERC20PermitError, PermitGrant,
 };
-use sdk::signer::Signed;
-use sdk::storage::deletable::Deletable;
-use sdk::storage::{Balance, Map, Value};
-use sdk::*;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::storage::deletable::Deletable;
+use thruput_sdk::storage::{Balance, Map, Value};
+use thruput_sdk::*;
 
-type Allowance = sdk::storage::NNInt;
+type Allowance = thruput_sdk::storage::NNInt;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 #[cfg_attr(feature = "dev", derive(Debug))]
 pub struct PermitToken {
     administrator: Value<ContractAddress>,

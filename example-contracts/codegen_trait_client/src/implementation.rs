@@ -1,5 +1,5 @@
 use super::Adder;
-use sdk::*;
+use thruput_sdk::*;
 
 #[derive(Default)]
 struct AdderContract;

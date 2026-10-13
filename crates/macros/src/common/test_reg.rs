@@ -16,7 +16,7 @@ pub fn generate_trait_method(
 
     Ok(syn::parse_quote! {
         #[doc(hidden)]
-        fn __mock(contract: &mut ::sdk::MockContract) where Self: Sized {
+        fn __mock(contract: &mut ::thruput_sdk::MockContract) where Self: Sized {
             #registrations
         }
     })
@@ -34,7 +34,7 @@ pub fn generate_bare_method(
     Ok(quote! {
         impl #self_ty {
             #[doc(hidden)]
-            pub fn __mock(contract: &mut ::sdk::MockContract) {
+            pub fn __mock(contract: &mut ::thruput_sdk::MockContract) {
                 #registrations
             }
         }
@@ -70,14 +70,14 @@ pub fn generate_impl_registry_fragment(
 
     Ok(quote! {
         const _: () = {
-            fn register(contract: &mut ::sdk::MockContract) {
+            fn register(contract: &mut ::thruput_sdk::MockContract) {
                 #register_path(contract);
             }
 
-            #[::sdk::__linkme::distributed_slice(::sdk::mock_registry::CONTRACT_MOCK_FRAGMENTS)]
-            #[linkme(crate = ::sdk::__linkme)]
-            static FRAGMENT: ::sdk::mock_registry::ContractMockFragment =
-                ::sdk::mock_registry::ContractMockFragment {
+            #[::thruput_sdk::__linkme::distributed_slice(::thruput_sdk::mock_registry::CONTRACT_MOCK_FRAGMENTS)]
+            #[linkme(crate = ::thruput_sdk::__linkme)]
+            static FRAGMENT: ::thruput_sdk::mock_registry::ContractMockFragment =
+                ::thruput_sdk::mock_registry::ContractMockFragment {
                     package_name: env!("CARGO_PKG_NAME"),
                     self_type_key: #self_type_key,
                     register,
@@ -108,14 +108,14 @@ pub fn generate_free_function_registry_fragment(
 
     Ok(quote! {
         const _: () = {
-            fn register(contract: &mut ::sdk::MockContract) {
+            fn register(contract: &mut ::thruput_sdk::MockContract) {
                 #registration
             }
 
-            #[::sdk::__linkme::distributed_slice(::sdk::mock_registry::CONTRACT_MOCK_FRAGMENTS)]
-            #[linkme(crate = ::sdk::__linkme)]
-            static FRAGMENT: ::sdk::mock_registry::ContractMockFragment =
-                ::sdk::mock_registry::ContractMockFragment {
+            #[::thruput_sdk::__linkme::distributed_slice(::thruput_sdk::mock_registry::CONTRACT_MOCK_FRAGMENTS)]
+            #[linkme(crate = ::thruput_sdk::__linkme)]
+            static FRAGMENT: ::thruput_sdk::mock_registry::ContractMockFragment =
+                ::thruput_sdk::mock_registry::ContractMockFragment {
                     package_name: env!("CARGO_PKG_NAME"),
                     self_type_key: None,
                     register,
@@ -158,7 +158,7 @@ fn generate_method_qualified(
     let internal_name = src.make_internal_name(ident);
     let id = method_id_tokens(src, sig);
     let entrypoint =
-        quote!(::sdk::contract::ContractEntrypointID::from_u64(#id));
+        quote!(::thruput_sdk::contract::ContractEntrypointID::from_u64(#id));
 
     Ok(quote! {
         contract.register_method(#entrypoint, #exports_mod::#internal_name);

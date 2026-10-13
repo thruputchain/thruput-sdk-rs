@@ -6,8 +6,8 @@
 
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
 use thruput_contract_util::interface_id;
+use thruput_sdk::*;
 
 #[contract(version = "1.2.3")]
 pub trait Counter {
@@ -24,7 +24,7 @@ pub trait CounterV2 {
 /// from the interface name.
 #[allow(dead_code)]
 mod patch {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract(version = "1.9.0", interface = "Counter")]
     pub trait CounterPatch {
@@ -81,10 +81,12 @@ fn id_follows_name_and_major_version_only() {
 /// package.
 #[test]
 fn interface_table_reflects_the_contract_crate() {
-    use sdk::interface_table::implements_in;
+    use thruput_sdk::interface_table::implements_in;
 
-    assert!(sdk::implements!(CounterEntrypoints::INTERFACE_ID));
-    assert!(!sdk::implements!(CounterV2Entrypoints::INTERFACE_ID));
+    assert!(thruput_sdk::implements!(CounterEntrypoints::INTERFACE_ID));
+    assert!(!thruput_sdk::implements!(
+        CounterV2Entrypoints::INTERFACE_ID
+    ));
     // The same query from another package, or another version of this one,
     // sees a different contract.
     assert!(!implements_in(
@@ -99,9 +101,9 @@ fn interface_table_reflects_the_contract_crate() {
     ));
 }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 struct CounterContract {
-    value: sdk::storage::Value<u32>,
+    value: thruput_sdk::storage::Value<u32>,
 }
 
 #[contract]
@@ -113,7 +115,7 @@ impl Counter for CounterContract {
 
 /// A non-trait impl block: its client and wrapper share the impl's
 /// interface ID too.
-#[sdk::storage]
+#[thruput_sdk::storage]
 struct BareContract;
 
 #[contract]

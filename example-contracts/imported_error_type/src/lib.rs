@@ -1,6 +1,6 @@
 #![no_std]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract_exception]
 pub enum ImportedError {

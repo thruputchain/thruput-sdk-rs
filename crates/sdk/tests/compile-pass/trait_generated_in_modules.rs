@@ -5,7 +5,7 @@
 macro_rules! interface {
     ($module:ident) => {
         pub mod $module {
-            #[sdk::contract(version = "4.5.6")]
+            #[thruput_sdk::contract(version = "4.5.6")]
             pub trait SameName {
                 fn ping() -> u32;
             }
@@ -29,7 +29,7 @@ macro_rules! duplicate_interface {
 }
 
 duplicate_interface! {
-    #[sdk::contract(version = "4.5.6")]
+    #[thruput_sdk::contract(version = "4.5.6")]
     pub trait Cloned {
         fn ping() -> u32;
     }
@@ -38,7 +38,7 @@ duplicate_interface! {
 pub use first::SameName as Alias;
 pub struct Contract;
 
-#[sdk::contract]
+#[thruput_sdk::contract]
 impl Alias for Contract {
     fn ping() -> u32 {
         42

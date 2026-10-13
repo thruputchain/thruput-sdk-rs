@@ -1,11 +1,11 @@
 error: storage slot 3 is assigned to more than one field
  --> tests/compile-fail-storage/slot_collision.rs:4:5
   |
-4 |     #[slot(3)] b: sdk::storage::Value<u64>,
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4 |     #[slot(3)] b: thruput_sdk::storage::Value<u64>,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 error: previously assigned here
  --> tests/compile-fail-storage/slot_collision.rs:3:5
   |
-3 |     #[slot(3)] a: sdk::storage::Value<u64>,
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3 |     #[slot(3)] a: thruput_sdk::storage::Value<u64>,
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

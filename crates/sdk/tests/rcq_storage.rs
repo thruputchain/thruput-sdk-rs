@@ -1,8 +1,8 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-use sdk::storage::*;
-use sdk::*;
 use std::panic::UnwindSafe;
+use thruput_sdk::storage::*;
+use thruput_sdk::*;
 const ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 
 #[test]

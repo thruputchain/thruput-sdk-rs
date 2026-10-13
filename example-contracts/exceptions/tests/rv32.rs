@@ -6,11 +6,11 @@ const RV32_PATH: &str = "../../target/thruput/exceptions.rv32a";
 
 mod common;
 use common::*;
-use sdk::*;
+use thruput_sdk::*;
 
 #[test]
 fn rv32_ok() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::default();
     let _ = env.setup_create_contract(&contract);
 
@@ -24,13 +24,14 @@ fn rv32_ok() {
 
 #[test]
 fn rv32_deploy() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
-    let env = sdk::TestEnvironment::no_cost();
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let _addr = sdk::deploy_contract(&TEST_NONCE, &contract_hash);
+            let _addr =
+                thruput_sdk::deploy_contract(&TEST_NONCE, &contract_hash);
         })
     })
     .assert_success();
@@ -38,8 +39,8 @@ fn rv32_deploy() {
 
 #[test]
 fn rv32_exceptions() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
-    let env = sdk::TestEnvironment::no_cost();
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
     env.transact(|tx| {
@@ -51,8 +52,8 @@ fn rv32_exceptions() {
 
 #[test]
 fn rv32_panic() {
-    let contract = sdk::load_rv32_contract(RV32_PATH);
-    let env = sdk::TestEnvironment::no_cost();
+    let contract = thruput_sdk::load_rv32_contract(RV32_PATH);
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
 
     env.transact(|tx| {

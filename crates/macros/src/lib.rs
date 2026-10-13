@@ -87,7 +87,7 @@ pub fn static_key(item: TokenStream) -> TokenStream {
 /// **value** (quotes stripped, escapes resolved).
 ///
 /// `sha256_static!("foo")` hashes the 3 bytes `foo` and agrees with
-/// `sdk::crypto::sha256(b"foo")` at runtime and with
+/// `thruput_sdk::crypto::sha256(b"foo")` at runtime and with
 /// [`hash_to_array!`](macro@hash_to_array).
 #[proc_macro]
 pub fn sha256_static(item: TokenStream) -> TokenStream {
@@ -102,7 +102,7 @@ pub fn sha256_static(item: TokenStream) -> TokenStream {
 /// so building that crate on its own emits the interface's full spec:
 ///
 /// ```ignore
-/// sdk::export_interface_spec!(thruput_erc20_if::ERC20);
+/// thruput_sdk::export_interface_spec!(thruput_erc20_if::ERC20);
 /// ```
 #[proc_macro]
 pub fn export_interface_spec(item: TokenStream) -> TokenStream {
@@ -132,7 +132,7 @@ pub fn sha256_array_ident(item: TokenStream) -> TokenStream {
 /// Compute a `[u8; 32]` at compile time: sha256 of the literal's **value**
 /// (quotes stripped, escapes resolved). Accepts string and byte-string
 /// literals: `hash_to_array!("foo")` == sha256 of the 3 bytes `foo` and
-/// agrees with `sdk::crypto::sha256(b"foo")` at runtime and with
+/// agrees with `thruput_sdk::crypto::sha256(b"foo")` at runtime and with
 /// [`sha256_static!`](macro@sha256_static)/[`static_key!`](macro@static_key)
 /// for the same string.
 #[proc_macro]
@@ -175,9 +175,9 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 /// For trait definitions, bare impls, and free functions, the version still
 /// defaults to the declaring crate's `CARGO_PKG_VERSION`.
 ///
-/// No `throws(...)` type may contain a `sdk::signer::Signed`: abort frames
-/// carry no auth-token handles, so such a payload could only decode to an
-/// uninitialized sentinel. Spec canonicalization rejects it when the
+/// No `throws(...)` type may contain a `thruput_sdk::signer::Signed`: abort
+/// frames carry no auth-token handles, so such a payload could only decode
+/// to an uninitialized sentinel. Spec canonicalization rejects it when the
 /// contract is built. See `#[contract_exception]`.
 ///
 /// # Declared method effects
@@ -215,14 +215,14 @@ pub fn hash_to_array(item: TokenStream) -> TokenStream {
 ///
 /// # Interface id
 ///
-/// A `#[contract]` trait gains an associated `INTERFACE_ID: sdk::InterfaceId`,
-/// derived from the effective interface name and major version (the pair
-/// that also namespaces its entrypoint IDs), and the generated
-/// `<Iface>Entrypoints` wrapper carries the same constant. The name is
-/// reserved on contract traits. Every `#[contract]` impl block also records
-/// its interface's id in the contract's interface table
-/// (`sdk::interface_table`), which is what `thruput-erc165-if` answers
-/// `supports_interface` from.
+/// A `#[contract]` trait gains an associated
+/// `INTERFACE_ID: thruput_sdk::InterfaceId`, derived from the effective
+/// interface name and major version (the pair that also namespaces its
+/// entrypoint IDs), and the generated `<Iface>Entrypoints` wrapper carries
+/// the same constant. The name is reserved on contract traits. Every
+/// `#[contract]` impl block also records its interface's id in the
+/// contract's interface table (`thruput_sdk::interface_table`), which is what
+/// `thruput-erc165-if` answers `supports_interface` from.
 ///
 /// # Storage-domain collision detection
 ///
@@ -294,7 +294,7 @@ pub fn storage(
     };
 
     quote::quote! {
-        #[derive(::sdk::Storage)]
+        #[derive(::thruput_sdk::Storage)]
         #domain_attr
         #item
     }
@@ -314,9 +314,12 @@ pub fn derive_deletable(input: TokenStream) -> TokenStream {
 /// computed selector. Use this when you handle your own derives.
 /// For the full convenience macro, use `#[contract_exception]` instead.
 ///
+/// `wire_crate = "..."` pins the package label used in the selector hash, as
+/// it does for `#[contract_exception]`.
+///
 /// Handling your own derives means owning the rule that
 /// `#[contract_exception]` enforces structurally: **an exception payload
-/// may not contain a `sdk::signer::Signed`**, because abort
+/// may not contain a `thruput_sdk::signer::Signed`**, because abort
 /// frames carry no auth-token handles and such a field could only decode to
 /// an uninitialized sentinel. See `#[contract_exception]` for the full
 /// reasoning. Nothing here can check that for you, but the contract's spec
@@ -343,7 +346,7 @@ pub fn exn(attr_args: TokenStream, item_tokens: TokenStream) -> TokenStream {
 ///
 /// # Exception payloads cannot carry auth tokens
 ///
-/// No field may be — or contain — a `sdk::signer::Signed`.
+/// No field may be — or contain — a `thruput_sdk::signer::Signed`.
 ///
 /// A `Signed` occupies zero wire bytes; its real handle arrives out of band
 /// in the auth-token list the host returns beside a *successful* return.
@@ -454,16 +457,16 @@ pub fn contract_type(
 /// - `#[contract_type_spec(export)]` — emit the fragment as an *exported*
 ///   typedef, so it survives spec shaking without an inbound reference.
 /// - `#[contract_type_spec(crate = "...")]` — resolve the emitted paths through
-///   the given crate path instead of `::sdk`.
+///   the given crate path instead of `::thruput_sdk`.
 ///
 /// # `crate = "..."`
 ///
-/// The derive normally emits literal `::sdk::…` paths, so a crate that `sdk`
-/// itself depends on cannot use it — naming `::sdk` from below `sdk` is a
-/// dependency cycle. But everything the derive reaches for is an `sdk`
-/// *re-export* of a crate below `sdk`: `__contract_spec` is
-/// `thruput-contract-spec` and `__xdrs` is `xdrs`. Nothing here is owned by
-/// `sdk`.
+/// The derive normally emits literal `::thruput_sdk::…` paths, so a crate
+/// that `thruput-sdk` itself depends on cannot use it — naming
+/// `::thruput_sdk` from below `thruput-sdk` is a dependency cycle. But
+/// everything the derive reaches for is a `thruput-sdk` *re-export* of a
+/// crate below `thruput-sdk`: `__contract_spec` is `thruput-contract-spec`
+/// and `__xdrs` is `xdrs`. Nothing here is owned by `thruput-sdk`.
 ///
 /// So such a crate can supply a shim matching those two names and point the
 /// derive at it:
@@ -490,7 +493,7 @@ pub fn contract_type(
 /// derive references but never emits.
 ///
 /// Note this covers *spec* impls only. `#[contract_type]` additionally emits
-/// impls of traits genuinely owned by `sdk` (`CollectAuthHandles`,
+/// impls of traits genuinely owned by `thruput-sdk` (`CollectAuthHandles`,
 /// `ReceiveAuthHandles`, `MintableType`), which a lower crate cannot implement
 /// — that is a dependency problem, not a path problem, and has no override.
 #[proc_macro_derive(ContractTypeSpec, attributes(contract_type_spec))]

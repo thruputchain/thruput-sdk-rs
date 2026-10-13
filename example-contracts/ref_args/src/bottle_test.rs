@@ -5,9 +5,9 @@
 
 use crate::{Bytes, Label, Point, RefArgsClient, Words, expected};
 pub use bottle_test_if::*;
-use sdk::storage::Value;
-use sdk::xdr::{BytesM, VecM};
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::xdr::{BytesM, VecM};
+use thruput_sdk::*;
 
 #[derive(Debug)]
 #[storage]
@@ -97,7 +97,7 @@ impl BottleTest for BT {
         let more_list: VecM<&[u8], 4> = VecM(alloc::vec![&second[..]]);
         let (total, gap) = client.byte_string_lists(list.clone(), &more_list);
         assert_eq!(total, 11);
-        let encoded = sdk::encode_xdr(&list)
+        let encoded = thruput_sdk::encode_xdr(&list)
             .unwrap_or_else(|_| panic!("bottle-test: list encodes"));
         let at = |needle: &[u8]| {
             encoded

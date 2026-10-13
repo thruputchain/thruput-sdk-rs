@@ -5,10 +5,11 @@
 //! is nothing for a separate wrapper to keep target-agnostic.
 //!
 //! The runtime (`_start`, `#[panic_handler]`, `#[global_allocator]`, linker
-//! script) arrives transitively: `sdk` force-links `thruput-rv32-runtime` on
-//! rv32 targets. The `extern crate` below is what makes the macro-emitted
-//! entrypoint symbols in the library actually link -- the linker script KEEPs
-//! `.text.gh_*`, but only for a crate that is in the link at all.
+//! script) arrives transitively: `thruput-sdk` force-links
+//! `thruput-rv32-runtime` on rv32 targets. The `extern crate` below is what
+//! makes the macro-emitted entrypoint symbols in the library actually link --
+//! the linker script KEEPs `.text.gh_*`, but only for a crate that is in the
+//! link at all.
 
 #![no_std]
 #![no_main]

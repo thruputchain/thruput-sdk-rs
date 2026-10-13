@@ -1,5 +1,5 @@
 use crate::Stateless;
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(interface = "Interface1", client = Client)]
 pub trait Interface {

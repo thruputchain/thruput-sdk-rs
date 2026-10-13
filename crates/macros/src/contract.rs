@@ -54,7 +54,7 @@ fn throws_host_use_tokens(config: &Config) -> TokenStream2 {
     let uses = config.throws_list().into_iter().map(|thrown| {
         let ty = thrown.ty();
         quote::quote! {
-            const _: u64 = <#ty as ::sdk::exn::Exn>::SELECTOR;
+            const _: u64 = <#ty as ::thruput_sdk::exn::Exn>::SELECTOR;
         }
     });
     quote::quote! { #(#uses)* }
@@ -118,21 +118,21 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 contract::throws_anchor_tokens(&contract)?;
             let throw_anchor_stmts = throw_anchor_tokens.iter().map(|anchor| {
                 quote::quote! {
-                    acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+                    acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
                 }
             });
 
             let emits = config.emits_list();
             let event_def_tokens = emits.iter().map(|path| {
                 quote::quote! {
-                    <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
+                    <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
                 }
             });
             let event_anchor_stmts = emits.iter().map(|path| {
                 quote::quote! {
-                    acc = ::sdk::__contract_spec::mix_anchor_fn(
+                    acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(
                         acc,
-                        <#path as ::sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+                        <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
                     );
                 }
             });
@@ -177,7 +177,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             );
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_DECLARED_BY: ::sdk::__contract_spec::ContractSpecIdView<'static> = #declared_by;
+                const __GROUNDHOG_IFACE_DECLARED_BY: ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> = #declared_by;
             });
             let interface_id_lit = common::entrypoint::interface_id_literal(
                 Some(&iface_name),
@@ -189,12 +189,12 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 /// same (name, MAJOR) pair that namespaces its entrypoint IDs.
                 /// Every implementor inherits it, and every `#[contract]` impl
                 /// of this trait records it in the contract's interface table
-                /// (`sdk::interface_table`).
-                const INTERFACE_ID: ::sdk::InterfaceId = #interface_id_lit;
+                /// (`thruput_sdk::interface_table`).
+                const INTERFACE_ID: ::thruput_sdk::InterfaceId = #interface_id_lit;
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_THROWS: &'static [::sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
+                const __GROUNDHOG_IFACE_THROWS: &'static [::thruput_sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -211,16 +211,16 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_EVENTS: &'static [::sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
+                const __GROUNDHOG_IFACE_EVENTS: &'static [::thruput_sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
             });
             let emits_name_tokens = emits.iter().map(|path| {
                 quote::quote! {
-                    <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
+                    <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
                 }
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_EMITS: &'static [::sdk::__contract_spec::ContractSpecIdView<'static>] = &[#(#emits_name_tokens),*];
+                const __GROUNDHOG_IFACE_EMITS: &'static [::thruput_sdk::__contract_spec::ContractSpecIdView<'static>] = &[#(#emits_name_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -256,12 +256,12 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             let method_anchor_stmts =
                 method_anchor_lists.into_iter().flatten().map(|anchor| {
                     quote::quote! {
-                        acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+                        acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
                     }
                 });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_METHODS: &'static [::sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
+                const __GROUNDHOG_IFACE_METHODS: &'static [::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -280,7 +280,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             if cfg!(feature = "mock") {
                 stripped.items.push(parse_quote! {
                     #[doc(hidden)]
-                    fn __mock(contract: &mut ::sdk::MockContract) {
+                    fn __mock(contract: &mut ::thruput_sdk::MockContract) {
                         panic!("__mock not available \u{2014} use #[contract] on the impl");
                     }
                 });
@@ -311,8 +311,8 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 #[doc(hidden)]
                 #[allow(non_upper_case_globals)]
                 pub const #anchor_const_ident:
-                    ::sdk::__contract_spec::SpecInterfaceAnchorView<'static> =
-                    ::sdk::__contract_spec::SpecInterfaceAnchorView {
+                    ::thruput_sdk::__contract_spec::SpecInterfaceAnchorView<'static> =
+                    ::thruput_sdk::__contract_spec::SpecInterfaceAnchorView {
                         interface_name: #iface_name,
                         interface_version: #iface_vers,
                         declared_by: #declared_by,
@@ -321,7 +321,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 #[doc(hidden)]
                 #[allow(non_upper_case_globals)]
                 pub const #methods_const_ident:
-                    &'static [::sdk::__contract_spec::ContractSpecMethodView<'static>] =
+                    &'static [::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] =
                     &[#(#method_views2),*];
             });
 
@@ -705,7 +705,7 @@ mod tests {
     fn trait_contract_emits_raw_spec_fragments() {
         let item: syn::Item = syn::parse_quote! {
             pub trait ERC20 {
-                fn transfer(&mut self, receiver: &sdk::ContractAddress, amount: u128);
+                fn transfer(&mut self, receiver: &thruput_sdk::ContractAddress, amount: u128);
                 fn total_supply(&self) -> u128;
             }
         };
@@ -732,7 +732,7 @@ mod tests {
         // pull the *trait's* names/types (not the impl's) into their spec.
         let item: syn::Item = syn::parse_quote! {
             pub trait Pair {
-                fn initialize(&mut self, factory: &sdk::ContractAddress);
+                fn initialize(&mut self, factory: &thruput_sdk::ContractAddress);
             }
         };
         let tokens = apply_with_config(&item, &parse_config(""))
@@ -763,7 +763,7 @@ mod tests {
             "{tokens}"
         );
         assert!(
-            tokens.contains("ImportedError as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
+            tokens.contains("ImportedError as :: thruput_sdk :: __contract_spec :: ContractTypeRefSpec"),
             "{tokens}"
         );
     }
@@ -801,13 +801,13 @@ mod emits_tests {
         );
         assert!(
             tokens.contains(
-                "TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
+                "TransferEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
             ),
             "{tokens}"
         );
         assert!(
             tokens.contains(
-                "events :: ApprovalEvent as :: sdk :: __contract_spec :: ContractEventSpec"
+                "events :: ApprovalEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec"
             ),
             "{tokens}"
         );
@@ -847,13 +847,13 @@ mod emits_tests {
         assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
         assert!(
             tokens.contains(
-                "< TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
+                "< TransferEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
             ),
             "{tokens}"
         );
         assert!(
             tokens.contains(
-                "< events :: ApprovalEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
+                "< events :: ApprovalEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
             ),
             "{tokens}"
         );

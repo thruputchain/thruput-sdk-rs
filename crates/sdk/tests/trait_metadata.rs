@@ -2,7 +2,7 @@
 
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 use version_mismatch_helper::VersionedTrait as Imported;
 
 pub struct ExternalImpl;
@@ -15,7 +15,7 @@ impl Imported for ExternalImpl {
 }
 
 mod interfaces {
-    use sdk::*;
+    use thruput_sdk::*;
 
     #[contract(version = "7.3.2-rc.1+build", interface = "WireCounter")]
     pub trait RustCounter {
@@ -51,16 +51,18 @@ fn inherited_ids_match_clients_and_interface_table() {
         <LocalImpl as interfaces::RustCounter>::__GROUNDHOG_IFACE_FULL_VERSION,
         interfaces::WireCounterClient::INTERFACE_VERSION
     );
-    assert!(sdk::implements!(
+    assert!(thruput_sdk::implements!(
         version_mismatch_helper::VersionedTraitEntrypoints::INTERFACE_ID
     ));
-    assert!(sdk::implements!(
+    assert!(thruput_sdk::implements!(
         interfaces::WireCounterEntrypoints::INTERFACE_ID
     ));
-    assert!(!sdk::implements!(thruput_contract_util::interface_id(
-        Some("CounterAlias"),
-        env!("CARGO_PKG_VERSION")
-    )));
+    assert!(!thruput_sdk::implements!(
+        thruput_contract_util::interface_id(
+            Some("CounterAlias"),
+            env!("CARGO_PKG_VERSION")
+        )
+    ));
 }
 
 #[test]

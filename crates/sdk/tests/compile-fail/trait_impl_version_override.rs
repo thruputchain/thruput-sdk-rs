@@ -1,6 +1,6 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(version = "1.2.3")]
 pub trait MyTrait {

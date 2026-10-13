@@ -25,7 +25,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use bigint_bench_if::BigIntBenchClient;
-use sdk::*;
+use thruput_sdk::*;
 
 /// Distinct per artifact only in that it must be *some* nonce; the address it
 /// derives is never referenced outside the transaction that deploys it.

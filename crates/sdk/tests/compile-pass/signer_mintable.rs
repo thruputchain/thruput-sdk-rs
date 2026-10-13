@@ -1,8 +1,8 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::mintable::{AuthTokenPreimage, MintableType};
-use sdk::signer::Signed;
-use sdk::*;
+use thruput_sdk::mintable::{AuthTokenPreimage, MintableType};
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 #[contract_type]
 pub struct TransferAuth {
@@ -30,5 +30,6 @@ fn main() {
         },
     };
 
-    let _node = sdk::mintable::build_auth_token_node::<Payment>(preimage);
+    let _node =
+        thruput_sdk::mintable::build_auth_token_node::<Payment>(preimage);
 }

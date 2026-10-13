@@ -1,7 +1,7 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
-use sdk::signer::Signed;
+use thruput_sdk::*;
+use thruput_sdk::signer::Signed;
 
 #[contract_type]
 pub struct TransferRequest {
@@ -9,7 +9,7 @@ pub struct TransferRequest {
     pub auth: Signed<u32>,
 }
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct SignerStructContract;
 
 #[contract]

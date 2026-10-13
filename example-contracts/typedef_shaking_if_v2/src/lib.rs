@@ -6,7 +6,7 @@
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 /// The "v2" shape of the shared config type: same spec symbol as v1's
 /// `SharedConfig`, different fields.

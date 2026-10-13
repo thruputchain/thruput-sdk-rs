@@ -14,13 +14,13 @@ edition.workspace = true
 [features]
 entrypoints = []
 dev = [
-    "sdk/dev",
+    "thruput-sdk/dev",
     "metadata",
     "thruput-erc20-if/dev",
     "thruput-erc20-metadata-if/dev",
     "erc20-native-test/metadata"
     ]
-bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "sdk/alloc"]
+bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "thruput-sdk/alloc"]
 metadata = ["dep:thruput-erc20-metadata-if"]
 
 [lib]
@@ -37,7 +37,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 thruput-erc20-if = { workspace = true }
 thruput-erc20-metadata-if = { workspace = true, optional = true }
 

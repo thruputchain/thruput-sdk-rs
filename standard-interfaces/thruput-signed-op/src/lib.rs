@@ -46,26 +46,27 @@
 mod error;
 pub use error::*;
 
-use sdk::signer::{Opaque, Signed};
-use sdk::types::Ed25519Signature;
-use sdk::types::transaction::Uniquifier;
-use sdk::xdr::BytesM;
-use sdk::{BlockHeight, contract};
+use thruput_sdk::signer::{Opaque, Signed};
+use thruput_sdk::types::Ed25519Signature;
+use thruput_sdk::types::transaction::Uniquifier;
+use thruput_sdk::xdr::BytesM;
+use thruput_sdk::{BlockHeight, contract};
 
 /// The wire form of a signed operation.
 ///
 /// The network hash and the verifying contract are covered by the signature
-/// but deliberately absent here: the verifier supplies them from what it
-/// knows (`sdk::block::get_network_hash`, `sdk::get_current_address`). Taking
-/// them off the wire would let a submitter name the network and contract the
-/// signature was meant for. The signing key is absent for the same reason:
-/// the verifying contract checks the signature against the key it holds, so
-/// nothing on the wire says who signed.
+/// but deliberately absent here: the verifier supplies them from what it knows
+/// (`thruput_sdk::block::get_network_hash`,
+/// `thruput_sdk::get_current_address`). Taking them off the wire would let a
+/// submitter name the network and contract the signature was meant for. The
+/// signing key is absent for the same reason: the verifying contract checks
+/// the signature against the key it holds, so nothing on the wire says who
+/// signed.
 ///
 /// `block_expiry_height` and `nonce` are a [`Uniquifier`], declared in its
 /// field order so their encoding is byte-for-byte the chain's;
 /// [`uniquifier`](Self::uniquifier) reassembles it.
-#[sdk::contract_type]
+#[thruput_sdk::contract_type]
 pub struct Operation {
     /// Last block height (inclusive) at which this operation may execute.
     pub block_expiry_height: BlockHeight,

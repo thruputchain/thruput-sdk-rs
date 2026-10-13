@@ -25,11 +25,11 @@ use erc20_permit::{
 use thruput_domain_separator::SignedOp as SignedOpPreimage;
 use thruput_signed_op_if::{Operation, SignedOpClient, SignedOpError};
 use permit_wallet::{PermitWalletClient, WalletRequest};
-use sdk::signer::Signed;
-use sdk::types::transaction::Uniquifier;
-use sdk::types::{Ed25519PublicKey, Ed25519Signature};
-use sdk::xdr::BytesM;
-use sdk::*;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::types::transaction::Uniquifier;
+use thruput_sdk::types::{Ed25519PublicKey, Ed25519Signature};
+use thruput_sdk::xdr::BytesM;
+use thruput_sdk::*;
 
 const ALICE_SEED: [u8; 32] = [0x11; 32];
 const MALLORY_SEED: [u8; 32] = [0x22; 32];
@@ -69,14 +69,14 @@ fn public_key(seed: &[u8; 32]) -> Ed25519PublicKey {
 /// A funded token at `token_address()`, a second at `other_token_address()`,
 /// and Alice's wallet holding every minted unit — all visible, because the
 /// block that wrote them has been advanced past.
-fn setup() -> sdk::TestEnvironmentHandle {
-    let env = sdk::TestEnvironment::no_cost();
+fn setup() -> thruput_sdk::TestEnvironmentHandle {
+    let env = thruput_sdk::TestEnvironment::no_cost();
 
     permit_wallet::register_mock_contract(&env)
         .deploy_contract_to(&wallet_address());
     if let Some(path) = std::env::var_os("ERC20_PERMIT_RV32_ARTIFACT") {
-        let contract = sdk::types::Contract::kRv32 {
-            rv32_contract: sdk::types::contract::ContractBlob {
+        let contract = thruput_sdk::types::Contract::kRv32 {
+            rv32_contract: thruput_sdk::types::contract::ContractBlob {
                 data: BytesM(
                     std::fs::read(path).expect("read permit RV32 artifact"),
                 ),
@@ -110,9 +110,9 @@ fn setup() -> sdk::TestEnvironmentHandle {
 
 /// The current height, read from inside a frame because that is the only
 /// place the syscall answers.
-fn current_height(env: &sdk::TestEnvironmentHandle) -> BlockHeight {
+fn current_height(env: &thruput_sdk::TestEnvironmentHandle) -> BlockHeight {
     let result = env.transact(|tx| {
-        tx.call(&token_address()).run(sdk::block::get_block_height)
+        tx.call(&token_address()).run(thruput_sdk::block::get_block_height)
     });
     result.assert_success();
     result.assert_return_as::<BlockHeight>()
@@ -133,7 +133,7 @@ fn sign(
 ) -> (Operation, Ed25519Signature) {
     let key = SigningKey::from_bytes(seed);
     let preimage = SignedOpPreimage {
-        network: sdk::test_network_hash(),
+        network: thruput_sdk::test_network_hash(),
         verifying_contract: *verifying_contract,
         uniquifier: Uniquifier {
             block_expiry_height: expiry.clone(),
@@ -147,7 +147,7 @@ fn sign(
     let op = Operation {
         block_expiry_height: expiry,
         nonce,
-        body: BytesM(sdk::xdr::cxs::encode(body).expect("encoding the body")),
+        body: BytesM(thruput_sdk::xdr::cxs::encode(body).expect("encoding the body")),
     };
     (op, Ed25519Signature::from(key.sign(&preimage).to_bytes()))
 }
@@ -187,7 +187,7 @@ fn alice_permit_until(expiry: BlockHeight) -> (Operation, Ed25519Signature) {
 
 /// Alice's standard permit, valid for `HORIZON` more blocks.
 fn alice_permit(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
 ) -> (Operation, Ed25519Signature) {
     alice_permit_until(current_height(env) + HORIZON)
 }
@@ -197,7 +197,7 @@ fn alice_permit(
 ///
 /// `T` is only what the submitter claims the grant is: the wallet returns it
 /// untyped, and the token contract decodes the payload when it consumes it.
-fn mint_grant<T: sdk::mintable::MintableType>(
+fn mint_grant<T: thruput_sdk::mintable::MintableType>(
     op: Operation,
     signature: &Ed25519Signature,
 ) -> Signed<T> {
@@ -210,10 +210,10 @@ fn mint_grant<T: sdk::mintable::MintableType>(
 /// `token_address()`'s `increase_allowance_signed` — the whole flow, in one
 /// frame.
 fn submit_permit(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
     op: Operation,
     signature: Ed25519Signature,
-) -> sdk::TransactResult {
+) -> thruput_sdk::TransactResult {
     env.transact(|tx| {
         tx.call(&spender()).run(move || {
             let grant = mint_grant::<PermitGrant>(op, &signature);
@@ -243,7 +243,7 @@ macro_rules! assert_wallet_refuses {
     }};
 }
 
-fn balance_of(env: &sdk::TestEnvironmentHandle, who: ContractAddress) -> i128 {
+fn balance_of(env: &thruput_sdk::TestEnvironmentHandle, who: ContractAddress) -> i128 {
     let result = env.transact(|tx| {
         tx.call(&admin()).run(move || {
             ERC20Client::new(&token_address()).get_balance_of(&who)
@@ -253,7 +253,7 @@ fn balance_of(env: &sdk::TestEnvironmentHandle, who: ContractAddress) -> i128 {
     result.assert_return_as::<i128>()
 }
 
-fn allowance(env: &sdk::TestEnvironmentHandle) -> i128 {
+fn allowance(env: &thruput_sdk::TestEnvironmentHandle) -> i128 {
     let result = env.transact(|tx| {
         tx.call(&admin()).run(|| {
             ERC20Client::new(&token_address())
@@ -264,7 +264,7 @@ fn allowance(env: &sdk::TestEnvironmentHandle) -> i128 {
     result.assert_return_as::<i128>()
 }
 
-fn wallet_owner(env: &sdk::TestEnvironmentHandle) -> Ed25519PublicKey {
+fn wallet_owner(env: &thruput_sdk::TestEnvironmentHandle) -> Ed25519PublicKey {
     let result = env.transact(|tx| {
         tx.call(&admin())
             .run(|| PermitWalletClient::new(&wallet_address()).owner())
@@ -275,10 +275,10 @@ fn wallet_owner(env: &sdk::TestEnvironmentHandle) -> Ed25519PublicKey {
 
 /// Rotate the wallet's owner as `caller`, and hand back the result.
 fn rotate_owner_as(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
     caller: ContractAddress,
     new_owner: Ed25519PublicKey,
-) -> sdk::TransactResult {
+) -> thruput_sdk::TransactResult {
     env.transact(|tx| {
         tx.call(&caller).run(move || {
             PermitWalletClient::new(&wallet_address())
@@ -587,11 +587,11 @@ fn a_grant_minted_for_one_token_cannot_be_consumed_at_another() {
 /// Submit a signed `body` from Alice at `nonce` as `spender()`, redeeming it
 /// through `redeem` inside the same frame.
 fn submit_signed<F>(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
     nonce: u64,
     body: WalletRequest,
     redeem: F,
-) -> sdk::TransactResult
+) -> thruput_sdk::TransactResult
 where
     F: FnOnce(Operation, Ed25519Signature) + std::panic::UnwindSafe + 'static,
 {
@@ -783,11 +783,11 @@ fn a_clear_conflicts_with_an_increase_in_the_same_block() {
 }
 
 fn submit_transfer(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
     op: Operation,
     signature: Ed25519Signature,
     amount: i128,
-) -> sdk::TransactResult {
+) -> thruput_sdk::TransactResult {
     env.transact(|tx| {
         tx.call(&spender()).run(move || {
             let grant = mint_grant(op, &signature);
@@ -817,7 +817,7 @@ fn signed_transfer_preserves_an_existing_allowance() {
     result.assert_event_count(1);
     result.assert_raw_event(0, |event| {
         let transfer = thruput_erc20_if::TransferEvent::try_from(
-            sdk::EmittedEvent::from(event.raw()),
+            thruput_sdk::EmittedEvent::from(event.raw()),
         )
         .unwrap();
         assert_eq!(transfer.amount, GRANTED as i128);
@@ -881,7 +881,7 @@ fn a_transfer_signed_for_another_network_is_refused() {
     let expiry = current_height(&env) + HORIZON;
     let (op, _) = alice_permit_until(expiry.clone());
     let preimage = SignedOpPreimage {
-        network: sdk::types::NetworkHash::new(sdk::types::SHA256Hash::new(
+        network: thruput_sdk::types::NetworkHash::new(thruput_sdk::types::SHA256Hash::new(
             [0; 32],
         )),
         verifying_contract: wallet_address(),

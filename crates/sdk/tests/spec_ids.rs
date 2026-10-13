@@ -27,12 +27,12 @@
 
 #![allow(unexpected_cfgs, dead_code)]
 
-use sdk::__contract_spec::{
+use thruput_contract_util::semver::major_version_from_string;
+use thruput_sdk::__contract_spec::{
     ContractEventSpec, ContractTypeDefView, ContractTypeName,
     ContractTypeSpec, ContractTypeView,
 };
-use sdk::*;
-use thruput_contract_util::semver::major_version_from_string;
+use thruput_sdk::*;
 
 /// The id prefix every type declared in this test crate must carry, derived
 /// the same way the macro derives it rather than hardcoded, so a version bump
@@ -41,8 +41,8 @@ use thruput_contract_util::semver::major_version_from_string;
 /// The crate segment comes from `module_path!()` and the version from the
 /// package being compiled. In a library crate those are the same crate; in an
 /// integration test the module path is rooted at the test binary (`spec_ids`)
-/// while the version is `sdk`'s, which is why this is built rather than
-/// spelled out.
+/// while the version is `thruput-sdk`'s, which is why this is built rather
+/// than spelled out.
 fn expected_crate() -> &'static str {
     env!("CARGO_PKG_NAME")
 }
@@ -60,7 +60,7 @@ fn expected_major() -> String {
 /// library.
 #[track_caller]
 fn assert_id(
-    id: sdk::__contract_spec::ContractSpecIdView<'static>,
+    id: thruput_sdk::__contract_spec::ContractSpecIdView<'static>,
     module_suffix: &str,
     declared: &str,
 ) {
@@ -81,7 +81,7 @@ pub struct Meta {
 }
 
 mod inner {
-    use sdk::*;
+    use thruput_sdk::*;
 
     /// Same ident as the root `Meta`, different module, different shape.
     #[contract_type]
@@ -90,7 +90,7 @@ mod inner {
     }
 
     pub mod deeper {
-        use sdk::*;
+        use thruput_sdk::*;
 
         #[contract_type]
         pub struct Meta {
@@ -212,7 +212,7 @@ pub struct Moved {
 }
 
 mod evt {
-    use sdk::*;
+    use thruput_sdk::*;
 
     /// Same ident as the root `Moved`, different module, different payload.
     #[derive(Event)]
@@ -368,7 +368,7 @@ fn a_declared_name_renames_an_exceptions_selector() {
             type_name,
         )
     };
-    let actual = <RenamedError as sdk::exn::Exn>::SELECTOR;
+    let actual = <RenamedError as thruput_sdk::exn::Exn>::SELECTOR;
     assert_eq!(actual, selector("SpecRenamedError"));
     assert_ne!(actual, selector("RenamedError"), "not the ident's");
 }
@@ -389,7 +389,7 @@ pub struct StableWireEvent {
 #[test]
 fn wire_exception_override_keeps_spec_provenance() {
     assert_eq!(
-        <StableWireError as sdk::exn::Exn>::SELECTOR,
+        <StableWireError as thruput_sdk::exn::Exn>::SELECTOR,
         thruput_contract_util::exception_selector(
             "1.0.0",
             "protocol-package",

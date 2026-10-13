@@ -49,7 +49,7 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.51.1" }
+thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.51.1" }
 thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.51.1", default-features = false }
 
 thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.56" }

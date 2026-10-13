@@ -5,7 +5,7 @@
 //! interface/method fragments come from the linked `thruput-erc721-if` lib
 //! (retained via `#[used]` on rv32). Building this crate for rv32 yields the
 //! full spec of all three interfaces. `_start`/panic handler/allocator come
-//! via sdk → thruput-rv32-runtime.
+//! via thruput-sdk → thruput-rv32-runtime.
 //!
 //! Gated behind the `entrypoints` feature (see Cargo.toml) — built with
 //! `-F entrypoints` like every other contract's spec build — so a plain
@@ -16,6 +16,6 @@
 extern crate thruput_erc721_if;
 
 // Anchor each interface so its candidate spec survives shaking.
-sdk::export_interface_spec!(thruput_erc721_if::ERC721);
-sdk::export_interface_spec!(thruput_erc721_if::ERC721Metadata);
-sdk::export_interface_spec!(thruput_erc721_if::ERC721Receiver);
+thruput_sdk::export_interface_spec!(thruput_erc721_if::ERC721);
+thruput_sdk::export_interface_spec!(thruput_erc721_if::ERC721Metadata);
+thruput_sdk::export_interface_spec!(thruput_erc721_if::ERC721Receiver);

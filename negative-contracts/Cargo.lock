@@ -167,7 +167,7 @@ name = "event_signature_collision"
 version = "0.4.0"
 dependencies = [
  "event_signature_collision",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -238,7 +238,7 @@ name = "iface_declarer_collision"
 version = "0.4.0"
 dependencies = [
  "iface_declarer_collision",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -368,27 +368,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "sdk"
-version = "0.51.1"
-dependencies = [
- "heapless",
- "hogexec-internal",
- "linkme",
- "sha2",
- "thiserror",
- "thruput-contract-spec",
- "thruput-event",
- "thruput-exn",
- "thruput-macros",
- "thruput-native-exec",
- "thruput-rv32-runtime",
- "thruput-storage-cost",
- "thruput-u256",
- "thruput-xdr",
- "xdrs",
-]
 
 [[package]]
 name = "serde"
@@ -593,6 +572,27 @@ name = "thruput-rv32-runtime"
 version = "0.51.1"
 
 [[package]]
+name = "thruput-sdk"
+version = "0.51.1"
+dependencies = [
+ "heapless",
+ "hogexec-internal",
+ "linkme",
+ "sha2",
+ "thiserror",
+ "thruput-contract-spec",
+ "thruput-event",
+ "thruput-exn",
+ "thruput-macros",
+ "thruput-native-exec",
+ "thruput-rv32-runtime",
+ "thruput-storage-cost",
+ "thruput-u256",
+ "thruput-xdr",
+ "xdrs",
+]
+
+[[package]]
 name = "thruput-spec"
 version = "0.54.1"
 source = "sparse+https://crates.thruput.network/api/v1/crates/"
@@ -680,7 +680,7 @@ dependencies = [
 name = "typedef_id_collision"
 version = "0.4.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "typedef_id_collision",
 ]
 

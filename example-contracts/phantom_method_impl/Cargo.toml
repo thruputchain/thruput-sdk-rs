@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "phantom_method_if_a/dev", "phantom_method_if_b/dev"]
+dev = ["thruput-sdk/dev", "phantom_method_if_a/dev", "phantom_method_if_b/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -29,7 +29,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 phantom_method_if_a = { path = "../phantom_method_if_a" }
 phantom_method_if_b = { path = "../phantom_method_if_b" }
 

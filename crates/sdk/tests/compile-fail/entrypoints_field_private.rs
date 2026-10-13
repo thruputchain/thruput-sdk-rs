@@ -1,9 +1,9 @@
 #![allow(unexpected_cfgs)]
 
 mod inner {
-    use sdk::*;
+    use thruput_sdk::*;
 
-    #[sdk::storage]
+    #[thruput_sdk::storage]
     pub struct BareContract;
 
     #[contract]

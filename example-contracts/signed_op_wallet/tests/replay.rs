@@ -9,11 +9,11 @@
 use ed25519_dalek::{Signer, SigningKey};
 use thruput_domain_separator::SignedOp as SignedOpPreimage;
 use thruput_signed_op::{Operation, SignedOpClient, SignedOpError};
-use sdk::signer::Signed;
-use sdk::types::transaction::Uniquifier;
-use sdk::types::{Ed25519PublicKey, Ed25519Signature};
-use sdk::xdr::BytesM;
-use sdk::*;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::types::transaction::Uniquifier;
+use thruput_sdk::types::{Ed25519PublicKey, Ed25519Signature};
+use thruput_sdk::xdr::BytesM;
+use thruput_sdk::*;
 use signed_op_wallet::{Grant, SignedOpWalletClient};
 
 const ALICE_SEED: [u8; 32] = [0x11; 32];
@@ -34,8 +34,8 @@ fn public_key(seed: &[u8; 32]) -> Ed25519PublicKey {
     )
 }
 
-fn setup() -> sdk::TestEnvironmentHandle {
-    let env = sdk::TestEnvironment::no_cost();
+fn setup() -> thruput_sdk::TestEnvironmentHandle {
+    let env = thruput_sdk::TestEnvironment::no_cost();
     signed_op_wallet::register_mock_contract(&env)
         .deploy_contract_to(&wallet());
     env.transact(|tx| {
@@ -49,9 +49,9 @@ fn setup() -> sdk::TestEnvironmentHandle {
     env
 }
 
-fn current_height(env: &sdk::TestEnvironmentHandle) -> BlockHeight {
+fn current_height(env: &thruput_sdk::TestEnvironmentHandle) -> BlockHeight {
     let result = env
-        .transact(|tx| tx.call(&wallet()).run(sdk::block::get_block_height));
+        .transact(|tx| tx.call(&wallet()).run(thruput_sdk::block::get_block_height));
     result.assert_success();
     result.assert_return_as::<BlockHeight>()
 }
@@ -66,7 +66,7 @@ fn sign(
 ) -> (Operation, Ed25519Signature) {
     let key = SigningKey::from_bytes(seed);
     let preimage = SignedOpPreimage {
-        network: sdk::test_network_hash(),
+        network: thruput_sdk::test_network_hash(),
         verifying_contract: *verifying_contract,
         uniquifier: uniquifier.clone(),
         body,
@@ -76,7 +76,7 @@ fn sign(
     let op = Operation {
         block_expiry_height: uniquifier.block_expiry_height,
         nonce: uniquifier.nonce,
-        body: BytesM(sdk::xdr::cxs::encode(body).expect("encoding the body")),
+        body: BytesM(thruput_sdk::xdr::cxs::encode(body).expect("encoding the body")),
     };
     (op, Ed25519Signature::from(key.sign(&preimage).to_bytes()))
 }
@@ -90,7 +90,7 @@ fn uniquifier(expiry: BlockHeight, nonce: u64) -> Uniquifier {
 
 /// Alice's grant at `NONCE`, expiring `ahead` blocks from now.
 fn alice_grant(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
     ahead: i64,
     nonce: u64,
 ) -> (Operation, Ed25519Signature) {
@@ -106,10 +106,10 @@ fn alice_grant(
 /// Submit as `submitter()`, name the token's payload, and consume it here —
 /// the submitter is the named consumer.
 fn submit(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
     op: Operation,
     signature: Ed25519Signature,
-) -> sdk::TransactResult {
+) -> thruput_sdk::TransactResult {
     env.transact(|tx| {
         tx.call(&submitter()).run(move || {
             let token: Signed<u64> = SignedOpClient::new(&wallet())
@@ -139,9 +139,9 @@ macro_rules! assert_refuses {
 }
 
 fn prune(
-    env: &sdk::TestEnvironmentHandle,
+    env: &thruput_sdk::TestEnvironmentHandle,
     u: &Uniquifier,
-) -> sdk::TransactResult {
+) -> thruput_sdk::TransactResult {
     let (expiry, nonce) = (u.block_expiry_height.clone(), u.nonce);
     env.transact(|tx| {
         tx.call(&submitter()).run(move || {

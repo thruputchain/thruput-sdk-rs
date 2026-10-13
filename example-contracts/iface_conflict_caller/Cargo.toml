@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "iface_conflict_if_a/dev", "iface_conflict_if_b/dev"]
+dev = ["thruput-sdk/dev", "iface_conflict_if_a/dev", "iface_conflict_if_b/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -29,7 +29,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 iface_conflict_if_a = { path = "../iface_conflict_if_a" }
 iface_conflict_if_b = { path = "../iface_conflict_if_b" }
 

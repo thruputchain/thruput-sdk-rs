@@ -1,4 +1,4 @@
-#[sdk::contract_exception]
+#[thruput_sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum SEP41Error {

@@ -1,5 +1,5 @@
 #![allow(unexpected_cfgs)]
-use sdk::*;
+use thruput_sdk::*;
 use version_mismatch_helper::VersionedTrait as RenamedTrait;
 
 pub struct MyContract;

@@ -1,6 +1,6 @@
 use thruput_domain_separator::syscall::pubkey_account_address;
 use hex_literal::hex;
-use sdk::*;
+use thruput_sdk::*;
 
 #[derive(Default)]
 pub struct HasherImpl;

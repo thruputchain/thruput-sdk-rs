@@ -1,9 +1,9 @@
 use thruput_domain_separator::sha2;
-use sdk::types::{Ed25519PublicKey, PubkeyAccountPreimage, PublicKey};
+use thruput_sdk::types::{Ed25519PublicKey, PubkeyAccountPreimage, PublicKey};
 
 #[test]
 fn hasher_test() {
-    sdk::client_test(
+    thruput_sdk::client_test(
         |env| hasher::register_mock_contract(env),
         |c: &hasher::HasherClient| c.run(),
     );
@@ -14,7 +14,7 @@ fn hasher_test() {
 /// derives.
 #[test]
 fn pubkey_account_address_test() {
-    sdk::client_test(
+    thruput_sdk::client_test(
         |env| hasher::register_mock_contract(env),
         |c: &hasher::HasherClient| c.check_pubkey_account_address(),
     );
@@ -54,7 +54,7 @@ fn syscall_matches_sha2() {
         let via_sha2 =
             sha2::pubkey_account_address(&preimage(pubkey_byte, nonce));
 
-        sdk::client_test(
+        thruput_sdk::client_test(
             |env| hasher::register_mock_contract(env),
             move |c: &hasher::HasherClient| {
                 assert_eq!(

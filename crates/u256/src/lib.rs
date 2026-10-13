@@ -28,7 +28,7 @@
 //! Every `Display`, `FromStr`, `LowerHex` and `UpperHex` impl in this crate --
 //! on the integers and on their error types alike -- sits behind the `fmt`
 //! feature, so a guest build carries neither the decimal-division loop nor the
-//! string literals those impls need. `sdk` enables `fmt` only under
+//! string literals those impls need. `thruput-sdk` enables `fmt` only under
 //! `cfg(not(target_arch = "riscv32"))`, so a contract does not build them at
 //! all rather than building them and relying on the linker to notice they are
 //! dead: a `Display` bound on [`U256`] does not resolve for
@@ -38,16 +38,17 @@
 //! `fmt`.
 //!
 //! The keying is exact under the `nightly` feature (guest builds get it
-//! through `sdk`), which reads rustc's real `overflow-checks` flag. Without
-//! it — on a stable compiler, where that cfg does not exist — overflow
+//! through `thruput-sdk`), which reads rustc's real `overflow-checks` flag.
+//! Without it — on a stable compiler, where that cfg does not exist — overflow
 //! checks are always on: the operators panic on overflow in every profile.
 #![cfg_attr(not(any(feature = "std", test)), no_std)]
-// Keys the operators off the same flag rustc uses for the primitives. Behind
-// a cargo feature so stable consumers (the CLI's spec-tool build) can compile
+// Keys the operators off the same flag rustc uses for the primitives. Behind a
+// cargo feature so stable consumers (the CLI's spec-tool build) can compile
 // this crate: without it the operators check overflow unconditionally --
 // stable consumers are host tools, never gas-metered contracts, so the guard
 // is cheap and never silently wraps. Guest builds always run nightly and get
-// `nightly` through `sdk`'s target-gated dependency, keeping the exact keying.
+// `nightly` through `thruput-sdk`'s target-gated dependency, keeping the exact
+// keying.
 #![cfg_attr(feature = "nightly", feature(cfg_overflow_checks))]
 
 mod arith;

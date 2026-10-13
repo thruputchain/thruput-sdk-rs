@@ -30,7 +30,7 @@ name = "authclaim_test"
 version = "0.1.0"
 dependencies = [
  "authclaim_test",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -52,7 +52,7 @@ dependencies = [
 name = "bottle-test-if"
 version = "0.51.1"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -66,7 +66,7 @@ name = "calldata_raw"
 version = "0.2.0"
 dependencies = [
  "calldata_raw",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -75,7 +75,7 @@ version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "calldata_wrapper",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -182,9 +182,9 @@ name = "default_wallet"
 version = "0.1.0"
 dependencies = [
  "default_wallet",
- "sdk",
  "thruput-domain-separator",
  "thruput-erc20-if",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -193,7 +193,7 @@ name = "delegate_call_test"
 version = "0.1.0"
 dependencies = [
  "delegate_call_test",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -201,8 +201,8 @@ name = "deploy_and_transfer"
 version = "0.1.0"
 dependencies = [
  "deploy_and_transfer",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -210,8 +210,8 @@ name = "dev_wallet"
 version = "0.1.0"
 dependencies = [
  "dev_wallet",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -262,7 +262,7 @@ dependencies = [
  "ed25519-dalek",
  "ed25519_verify_wrapper",
  "getrandom",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -293,9 +293,9 @@ name = "erc20-native-test"
 version = "0.51.1"
 dependencies = [
  "erc20-test",
- "sdk",
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -303,9 +303,9 @@ dependencies = [
 name = "erc20-test"
 version = "0.51.1"
 dependencies = [
- "sdk",
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -326,7 +326,7 @@ version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "fibonacci",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -335,7 +335,7 @@ version = "0.1.0"
 dependencies = [
  "fibonacci",
  "fibonacci_call",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -343,7 +343,7 @@ name = "fibonacci_raw"
 version = "0.1.0"
 dependencies = [
  "fibonacci_raw",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -361,8 +361,8 @@ name = "genesis_root"
 version = "0.1.0"
 dependencies = [
  "genesis_root",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -401,8 +401,8 @@ name = "hash_bug"
 version = "0.1.0"
 dependencies = [
  "hex-literal",
- "sdk",
  "sha2",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -435,8 +435,8 @@ name = "htlc"
 version = "0.1.0"
 dependencies = [
  "htlc",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -460,8 +460,8 @@ version = "0.2.0"
 dependencies = [
  "erc20-native-test",
  "itc_erc20",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -513,7 +513,7 @@ name = "no_syscall_test"
 version = "0.1.0"
 dependencies = [
  "no_syscall_test",
- "sdk",
+ "thruput-sdk",
  "thruput-syscall",
  "thruput-xdr",
 ]
@@ -522,7 +522,7 @@ dependencies = [
 name = "nocontract_wallet"
 version = "0.1.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -539,8 +539,8 @@ name = "payment_channel"
 version = "0.1.0"
 dependencies = [
  "payment_channel",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -579,8 +579,8 @@ version = "0.2.0"
 dependencies = [
  "bottle-test-if",
  "read_only_test",
- "sdk",
  "thruput-erc20-if",
+ "thruput-sdk",
  "thruput-syscall",
  "thruput-xdr",
 ]
@@ -610,7 +610,7 @@ name = "return_fault_test"
 version = "0.1.0"
 dependencies = [
  "return_fault_test",
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -632,7 +632,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 name = "rv32_smoke_counter"
 version = "0.2.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -665,27 +665,6 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
-
-[[package]]
-name = "sdk"
-version = "0.51.1"
-dependencies = [
- "heapless",
- "hogexec-internal",
- "linkme",
- "sha2",
- "thiserror",
- "thruput-contract-spec",
- "thruput-event",
- "thruput-exn",
- "thruput-macros",
- "thruput-native-exec",
- "thruput-rv32-runtime",
- "thruput-storage-cost",
- "thruput-u256",
- "thruput-xdr",
- "xdrs",
-]
 
 [[package]]
 name = "semver"
@@ -776,8 +755,8 @@ dependencies = [
 name = "sha256_raw"
 version = "0.1.0"
 dependencies = [
- "sdk",
  "sha256_raw",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -785,9 +764,9 @@ name = "sha256_wrapper"
 version = "0.2.0"
 dependencies = [
  "bottle-test-if",
- "sdk",
  "sha2",
  "sha256_wrapper",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -809,16 +788,16 @@ checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 name = "simple_wallet"
 version = "0.1.0"
 dependencies = [
- "sdk",
  "simple_wallet",
+ "thruput-sdk",
 ]
 
 [[package]]
 name = "simple_wallet_authclaim"
 version = "0.1.0"
 dependencies = [
- "sdk",
  "simple_wallet_authclaim",
+ "thruput-sdk",
 ]
 
 [[package]]
@@ -871,9 +850,9 @@ dependencies = [
 name = "syscall_misc_tests"
 version = "0.2.0"
 dependencies = [
- "sdk",
  "sha2",
  "syscall_misc_tests",
+ "thruput-sdk",
  "thruput-syscall",
  "thruput-xdr",
 ]
@@ -932,8 +911,8 @@ dependencies = [
 name = "thruput-erc20-if"
 version = "0.1.56"
 dependencies = [
- "sdk",
  "thiserror",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 
@@ -984,6 +963,27 @@ dependencies = [
 [[package]]
 name = "thruput-rv32-runtime"
 version = "0.51.1"
+
+[[package]]
+name = "thruput-sdk"
+version = "0.51.1"
+dependencies = [
+ "heapless",
+ "hogexec-internal",
+ "linkme",
+ "sha2",
+ "thiserror",
+ "thruput-contract-spec",
+ "thruput-event",
+ "thruput-exn",
+ "thruput-macros",
+ "thruput-native-exec",
+ "thruput-rv32-runtime",
+ "thruput-storage-cost",
+ "thruput-u256",
+ "thruput-xdr",
+ "xdrs",
+]
 
 [[package]]
 name = "thruput-spec"
@@ -1073,7 +1073,7 @@ dependencies = [
 name = "tuple_return"
 version = "0.1.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "tuple_return",
 ]
 
@@ -1099,7 +1099,7 @@ checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 name = "view_gateway_test"
 version = "0.2.0"
 dependencies = [
- "sdk",
+ "thruput-sdk",
  "thruput-xdr",
 ]
 

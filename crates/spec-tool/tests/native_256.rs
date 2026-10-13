@@ -1,10 +1,10 @@
-use sdk::{I256, U256};
 use thruput_contract_spec::{
     ContractEventDefView, ContractFieldView, ContractSpecMethodView,
     ContractType, ContractTypeRefSpec, SpecFragmentView,
     SpecInterfaceAnchorView, SpecInterfaceFragmentView,
     SpecMethodFragmentView,
 };
+use thruput_sdk::{I256, U256};
 use thruput_spec_tool::{canonicalize_spec, parse_raw_fragments};
 
 const INTERFACE: &str = "WideIntegers";

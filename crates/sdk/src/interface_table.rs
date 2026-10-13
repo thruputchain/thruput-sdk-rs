@@ -102,7 +102,7 @@ pub fn implements_in(
 ///
 /// ```ignore
 /// fn supports_interface(id: InterfaceId) -> bool {
-///     sdk::implements!(id)
+///     thruput_sdk::implements!(id)
 /// }
 /// ```
 #[macro_export]

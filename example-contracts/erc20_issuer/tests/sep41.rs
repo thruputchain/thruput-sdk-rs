@@ -1,7 +1,7 @@
 //! SEP-41 as client code over the issuer token's native interfaces.
 use erc20_issuer::*;
 use thruput_sep41::{SEP41Error, SEP41View};
-use sdk::*;
+use thruput_sdk::*;
 
 const TOKEN: ContractAddress = ContractAddress::new([0x20; 32]);
 const ADMIN: ContractAddress = ContractAddress::new([0x21; 32]);
@@ -22,9 +22,9 @@ fn setup() -> TestEnvironmentHandle {
     let env = TestEnvironment::no_cost();
     let contract =
         if let Some(path) = std::env::var_os("ISSUER_TOKEN_RV32_ARTIFACT") {
-            sdk::types::Contract::kRv32 {
-                rv32_contract: sdk::types::contract::ContractBlob {
-                    data: sdk::xdr::BytesM(
+            thruput_sdk::types::Contract::kRv32 {
+                rv32_contract: thruput_sdk::types::contract::ContractBlob {
+                    data: thruput_sdk::xdr::BytesM(
                         std::fs::read(path).expect("read RV32 artifact"),
                     ),
                 },

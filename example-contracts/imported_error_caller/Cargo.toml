@@ -13,7 +13,7 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "imported_error_callee/dev"]
+dev = ["thruput-sdk/dev", "imported_error_callee/dev"]
 
 [lib]
 crate-type = ["rlib"]
@@ -21,7 +21,7 @@ doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 imported_error_callee = { path = "../imported_error_callee" }
 
 [dev-dependencies]

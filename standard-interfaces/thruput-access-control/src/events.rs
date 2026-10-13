@@ -13,7 +13,9 @@
 
 use crate::Role;
 use core::fmt;
-use sdk::{ContractAddress, EmittedEvent, Event, hex_encode, log_event};
+use thruput_sdk::{
+    ContractAddress, EmittedEvent, Event, hex_encode, log_event,
+};
 
 /// Log that `sender` granted `role` to `account`.
 pub fn log_role_granted_event(
@@ -68,8 +70,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for RoleGrantedEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let sender: ContractAddress = sdk::internal::decode_xdr(payload)
-            .map_err(|_| "Couldn't parse event payload")?;
+        let sender: ContractAddress =
+            thruput_sdk::internal::decode_xdr(payload)
+                .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(RoleGrantedEvent::new(role, account, sender))
     }
@@ -143,8 +146,9 @@ impl<'a> TryFrom<EmittedEvent<'a>> for RoleRevokedEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let sender: ContractAddress = sdk::internal::decode_xdr(payload)
-            .map_err(|_| "Couldn't parse event payload")?;
+        let sender: ContractAddress =
+            thruput_sdk::internal::decode_xdr(payload)
+                .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(RoleRevokedEvent::new(role, account, sender))
     }
@@ -227,7 +231,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for RoleAdminChangedEvent<'a> {
         let payload = event
             .payload()
             .ok_or("Malformed event: topics overrun body")?;
-        let new_admin_role: Role = sdk::internal::decode_xdr(payload)
+        let new_admin_role: Role = thruput_sdk::internal::decode_xdr(payload)
             .map_err(|_| "Couldn't parse event payload")?;
 
         Ok(RoleAdminChangedEvent::new(

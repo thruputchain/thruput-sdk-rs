@@ -12,14 +12,14 @@ keywords.workspace = true
 categories.workspace = true
 
 [features]
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1" }
 heapless = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

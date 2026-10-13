@@ -8,7 +8,7 @@
 //! `#[contract] impl SignedOp` block itself:
 //!
 //! ```ignore
-//! #[sdk::storage]
+//! #[thruput_sdk::storage]
 //! pub struct MyWallet {
 //!     replay: SignedOpReplayCache,
 //!     // ...
@@ -42,11 +42,11 @@
 //!
 //! The network hash, the verifying contract and the key are not on the wire.
 //! The first two are inside the signed bytes, from
-//! `sdk::block::get_network_hash` and `sdk::get_current_address`; the key is
-//! the `key` argument, from the contract's own state. So a submitter cannot
-//! name the network, the contract, or the key a signature is checked
-//! against, and a contract cannot verify against a wire-supplied key and
-//! forget to compare it with its own.
+//! `thruput_sdk::block::get_network_hash` and
+//! `thruput_sdk::get_current_address`; the key is the `key` argument, from the
+//! contract's own state. So a submitter cannot name the network, the contract,
+//! or the key a signature is checked against, and a contract cannot verify
+//! against a wire-supplied key and forget to compare it with its own.
 //!
 //! # The replay model
 //!
@@ -63,13 +63,13 @@
 
 pub use thruput_signed_op_if::*;
 
-use sdk::exn::NoneIfMissing;
-use sdk::storage::{Deletable, Map, Value};
-use sdk::types::transaction::Uniquifier;
-use sdk::types::{Ed25519PublicKey, Ed25519Signature};
-use sdk::xdr::{ReadXDR, WriteXDR};
 use thruput_contract_spec::ContractTypeSpec;
 use thruput_domain_separator::SignedOp as SignedOpPreimage;
+use thruput_sdk::exn::NoneIfMissing;
+use thruput_sdk::storage::{Deletable, Map, Value};
+use thruput_sdk::types::transaction::Uniquifier;
+use thruput_sdk::types::{Ed25519PublicKey, Ed25519Signature};
+use thruput_sdk::xdr::{ReadXDR, WriteXDR};
 
 /// The stateless checks: expiry, decode, signature. Returns the decoded
 /// payload, or throws the matching [`SignedOpError`].
@@ -99,8 +99,8 @@ where
 /// `op.block_expiry_height`. Inclusive, as the chain reads a transaction's
 /// `block_expiry_height`.
 fn check_expiry(op: &Operation) {
-    if sdk::block::get_block_height() > op.block_expiry_height {
-        sdk::throw(SignedOpError::Expired);
+    if thruput_sdk::block::get_block_height() > op.block_expiry_height {
+        thruput_sdk::throw(SignedOpError::Expired);
     }
 }
 
@@ -114,22 +114,24 @@ fn decode_and_verify<T>(
 where
     T: WriteXDR + for<'r> ReadXDR<'r> + ContractTypeSpec,
 {
-    let body: T = match sdk::xdr::cxs::decode(op.body.0.as_slice()) {
+    let body: T = match thruput_sdk::xdr::cxs::decode(op.body.0.as_slice()) {
         Ok(body) => body,
-        Err(_) => sdk::throw(SignedOpError::MalformedBody),
+        Err(_) => thruput_sdk::throw(SignedOpError::MalformedBody),
     };
 
     let preimage = SignedOpPreimage {
-        network: sdk::block::get_network_hash(),
-        verifying_contract: sdk::get_current_address(),
+        network: thruput_sdk::block::get_network_hash(),
+        verifying_contract: thruput_sdk::get_current_address(),
         uniquifier: op.uniquifier(),
         body: &body,
     }
     .preimage()
-    .unwrap_or_else(|_| sdk::throw(SignedOpError::MalformedBody));
+    .unwrap_or_else(|_| thruput_sdk::throw(SignedOpError::MalformedBody));
 
-    if !sdk::crypto::verify_signature_ed25519(key, signature, &preimage) {
-        sdk::throw(SignedOpError::InvalidSignature);
+    if !thruput_sdk::crypto::verify_signature_ed25519(
+        key, signature, &preimage,
+    ) {
+        thruput_sdk::throw(SignedOpError::InvalidSignature);
     }
     body
 }
@@ -147,7 +149,7 @@ where
 /// have them draw nonces at random — 64 random bits do not collide by
 /// accident, two counters do — and a collision under any scheme costs a
 /// fresh pair, never an execution.
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct SignedOpReplayCache {
     consumed: Map<Uniquifier, Value<()>>,
 }
@@ -181,7 +183,7 @@ impl SignedOpReplayCache {
             .none_if_missing()
             .is_some()
         {
-            sdk::throw(SignedOpError::AlreadyConsumed);
+            thruput_sdk::throw(SignedOpError::AlreadyConsumed);
         }
         let body = decode_and_verify::<T>(op, signature, key);
         // Exclusive: two transactions carrying the same operation in one
@@ -196,8 +198,10 @@ impl SignedOpReplayCache {
     /// Delete a dead entry. Throws [`SignedOpError::NotYetExpired`] while
     /// the operation could still execute; anyone may call it after that.
     pub fn prune(&mut self, uniquifier: &Uniquifier) {
-        if sdk::block::get_block_height() <= uniquifier.block_expiry_height {
-            sdk::throw(SignedOpError::NotYetExpired);
+        if thruput_sdk::block::get_block_height()
+            <= uniquifier.block_expiry_height
+        {
+            thruput_sdk::throw(SignedOpError::NotYetExpired);
         }
         self.consumed.at_mut(uniquifier).delete();
     }
