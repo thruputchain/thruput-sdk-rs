@@ -49,19 +49,19 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.51.2" }
-thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.51.2", default-features = false }
+thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.51.3" }
+thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.51.3", default-features = false }
 
-thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.57" }
+thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.58" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.51.2" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.51.2" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.51.2" }
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "thruput", version = "=0.51.2" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.51.3" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.51.3" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.51.3" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "thruput", version = "=0.51.3" }
 
 # External groundhog dependencies
-thruput-xdr = { registry = "thruput", version = "=0.54.1", features = ["xdrs", "syscalls"] }
-thruput-syscall = { registry = "thruput", version = "=0.54.1" }
+thruput-xdr = { registry = "thruput", version = "=0.55.0", features = ["xdrs", "syscalls"] }
+thruput-syscall = { registry = "thruput", version = "=0.55.0" }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }
@@ -70,11 +70,3 @@ hex-literal = "1.0.0"
 
 [profile.release]
 trim-paths = "all" # unstable
-
-# TEMPORARY PIN: regenerated bindings for thruput-protocol#219 (ML-DSA-65
-# pubkey accounts). Swap for the published thruput-xdr release. thruput-syscall
-# rides along because the git thruput-xdr depends on it by path: patching only
-# thruput-xdr would leave two thruput-syscall copies with split features.
-[patch.thruput]
-thruput-xdr = { git = "https://github.com/thruputchain/thruput-protocol-rs", branch = "geoph/mldsa-auth" }
-thruput-syscall = { git = "https://github.com/thruputchain/thruput-protocol-rs", branch = "geoph/mldsa-auth" }

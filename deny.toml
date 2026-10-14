@@ -75,8 +75,3 @@ allow-registry = [
     # being retired, and nothing may re-enter the graph through it.
     "sparse+https://crates.thruput.network/api/v1/crates/",
 ]
-# TEMPORARY: the [patch.thruput] pin to the regenerated thruput-protocol#219
-# bindings. Remove together with that patch.
-allow-git = [
-    "https://github.com/thruputchain/thruput-protocol-rs",
-]
