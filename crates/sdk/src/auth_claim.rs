@@ -141,46 +141,55 @@ pub fn remove_address_public_key(pk_index: u32) -> SysResult<()> {
 mod tests {
     use super::layout::*;
     use thruput_xdr::auth_claim::{
-        AuthClaim, AuthClaim_source_address_claim, PubkeyAccountPreimage,
+        AuthClaim, AuthClaim_source_address_claim, AuthClaimType,
+        PubkeyAccountPreimage,
     };
     use thruput_xdr::types::PublicKeyHash;
 
-    fn bytes(claim: &AuthClaim) -> [u8; AUTH_CLAIM_SIZE] {
-        // SAFETY: `AuthClaim` is `AUTH_CLAIM_SIZE` bytes (asserted at compile
-        // time). Padding bytes are not read: the callers below only compare
-        // the field ranges.
-        unsafe { core::mem::transmute_copy(claim) }
+    /// Byte offset of `field` within `claim`, measured by address so that no
+    /// padding byte is ever read.
+    fn offset<T>(claim: &AuthClaim, field: &T) -> usize {
+        field as *const T as usize - claim as *const AuthClaim as usize
     }
 
     /// Check the documented offsets against real claims, so the hand-spelled
-    /// arms in `layout` cannot drift from what the compiler does.
+    /// arms in `layout` cannot drift from what the compiler does. The tag at
+    /// offset 0 is what `claim_type` reads.
     #[test]
     fn pubkey_claim_field_offsets() {
-        let hash: [u8; 32] = core::array::from_fn(|i| i as u8 + 1);
-        let nonce = 0x0102_0304_0506_0708u64;
         let claim = AuthClaim::kPubkeySignature {
             pubkey_preimage: PubkeyAccountPreimage {
-                pubkey_hash: PublicKeyHash::new(hash),
-                nonce,
+                pubkey_hash: PublicKeyHash::new([1; 32]),
+                nonce: 7,
             },
         };
-        let b = bytes(&claim);
-        assert_eq!(b[0..4], 1i32.to_ne_bytes());
-        assert_eq!(b[PUBKEY_HASH_OFFSET..PUBKEY_HASH_OFFSET + 32], hash);
-        assert_eq!(b[NONCE_OFFSET..NONCE_OFFSET + 8], nonce.to_ne_bytes());
+        assert_eq!(claim.claim_type(), AuthClaimType::kPubkeySignature);
+        let AuthClaim::kPubkeySignature { pubkey_preimage } = &claim else {
+            unreachable!()
+        };
+        assert_eq!(
+            offset(&claim, &pubkey_preimage.pubkey_hash),
+            PUBKEY_HASH_OFFSET
+        );
+        assert_eq!(offset(&claim, &pubkey_preimage.nonce), NONCE_OFFSET);
     }
 
     #[test]
     fn source_claim_field_offsets() {
         let claim = AuthClaim::kSourceAddressAuthData {
             source_address_claim: AuthClaim_source_address_claim {
-                allowed_keys: 0xA1A2_A3A4,
-                required_weight: 0xB1B2_B3B4,
+                allowed_keys: 1,
+                required_weight: 2,
             },
         };
-        let b = bytes(&claim);
-        assert_eq!(b[0..4], 0i32.to_ne_bytes());
-        assert_eq!(b[4..8], 0xA1A2_A3A4u32.to_ne_bytes());
-        assert_eq!(b[8..12], 0xB1B2_B3B4u32.to_ne_bytes());
+        assert_eq!(claim.claim_type(), AuthClaimType::kSourceAddressAuthData);
+        let AuthClaim::kSourceAddressAuthData {
+            source_address_claim,
+        } = &claim
+        else {
+            unreachable!()
+        };
+        assert_eq!(offset(&claim, &source_address_claim.allowed_keys), 4);
+        assert_eq!(offset(&claim, &source_address_claim.required_weight), 8);
     }
 }
