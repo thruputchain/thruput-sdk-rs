@@ -50,7 +50,7 @@ dependencies = [
 
 [[package]]
 name = "bottle-test-if"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "thruput-sdk",
 ]
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-native-test"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "erc20-test",
  "thiserror",
@@ -301,7 +301,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-test"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -879,7 +879,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-spec"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "heapless",
  "thruput-spec",
@@ -890,7 +890,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-util"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "sha2",
  "syn 3.0.4",
@@ -899,7 +899,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-domain-separator"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "sha2",
  "thruput-contract-spec",
@@ -918,7 +918,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-event"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "thruput-xdr",
  "xdrs",
@@ -926,14 +926,14 @@ dependencies = [
 
 [[package]]
 name = "thruput-exn"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "xdrs",
 ]
 
 [[package]]
 name = "thruput-macros"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -946,7 +946,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-native-exec"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "hogexec-internal",
  "sha2",
@@ -962,11 +962,11 @@ dependencies = [
 
 [[package]]
 name = "thruput-rv32-runtime"
-version = "0.51.1"
+version = "0.51.2"
 
 [[package]]
 name = "thruput-sdk"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "heapless",
  "hogexec-internal",
@@ -997,7 +997,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-storage-cost"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "thruput-xdr",
  "xdrs",
@@ -1005,7 +1005,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-sys"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "fslock",
  "sha2",
@@ -1033,7 +1033,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-u256"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "thruput-contract-spec",
  "xdrs",
