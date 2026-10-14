@@ -1,0 +1,71 @@
+# Copied from hogd/.github/actions/private-sources; keep the two in sync.
+name: Private sources
+description: Authenticate transferred private sources with a job-local read-only App token
+inputs:
+  app-id:
+    description: Component reader GitHub App ID
+    required: true
+  private-key:
+    description: Component reader GitHub App private key
+    required: true
+  ssh-private-key:
+    description: Deploy keys for repositories still in groundhogchain
+    required: true
+outputs:
+  token:
+    description: Read-only installation token for private source fetches on workers
+    value: ${{ steps.token.outputs.token }}
+runs:
+  using: composite
+  steps:
+    - name: Mint component reader token
+      id: token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+        owner: thruputchain
+        repositories: |
+          hogd
+          chuckd
+          hogx
+          thruput-protocol
+          thruput-protocol-go
+          thruput-protocol-rs
+          lib-go
+          thruput-go
+          thruput-integration-test-contracts
+          scp
+          thruput-sdk-rs
+        permission-contents: read
+    - name: Configure job-local Git authentication
+      shell: bash
+      # The GITHUB_ENV writes are a runner-generated temp path and a literal;
+      # no attacker-influenced content, and no dangerous trigger uses this.
+      # zizmor flags it because a composite action is audited in isolation.
+      env:
+        COMPONENT_TOKEN: ${{ steps.token.outputs.token }}
+      run: | # zizmor: ignore[github-env]
+        set +x
+        set -euo pipefail
+        umask 077
+        config_path="$(mktemp "$RUNNER_TEMP/private-sources.XXXXXX")"
+        bash .github/actions/private-sources/git-config.sh "$COMPONENT_TOKEN" "$config_path"
+        export GIT_CONFIG_GLOBAL="$config_path"
+        echo "GIT_CONFIG_GLOBAL=$GIT_CONFIG_GLOBAL" >> "$GITHUB_ENV"
+        echo "CARGO_NET_GIT_FETCH_WITH_CLI=true" >> "$GITHUB_ENV"
+        # Checkouts run with persist-credentials: false so their GITHUB_TOKEN
+        # header cannot override these rewrites, which leaves an origin like
+        # https://token@github.com/<repo>.git unauthenticated. Point it at the
+        # plain URL so the App token rewrite covers later fetches of this repo.
+        origin="$(git remote get-url origin 2>/dev/null || true)"
+        case "$origin" in
+          https://*@github.com/*)
+            git remote set-url origin "https://github.com/${origin#https://*@github.com/}"
+            ;;
+        esac
+
+    - name: Load remaining groundhogchain deploy keys
+      uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+      with:
+        ssh-private-key: ${{ inputs.ssh-private-key }}

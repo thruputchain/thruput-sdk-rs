@@ -12,5 +12,6 @@ rules:
   # but that offends actionlint.
   self-repository:
     ignore:
+      - hogd_build_from_source.yml
       - publish.yml
       - yank.yml

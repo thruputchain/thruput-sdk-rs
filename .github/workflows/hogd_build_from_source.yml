@@ -36,50 +36,31 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
-      # Loaded before checkout so the recursive submodule fetch (which uses
-      # SSH remotes) and the source-build's git dependencies can authenticate.
-      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+      # persist-credentials: false so the checkout's GITHUB_TOKEN (scoped to
+      # this repo only) can't shadow the App token rewrites below.
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
         with:
+          persist-credentials: false
+
+      # The source build clones hogd (still named by its pre-move
+      # groundhogchain URL in build.rs) and its moved thruputchain submodules.
+      # A job-local component-reader App token covers every moved repo, legacy
+      # and canonical URLs alike; deploy keys remain only for the cargo git
+      # dependencies still in groundhogchain.
+      - name: Configure private sources
+        uses: ./.github/actions/private-sources
+        with:
+          app-id: ${{ vars.COMPONENT_READER_APP_ID }}
+          private-key: ${{ secrets.COMPONENT_READER_PRIVATE_KEY }}
           ssh-private-key: |
-            ${{ secrets.HOGD_ACCESS_KEY }}
-            ${{ secrets.SDK_TO_PROTOCOL_RS }}
             ${{ secrets.SDK_TO_BCS_KEY }}
-            ${{ secrets.SDK_TO_ITC }}
-            ${{ secrets.SDK_TO_PROTOCOL_KEY }}
             ${{ secrets.SDK_TO_BCS_CPP_KEY }}
             ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
             ${{ secrets.SDK_TO_XDRS_KEY }}
             ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
-            ${{ secrets.SDK_TO_CHUCKD_KEY }}
-            ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
             ${{ secrets.SDK_TO_METRICS_HISTORY }}
-            ${{ secrets.SDK_TO_GROUNDHOG_GO}}
-            ${{ secrets.SDK_TO_LIBGO }}
-            ${{ secrets.SDK_TO_SELF }}
             ${{ secrets.SDK_TO_ABORT_RS }}
-            ${{ secrets.SDK_TO_HOGX_KEY }}
-            ${{ secrets.SDK_TO_SCP_KEY }}
-
-      # SDK_TO_ITC is commented with the moved repo's URL, so ssh-agent maps
-      # only that URL to it. The pinned hogd FFI tag's .gitmodules still names
-      # the pre-move URL; send that through the same key alias.
-      - name: Map the pre-move integration test contracts URL
-        run: |
-          set -euo pipefail
-          new=thruputchain/thruput-integration-test-contracts
-          old=groundhogchain/integration_test_contracts
-          alias="$(git config --global --get-regexp '^url\..*\.insteadof$' |
-            awk -v u="git@github.com:$new" '$2 == u { sub(/^url\./, "", $1); sub(/\.insteadof$/, "", $1); print $1; exit }')"
-          if [ -z "$alias" ]; then
-            echo "::error::ssh-agent set no URL rewrite for $new; check the SDK_TO_ITC key comment"
-            exit 1
-          fi
-          for from in "git@github.com:$old" "ssh://git@github.com/$old" "https://github.com/$old"; do
-            git config --global --add "url.$alias.insteadOf" "$from"
-          done
-
-      - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Initialize submodules
         run: git submodule update --init --recursive
