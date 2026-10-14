@@ -909,7 +909,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thiserror",
  "thruput-sdk",

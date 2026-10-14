@@ -54,7 +54,7 @@ keywords = ["thruput"]
 categories = ["blockchain"]
 
 [workspace.dependencies]
-thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.56" }
+thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.57" }
 # Thruput crates from local repository
 #
 # These version numbers need to match the overall workspace package
@@ -90,18 +90,18 @@ thruput-domain-separator = { path = "crates/domain-separator", registry = "thrup
 thruput-test-vectors = { path = "crates/test-vectors", registry = "thruput", version = "=0.51.2" }
 thruput-u256 = { path = "crates/u256", registry = "thruput", version = "=0.51.2", default-features = false }
 # Standard interfaces (also this repository)
-thruput-erc165-if = { path = "standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.56" }
-thruput-erc20-if = { path = "standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.56" }
-thruput-erc20-metadata-if = { path = "standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.56" }
-thruput-erc20-pausable-if = { path = "standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.56" }
-thruput-access-control-if = { path = "standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.56" }
-thruput-signed-op-if = { path = "standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.56" }
-thruput-erc20-permit-if = { path = "standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.56" }
-thruput-erc721-if = { path = "standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.56" }
+thruput-erc165-if = { path = "standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.57" }
+thruput-erc20-if = { path = "standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.57" }
+thruput-erc20-metadata-if = { path = "standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.57" }
+thruput-erc20-pausable-if = { path = "standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.57" }
+thruput-access-control-if = { path = "standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.57" }
+thruput-signed-op-if = { path = "standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.57" }
+thruput-erc20-permit-if = { path = "standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.57" }
+thruput-erc721-if = { path = "standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.57" }
 # Standard-interface implementation components (also this repository)
-thruput-access-control = { path = "standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.56" }
-thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.56" }
-thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.56" }
+thruput-access-control = { path = "standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.57" }
+thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.57" }
+thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.57" }
 # Test-support crates
 erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.51.2" }
 erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.51.2" }

@@ -1,6 +1,6 @@
 [package]
 name = "thruput-erc20-controls-if"
-version = "0.1.56"
+version = "0.1.57"
 edition.workspace = true
 publish.workspace = true
 authors.workspace = true
@@ -16,14 +16,14 @@ entrypoints = []
 dev = ["thruput-sdk/dev", "dep:thiserror", "thruput-erc20-if/dev"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.2" }
 thruput-erc20-if.workspace = true
 thruput-erc20-metadata-if.workspace = true
 heapless.workspace = true
 thiserror = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.1", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.2", features = ["std"] }
 
 [lib]
 doctest = false

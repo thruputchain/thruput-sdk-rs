@@ -963,7 +963,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-access-control"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thruput-access-control-if",
  "thruput-sdk",
@@ -971,7 +971,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-access-control-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1011,7 +1011,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc165-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "heapless",
  "thruput-sdk",
@@ -1019,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-controls-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1030,7 +1030,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1040,7 +1040,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-metadata-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1051,7 +1051,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-pausable-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-permit-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1068,7 +1068,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc721-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1156,7 +1156,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-sep41"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thiserror",
  "thruput-erc165-if",
@@ -1168,7 +1168,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-signed-op"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thruput-contract-spec",
  "thruput-domain-separator",
@@ -1178,7 +1178,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-signed-op-if"
-version = "0.1.56"
+version = "0.1.57"
 dependencies = [
  "thiserror",
  "thruput-sdk",
