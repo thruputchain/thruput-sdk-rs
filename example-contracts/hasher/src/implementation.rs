@@ -1,5 +1,7 @@
-use thruput_domain_separator::syscall::pubkey_account_address;
 use hex_literal::hex;
+use thruput_domain_separator::syscall::{
+    pubkey_account_address, public_key_hash,
+};
 use thruput_sdk::*;
 
 #[derive(Default)]
@@ -26,23 +28,40 @@ impl HasherImpl {
     // The `syscall::` path hashes through the SHA256 syscall rather than
     // linking `sha2` into the guest; on rv32 reaching the `sha2` backend
     // at all is a compile error. The expectation is the cross-implementation
-    // vector from
-    // `thruput-test-vectors domain-separator` (pubkey = [0x01; 32], nonce =
-    // 1) — the address the C++ validator derives.
+    // vectors from
+    // `thruput-test-vectors domain-separator` — the addresses the C++
+    // validator derives. Both the key hash and the address go through the
+    // syscall; the ML-DSA-65 case also exercises the largest key scratch.
     pub fn check_pubkey_account_address() {
-        const EXPECTED_ADDRESS: ContractAddress = ContractAddress::new(hex!(
-            "d27f8f2df8f61a6928caf90c0ad57a29f75d23ecae45998557b090450a1f1259"
+        // Ed25519, pubkey = [0x01; 32], nonce = 1.
+        const EXPECTED_ED25519: ContractAddress = ContractAddress::new(hex!(
+            "b164829173b8d1a3313aff7f2d928f034b4e791ad550c90a25c16622dd6798f4"
+        ));
+        // ML-DSA-65, pubkey = [0xff; 1952], nonce = u64::MAX.
+        const EXPECTED_MLDSA65: ContractAddress = ContractAddress::new(hex!(
+            "822c12471653ddcca5ed253dde1189531aa32ffd480e367fb38d188d06354d7c"
         ));
 
+        let ed25519 = PublicKey::Ed25519 {
+            ed25519: Ed25519PublicKey::from([0x01u8; 32]),
+        };
         let preimage = PubkeyAccountPreimage {
-            pubkey: PublicKey::Ed25519 {
-                ed25519: Ed25519PublicKey::from([0x01u8; 32]),
-            },
+            pubkey_hash: public_key_hash(&ed25519),
             nonce: 1,
         };
+        if pubkey_account_address(&preimage) != EXPECTED_ED25519 {
+            panic!("Unexpected Ed25519 pubkey account address");
+        }
 
-        if pubkey_account_address(&preimage) != EXPECTED_ADDRESS {
-            panic!("Unexpected pubkey account address");
+        let mldsa65 = PublicKey::MlDsa65 {
+            mldsa65: MlDsa65PublicKey::from([0xffu8; 1952]),
+        };
+        let preimage = PubkeyAccountPreimage {
+            pubkey_hash: public_key_hash(&mldsa65),
+            nonce: u64::MAX,
+        };
+        if pubkey_account_address(&preimage) != EXPECTED_MLDSA65 {
+            panic!("Unexpected ML-DSA-65 pubkey account address");
         }
     }
 
@@ -59,10 +78,11 @@ impl HasherImpl {
         pubkey_byte: u32,
         nonce: u64,
     ) -> ContractAddress {
+        let pubkey = PublicKey::Ed25519 {
+            ed25519: Ed25519PublicKey::from([pubkey_byte as u8; 32]),
+        };
         let preimage = PubkeyAccountPreimage {
-            pubkey: PublicKey::Ed25519 {
-                ed25519: Ed25519PublicKey::from([pubkey_byte as u8; 32]),
-            },
+            pubkey_hash: public_key_hash(&pubkey),
             nonce,
         };
         pubkey_account_address(&preimage)

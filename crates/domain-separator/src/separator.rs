@@ -129,6 +129,29 @@ const PUBKEY_ACCOUNT_BYTES: [u8; PUBKEY_ACCOUNT_N] =
 pub const PUBKEY_ACCOUNT: DomainSeparator =
     DomainSeparator::from_cxs_bytes(&PUBKEY_ACCOUNT_BYTES);
 
+const PUBLIC_KEY_NAME: &[u8] = b"PublicKey";
+
+const _: () = ::core::assert!(
+    PUBLIC_KEY_NAME.len() <= 256,
+    "domain separator name exceeds BytesM<256>"
+);
+
+const PUBLIC_KEY_REPR: DomainSeparatorRepr<'static> = DomainSeparatorRepr {
+    ext: 0,
+    name: PUBLIC_KEY_NAME,
+};
+
+const PUBLIC_KEY_N: usize = prefix_size(&PUBLIC_KEY_REPR);
+
+const PUBLIC_KEY_BYTES: [u8; PUBLIC_KEY_N] =
+    prefix_bytes::<PUBLIC_KEY_N>(&PUBLIC_KEY_REPR);
+
+/// Domain separator for public key hashes (`"PublicKey"`): a `PublicKeyHash`
+/// is `sha256( cxs(DomainSeparator("PublicKey")) || cxs(PublicKey) )`, so it
+/// commits to the key's scheme as well as its bytes.
+pub const PUBLIC_KEY: DomainSeparator =
+    DomainSeparator::from_cxs_bytes(&PUBLIC_KEY_BYTES);
+
 const TRANSACTION_NAME: &[u8] = b"Transaction";
 
 const _: () = ::core::assert!(
@@ -203,13 +226,18 @@ mod tests {
         assert_eq!(PUBKEY_ACCOUNT.as_bytes(), &b"\x00\x0dPubkeyAccount"[..]);
         // 0x00 (ext discriminant) + 0x0b (opaque len = 11) + "Transaction".
         assert_eq!(TRANSACTION.as_bytes(), &b"\x00\x0bTransaction"[..]);
+        // 0x00 (ext discriminant) + 0x09 (opaque len = 9) + "PublicKey".
+        assert_eq!(PUBLIC_KEY.as_bytes(), &b"\x00\x09PublicKey"[..]);
     }
 
     #[test]
     fn separators_are_distinct() {
-        assert_ne!(PUBKEY_ACCOUNT.as_bytes(), TRANSACTION.as_bytes());
-        assert_ne!(PUBKEY_ACCOUNT.as_bytes(), SIGNED_OP.as_bytes());
-        assert_ne!(TRANSACTION.as_bytes(), SIGNED_OP.as_bytes());
+        let all = [&PUBKEY_ACCOUNT, &PUBLIC_KEY, &TRANSACTION, &SIGNED_OP];
+        for (i, a) in all.iter().enumerate() {
+            for b in &all[i + 1..] {
+                assert_ne!(a.as_bytes(), b.as_bytes());
+            }
+        }
     }
 
     #[test]
