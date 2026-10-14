@@ -11,7 +11,9 @@
 /// the positive test would actually catch a wrong address rather than always
 /// returning success.
 use ed25519_dalek::{Signer, SigningKey};
-use thruput_domain_separator::sha2::pubkey_account_address;
+use thruput_domain_separator::sha2::{
+    pubkey_account_address, public_key_hash,
+};
 use thruput_domain_separator::transaction_signature_preimage;
 use thruput_native_exec::test_environment::{
     TestEnvironment, test_network_hash,
@@ -31,8 +33,9 @@ use xdrs::{BytesM, VecM};
 
 /// Build a `SignedTransaction` whose `invoked_address` is `address`.
 ///
-/// The transaction carries a `kPubkeySignature` claim for `preimage` and is
-/// signed with `signing_key` over the canonical signature preimage for
+/// The transaction carries a `kPubkeySignature` claim for `preimage`, attaches
+/// `signing_key`'s public key as the claim key, and is signed with
+/// `signing_key` over the canonical signature preimage for
 /// [`test_network_hash`].
 fn make_signed_tx(
     signing_key: &SigningKey,
@@ -73,6 +76,23 @@ fn make_signed_tx(
     SignedTransaction {
         tx,
         signatures: VecM(vec![decorated_sig]),
+        pubkey_claim_key: Some(public_key(signing_key)),
+    }
+}
+
+fn public_key(signing_key: &SigningKey) -> PublicKey {
+    PublicKey::Ed25519 {
+        ed25519: Ed25519PublicKey::from(
+            signing_key.verifying_key().to_bytes(),
+        ),
+    }
+}
+
+/// The account preimage for `signing_key`'s key at nonce 42.
+fn account_preimage(signing_key: &SigningKey) -> PubkeyAccountPreimage {
+    PubkeyAccountPreimage {
+        pubkey_hash: public_key_hash(&public_key(signing_key)),
+        nonce: 42,
     }
 }
 
@@ -84,14 +104,7 @@ fn make_signed_tx(
 #[test]
 fn pubkey_auth_address_roundtrip() {
     let signing_key = SigningKey::from_bytes(&[0xABu8; 32]);
-    let pk_bytes: [u8; 32] = signing_key.verifying_key().to_bytes();
-
-    let preimage = PubkeyAccountPreimage {
-        pubkey: PublicKey::Ed25519 {
-            ed25519: Ed25519PublicKey::from(pk_bytes),
-        },
-        nonce: 42,
-    };
+    let preimage = account_preimage(&signing_key);
 
     let address = pubkey_account_address(&preimage);
     let stx = make_signed_tx(&signing_key, preimage, address);
@@ -121,14 +134,7 @@ fn pubkey_auth_address_roundtrip() {
 #[test]
 fn pubkey_auth_address_wrong_address_fails() {
     let signing_key = SigningKey::from_bytes(&[0xCDu8; 32]);
-    let pk_bytes: [u8; 32] = signing_key.verifying_key().to_bytes();
-
-    let preimage = PubkeyAccountPreimage {
-        pubkey: PublicKey::Ed25519 {
-            ed25519: Ed25519PublicKey::from(pk_bytes),
-        },
-        nonce: 42,
-    };
+    let preimage = account_preimage(&signing_key);
 
     // Derive the correct address, then flip its first byte to produce a wrong one.
     let correct = pubkey_account_address(&preimage);

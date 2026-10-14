@@ -22,10 +22,11 @@ fn pubkey_account_address_test() {
 
 /// Mirrors the preimage `derive_pubkey_account_address` builds contract-side.
 fn preimage(pubkey_byte: u32, nonce: u64) -> PubkeyAccountPreimage {
+    let pubkey = PublicKey::Ed25519 {
+        ed25519: Ed25519PublicKey::from([pubkey_byte as u8; 32]),
+    };
     PubkeyAccountPreimage {
-        pubkey: PublicKey::Ed25519 {
-            ed25519: Ed25519PublicKey::from([pubkey_byte as u8; 32]),
-        },
+        pubkey_hash: sha2::public_key_hash(&pubkey),
         nonce,
     }
 }

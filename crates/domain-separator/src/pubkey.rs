@@ -1,4 +1,14 @@
-//! Pubkey account address derivation.
+//! Pubkey account address derivation, and the public key hash it names the
+//! account's key by.
+//!
+//! An account's address is
+//! `sha256( cxs(DomainSeparator("PubkeyAccount")) || cxs(PubkeyAccountPreimage) )`,
+//! and the preimage holds the key's [`PublicKeyHash`],
+//! `sha256( cxs(DomainSeparator("PublicKey")) || cxs(PublicKey) )`, rather than
+//! the key. The hash covers the scheme, so an Ed25519 key and an ML-DSA-65 key
+//! never share an address. A contract re-derives its own address from the
+//! auth claim alone ([`PubkeyAccountPreimage`] is all it needs); only a client
+//! building the claim needs the key, to hash it.
 //!
 //! The derivation is written once, generic over the backend; the public
 //! entry points are the per-backend modules below, which bind that generic and
@@ -9,11 +19,33 @@
 use core::mem::MaybeUninit;
 
 use thruput_xdr::auth_claim::PubkeyAccountPreimage;
-use thruput_xdr::types::ContractAddress;
+use thruput_xdr::types::{ContractAddress, PublicKey, PublicKeyHash};
 use xdrs::cxs::ConstMaxSize;
 
-use crate::PUBKEY_ACCOUNT;
 use crate::backend::Sha256Backend;
+use crate::{PUBKEY_ACCOUNT, PUBLIC_KEY};
+
+/// Scratch size for [`key_hash`]: the `"PublicKey"` prefix plus the
+/// worst-case CXS size of a [`PublicKey`] (an ML-DSA-65 key).
+const KEY_SCRATCH: usize = {
+    let object_max = match <PublicKey as ConstMaxSize>::MAX_SIZE {
+        Some(n) => n,
+        None => panic!("PublicKey has an unbounded CXS size"),
+    };
+    PUBLIC_KEY.as_bytes().len() + object_max
+};
+
+/// `sha256( cxs(DomainSeparator("PublicKey")) || cxs(public_key) )`, hashed
+/// with `H`.
+fn key_hash<H: Sha256Backend>(public_key: &PublicKey) -> PublicKeyHash {
+    let mut scratch = [MaybeUninit::<u8>::uninit(); KEY_SCRATCH];
+    // SAFETY: `KEY_SCRATCH` is the prefix length plus `PublicKey`'s
+    // worst-case CXS size, checked to be bounded at compile time. Every
+    // `PublicKey` arm is a fixed-size opaque, so no XDR bound can be violated.
+    let hash =
+        unsafe { PUBLIC_KEY.hash_into::<H, _>(public_key, &mut scratch) };
+    PublicKeyHash::new(hash.into_inner())
+}
 
 /// Scratch size for [`derive`]: the `"PubkeyAccount"` prefix plus the
 /// worst-case CXS size of a [`PubkeyAccountPreimage`].
@@ -47,7 +79,10 @@ fn derive<H: Sha256Backend>(
 #[cfg(feature = "sha2")]
 #[cfg_attr(docsrs, doc(cfg(feature = "sha2")))]
 pub mod sha2 {
-    use super::{ContractAddress, PubkeyAccountPreimage, derive};
+    use super::{
+        ContractAddress, PubkeyAccountPreimage, PublicKey, PublicKeyHash,
+        derive, key_hash,
+    };
 
     /// Derive the on-chain address of a pubkey account from its preimage:
     /// `sha256( cxs(DomainSeparator("PubkeyAccount")) || cxs(preimage) )`.
@@ -55,6 +90,12 @@ pub mod sha2 {
         preimage: &PubkeyAccountPreimage,
     ) -> ContractAddress {
         derive::<crate::backend::Sha2>(preimage)
+    }
+
+    /// The hash a [`PubkeyAccountPreimage`] names its key by:
+    /// `sha256( cxs(DomainSeparator("PublicKey")) || cxs(public_key) )`.
+    pub fn public_key_hash(public_key: &PublicKey) -> PublicKeyHash {
+        key_hash::<crate::backend::Sha2>(public_key)
     }
 }
 
@@ -64,7 +105,10 @@ pub mod sha2 {
 #[cfg(feature = "syscall")]
 #[cfg_attr(docsrs, doc(cfg(feature = "syscall")))]
 pub mod syscall {
-    use super::{ContractAddress, PubkeyAccountPreimage, derive};
+    use super::{
+        ContractAddress, PubkeyAccountPreimage, PublicKey, PublicKeyHash,
+        derive, key_hash,
+    };
 
     /// Derive the on-chain address of a pubkey account from its preimage:
     /// `sha256( cxs(DomainSeparator("PubkeyAccount")) || cxs(preimage) )`.
@@ -73,22 +117,66 @@ pub mod syscall {
     ) -> ContractAddress {
         derive::<crate::backend::Syscall>(preimage)
     }
+
+    /// The hash a [`PubkeyAccountPreimage`] names its key by:
+    /// `sha256( cxs(DomainSeparator("PublicKey")) || cxs(public_key) )`.
+    pub fn public_key_hash(public_key: &PublicKey) -> PublicKeyHash {
+        key_hash::<crate::backend::Syscall>(public_key)
+    }
 }
 
 #[cfg(all(test, feature = "std", feature = "sha2"))]
 mod tests {
     use super::*;
     use crate::backend::Sha2;
-    use crate::sha2::pubkey_account_address;
-    use thruput_xdr::types::{Ed25519PublicKey, PublicKey};
+    use crate::sha2::{pubkey_account_address, public_key_hash};
+    use thruput_xdr::types::{Ed25519PublicKey, MlDsa65PublicKey};
+
+    fn ed25519(fill: u8) -> PublicKey {
+        PublicKey::Ed25519 {
+            ed25519: Ed25519PublicKey::from([fill; 32]),
+        }
+    }
+
+    fn mldsa65(fill: u8) -> PublicKey {
+        PublicKey::MlDsa65 {
+            mldsa65: MlDsa65PublicKey::from([fill; 1952]),
+        }
+    }
 
     fn sample() -> PubkeyAccountPreimage {
         PubkeyAccountPreimage {
-            pubkey: PublicKey::Ed25519 {
-                ed25519: Ed25519PublicKey::from([7u8; 32]),
-            },
+            pubkey_hash: public_key_hash(&ed25519(7)),
             nonce: 42,
         }
+    }
+
+    #[test]
+    fn key_hash_matches_manual_derivation() {
+        for key in [ed25519(7), mldsa65(7)] {
+            let mut manual = PUBLIC_KEY.as_bytes().to_vec();
+            manual.extend_from_slice(&xdrs::cxs::encode(&key).unwrap());
+            let expected = PublicKeyHash::new(Sha2::sha256(&manual));
+            assert_eq!(public_key_hash(&key), expected);
+        }
+    }
+
+    /// The hash covers the scheme: the same leading bytes under another
+    /// scheme hash differently, and the CXS encoding carries the
+    /// discriminant (1 byte) ahead of the key bytes.
+    #[test]
+    fn key_hash_covers_scheme() {
+        assert_ne!(public_key_hash(&ed25519(7)), public_key_hash(&mldsa65(7)));
+        assert_eq!(xdrs::cxs::encode(&ed25519(7)).unwrap().len(), 1 + 32);
+        assert_eq!(xdrs::cxs::encode(&mldsa65(7)).unwrap().len(), 1 + 1952);
+    }
+
+    #[test]
+    fn key_scratch_fits_largest_key() {
+        // KEY_SCRATCH must hold an ML-DSA-65 key: with the unchecked encode
+        // path a short buffer would be UB, not a panic.
+        assert!(KEY_SCRATCH >= PUBLIC_KEY.as_bytes().len() + 1 + 1952);
+        let _ = public_key_hash(&mldsa65(0xff));
     }
 
     #[test]

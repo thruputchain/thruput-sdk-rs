@@ -49,7 +49,9 @@ pub use backend::Sha256Backend;
 pub use backend::Syscall;
 
 mod separator;
-pub use separator::{DomainSeparator, PUBKEY_ACCOUNT, SIGNED_OP, TRANSACTION};
+pub use separator::{
+    DomainSeparator, PUBKEY_ACCOUNT, PUBLIC_KEY, SIGNED_OP, TRANSACTION,
+};
 
 mod preimage;
 

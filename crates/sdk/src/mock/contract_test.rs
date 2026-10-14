@@ -195,6 +195,7 @@ where
             },
             contracts_to_deploy: Vec::new().try_into().unwrap(),
         },
+        pubkey_claim_key: None,
     };
 
     TransactionHandler::new(env.clone(), &stx)

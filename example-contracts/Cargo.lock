@@ -1492,8 +1492,7 @@ dependencies = [
 [[package]]
 name = "thruput-syscall"
 version = "0.54.1"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "2a3c7c3dea3cbf589de7f81a03e47346484ced9baabfb6a313c525a94091ca7d"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fmldsa-auth#4f78b55da68d52ed9dfa3c05634e92f12df0eabd"
 
 [[package]]
 name = "thruput-trace"
@@ -1519,8 +1518,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr"
 version = "0.54.1"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "0b2be5b97eeb6b68f5624229d0b766e5b8d83b5cd4d5d3df5dac2c89f9423e50"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fmldsa-auth#4f78b55da68d52ed9dfa3c05634e92f12df0eabd"
 dependencies = [
  "schemars",
  "serde",
@@ -1534,8 +1532,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr-macros"
 version = "0.54.1"
-source = "sparse+https://crates.thruput.network/api/v1/crates/"
-checksum = "d253e24c8fd393103290af0e9fcbde263eec013f2596ebda9d2286e14670710f"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fmldsa-auth#4f78b55da68d52ed9dfa3c05634e92f12df0eabd"
 dependencies = [
  "darling",
  "proc-macro2",

@@ -130,3 +130,11 @@ sha2 = { version = "0.11.0", default-features = false }
 heapless = { version = "0.9.2" }
 hex-literal = "1.0.0"
 linkme = "0.3"
+
+# TEMPORARY PIN: regenerated bindings for thruput-protocol#219 (ML-DSA-65
+# pubkey accounts). Swap for the published thruput-xdr release. thruput-syscall
+# rides along because the git thruput-xdr depends on it by path: patching only
+# thruput-xdr would leave two thruput-syscall copies with split features.
+[patch.thruput]
+thruput-xdr = { git = "https://github.com/thruputchain/thruput-protocol-rs", branch = "geoph/mldsa-auth" }
+thruput-syscall = { git = "https://github.com/thruputchain/thruput-protocol-rs", branch = "geoph/mldsa-auth" }
