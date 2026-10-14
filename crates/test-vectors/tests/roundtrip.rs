@@ -135,3 +135,67 @@ fn xdr_vectors_roundtrip_json_string() {
         "roundtrip through JSON string should be lossless"
     );
 }
+
+#[test]
+fn pubkey_auth_vectors_deterministic() {
+    let a = thruput_test_vectors::pubkey_auth_vectors::generate();
+    let b = thruput_test_vectors::pubkey_auth_vectors::generate();
+    assert_eq!(a, b, "pubkey-auth vectors should be deterministic");
+}
+
+/// Every stage of every vector is present and the sizes are the scheme's,
+/// and each stage is built from the one before it: the preimage ends with
+/// the transaction, and the signed transaction starts with it.
+#[test]
+fn pubkey_auth_vectors_valid_json() {
+    let output = thruput_test_vectors::pubkey_auth_vectors::generate();
+    assert_eq!(output["version"], 1);
+    assert_eq!(output["category"], "pubkey_auth");
+    let separator = output["transaction_domain_separator_cxs_hex"]
+        .as_str()
+        .unwrap();
+    let vectors = output["vectors"].as_array().unwrap();
+    assert!(vectors.iter().any(|v| v["scheme"] == "Ed25519"));
+    assert!(vectors.iter().any(|v| v["scheme"] == "MlDsa65"));
+
+    for v in vectors {
+        let name = v["name"].as_str().unwrap();
+        let field = |k: &str| {
+            v[k].as_str()
+                .unwrap_or_else(|| panic!("{name}: missing '{k}'"))
+                .to_string()
+        };
+        let (key_len, sig_len) = match v["scheme"].as_str().unwrap() {
+            "Ed25519" => (32, 64),
+            "MlDsa65" => (1952, 3309),
+            s => panic!("{name}: unexpected scheme {s}"),
+        };
+        assert_eq!(field("seed_hex").len(), 64, "{name}");
+        assert_eq!(field("public_key_hex").len(), 2 * key_len, "{name}");
+        assert_eq!(
+            field("public_key_cxs_hex").len(),
+            2 * (1 + key_len),
+            "{name}"
+        );
+        assert_eq!(field("public_key_hash_hex").len(), 64, "{name}");
+        assert_eq!(field("address_hex").len(), 64, "{name}");
+        assert_eq!(field("transaction_hash_hex").len(), 64, "{name}");
+        assert_eq!(field("signature_hex").len(), 2 * sig_len, "{name}");
+
+        let tx = field("transaction_xdr_hex");
+        let preimage = field("signing_preimage_hex");
+        assert_eq!(
+            preimage,
+            format!("{separator}{}{tx}", field("network_hash_hex")),
+            "{name}: preimage"
+        );
+        assert!(
+            field("signed_transaction_xdr_hex").starts_with(&tx),
+            "{name}"
+        );
+        assert_eq!(
+            v["transaction"]["invoked_address_hex"], v["address_hex"],
+            "{name}"
+        );
+    }
+}
