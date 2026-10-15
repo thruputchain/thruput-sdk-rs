@@ -19,10 +19,12 @@ use crate::{AuthHandleBuf, sys};
 /// [`RawExceptionRef::to_owned`] it (one copy) — whatever `X` the closure
 /// returns is what escapes.
 ///
-/// Any SDK op performed inside `on_exn` (a nested call, hashing, emitting an
-/// event) hits the cold fresh-buffer fallback, since the scratch is already
-/// borrowed here (no-alloc: a 4 KiB stack buffer) — keep the closure small:
-/// decode, `re_throw`, or `to_owned` only.
+/// Generated clients expose this dispatch through [`MapExceptions`](crate::MapExceptions).
+/// The scratch remains live throughout `on_exn`. A nested call needs another
+/// scratch buffer (about 4 KiB on the stack without `alloc`, or another pooled
+/// buffer with it). Prefer a compact classification and do other SDK work or
+/// throw a new typed rejection after this function returns. Verbatim borrowed
+/// rethrow does not need another encoding buffer.
 #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,

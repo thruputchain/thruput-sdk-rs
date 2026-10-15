@@ -38,4 +38,13 @@ pub trait ExnCatch {
     /// This is the method the artifact exists for: the whole dispatch
     /// happens here, in guest code.
     fn classify(target: ContractAddress, which: u32) -> u32;
+
+    /// Classify a call, then throw a new typed error after its scratch is released.
+    fn classify_then_throw(target: ContractAddress, which: u32);
+
+    /// Forward an undeclared exception through the borrowed mapper unchanged.
+    fn rethrow(target: ContractAddress);
+
+    fn fault();
+    fn malformed_abort();
 }

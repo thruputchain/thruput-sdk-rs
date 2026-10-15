@@ -114,6 +114,39 @@ Two things that look like features are keyed on the target instead:
 
 # Allocation
 
+### Stack and heap budgets
+
+The default RV32 guest has 64 KiB of data memory, including a 30 KiB stack
+reserve. Static data and the heap share the remaining space. Increasing the
+stack reserve reduces heap capacity; enabling `alloc` does not increase memory.
+These budgets apply to each contract invocation.
+
+Without `alloc`, SDK call scratch and entrypoint calldata use fixed buffers
+of about 4 KiB. An owned [`exn::RawException`] also holds an inline buffer of
+about 4 KiB. Result temporaries and nested calls can keep several buffers on
+the stack, even when the exception payload itself is small. Inlining can keep
+those slots in a caller's frame after their values are no longer live, so
+source scopes alone do not establish peak stack use.
+
+| Need | Choice |
+| --- | --- |
+| Bounded, short-lived values and scratch | Stack storage is appropriate; budget the whole call chain. |
+| Classify a caught exception immediately | [`MapExceptions`] returns a compact value without retaining its wire buffer. |
+| Keep the full exception for later | Ordinary `try_*` retains an owned error; account for its storage. |
+| Dynamic collections or larger working buffers | Enable `alloc` and bound cumulative allocation per invocation. |
+
+The guest allocator does not reclaim dropped values during an invocation.
+SDK call scratch is pooled under `alloc`, but other allocations, including
+owned exceptions and collection growth, can accumulate. Construct large
+buffers directly in heap storage: `Box::new(large_value)` can still create a
+large stack temporary.
+
+Native tests enable `dev`, which enables `alloc`, and do not establish guest
+stack headroom. Test release RV32 artifacts, including maximum inputs and
+error paths. `scripts/check-exception-stack.sh` runs the SDK's exception
+fixture with a 16 KiB stack as a regression guard; it is not a general stack
+bound for application contracts.
+
 ### Static
 
 Static allocations are facilitated in contracts by [`ContractCell`] and
@@ -199,7 +232,7 @@ Client naming defaults:
 # Calling And Errors
 
 [`ContractClient`] is the low-level call surface. Most code goes through a
-generated client, which exposes two calling styles:
+generated client, which exposes these calling styles:
 
 - `client.method(...)`: success-oriented path. Typed exceptions are re-thrown to
   the caller, and faults stay faults.
@@ -207,6 +240,10 @@ generated client, which exposes two calling styles:
   `Result<ReturnType, CallError>`. A caught exception stays undecoded: match
   it with [`match_exn!`], or decode it as a named type with `try_as` /
   `try_decode`.
+- `client.map_exceptions(classify).try_method(...)`: returns
+  `Result<ReturnType, call::RawCallError<X>>`, where the mapper produces `X`
+  from a borrowed [`exn::RawExceptionRef`]. The adapter is consumed by one
+  call. It preserves gas limits and invocation flags set on the client.
 
 ```rust,ignore
 match token.try_transfer(&to, amount) {
@@ -219,6 +256,30 @@ match token.try_transfer(&to, amount) {
     }),
 }
 ```
+
+When only a classification is needed, avoid retaining the full exception:
+
+```rust,ignore
+let outcome = token.map_exceptions(|exn| {
+    match_exn!(exn, {
+        ERC20Error::TooLarge => true,
+        _ => exn.re_throw(),
+    })
+}).try_transfer(&to, amount);
+
+// The call scratch is released before this code runs.
+match outcome {
+    Ok(()) => { /* ... */ }
+    Err(call::RawCallError::Exception(true)) => { /* handle TooLarge */ }
+    Err(other) => { /* handle call faults and other failures */ }
+}
+```
+
+The mapper runs only for a parsed exception. Keep it to classification,
+verbatim rethrow, or an explicit owned copy. Do other SDK operations or throw
+a new typed rejection after the mapped call returns, while its scratch is
+no longer live. The return value cannot borrow the exception bytes. Import
+[`MapExceptions`] for method syntax; it is included in `use thruput_sdk::*`.
 
 Everything structural — `Ok`, `Fault`, `Invalid` — stays an ordinary Rust
 `match` with real exhaustiveness checking; the macro's only job is typed

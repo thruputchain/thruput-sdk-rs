@@ -159,6 +159,12 @@ jobs:
       - name: Run CI
         run: env ${{ matrix.skips }} ./scripts/ci.sh
 
+      - name: Check exception handling with a 16 KiB RV32 stack
+        if: matrix.name == 'examples-test'
+        run: |
+          export PATH="${THRUPUT_CLI_ROOT}/bin:${PATH}"
+          ./scripts/check-exception-stack.sh
+
       - name: Test issuer token through RV32
         if: matrix.name == 'examples-test'
         working-directory: example-contracts

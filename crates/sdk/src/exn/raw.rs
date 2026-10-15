@@ -77,6 +77,8 @@ fn fmt_exn(
 /// Without `alloc` that storage is a fixed `SCRATCH_MAX`-capacity inline
 /// buffer, so the value (and any error enum holding it) is roughly 4 KiB;
 /// under `alloc` it is an exact-size heap allocation.
+/// Use [`MapExceptions`](crate::MapExceptions) when a compact classification
+/// is enough and the original wire bytes do not need to outlive the call.
 ///
 /// Deliberately not encodable: there is no `WriteXDR` impl.
 /// [`re_throw`](Self::re_throw) aborts with the verbatim wire bytes;

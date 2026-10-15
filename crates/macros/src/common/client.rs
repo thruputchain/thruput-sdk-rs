@@ -243,6 +243,7 @@ pub fn generate(
                 }
             }
 
+            #[allow(dead_code)] // Consumers need not use every generated call style.
             impl<#handler_ident> #mapped_client_ident<#handler_ident> {
                 #(#mapped_method_stubs)*
             }
@@ -376,6 +377,7 @@ fn generate_client_fn(
     let mapped = quote_spanned! {method.sig().span()=>
         /// Call once, mapping a borrowed exception before releasing the call scratch.
         /// See [`MapExceptions`](::thruput_sdk::MapExceptions).
+        #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
         pub fn #try_ident<#exception_ident>(self, #(#sent_params),*)
             -> ::core::result::Result<#return_type, ::thruput_sdk::call::RawCallError<#exception_ident>>
