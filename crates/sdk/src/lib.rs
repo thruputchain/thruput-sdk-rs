@@ -148,7 +148,7 @@ pub use sys_exn::rcq::*;
 
 #[doc(hidden)]
 pub mod call;
-pub use call::ContractClient;
+pub use call::{ContractClient, MapExceptions};
 // The error type of every generated `try_*` method: contracts name it
 // constantly, so it belongs at the root next to `match_exn!`.
 pub use call::CallError;
