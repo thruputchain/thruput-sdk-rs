@@ -26,6 +26,8 @@ thiserror = { version = "2.0.12", default-features = false }
 
 [build-dependencies]
 cmake = { version = "0.1", optional = true }
-bindgen = { version = "0.73", optional = true }
+# Use bindgen's default rustfmt formatter; prettyplease 0.3 requires
+# syn 3, while bindgen 0.73 uses syn 2.
+bindgen = { version = "0.73", optional = true, default-features = false, features = ["logging", "runtime"] }
 sha2 = { workspace = true }
 fslock = "0.2"
