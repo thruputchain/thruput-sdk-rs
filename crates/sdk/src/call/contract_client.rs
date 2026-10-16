@@ -16,7 +16,9 @@ pub trait ContractClient {
 /// success, faults, rejected calls and encode/decode errors keep their usual
 /// [`RawCallError`](super::RawCallError) representation.
 ///
-/// The mapper borrows the abort bytes; its return value cannot borrow them.
+/// The mapper borrows abort bytes already copied from the host into guest
+/// scratch; its return value cannot borrow them. This avoids an additional
+/// owned exception buffer, not the host/guest copies.
 /// Prefer a compact classification or verbatim rethrow. Taking an owned copy
 /// is allowed, but in RV32 contracts with `alloc` that allocation is not
 /// reclaimed during the invocation. Decoding types with owned fields can
