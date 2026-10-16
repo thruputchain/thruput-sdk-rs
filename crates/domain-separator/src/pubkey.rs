@@ -19,7 +19,10 @@
 use core::mem::MaybeUninit;
 
 use thruput_xdr::auth_claim::PubkeyAccountPreimage;
-use thruput_xdr::types::{ContractAddress, PublicKey, PublicKeyHash};
+use thruput_xdr::types::{
+    ContractAddress, Ed25519PublicKey, MlDsa65PublicKey, PublicKey,
+    PublicKeyHash,
+};
 use xdrs::cxs::ConstMaxSize;
 
 use crate::backend::Sha256Backend;
@@ -28,10 +31,12 @@ use crate::{PUBKEY_ACCOUNT, PUBLIC_KEY};
 /// Scratch size for [`key_hash`]: the `"PublicKey"` prefix plus the
 /// worst-case CXS size of a [`PublicKey`] (an ML-DSA-65 key).
 const KEY_SCRATCH: usize = {
-    let object_max = match <PublicKey as ConstMaxSize>::MAX_SIZE {
-        Some(n) => n,
-        None => panic!("PublicKey has an unbounded CXS size"),
-    };
+    // Boxed enum arms deliberately have no recursive ConstMaxSize bound.
+    // Size the known key payloads and discriminant, then use checked encoding.
+    let ed25519 = <Ed25519PublicKey as ConstMaxSize>::MAX_SIZE.unwrap();
+    let mldsa65 = <MlDsa65PublicKey as ConstMaxSize>::MAX_SIZE.unwrap();
+    let payload = if ed25519 > mldsa65 { ed25519 } else { mldsa65 };
+    let object_max = <u32 as ConstMaxSize>::MAX_SIZE.unwrap() + payload;
     PUBLIC_KEY.as_bytes().len() + object_max
 };
 
@@ -39,12 +44,22 @@ const KEY_SCRATCH: usize = {
 /// with `H`.
 fn key_hash<H: Sha256Backend>(public_key: &PublicKey) -> PublicKeyHash {
     let mut scratch = [MaybeUninit::<u8>::uninit(); KEY_SCRATCH];
-    // SAFETY: `KEY_SCRATCH` is the prefix length plus `PublicKey`'s
-    // worst-case CXS size, checked to be bounded at compile time. Every
-    // `PublicKey` arm is a fixed-size opaque, so no XDR bound can be violated.
-    let hash =
-        unsafe { PUBLIC_KEY.hash_into::<H, _>(public_key, &mut scratch) };
-    PublicKeyHash::new(hash.into_inner())
+    let prefix = PUBLIC_KEY.as_bytes();
+    for (slot, byte) in scratch.iter_mut().zip(prefix) {
+        slot.write(*byte);
+    }
+    let size =
+        xdrs::cxs::encode_into(public_key, &mut scratch[prefix.len()..])
+            .expect("public key exceeds the supported CXS size");
+    // SAFETY: the prefix and the successful checked encoder initialized
+    // exactly this slice. A future larger key fails before hashing.
+    let bytes = unsafe {
+        core::slice::from_raw_parts(
+            scratch.as_ptr().cast::<u8>(),
+            prefix.len() + size,
+        )
+    };
+    PublicKeyHash::new(H::sha256(bytes))
 }
 
 /// Scratch size for [`derive`]: the `"PubkeyAccount"` prefix plus the
@@ -130,7 +145,6 @@ mod tests {
     use super::*;
     use crate::backend::Sha2;
     use crate::sha2::{pubkey_account_address, public_key_hash};
-    use thruput_xdr::types::{Ed25519PublicKey, MlDsa65PublicKey};
 
     fn ed25519(fill: u8) -> PublicKey {
         PublicKey::Ed25519 {
@@ -140,7 +154,7 @@ mod tests {
 
     fn mldsa65(fill: u8) -> PublicKey {
         PublicKey::MlDsa65 {
-            mldsa65: MlDsa65PublicKey::from([fill; 1952]),
+            mldsa65: MlDsa65PublicKey::from([fill; 1952]).into(),
         }
     }
 
@@ -173,8 +187,7 @@ mod tests {
 
     #[test]
     fn key_scratch_fits_largest_key() {
-        // KEY_SCRATCH must hold an ML-DSA-65 key: with the unchecked encode
-        // path a short buffer would be UB, not a panic.
+        // The checked encoding must fit even the largest supported key.
         assert!(KEY_SCRATCH >= PUBLIC_KEY.as_bytes().len() + 1 + 1952);
         let _ = public_key_hash(&mldsa65(0xff));
     }

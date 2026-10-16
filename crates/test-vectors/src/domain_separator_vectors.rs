@@ -23,7 +23,7 @@ fn ed25519(key: [u8; 32]) -> PublicKey {
 /// patterned fill is enough and keeps the vectors reproducible.
 fn mldsa65(f: impl Fn(usize) -> u8) -> PublicKey {
     PublicKey::MlDsa65 {
-        mldsa65: MlDsa65PublicKey::from(core::array::from_fn(f)),
+        mldsa65: MlDsa65PublicKey::from(core::array::from_fn(f)).into(),
     }
 }
 
@@ -38,7 +38,7 @@ fn scheme_name(pubkey: &PublicKey) -> &'static str {
 fn key_bytes(pubkey: &PublicKey) -> &[u8] {
     match pubkey {
         PublicKey::Ed25519 { ed25519 } => ed25519.as_ref(),
-        PublicKey::MlDsa65 { mldsa65 } => mldsa65.as_ref(),
+        PublicKey::MlDsa65 { mldsa65 } => mldsa65.as_ref().as_ref(),
         _ => unreachable!("no vectors for this scheme"),
     }
 }

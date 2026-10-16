@@ -260,7 +260,7 @@ fn mldsa65_signature_rejections() {
     // Not a well-formed signature encoding at all.
     let mut s = c.signed.clone();
     s.signatures.0[0].signature = Signature::MlDsa65 {
-        mldsa65: MlDsa65Signature::from([0xff; 3309]),
+        mldsa65: MlDsa65Signature::from([0xff; 3309]).into(),
     };
     expect("all-0xff ML-DSA-65 signature", &s, net, BAD_SIGNATURE);
 }
