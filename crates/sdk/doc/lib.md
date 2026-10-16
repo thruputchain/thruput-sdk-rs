@@ -116,10 +116,11 @@ Two things that look like features are keyed on the target instead:
 
 ### Stack and heap budgets
 
-The default RV32 guest has 64 KiB of data memory, including a 30 KiB stack
-reserve. Static data and the heap share the remaining space. Increasing the
-stack reserve reduces heap capacity; enabling `alloc` does not increase memory.
-These budgets apply to each contract invocation.
+Each RV32 invocation shares a fixed memory budget between stack, static data
+and heap. Increasing the stack reserve reduces heap capacity; enabling `alloc`
+does not increase memory. See the runtime
+[stack and memory configuration](https://github.com/thruputchain/thruput-sdk-rs/blob/main/crates/rv32-runtime/src/lib.rs)
+for defaults and overrides.
 
 Without `alloc`, SDK call scratch and entrypoint calldata use fixed buffers
 of about 4 KiB. An owned [`exn::RawException`] also holds an inline buffer of
@@ -142,10 +143,8 @@ buffers directly in heap storage: `Box::new(large_value)` can still create a
 large stack temporary.
 
 Native tests enable `dev`, which enables `alloc`, and do not establish guest
-stack headroom. Test release RV32 artifacts, including maximum inputs and
-error paths. `scripts/check-exception-stack.sh` runs the SDK's exception
-fixture with a 16 KiB stack as a regression guard; it is not a general stack
-bound for application contracts.
+stack headroom. Test release RV32 artifacts with maximum inputs, nested calls
+and error paths.
 
 ### Static
 
@@ -241,9 +240,9 @@ generated client, which exposes these calling styles:
   it with [`match_exn!`], or decode it as a named type with `try_as` /
   `try_decode`.
 - `client.map_exceptions(classify).try_method(...)`: returns
-  `Result<ReturnType, call::RawCallError<X>>`, where the mapper produces `X`
-  from a borrowed [`exn::RawExceptionRef`]. The adapter is consumed by one
-  call. It preserves gas limits and invocation flags set on the client.
+  `Result<ReturnType, RawCallError<X>>`, where the mapper produces `X`
+  from a borrowed [`exn::RawExceptionRef`]. See [`MapExceptions`] for the
+  callback contract.
 
 ```rust,ignore
 match token.try_transfer(&to, amount) {
@@ -259,7 +258,14 @@ match token.try_transfer(&to, amount) {
 
 When only a classification is needed, avoid retaining the full exception:
 
-```rust,ignore
+```rust,no_run
+# #![allow(unexpected_cfgs)]
+# use thruput_sdk::*;
+# #[contract_exception]
+# pub enum ERC20Error { TooLarge = 1 }
+# #[contract]
+# pub trait Token { fn transfer(to: &ContractAddress, amount: u64); }
+# fn example(token: TokenClient, to: ContractAddress, amount: u64) {
 let outcome = token.map_exceptions(|exn| {
     match_exn!(exn, {
         ERC20Error::TooLarge => true,
@@ -267,19 +273,13 @@ let outcome = token.map_exceptions(|exn| {
     })
 }).try_transfer(&to, amount);
 
-// The call scratch is released before this code runs.
 match outcome {
     Ok(()) => { /* ... */ }
-    Err(call::RawCallError::Exception(true)) => { /* handle TooLarge */ }
+    Err(RawCallError::Exception(true)) => { /* handle TooLarge */ }
     Err(other) => { /* handle call faults and other failures */ }
 }
+# }
 ```
-
-The mapper runs only for a parsed exception. Keep it to classification,
-verbatim rethrow, or an explicit owned copy. Do other SDK operations or throw
-a new typed rejection after the mapped call returns, while its scratch is
-no longer live. The return value cannot borrow the exception bytes. Import
-[`MapExceptions`] for method syntax; it is included in `use thruput_sdk::*`.
 
 Everything structural — `Ok`, `Fault`, `Invalid` — stays an ordinary Rust
 `match` with real exhaustiveness checking; the macro's only job is typed

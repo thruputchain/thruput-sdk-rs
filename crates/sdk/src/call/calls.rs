@@ -12,19 +12,10 @@ use crate::{AuthHandleBuf, sys};
 
 /// Typed cross-contract call with caller-supplied exception dispatch.
 ///
-/// `on_exn` runs while the abort bytes are still borrowed from the call
-/// scratch: [`RawExceptionRef::payload`] is a plain slice, valid exactly for
-/// the closure. Decode it into owned typed errors (zero-copy),
-/// re-throw it (zero-copy, via [`ReThrow`](crate::ReThrow)), or
-/// [`RawExceptionRef::to_owned`] it (one copy) — whatever `X` the closure
-/// returns is what escapes.
-///
-/// Generated clients expose this dispatch through [`MapExceptions`](crate::MapExceptions).
-/// The scratch remains live throughout `on_exn`. A nested call needs another
-/// scratch buffer (about 4 KiB on the stack without `alloc`, or another pooled
-/// buffer with it). Prefer a compact classification and do other SDK work or
-/// throw a new typed rejection after this function returns. Verbatim borrowed
-/// rethrow does not need another encoding buffer.
+/// `on_exn` receives a parsed exception borrowed from the call scratch and
+/// returns the value used in [`RawCallError::Exception`]. Other outcomes do
+/// not invoke it. See [`MapExceptions`](crate::MapExceptions) for the callback
+/// lifetime and allocation guidance.
 #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,

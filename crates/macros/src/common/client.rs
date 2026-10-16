@@ -324,29 +324,44 @@ fn generate_client_fn(
         quote! { () }
     };
 
-    let ordinary = quote_spanned! {method.sig().span()=>
-
-        // This method-wrapper re-throws if the called contract throws.
-        #[cfg_attr(test, track_caller)]
-        pub fn #ident(&self, #(#sent_params),* ) #sig_output
-        {
+    let call_body = |exception_type: TokenStream,
+                     on_exn: TokenStream,
+                     result_suffix: TokenStream| {
+        quote_spanned! {method.sig().span()=>
             let __gh_entrypoint = #entrypoint_lit;
             let __gh_args = #args_tuple;
-
             #log_call
-
             with_call_tracking!(#call_info, {
-                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
-                    &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| ::thruput_sdk::ReThrow::re_throw(exn),
+                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, #exception_type>(
+                    &self.address, __gh_entrypoint, self.config.gas_limit,
+                    &__gh_args, self.config.flags, #on_exn,
                 )
-                .or_re_throw()
+                #result_suffix
             })
         }
+    };
+    let throwing_body = call_body(
+        quote_spanned! {method.sig().span()=> ::core::convert::Infallible },
+        quote_spanned! {method.sig().span()=> |exn| ::thruput_sdk::ReThrow::re_throw(exn) },
+        quote_spanned! {method.sig().span()=> .or_re_throw() },
+    );
+    let owned_body = call_body(
+        quote_spanned! {method.sig().span()=> ::thruput_sdk::exn::RawException },
+        quote_spanned! {method.sig().span()=> |exn| exn.to_owned() },
+        quote_spanned! {method.sig().span()=>},
+    );
+    let mapped_body = call_body(
+        quote_spanned! {method.sig().span()=> #exception_ident },
+        quote_spanned! {method.sig().span()=> self.on_exn },
+        quote_spanned! {method.sig().span()=>},
+    );
 
-        // This method-wrapper returns a Result so that exceptions may be
-        // inspected.
-        ///
+    let ordinary = quote_spanned! {method.sig().span()=>
+        #[cfg_attr(test, track_caller)]
+        pub fn #ident(&self, #(#sent_params),* ) #sig_output {
+            #throwing_body
+        }
+
         /// An `Err` may hold a caught exception, kept untyped as an owned
         /// [`RawException`](::thruput_sdk::exn::RawException) — see that
         /// type's docs for size/ownership, and
@@ -355,22 +370,8 @@ fn generate_client_fn(
         /// declares it `throws`.
         #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
-        pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, ::thruput_sdk::call::CallError>
-        {
-            let __gh_entrypoint = #entrypoint_lit;
-            let __gh_args = #args_tuple;
-
-            #log_call
-
-            with_call_tracking!(#call_info, {
-                // The exception is copied out of the call scratch verbatim
-                // and decoded on demand, rather than eagerly downcast to a
-                // type this interface happens to declare.
-                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, ::thruput_sdk::exn::RawException>(
-                    &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| exn.to_owned(),
-                )
-            })
+        pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, ::thruput_sdk::call::CallError> {
+            #owned_body
         }
     };
 
@@ -384,17 +385,7 @@ fn generate_client_fn(
         where
             #handler_ident: for<'s> FnOnce(::thruput_sdk::exn::RawExceptionRef<'s>) -> #exception_ident,
         {
-            let __gh_entrypoint = #entrypoint_lit;
-            let __gh_args = #args_tuple;
-
-            #log_call
-
-            with_call_tracking!(#call_info, {
-                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, #exception_ident>(
-                    &self.address, __gh_entrypoint, self.config.gas_limit,
-                    &__gh_args, self.config.flags, self.on_exn,
-                )
-            })
+            #mapped_body
         }
     };
     Ok((ordinary, mapped))

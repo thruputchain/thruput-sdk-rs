@@ -56,15 +56,11 @@
 
 ENTRY(_start)
 
-/* Stack reserve size. 30K by default: a no-alloc contract's scratch buffers
- * (SCRATCH_MAX = 4K each, see `thruput_sdk::call::with_call_scratch`) are
- * plain stack locals, and several are live at once — an entrypoint holds the
- * 4K calldata buffer for its whole frame, and a chain like entrypoint ->
- * method -> storage helper carries a scratch per frame that encodes. Measured
- * worst case is ~9K; 30K leaves headroom for a deeper chain rather than
- * trapping on overflow. The reserve costs nothing in the stored artifact — the
- * lowerer trims it via `initial_memory_start` — only address space shared with
- * the heap, which no-alloc contracts don't use at all.
+/* Stack reserve size. No-alloc calldata, call scratch and owned exceptions
+ * can occupy several large stack slots at once. Peak usage depends on the
+ * contract and compiler; validate it with release RV32 artifacts.
+ * The lowerer trims this reserve from the stored artifact, but it consumes
+ * guest address space shared with statics and the heap.
  *
  * Per-contract override (must be a multiple of 16, enforced by the ASSERT
  * at the bottom): pass a linker --defsym in the contract's rustflags,

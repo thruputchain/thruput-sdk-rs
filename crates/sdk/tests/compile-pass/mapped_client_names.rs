@@ -9,9 +9,6 @@ pub trait Names {
     fn r#type();
 }
 
-// A caller's type with the adapter's internal name must remain valid.
-pub struct ExceptionMappedClient;
-
 fn check(client: NamesClient) {
     let _ = MapExceptions::map_exceptions(&client, |_| ()).try_foo();
     let _ = MapExceptions::map_exceptions(&client, |_| ()).try_foo_with();

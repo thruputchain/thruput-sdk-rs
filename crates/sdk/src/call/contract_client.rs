@@ -6,7 +6,7 @@ pub trait ContractClient {
     fn new(address: &crate::types::ContractAddress) -> Self;
 }
 
-/// Classify exceptions before the call scratch is released.
+/// Classify a borrowed exception during a generated call.
 ///
 /// Generated clients implement this trait. Use
 /// `client.map_exceptions(classify).try_method(...)` to return a compact
@@ -16,10 +16,16 @@ pub trait ContractClient {
 /// success, faults, rejected calls and encode/decode errors keep their usual
 /// [`RawCallError`](super::RawCallError) representation.
 ///
-/// The mapper borrows the abort bytes. It may decode a small error, rethrow
-/// verbatim, or explicitly take an owned copy. Keep it small: the call scratch
-/// remains live until it returns. Do other SDK work or throw a new typed error
-/// after the mapped call returns. A borrowed payload cannot escape the mapper.
+/// The mapper borrows the abort bytes; its return value cannot borrow them.
+/// Prefer a compact classification or verbatim rethrow. Taking an owned copy
+/// is allowed, but in RV32 contracts with `alloc` that allocation is not
+/// reclaimed during the invocation. Decoding types with owned fields can
+/// also allocate.
+///
+/// The call scratch stays checked out during the mapper. Do other SDK work
+/// or throw a new typed error after the mapped call returns, when its scratch
+/// checkout has ended. Without `alloc`, this does not guarantee that
+/// the compiler reuses its stack slot; test the release RV32 artifact.
 ///
 /// Import this trait (included in `use thruput_sdk::*`) for method syntax.
 /// If a contract has its own `map_exceptions` method, use
