@@ -150,3 +150,24 @@ Prebuilt libraries are published to:
 
 Each release includes, per platform:
 - `libtest_ffi-<platform>.tar.gz` (+ `.sha256`)
+
+## Native allocation estimates
+
+Install `thruput_native_exec::install_counting_allocator!()` once at the top
+of a test binary (or use the SDK re-export). After a mocked transaction,
+`result.frame().alloc_stats()` returns the frame's own cumulative allocation
+count, requested bytes and `estimated_heap_bytes`. It returns `None` without
+the allocator. Frees do not reduce these counters; continuation steps keep
+the same simulated bump cursor.
+
+`cross_call_alloc_records()` contains completed mock bodies in completion
+order, including bodies that fail. Each record identifies the contract
+and requested method and excludes its callees' allocations. Explicit child
+frames own their records. Full transactions run through
+`TransactionHandler::root_invoke` have no allocation-report API.
+
+Use these estimates for native-test regressions. Native pointer sizes, test
+closures, panic diagnostics and guest code paths can change the numbers;
+they are not exact or conservative RV32 heap bounds. They do not measure stack
+use. See the [generated-client](../sdk/tests/alloc_stats.rs) and
+[nested-call](tests/alloc_stats.rs) tests for examples.

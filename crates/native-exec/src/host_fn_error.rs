@@ -16,6 +16,7 @@ pub fn perform_mocked_syscall(
     arg6: u64,
     arg7: u64,
 ) -> i32 {
+    let _alloc_pause = crate::alloc_stats::PauseGuard::new();
     let result: thruput_sys::ForeignHostFnResult = unsafe {
         thruput_sys::mock_syscall_entrypoint(
             syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7,

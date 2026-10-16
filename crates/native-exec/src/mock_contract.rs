@@ -17,6 +17,7 @@ use xdrs::txs;
 pub struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: i32,
+    pub(crate) alloc_records: crate::alloc_stats::RecordLog,
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
     funcs: HashMap<
         ContractEntrypointID,
@@ -59,7 +60,7 @@ impl MockContract {
 
     /// The `Contract::kMockTest` value identifying this mock.
     pub fn as_contract(&self) -> Contract {
-        i32_to_contract(unsafe { (*self.contract).index })
+        unsafe { (*self.contract).as_contract() }
     }
 
     /// The contract hash (`sha256(Contract::kMockTest(index))`).
@@ -136,6 +137,10 @@ impl MockContract {
 }
 
 impl MockContractInner {
+    pub(crate) fn as_contract(&self) -> Contract {
+        i32_to_contract(self.index)
+    }
+
     /// Create the backing storage for mock contract number `n`.
     pub fn new(n: i32) -> Self {
         let mut hasher = Sha256::new();
@@ -144,6 +149,7 @@ impl MockContractInner {
         let result: [u8; 32] = hasher.finalize().into();
         Self {
             index: n,
+            alloc_records: Default::default(),
             hash: result.into(),
             funcs: HashMap::new(),
             unknown: None,

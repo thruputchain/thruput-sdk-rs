@@ -59,6 +59,7 @@ pub struct TestEnvironmentInner {
     pub(crate) contract_context: RuntimeContextWrapper,
     mock_contract_index: i32,
     contracts: Vec<*mut MockContractInner>, // owns these contracts
+    pub(crate) alloc_records: crate::alloc_stats::RecordLog,
 }
 
 /// An in-process groundhog instance for testing contracts natively.
@@ -119,7 +120,19 @@ unsafe extern "C" fn trampoline(
             // activated the panic hook, and this is the point where the right
             // thread is known without guessing: it is the one calling `x`.
             let _in_body = crate::invoke_error::PanicHookGuard::enter();
-            x()
+            let scope = crate::alloc_stats::FrameMeasureScope::open(None);
+            let result = x();
+            if let Some(stats) = scope.close() {
+                let inner = unsafe { &*c };
+                inner.alloc_records.push(
+                    crate::alloc_stats::FrameAllocRecord {
+                        contract: inner.as_contract(),
+                        entrypoint: method,
+                        stats,
+                    },
+                );
+            }
+            result
         }
         None => thruput_sys::ForeignInvokeResult {
             panic: InvokeErrorCode::Deterministic.0,
@@ -307,6 +320,7 @@ impl TestEnvironmentInner {
             contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
             contracts: vec![],
+            alloc_records: Default::default(),
         }
     }
 
@@ -477,9 +491,9 @@ impl TestEnvironmentInner {
     /// or by being attached as one of the newly created contracts
     /// on a SignedTransaction.
     pub fn add_contract(&mut self) -> *mut MockContractInner {
-        let out: *mut MockContractInner = Box::into_raw(Box::new(
-            MockContractInner::new(self.mock_contract_index),
-        ));
+        let mut contract = MockContractInner::new(self.mock_contract_index);
+        contract.alloc_records = self.alloc_records.clone();
+        let out = Box::into_raw(Box::new(contract));
 
         let new_id = self.mock_contract_index;
 

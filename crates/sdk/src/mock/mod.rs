@@ -6,6 +6,7 @@ mod contract_test;
 #[cfg(feature = "dev")]
 mod mock_public {
     pub use super::contract_test::*;
+    pub use thruput_native_exec::{alloc_stats, install_counting_allocator};
 
     pub use hogexec_internal::ffi_enums::*;
     pub use thruput_native_exec::{

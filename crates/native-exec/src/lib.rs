@@ -24,6 +24,8 @@ pub(crate) fn drop_failure(args: core::fmt::Arguments<'_>) {
     }
 }
 
+/// Optional native allocation estimates for contract tests.
+pub mod alloc_stats;
 /// Fluent builders for configuring and executing invocation frames.
 pub mod frame_builder;
 /// Per-frame results (status, buffers, trace, events) and their assertions.

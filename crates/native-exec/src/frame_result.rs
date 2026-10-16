@@ -38,6 +38,8 @@ fn describe_trace(trace: Option<&InvocationFrameTrace>) -> String {
 /// Wraps InvocationFrameOutput + optional trace + per-frame events.
 #[derive(Debug, Clone)]
 pub struct FrameResult {
+    alloc_stats: Option<crate::alloc_stats::AllocStats>,
+    cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
@@ -45,6 +47,32 @@ pub struct FrameResult {
 }
 
 impl FrameResult {
+    pub(crate) fn with_alloc_measurements(
+        mut self,
+        stats: Option<crate::alloc_stats::AllocStats>,
+        records: Vec<crate::alloc_stats::FrameAllocRecord>,
+    ) -> Self {
+        self.alloc_stats = stats;
+        self.cross_call_alloc_records = records;
+        self
+    }
+
+    /// This frame's cumulative native allocation estimate, excluding callees.
+    /// Returns `None` without the counting allocator. See [`crate::alloc_stats`]
+    /// for the differences from RV32 heap usage.
+    pub fn alloc_stats(&self) -> Option<crate::alloc_stats::AllocStats> {
+        self.alloc_stats
+    }
+
+    /// Completed mock calls in this frame's execute windows, in completion order.
+    /// Explicit child frames own their records. Empty without the counting allocator;
+    /// Standalone `TransactionHandler::root_invoke` has no record owner.
+    pub fn cross_call_alloc_records(
+        &self,
+    ) -> &[crate::alloc_stats::FrameAllocRecord] {
+        &self.cross_call_alloc_records
+    }
+
     /// Wrap a frame's output, optional trace, and emitted events.
     pub fn new(
         output: InvocationFrameOutput,
@@ -52,6 +80,8 @@ impl FrameResult {
         events: Vec<TxEmittedEvent>,
     ) -> Self {
         Self {
+            alloc_stats: None,
+            cross_call_alloc_records: Vec::new(),
             output,
             trace,
             events,

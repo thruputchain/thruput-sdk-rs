@@ -104,6 +104,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
     /// Open the frame at the FFI level, returning the
     /// [`MockInvocationFrame`].
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
+        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
         let frame = Box::new(MockInvocationFrame::new(
@@ -138,6 +139,8 @@ pub struct MockInvocationFrame {
     /// here; and a `raw_Invoke`ed callee is caught by `invoke_wrapper`,
     /// which has no frame to record against at all (see `fault_panic`).
     fault_panic: Option<crate::invoke_error::PanicRecord>,
+    alloc_stats: Option<crate::alloc_stats::AllocStats>,
+    cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
 }
 
 /// Name the rule that refused a frame, rather than leaving a caller with a
@@ -213,6 +216,8 @@ impl MockInvocationFrame {
             context_pushcount,
             root_frame_closed,
             fault_panic: None,
+            alloc_stats: None,
+            cross_call_alloc_records: Vec::new(),
         }
     }
 
@@ -345,6 +350,7 @@ impl MockInvocationFrame {
         + UnwindSafe,
     ) -> &mut Self {
         use crate::frame_builder::FrameAction;
+        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
 
         if self.state != MockInvocationFrameState::Started {
             eprintln!("cannot execute a frame that has already been closed");
@@ -367,17 +373,20 @@ impl MockInvocationFrame {
 
         self.push_context();
 
-        let result = {
-            // The lambda stands in for the frame's contract body -- an
-            // ordinary panic out of it is classified below as this frame
-            // failing deterministically -- so the hook covers it, and nests
-            // with the guards `trampoline` holds around real mock bodies.
-            let _hook = crate::invoke_error::PanicHookGuard::enter();
+        let records = self.context_pushcount.borrow().alloc_records.open();
+        // Install the panic hook outside the allocation measurement window.
+        let hook = crate::invoke_error::PanicHookGuard::enter();
+        let scope =
+            crate::alloc_stats::FrameMeasureScope::open(self.alloc_stats);
+        let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 lambda(self)
-            }))
-        };
-
+            }));
+        self.alloc_stats = scope.close();
+        drop(hook);
+        if let Some(records) = records {
+            self.cross_call_alloc_records.extend(records.finish());
+        }
         self.pop_context();
 
         match result {
@@ -416,10 +425,15 @@ impl MockInvocationFrame {
     /// The closed frame's [`FrameResult`]. Panics if the frame is still
     /// open.
     pub fn result(&mut self) -> FrameResult {
+        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())
                     .with_fault_panic(self.fault_panic.clone())
+                    .with_alloc_measurements(
+                        self.alloc_stats,
+                        self.cross_call_alloc_records.clone(),
+                    )
             }
             _ => {
                 eprintln!(
@@ -480,11 +494,15 @@ impl Drop for MockInvocationFrame {
 
 pub(crate) struct ThreadlocalContextPushcount {
     count: i32,
+    alloc_records: crate::alloc_stats::RecordLog,
 }
 
 impl ThreadlocalContextPushcount {
-    pub fn new() -> Self {
-        Self { count: 0 }
+    pub fn new(alloc_records: crate::alloc_stats::RecordLog) -> Self {
+        Self {
+            count: 0,
+            alloc_records,
+        }
     }
 
     pub fn push_context(&mut self, handler: *mut c_void) {
@@ -618,13 +636,14 @@ impl MockTransactionHandler {
             panic!("failed to open mocked syscall handler: {:?}", err);
         }
         assert!(!handler_res.syscall_handler.is_null());
+        let alloc_records = env.inner.borrow().alloc_records.clone();
         Self {
             handler: handler_res.syscall_handler,
             _env: env,
             state: MockTransactionState::NotStarted,
             root_frame: None,
             context_pushcount: Rc::new(RefCell::new(
-                ThreadlocalContextPushcount::new(),
+                ThreadlocalContextPushcount::new(alloc_records),
             )),
             root_frame_closed: Rc::new(Cell::new(false)),
         }
