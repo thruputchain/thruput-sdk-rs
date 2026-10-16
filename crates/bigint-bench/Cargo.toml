@@ -1,0 +1,16 @@
+[package]
+name = "bigint-bench"
+edition.workspace = true
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Measures rv32 runtime gas for the big-integer benchmark contract, and joins it with codesize"
+
+[dependencies]
+thruput-sdk = { workspace = true, features = ["dev"] }
+bigint-bench-if = { workspace = true, features = ["dev"] }

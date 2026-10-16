@@ -1,7 +1,7 @@
 use crate::HTLC;
-use sdk::*;
+use thruput_sdk::*;
 
-use sdk::storage::{Map, Value};
+use thruput_sdk::storage::{Map, Value};
 
 #[contract_type]
 struct HTLCEntry {
@@ -30,7 +30,7 @@ impl HTLC for HTLCContract {
         hash: &SHA256Hash,
     ) {
         let htlc = HTLCEntry {
-            sender: sdk::get_caller(),
+            sender: thruput_sdk::get_caller(),
             receiver: receiver.clone(),
             token: token.clone(),
             amount,
@@ -43,9 +43,4 @@ impl HTLC for HTLCContract {
     fn claim_htlc(&mut self, _hash: &SHA256Hash, _preimage: &SHA256Hash) {}
 
     fn refund_htlc(&mut self, _hash: &SHA256Hash) -> () {}
-}
-
-#[unsafe(export_name = "FFFFFFFFFFFFFFFF")]
-pub extern "C" fn startup_null() -> () {
-    ()
 }

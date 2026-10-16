@@ -1,10 +1,11 @@
-use counter::{CounterClient, CounterClientError};
-use sdk::*;
+use counter::CounterClient;
+use thruput_sdk::*;
 
-static COUNTER_NONCE: SHA256Hash = sdk::sha256_static!("COUNTER_TEST_NONCE");
+static COUNTER_NONCE: SHA256Hash =
+    thruput_sdk::sha256_static!("COUNTER_TEST_NONCE");
 
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let test_contract = counter::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
     (env, contract_hash)
@@ -53,14 +54,10 @@ fn test_counter_underflow() {
 
             // Try to decrement by 10 (should abort - would go negative)
             match client.try_decrement(10) {
-                Err(CounterClientError::Library(ref lib_exn)) => {
-                    assert!(
-                        matches!(lib_exn, LibraryExn::NonNegativeIntUnderflow),
-                        "Expected NonNegativeIntUnderflow, got: {:?}",
-                        lib_exn
-                    );
-                }
-                Err(e) => panic!("Unexpected error: {:?}", e),
+                Err(e) => match_exn!(e, {
+                    LibraryExn::NonNegativeIntUnderflow => {}
+                    _ => panic!("Unexpected error: {e:?}"),
+                }),
                 Ok(()) => panic!("Decrement should have failed"),
             }
         })
@@ -79,12 +76,16 @@ fn test_gas_limit_does_not_propagate() {
             let client = CounterClient::new(&addr);
             client.initialize(10);
 
-            // Call with tiny gas limit — should fail with OOG
+            // Native mock instructions are unmetered, but their syscalls
+            // still consume gas. A one-unit budget cannot complete get();
+            // no_cost() disables storage costs, not syscall gas accounting.
             let result = client.with_gas_limit(1).try_get();
             assert!(
-                matches!(result, Err(CounterClientError::Fault(_))),
-                "Expected OOG fault with gas_limit=1, got: {:?}",
-                result
+                matches!(
+                    &result,
+                    Err(thruput_sdk::call::RawCallError::Fault(_))
+                ),
+                "gas-limited mock call should fault, got {result:?}"
             );
 
             // Subsequent call without explicit gas limit should use default

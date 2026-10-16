@@ -7,45 +7,71 @@ on:
     branches: [ "main" ]
     types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
+  schedule:
+    # Weekly: the latest-nightly job below is an early-warning canary for std
+    # changes; without a schedule it would only fire when someone pushes.
+    - cron: "17 6 * * 1"
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
+# No job here uses GITHUB_TOKEN; read is all they need.
+permissions:
+  contents: read
 
 jobs:
   test-linux-arm64:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux-arm64
-    env:
-      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
-
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           cache: rust
 
-      - name: Build and test groundhog-native-exec
-        run: cargo test -p groundhog-native-exec -- --show-output
+      - name: Build and test thruput-native-exec
+        run: cargo test -p thruput-native-exec -- --show-output
 
   test-macos-arm64:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-arm64-macos
-    env:
-      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
-
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           cache: rust
 
-      - name: Build and test groundhog-native-exec
-        run: cargo test -p groundhog-native-exec -- --show-output
+      - name: Build and test thruput-native-exec
+        run: cargo test -p thruput-native-exec -- --show-output
+
+  # Early-warning canary: run the same suite on the latest nightly, ahead of
+  # the workspace's pinned toolchain. The dev runtime's panic interception
+  # leans on std panic-machinery details, and std changes there SIGABRT every
+  # scaffolded project's `cargo test` (rust-lang/rust#158369 did exactly that
+  # by making the old resume_unwind-in-the-hook conversion abort). This job
+  # breaks first, before users' nightlies move past the change.
+  test-latest-nightly:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: namespace-profile-hogd-linux-arm64
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
+        with:
+          cache: rust
+
+      - name: Install latest nightly
+        run: rustup toolchain install nightly --profile minimal
+
+      - name: Build and test thruput-native-exec on latest nightly
+        run: cargo +nightly test -p thruput-native-exec -- --show-output

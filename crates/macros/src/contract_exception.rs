@@ -7,7 +7,8 @@ use syn::Item;
 #[derive(Debug, Default, FromMeta)]
 pub struct ContractExceptionArgs {
     pub version: Option<SpannedValue<String>>,
-    pub name: Option<String>,
+    pub name: Option<SpannedValue<String>>,
+    pub wire_crate: Option<SpannedValue<String>>,
 }
 
 /// Expand `#[contract_exception]` or `#[contract_exception(version = "...")]`
@@ -20,6 +21,39 @@ pub fn expand(args: ContractExceptionArgs, item: Item) -> TokenStream {
         && let Err(err) = crate::common::util::validate_version_string(
             version.span(),
             version,
+        )
+    {
+        return err.into_compile_error();
+    }
+    if let Some(name) = &args.name
+        && let Err(err) =
+            crate::common::util::validate_spec_name(name.span(), name)
+    {
+        return err.into_compile_error();
+    }
+
+    if let Some(wire_crate) = &args.wire_crate
+        && let Err(err) = crate::common::util::validate_wire_crate_name(
+            wire_crate.span(),
+            wire_crate,
+        )
+    {
+        return err.into_compile_error();
+    }
+
+    // The generated `impl Exn`/`ContractTypeName` use the bare ident, so a
+    // generic exception type would produce cascading missing-generics
+    // errors inside generated code.
+    let generics = match &item {
+        Item::Enum(e) => Some(&e.generics),
+        Item::Struct(s) => Some(&s.generics),
+        _ => None,
+    };
+    if let Some(generics) = generics
+        && let Err(err) = crate::common::util::validate_no_generics(
+            generics,
+            false,
+            "#[contract_exception] types",
         )
     {
         return err.into_compile_error();
@@ -40,7 +74,14 @@ fn expand_contract_type_name(
     ident: &syn::Ident,
     args: &ContractExceptionArgs,
 ) -> TokenStream {
-    crate::contract_type_name_impl(ident, args.name.as_deref())
+    crate::contract_type_name_impl(
+        &crate::common::contract::sdk_crate_path(),
+        ident,
+        args.name.as_ref().map(|name| name.as_str()),
+        // The same version the selector is derived from, so the two identities
+        // cannot drift: a pinned exception keeps both across a crate release.
+        args.version.as_ref().map(|version| version.as_str()),
+    )
 }
 
 fn expand_enum(
@@ -57,12 +98,12 @@ fn expand_enum(
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
-        #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
-        #[xdrs(crate = "::sdk::__xdrs")]
+        #[derive(Debug, PartialEq, ::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR, ::thruput_sdk::ContractTypeSpec)]
+        #[xdrs(crate = "::thruput_sdk::__xdrs")]
         #[repr(i32)]
         #item
 
-        impl ::sdk::exn::Exn for #ident {
+        impl ::thruput_sdk::exn::Exn for #ident {
             const SELECTOR: u64 = #selector;
         }
 
@@ -81,11 +122,11 @@ fn expand_struct(
     let name_impl = expand_contract_type_name(ident, &args);
 
     quote! {
-        #[derive(Debug, Clone, PartialEq, ::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
-        #[xdrs(crate = "::sdk::__xdrs")]
+        #[derive(Debug, PartialEq, ::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR, ::thruput_sdk::ContractTypeSpec)]
+        #[xdrs(crate = "::thruput_sdk::__xdrs")]
         #item
 
-        impl ::sdk::exn::Exn for #ident {
+        impl ::thruput_sdk::exn::Exn for #ident {
             const SELECTOR: u64 = #selector;
         }
 
@@ -102,11 +143,32 @@ fn compute_selector(args: &ContractExceptionArgs, type_name: &str) -> u64 {
             std::env::var("CARGO_PKG_VERSION")
                 .unwrap_or_else(|_| "0.0.0".to_string())
         });
-    let crate_name = std::env::var("CARGO_PKG_NAME")
-        .unwrap_or_else(|_| "_unknown_".to_string());
-    groundhog_contract_util::exception_selector(
-        &version,
-        &crate_name,
-        type_name,
-    )
+    let crate_name = args
+        .wire_crate
+        .as_ref()
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| {
+            std::env::var("CARGO_PKG_NAME")
+                .unwrap_or_else(|_| "_unknown_".to_string())
+        });
+    thruput_contract_util::exception_selector(&version, &crate_name, type_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_invalid_wire_crate_is_rejected_at_the_attribute() {
+        let args = ContractExceptionArgs {
+            wire_crate: Some(SpannedValue::new(
+                "other::package".into(),
+                proc_macro2::Span::call_site(),
+            )),
+            ..Default::default()
+        };
+        let output =
+            expand(args, syn::parse_quote! { enum Error { Denied = 1 } });
+        assert!(output.to_string().contains("wire_crate must be"));
+    }
 }

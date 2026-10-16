@@ -13,15 +13,23 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `thruput build -p imported_error_callee` derives
+# `--bin imported_error_callee` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "imported_error_callee"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 imported_error_type = { path = "../imported_error_type" }
 
 [dev-dependencies]

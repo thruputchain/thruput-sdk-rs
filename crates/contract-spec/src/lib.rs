@@ -5,18 +5,28 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::{string::String, vec::Vec};
 
+pub mod format;
 pub mod view;
 
-#[cfg(feature = "owned-model")]
-pub use groundhog_spec::{
-    ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
-    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
-    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
-    ContractTypeDef, ContractTypeDefKind, ContractTypeKind, ContractUnionCase,
-    ContractUnionCaseKind, ContractUnionCaseType, ContractUnionDef,
-    ContractVectorType, SpecFragment, SpecFragmentKind, SpecInterfaceAnchor,
-    SpecInterfaceFragment, SpecMethodFragment,
+pub use format::{
+    FINAL_SECTION_NAME, RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT,
+    SpecSection, classify_section,
 };
+
+#[cfg(feature = "owned-model")]
+pub use thruput_spec::{
+    ContractArrayType, ContractEnumDef, ContractEnumVariant, ContractEventDef,
+    ContractExceptionType, ContractField, ContractMethodEffect,
+    ContractSignedTokenPreimage, ContractSpec, ContractSpecId,
+    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
+    ContractStructDef, ContractType, ContractTypeDef, ContractTypeDefKind,
+    ContractTypeKind, ContractUnionCase, ContractUnionCaseKind,
+    ContractUnionCaseType, ContractUnionDef, ContractVectorType,
+};
+#[cfg(feature = "owned-model")]
+mod fragment;
+#[cfg(feature = "owned-model")]
+pub use fragment::*;
 pub use view::*;
 #[cfg(feature = "alloc")]
 use xdrs::VecM;
@@ -33,6 +43,12 @@ pub trait ContractTypeSpec {
 /// definition. The definition is emitted into the raw spec section only
 /// where the event is declared (`emits(...)` on an interface) or exported
 /// (`#[event_spec(export)]` on the derive).
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a contract event",
+    label = "not a contract event",
+    note = "add `#[derive(Event)]` to `{Self}` — `emits(...)` in \
+            `#[contract(...)]` requires it"
+)]
 pub trait ContractEventSpec {
     /// The event's definition (name, signature, topics, fields) as a const view.
     const EVENT_DEF: view::ContractEventDefView<'static>;
@@ -57,8 +73,28 @@ pub trait ContractEventSpec {
 
 /// Provides the spec-visible name for a contract type.
 pub trait ContractTypeName {
-    /// The name used to identify this type in the contract spec.
-    const NAME: &'static str;
+    /// The fully qualified id this type is known by in the contract spec.
+    ///
+    /// This is an identity claim, not a label. A bare ident cannot tell two
+    /// user-defined types apart — two crates, two modules of one crate, or two
+    /// major versions of one crate may each define a `Meta` — so every
+    /// reference in a spec resolves through this const, and two types agree on
+    /// an id only if they are the same type. The crate and major-version
+    /// segments are load-bearing: shortening an id to its declared name for
+    /// display is each codegen's business, not the spec's.
+    ///
+    /// The segments travel apart rather than joined into
+    /// `CRATE@MAJOR::module::path::Name`, because the joined form cannot be
+    /// split back: `name = "..."` substitutes its value verbatim, `::` and
+    /// all, so the boundary between module path and declared name is not
+    /// recoverable from the string.
+    ///
+    /// `#[contract_type]` and `#[contract_exception]` derive it at the
+    /// declaration, where `module_path!()` and the declaring crate's name and
+    /// version are all in scope, so it cannot be taken from the wrong crate. A
+    /// hand-written impl (for a type this crate does not declare) is asserting
+    /// the id itself and is responsible for its accuracy, segment by segment.
+    const NAME: view::ContractSpecIdView<'static>;
 }
 
 /// Bundles a type reference for use in contract spec signatures.
@@ -70,11 +106,24 @@ pub struct ContractTypeInfo<'a> {
 
 /// Trait for types that can appear in contract spec signatures.
 /// Implemented for primitives, collections, and `#[contract_type]` types.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot appear in a contract signature",
+    label = "not a contract-spec type",
+    note = "annotate the defining type with `#[contract_type]` (error \
+            types: `#[contract_exception]`, events: `#[derive(Event)]`)"
+)]
 pub trait ContractTypeRefSpec {
     /// The type reference. Transitive type definitions are not carried here;
     /// they are retained via the linker-anchor mechanism
     /// (`__GROUNDHOG_SPEC_ANCHOR_ROOT`) and resolved by spec-tool.
     const INFO: ContractTypeInfo<'static>;
+
+    /// How this type appears as a signed-token preimage
+    /// (`ContractTypeView::SignedToken`'s payload): the type itself by
+    /// default, or `None` for a type-erased payload (the SDK's `Opaque`
+    /// overrides this).
+    const SIGNED_PREIMAGE: Option<&'static view::ContractTypeView<'static>> =
+        Some(&Self::INFO.ty);
 
     /// Hidden root symbol used to retain imported raw typedef fragments.
     #[doc(hidden)]
@@ -164,13 +213,31 @@ impl ContractTypeRefSpec for str {
 // byte sequences (the macro tests assert `Bytes` never appears). The
 // `Bytes` wire variant still exists; other-language SDKs must also avoid
 // emitting it, or identical interfaces will hash/compare unequal.
-impl ContractTypeRefSpec for [u8] {
+//
+// A slice is an unbounded vector of its element; for `[u8]` that is the
+// byte-payload spelling above.
+impl<T> ContractTypeRefSpec for [T]
+where
+    T: ContractTypeRefSpec,
+{
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
-            element: &view::ContractTypeView::U8,
+            element: &type_ref::<T>(),
             max_len: u32::MAX,
         }),
     };
+
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(
+        target_arch = "riscv32",
+        unsafe(link_section = "groundhogspecanchortextv0")
+    )]
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 impl ContractTypeRefSpec for &[u8] {
@@ -197,6 +264,33 @@ impl<const MAX: u32> ContractTypeRefSpec for xdr_common::BytesM<MAX> {
             max_len: MAX,
         }),
     };
+}
+
+/// Bounded vector with no allocator: the same wire shape and spec as
+/// `VecM<T, N>` (for `u8`, as `BytesM<N>`), but decodable in a no-`alloc`
+/// guest.
+impl<T, const N: usize> ContractTypeRefSpec for heapless::Vec<T, N>
+where
+    T: ContractTypeRefSpec,
+{
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::Vector(view::ContractVectorTypeView {
+            element: &type_ref::<T>(),
+            max_len: N as u32,
+        }),
+    };
+
+    #[cfg_attr(target_arch = "riscv32", inline(never))]
+    #[cfg_attr(
+        target_arch = "riscv32",
+        unsafe(link_section = "groundhogspecanchortextv0")
+    )]
+    fn __groundhog_spec_anchor() -> usize {
+        mix_anchor_fn(
+            0,
+            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+        )
+    }
 }
 
 impl<T, const N: usize> ContractTypeRefSpec for [T; N]
@@ -366,8 +460,12 @@ impl_tuple_type_ref_spec!(
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P),
 );
 
-/// Returns the spec-visible symbol name for a `ContractTypeSpec` type.
-pub const fn symbol<T: ContractTypeSpec>() -> &'static str {
+/// Returns the spec id a `ContractTypeSpec` type names itself by.
+///
+/// The id, not a display name: read [`ContractSpecIdView::declared`] for the
+/// bare identifier, and see that type on why the segments travel apart.
+pub const fn symbol<T: ContractTypeSpec>() -> view::ContractSpecIdView<'static>
+{
     T::TYPE_DEF.symbol()
 }
 

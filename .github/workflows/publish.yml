@@ -1,109 +1,619 @@
-name: Release SDK and related primary packages
+# Releases every published crate in this repository in one idempotent pass.
+#
+# Publishing runs in dependency order:
+#
+#   1. the workspace-versioned crates up through `thruput-sdk`
+#   2. the standard-interface crates, which caret-depend on `thruput-sdk`
+#   3. the crates downstream of the standard interfaces: `thruput-spec-tool`
+#      and the `erc20-*-test` crates
+#
+# Every step tolerates re-runs: tags are recreated at HEAD and only pushed
+# when new, and `cargo publish` skips versions the registry already has — so a
+# run that fails partway is resumed by dispatching it again (on the tagged commit; running on a later commit without a version
+# bump fails at the tag push, deliberately). The standard-interface crates
+# version independently of the workspace, each under its own
+# `<crate>-v<version>` tag; when a release doesn't bump a crate — its tag
+# sits on an older commit AND its version is already published, verified
+# against the registry — its publish step is skipped. A tag on
+# another commit whose version is NOT published fails the run rather than
+# publishing content that doesn't match the tag.
+#
+# Dispatch with dry_run for all of the verification and none of the tagging
+# or publishing.
+name: Release SDK and standard interfaces
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only (no tag/publish)'
+        required: false
+        type: boolean
+        default: false
+
+# Two concurrent releases would race on tags and registry state; queue them.
+concurrency:
+  group: publish
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  PUBLISH_PACKAGES: >-
-    groundhog-event
-    groundhog-storage-cost
-    groundhog-contract-util
-    groundhog-contract-spec
-    groundhog-sys
-    groundhog-native-exec
-    groundhog-macros
-    groundhog-test-vectors
-    groundhog-rv32-runtime
-    groundhog-wasm-runtime
-    sdk
-    groundhog-spec-tool
+  # The publish steps take the registry token as an action input, but the
+  # dry runs reach the registry as plain cargo -- `cargo vendor` is the very
+  # first thing they do -- and that needs a credential provider of its own.
+  # hog1 had one configured on disk; an ephemeral runner does not. Same pair
+  # ci.yml and sdk_tests.yml set.
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+  # Workspace-versioned crates published under the `v<version>` tag, in
+  # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
+  # line but is named separately: those crates publish after the standard
+  # interfaces, while these are what the interfaces depend on. Dev-dependencies
+  # count toward that order: packaging resolves them too, so `thruput-macros`
+  # precedes `thruput-domain-separator`, whose tests use it.
+  PRIMARY_PACKAGES: >-
+    thruput-event
+    thruput-exn
+    thruput-storage-cost
+    thruput-contract-util
+    thruput-contract-spec
+    thruput-sys
+    thruput-macros
+    thruput-domain-separator
+    thruput-native-exec
+    thruput-u256
+    thruput-test-vectors
+    thruput-rv32-runtime
+    thruput-sdk
+    bottle-test-if
+  # Standard-interface crates and their implementation components: versioned
+  # independently of the workspace, each published under its own
+  # `<crate>-v<version>` tag. In dependency order: each implementation
+  # component exact-pins its interface crate, so it comes after it.
+  INTERFACE_PACKAGES: >-
+    thruput-erc20-if
+    thruput-erc20-metadata-if
+    thruput-erc20-controls-if
+    thruput-erc20-pausable-if
+    thruput-signed-op-if
+    thruput-signed-op
+    thruput-erc20-permit-if
+    thruput-erc165-if
+    thruput-erc721-if
+    thruput-sep41
+    thruput-access-control-if
+    thruput-access-control
+  # Published after INTERFACE_PACKAGES, under the same `v<version>` tag as
+  # PRIMARY_PACKAGES.
+  INTERFACE_DEPENDENT_PACKAGES: >-
+    thruput-spec-tool
+    erc20-test
+    erc20-native-test
+    erc20-bottle-test
+
+permissions:
+  contents: read
 
 jobs:
   publish:
     permissions:
       contents: write
-    runs-on: hog1
+    runs-on: namespace-profile-hogd-linux-2604
+    env:
+      # Share one FFI download cache across every thruput-sys build instance
+      # (and across runs, via the Namespace cache below). The dry runs below
+      # package thruput-sys once per feature combination, and each instance
+      # would otherwise re-download the prebuilt FFI tarball into its own
+      # OUT_DIR. Mirrors ci.yml and sdk_tests.yml.
+      HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:
-      - name: Clean up .gitconfig
-        run: |
-            echo "Cleaning up .gitconfig"
-            rm -f /home/hogci/.gitconfig
+      # Loaded before checkout so the recursive private source submodules
+      # can authenticate through their deploy keys.
       - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.10.0
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: |
-            ${{ secrets.ACTIONS_KEY }}
             ${{ secrets.SDK_TO_ITC }}
             ${{ secrets.SDK_TO_SELF }}
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
+      # NB: deliberately NOT caching ./target (no `cache: rust`). The Namespace
+      # cross-invocation cache is a network/overlay-backed mount; cargo's
+      # many-small-file churn in target/ stalls on it. Cache only the dependency
+      # *sources* (read-mostly, few large files) plus the one-shot FFI download.
+      # Mirrors ci.yml.
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
-          submodules: recursive
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ github.workspace }}/.hogd-ffi-cache
+
+      # The dry runs below drive cargo-hack over each crate's feature
+      # powerset; hog1 had it installed globally and the runner image does
+      # not ship it. It comes from crates.io, so this needs no registry
+      # auth, and it is a ~1min compile against a release that takes 15.
+      #
+      # Pinned exactly, and checked by version rather than by presence, the
+      # way ci.sh pins the Thruput CLI: this runs with the release job's
+      # SSH agent already loaded, so it must build the version that was
+      # tested rather than whatever was published since. `--locked` alone
+      # would pin cargo-hack's dependencies but not cargo-hack.
+      - name: Install cargo-hack
+        env:
+          CARGO_HACK_VERSION: '0.6.45'
+        run: |
+          if [ "$(cargo hack --version 2>/dev/null | awk '{print $2}')" \
+               != "$CARGO_HACK_VERSION" ]; then
+            cargo install cargo-hack --version "=$CARGO_HACK_VERSION" --locked
+          fi
+          cargo hack --version
 
       - name: Configure git to use SSH
         run: |
           git config --global url."git@github.com:".insteadOf "https://github.com/"
 
-      - name: Checkout actions repository
-        uses: actions/checkout@v6
+      - name: Publish dry run
+        uses: thruputchain/actions/cargo-publish-dry-run@6693fac8133585728ad3a4ca14e3441073b6def8
         with:
-          repository: groundhogchain/actions
-          path: actions
-          ref: main
+          registry-name: thruput
+          packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
+          # The interface-dependent crates reach the standard interfaces (and
+          # each other) as workspace path deps — `cargo vendor` skips those, so
+          # the offline packaging steps need them pre-vendored. Pre-vendoring a
+          # crate resolves its deps against vendor/ too, so the crates it
+          # depends on come first, in dependency order — dev-dependencies
+          # included.
+          vendor-workspace-deps:
+            thruput-storage-cost
+            thruput-event
+            thruput-exn
+            thruput-contract-util
+            thruput-contract-spec
+            thruput-sys
+            thruput-macros
+            thruput-domain-separator
+            thruput-native-exec
+            thruput-u256
+            thruput-rv32-runtime
+            thruput-sdk
+            bottle-test-if
+            thruput-erc20-if
+            thruput-erc20-metadata-if
+            thruput-erc20-pausable-if
+            thruput-erc20-permit-if
+            thruput-signed-op-if
+            thruput-erc165-if
+            thruput-erc721-if
+            thruput-access-control-if
+            erc20-test
+          # thruput-domain-separator's backends are additive, so most combinations
+          # are fine. The exception is a bare `syscall`: it forwards to
+          # `thruput-xdr/syscalls`, which has no dispatch path on the host.
+          # `syscall-mock` needs no skip -- it supplies that dispatch itself.
+          cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features --skip syscall
+          # On guests, reaching thruput-domain-separator's `sha2` backend is a hard
+          # error, so skip it and `default` (which pulls it in via `std`). Its
+          # `syscall-mock` is host-only, like thruput-sdk's `mock`. `-F syscall` keeps the
+          # guest backend compiled somewhere. All no-ops for the other packages here.
+          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
+          cargo-hack-rv32-packages: thruput-rv32-runtime thruput-sdk thruput-domain-separator
+          arch-only-packages: thruput-rv32-runtime
 
-      - name: publish dry run
-        uses: ./actions/cargo-publish-dry-run
+      # The dry-run action leaves its vendor/ dir behind; clear it so the
+      # standard-interfaces dry run below re-vendors from scratch.
+      - name: Reset vendor dir
+        run: rm -rf vendor
+
+      - name: Publish dry run (standard interfaces)
+        uses: thruputchain/actions/cargo-publish-dry-run@6693fac8133585728ad3a4ca14e3441073b6def8
+        env:
+          # The workspace no longer carries rv32 target rustflags (the single
+          # rv32 config lives in example-contracts/.cargo/config.toml; see
+          # docs/superpowers/specs/2026-07-09-rv32-build-config-ci-design.md).
+          # The rv32-only spec-carrier bin built by the rv32 powerset below
+          # only needs to LINK, so it gets the minimal link flags here. NOTE:
+          # cargo JOINS env target-rustflags with config-defined ones (measured
+          # on 1.95.0-nightly), so this works only because no config discovered
+          # from the workspace root defines rv32 rustflags — re-adding a root
+          # stanza would duplicate -T fatally. No immediate-abort here: this
+          # build uses the prebuilt core (no build-std).
+          CARGO_TARGET_RISCV32IM_UNKNOWN_NONE_ELF_RUSTFLAGS: >-
+            -C link-arg=-Tgroundhog-rv32.ld
+            -C link-arg=--no-check-sections
+            -C link-arg=-static
+            -C link-arg=--no-dynamic-linker
+            -C link-arg=--gc-sections
+            -C panic=abort
+            -C relocation-model=static
+            -Z trap-unreachable=false
+            --deny warnings
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
-          cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features
-          cargo-hack-wasm32-feature-options: --feature-powerset --skip std --skip mock --skip dev
-          cargo-hack-wasm32-packages: groundhog-wasm-runtime sdk
+          registry-name: thruput
+          packages: ${{ env.INTERFACE_PACKAGES }}
+          # The implementation components exact-pin their interface crates,
+          # and the permit and issuer interfaces exact-pin thruput-erc20-if — all
+          # workspace path deps here, so their offline packaging needs those
+          # pre-vendored (after the primaries they depend on).
+          vendor-workspace-deps:
+            thruput-storage-cost
+            thruput-event
+            thruput-exn
+            thruput-contract-util
+            thruput-contract-spec
+            thruput-sys
+            thruput-macros
+            thruput-domain-separator
+            thruput-native-exec
+            thruput-u256
+            thruput-rv32-runtime
+            thruput-sdk
+            thruput-erc20-if
+            thruput-erc20-metadata-if
+            thruput-erc20-controls-if
+            thruput-erc165-if
+            thruput-signed-op-if
+            thruput-access-control-if
+          # `entrypoints` selects the rv32-only #![no_main] spec-carrier bin, which
+          # cannot link on the host (no `main`); it is verified by the rv32 step below.
+          cargo-hack-feature-options: --feature-powerset -F dev --ignore-unknown-features --skip entrypoints
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
-          cargo-hack-rv32-packages: groundhog-rv32-runtime sdk
-          arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
+          cargo-hack-rv32-packages: thruput-rv32-runtime ${{ env.INTERFACE_PACKAGES }}
 
-      - name: tag commit with version
+      # Tags HEAD as `v<version>` and pushes. Re-running on the release
+      # commit passes (the push is a no-op); a run on a new commit without a
+      # workspace version bump fails here, loudly (on-existing-tag: fail is
+      # the action's default).
+      - name: Tag commit with version
+        if: ${{ inputs.dry_run == false }}
         id: publish-tag
-        uses: ./actions/cargo-version-tag
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
-      
-      - name: push tag
-        run: |
-          git remote set-url origin https://${{ github.actor }}:${{ github.token }}@github.com/${{ github.repository }}.git
-          git push origin ${{ steps.publish-tag.outputs.tag }}
-          git remote set-url origin git@github.com:${{ github.repository }}.git
-          
-      - name: publish
-        uses: ./actions/cargo-publish
+          packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
+          github-token: ${{ github.token }}
+
+      # Each interface crate gets its own `<crate>-v<version>` tag, which
+      # legitimately pre-exists at an older commit whenever a release doesn't
+      # bump the crate. skip-if-published verifies against the registry that
+      # such a version is really already published — released=false then
+      # skips the crate's publish step below — and fails the run
+      # when it is NOT published (a previous run died between tag push and
+      # publish; publishing HEAD would ship content that doesn't match the
+      # tag — re-run from the tagged commit, or delete the stale tag).
+      - name: Tag thruput-erc20-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
-          git-tag: ${{ steps.publish-tag.outputs.tag }}
-          registry-name: groundhog
+          packages: thruput-erc20-if
+          tag-prefix: 'thruput-erc20-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          # Verification is done in the dry-run job above; the host verify-build
+
+      - name: Tag thruput-erc20-controls-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-token-controls-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-controls-if
+          tag-prefix: 'thruput-erc20-controls-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-erc20-metadata-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-metadata-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-metadata-if
+          tag-prefix: 'thruput-erc20-metadata-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-erc20-pausable-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-pausable-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-pausable-if
+          tag-prefix: 'thruput-erc20-pausable-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-signed-op
+        if: ${{ inputs.dry_run == false }}
+        id: tag-signed-op
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-signed-op
+          tag-prefix: 'thruput-signed-op-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-access-control-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-access-control-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-access-control-if
+          tag-prefix: 'thruput-access-control-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-signed-op-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-signed-op-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-signed-op-if
+          tag-prefix: 'thruput-signed-op-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-erc20-permit-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc20-permit-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-permit-if
+          tag-prefix: 'thruput-erc20-permit-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-erc165-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc165-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc165-if
+          tag-prefix: 'thruput-erc165-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-erc721-if
+        if: ${{ inputs.dry_run == false }}
+        id: tag-erc721-if
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc721-if
+          tag-prefix: 'thruput-erc721-if-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-sep41
+        if: ${{ inputs.dry_run == false }}
+        id: tag-sep41
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-sep41
+          tag-prefix: 'thruput-sep41-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-access-control
+        if: ${{ inputs.dry_run == false }}
+        id: tag-access-control
+        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-access-control
+          tag-prefix: 'thruput-access-control-v'
+          github-token: ${{ github.token }}
+          on-existing-tag: 'skip-if-published'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      # Unlike the dry runs, the publish steps resolve deps against the live
+      # registry — hence the dependency order: thruput-sdk (here) before the standard
+      # interfaces, and those before thruput-spec-tool, whose exact-pinned
+      # interface versions must already be published.
+      - name: Publish
+        if: ${{ inputs.dry_run == false }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: ${{ env.PRIMARY_PACKAGES }}
+          git-tag: ${{ steps.publish-tag.outputs.tag }}
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          # Verification is done in the dry-run steps above; the host verify-build
           # here would fail for the architecture-only runtime crates.
           no-verify: 'true'
           # These crates only build for their non-host target, so the publish
           # action's host doc-validation must skip them (covered by the per-target
-          # verify in the dry-run job).
-          arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
+          # verify in the dry-run step).
+          arch-only-packages: thruput-rv32-runtime
+          publish-delay-seconds: '10'
 
-      # Build and upload rustdoc to groundhog.dev/docs, after the crates publish.
-      # HEAD is the freshly-tagged commit, so expected-tag validates cleanly.
-      # arch-only crates can't build docs on the host, so they're skipped (same
-      # as the publish step above).
-      - name: publish docs
-        uses: ./actions/cargo-doc
+      - name: Publish thruput-erc20-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
         with:
-          packages: ${{ env.PUBLISH_PACKAGES }}
-          arch-only-packages: groundhog-wasm-runtime groundhog-rv32-runtime
-          version: ${{ steps.publish-tag.outputs.version }}
-          registry-name: groundhog
+          packages: thruput-erc20-if
+          git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
+          tag-prefix: 'thruput-erc20-if-v'
+          registry-name: thruput
           registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          toolchain: nightly-2026-01-30
-          force: 'true'
-          expected-tag: ${{ steps.publish-tag.outputs.tag }}
+          # Verification is done by the dry-run step above; the publish-time
+          # verify build runs with --all-features, which enables `entrypoints`
+          # and tries to link the rv32-only spec-carrier bin on the host.
+          # (Same for the other interface crates below.)
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish thruput-erc20-metadata-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-metadata-if
+          git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
+          tag-prefix: 'thruput-erc20-metadata-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish thruput-erc20-controls-if
+        if: ${{ inputs.dry_run == false && steps.tag-token-controls-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-controls-if
+          git-tag: ${{ steps.tag-token-controls-if.outputs.tag }}
+          tag-prefix: 'thruput-erc20-controls-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish thruput-erc20-pausable-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-pausable-if
+          git-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
+          tag-prefix: 'thruput-erc20-pausable-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish thruput-erc165-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc165-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc165-if
+          git-tag: ${{ steps.tag-erc165-if.outputs.tag }}
+          tag-prefix: 'thruput-erc165-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish thruput-erc721-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc721-if
+          git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
+          tag-prefix: 'thruput-erc721-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      # After the ERC20, ERC20 controls, metadata and ERC-165 interfaces:
+      # this component exact-pins all four.
+      - name: Publish thruput-sep41
+        if: ${{ inputs.dry_run == false && steps.tag-sep41.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-sep41
+          git-tag: ${{ steps.tag-sep41.outputs.tag }}
+          tag-prefix: 'thruput-sep41-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish thruput-access-control-if
+        if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-access-control-if
+          git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
+          tag-prefix: 'thruput-access-control-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish thruput-signed-op-if
+        if: ${{ inputs.dry_run == false && steps.tag-signed-op-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-signed-op-if
+          git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
+          tag-prefix: 'thruput-signed-op-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      # After thruput-signed-op-if: the component exact-pins it, and this
+      # publish resolves deps against the live registry.
+      - name: Publish thruput-signed-op
+        if: ${{ inputs.dry_run == false && steps.tag-signed-op.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-signed-op
+          git-tag: ${{ steps.tag-signed-op.outputs.tag }}
+          tag-prefix: 'thruput-signed-op-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      # After thruput-erc20-if: this crate exact-pins it, and this publish
+      # resolves deps against the live registry.
+      - name: Publish thruput-erc20-permit-if
+        if: ${{ inputs.dry_run == false && steps.tag-erc20-permit-if.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-erc20-permit-if
+          git-tag: ${{ steps.tag-erc20-permit-if.outputs.tag }}
+          tag-prefix: 'thruput-erc20-permit-if-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      # After thruput-access-control-if: the component exact-pins it, and
+      # this publish resolves deps against the live registry.
+      - name: Publish thruput-access-control
+        if: ${{ inputs.dry_run == false && steps.tag-access-control.outputs.released == 'true' }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: thruput-access-control
+          git-tag: ${{ steps.tag-access-control.outputs.tag }}
+          tag-prefix: 'thruput-access-control-v'
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'
+
+      - name: Publish interface-dependent crates
+        if: ${{ inputs.dry_run == false }}
+        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          packages: ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
+          git-tag: ${{ steps.publish-tag.outputs.tag }}
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          no-verify: 'true'
+          publish-delay-seconds: '10'

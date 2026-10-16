@@ -1,5 +1,5 @@
 [package]
-name = "sdk"
+name = "thruput-sdk"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -9,7 +9,8 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "SDK"
+description = "Thruput smart-contract SDK for Rust (rv32 guest runtime and native test harness)"
+readme = "../../README.md"
 metadata.docs.rs.features = [
     "std",
 ]
@@ -19,105 +20,125 @@ crate-type = ["rlib"]
 doctest = true
 
 [dependencies]
-# Groundhog dependencies
-groundhog-macros = { workspace = true }
-groundhog-xdr = { workspace = true }
-groundhog-event = { workspace = true }
-groundhog-contract-spec = { workspace = true }
-hogexec-internal = { workspace = true }
+# Thruput dependencies
+thruput-macros = { workspace = true }
+thruput-xdr = { workspace = true }
+thruput-event = { workspace = true }
+thruput-exn = { workspace = true }
+thruput-contract-spec = { workspace = true }
+thruput-u256 = { workspace = true }
 xdrs = { workspace = true, features = ["heapless"] }
 
-# Optional Groundhog dependencies
-groundhog-contract-util = { workspace = true, optional = true }
-groundhog-storage-cost = { workspace = true, optional = true }
-groundhog-native-exec = { workspace = true, optional = true }
-groundhog-wasm-meter = { workspace = true, optional = true }
+# Optional Thruput dependencies
+# Host-only: the mock module re-exports its `ffi_enums` (see mock/mod.rs), and
+# that is the crate's only use of it. Optional so a guest build -- and the
+# public dependency tree of a contract -- does not name an "internal" crate.
+hogexec-internal = { workspace = true, optional = true }
+thruput-contract-util = { workspace = true, optional = true }
+thruput-storage-cost = { workspace = true, optional = true }
+thruput-native-exec = { workspace = true, optional = true }
 
 # External dependencies
 thiserror = { workspace = true }
-sha2 = { workspace = true, default-features = false }
+# Host-only: every use is behind `mock` or `cfg(test)` -- guests hash through
+# the SHA256 syscall (`crypto::sha256`). Optional so a guest build cannot
+# compile it in, and so any future non-test `use sha2::` fails loudly here
+# rather than silently linking software SHA-256 into every contract.
+sha2 = { workspace = true, default-features = false, optional = true }
 heapless = { workspace = true }
 linkme = { workspace = true, optional = true }
 
 [dev-dependencies]
 # When running tests, enable recommended development features
-sdk = { path = ".", features = ["dev"] }
+thruput-sdk = { path = ".", features = ["dev"] }
 
 hex-literal = { workspace = true }
-groundhog-contract-util = { workspace = true }
+thruput-contract-util = { workspace = true }
 trybuild = "1"
 version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [features]
 # Enable allocation features
 alloc = [
-    "groundhog-xdr/alloc",
+    "thruput-u256/alloc",
+    "thruput-xdr/alloc",
     "xdrs/alloc",
-    "groundhog-contract-spec/alloc",
-    "groundhog-wasm-runtime/alloc",
-    "groundhog-rv32-runtime/alloc",
+    "thruput-contract-spec/alloc",
+    "thruput-rv32-runtime/alloc",
 ]
 
 # Include interfaces requiring std
 std = [
     "alloc",
-    "groundhog-xdr/std",
-    "groundhog-contract-spec/owned-model",
+    "thruput-u256/std",
+    "thruput-xdr/std",
+    "thruput-contract-spec/owned-model",
     "xdrs/detailed-errors",
 ]
 
-# Enable recommended development features
+# The mock executor, for testing contracts natively.
+#
+# This stays a feature, unlike the diagnostics that were folded into target
+# gates: it does not change what a contract computes, it decides whether the
+# native executor is in the dependency graph at all -- pulling
+# `thruput-native-exec` and through it the hogd FFI library. Host crates
+# that only read specs (`spec-tool`, `erc20-test`, the `*-if` crates) build
+# `thruput-sdk` without it and should not have to fetch a shared object to do
+# so.
+#
+# `syscalls_mock` and `linkme` are not listed: the host target table below
+# supplies both unconditionally.
 dev = [
-    "debugging",
-    "call_tracking",
-    "dep:groundhog-storage-cost",
-    "mock",
-    ]
-
-# Enable the mock executor for local testing
-mock = [
     "std",
-    "dep:groundhog-native-exec",
-    "dep:groundhog-wasm-meter",
-    "dep:groundhog-storage-cost",
-    "groundhog-macros/mock",
-    "groundhog-xdr/syscalls_mock",
-    "dep:linkme",
+    "dep:thruput-native-exec",
+    "dep:thruput-storage-cost",
+    "dep:hogexec-internal",
+    "thruput-macros/mock",
+    "dep:sha2",
 ]
 
-# Forwarded to groundhog-sys (via native-exec): build the FFI library from
+# Forwarded to thruput-sys (via native-exec): build the FFI library from
 # source (HOGD_FFI_BUILD=1) instead of downloading a prebuilt binary.
-source-build = ["groundhog-native-exec?/source-build"]
-
-# Diagnostics (can be enabled without mock, alloc and std)
-debugging = []
-call_tracking = ["debugging"] # contract-call tracking
+source-build = ["thruput-native-exec?/source-build"]
 
 # Optional diagnostic features (not enabled by "dev")
-logging = ["groundhog-macros/logging", "alloc"] # trace contract calls when testing
-panic_logging = ["groundhog-wasm-runtime/panic_logging"] # send panic messages to the log() syscall
+logging = ["thruput-macros/logging", "alloc"] # trace contract calls when testing
 
 [[test]]
 name = "int128"
 required-features = ["std"]
 
-# RV32 and WASM contracts use real syscalls into hogd. Host-native builds use
-# the mock syscall implementation linked through native-exec.
-[target.'cfg(any(target_family = "wasm", target_arch = "riscv32"))'.dependencies]
-groundhog-xdr = { workspace = true, features = ["syscalls"] }
+# Mock-executor misuse cases. Gated: without `mock` the APIs under test are
+# absent, so the cases would fail to resolve instead of failing on the bound.
+[[test]]
+name = "compile_fail_mock"
+required-features = ["dev"]
 
-[target.'cfg(all(not(target_family = "wasm"), not(target_arch = "riscv32")))'.dependencies]
-groundhog-xdr = { workspace = true, features = ["syscalls_mock"] }
+# RV32 contracts use real syscalls into hogd. Host-native builds use the mock
+# syscall implementation linked through native-exec.
+#
+# `thruput-u256/nightly` rides the same gate: guest builds always run a
+# nightly toolchain, so contracts get the exact `cfg(overflow_checks)` keying,
+# while host builds of `thruput-sdk` (the CLI's spec-tool path) stay compilable
+# on stable. Resolver v2+ keeps features of an inactive target's dependencies
+# out of unification, so this cannot leak into host builds.
+#
+# The guest runtime is force-linked from lib.rs (`extern crate ... as _`) so
+# contracts and the rv32 bin wrapper don't declare it. It is a target-specific
+# crate, so it stays target-gated and out of the host/test dependency graph.
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+thruput-xdr = { workspace = true, features = ["syscalls"] }
+thruput-u256 = { workspace = true, features = ["nightly"] }
+thruput-rv32-runtime = { workspace = true }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+thruput-xdr = { workspace = true, features = ["syscalls_mock"] }
+# Diagnostics are host-only (see `exn::fault` and `diagnostics`): the
+# `Display` impls on the exception types and the formatting they need are
+# gated on this same target, so a guest never builds either. Keeping the
+# features here rather than behind a Cargo feature is what makes that
+# guarantee unconditional -- no dependency can turn them on for a contract.
+thruput-u256 = { workspace = true, features = ["fmt"] }
 # Host-only: backs the storage-domain uniqueness registry (STORAGE_DOMAINS),
 # cfg-gated out of guest builds — see storage/domain_registry.rs.
 linkme = { workspace = true }
-
-# Guest runtimes: force-linked from lib.rs (`extern crate ... as _`) so
-# contracts and the rv32 bin wrapper don't declare them. They are target-specific
-# crates, so keep these dependencies target-gated and out of the host/test
-# dependency graph.
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-groundhog-wasm-runtime = { workspace = true }
-
-[target.'cfg(target_arch = "riscv32")'.dependencies]
-groundhog-rv32-runtime = { workspace = true }

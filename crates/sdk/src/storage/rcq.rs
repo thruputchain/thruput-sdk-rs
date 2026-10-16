@@ -1,4 +1,4 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{Keypath, LeafKey};
 use crate::StorageKey;
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
@@ -6,7 +6,6 @@ use crate::sys_exn::rcq::*;
 use crate::xdr::*;
 use core::fmt::Debug;
 use core::marker::PhantomData;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// A retro-causal queue.
 ///
@@ -25,16 +24,17 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 ///
 /// # Size cap
 ///
-/// Each queue entry's encoding is capped at the SDK's fixed encode-buffer size
-/// (~1 KiB). `insert` throws a typed exception if the entry exceeds that
-/// limit. `consume` and `peek` throw (and `try_consume` and `try_peek`
-/// return) `StorageSerialization` if an entry in the queue is larger — which
-/// can only happen if something other than the typed `insert` wrote the
-/// entry.
+/// A queue entry is capped at
+/// [`kQueueEntryMaxLen`](crate::types::kQueueEntryMaxLen)
+/// bytes, enforced by the insert syscall: `insert` encodes first, so an entry
+/// that encodes cleanly but exceeds the cap aborts with the syscall's untyped
+/// `LibraryExn::Syscall` rather than a typed exception. `consume` and `peek`
+/// throw (and `try_consume` and `try_peek` return) `StorageSerialization` if
+/// an entry fails to decode as `T`.
 ///
 #[derive(Debug)]
 pub struct RCQ<T> {
-    key: KeyCache,
+    key: LeafKey,
     phantom_entry: PhantomData<fn() -> T>,
 }
 
@@ -48,11 +48,6 @@ impl<T> From<Keypath> for RCQ<T> {
 }
 
 impl<T> RCQ<T> {
-    /// Retrieve the storage keypath of the RCQ item.
-    pub fn keypath(&self) -> &Keypath {
-        self.key.keypath()
-    }
-
     /// Retrieve the storage key of the RCQ item.
     pub fn key(&self) -> &StorageKey {
         self.key.get()
@@ -186,13 +181,8 @@ impl<S> super::sealed::Sealed for RCQ<S> {}
 impl<S> super::node::StorageType for RCQ<S> {}
 
 impl<T> super::deletable::Deletable for RCQ<T> {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.keypath().is_exclusive() {
-            StorageDeltaFlags::ExclusiveLock
-        } else {
-            StorageDeltaFlags::None
-        };
-        let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
-        crate::sys_exn::delete::delete_with_flags(self.key(), effective);
+    fn delete_internal(&mut self, exclusive: bool) {
+        let exclusive = exclusive || self.key.is_exclusive();
+        crate::sys_exn::delete::delete(self.key(), exclusive);
     }
 }

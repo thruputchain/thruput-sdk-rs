@@ -1,14 +1,14 @@
-use groundhog_xdr::auth_claim::AuthClaim;
-use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
 use serde_json::{Value, json};
+use thruput_xdr::auth_claim::AuthClaim;
+use thruput_xdr::auth_claim::AuthClaim_source_address_claim;
 use xdrs::WriteXDR;
 use xdrs::txs;
 use xdrs::{BytesM, StringM, VecM};
 
-use groundhog_xdr::address_auth::PublicKeyConfig;
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::transaction::{Invocation, Transaction, Uniquifier};
-use groundhog_xdr::types::{
+use thruput_xdr::address_auth::PublicKeyConfig;
+use thruput_xdr::contract::ContractEntrypointID;
+use thruput_xdr::transaction::{Invocation, Transaction, Uniquifier};
+use thruput_xdr::types::{
     ContractAddress, Ed25519PublicKey, PublicKey, SHA256Hash, StorageKeyType,
 };
 

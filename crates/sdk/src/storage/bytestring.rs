@@ -1,17 +1,16 @@
-use super::keypath::{KeyCache, Keypath};
+use super::keypath::{Keypath, LeafKey};
 use crate::sys_exn::bytestring::*;
 use core::fmt::Debug;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 #[derive(Debug)]
 pub struct Bytestring {
-    key: KeyCache,
+    key: LeafKey,
 }
 
 impl From<Keypath> for Bytestring {
     fn from(keypath: Keypath) -> Self {
         Self {
-            key: KeyCache::from(keypath),
+            key: LeafKey::from(keypath),
         }
     }
 }
@@ -51,10 +50,11 @@ impl Bytestring {
     }
 
     /// Stores `buf` at this key, overwriting any existing value (including one
-    /// of another type). Uses an exclusive store if this key's keypath is
-    /// exclusive.
+    /// of another type). If this key's keypath is exclusive, the write then
+    /// requests an exclusive lock; otherwise the key's storage flags stay as
+    /// they are.
     pub fn set(&mut self, buf: &[u8]) {
-        if self.key.keypath().is_exclusive() {
+        if self.key.is_exclusive() {
             bytestring_set_exclusive(&self.key, buf);
         } else {
             bytestring_set(&self.key, buf);
@@ -101,14 +101,15 @@ impl Bytestring {
 impl super::sealed::Sealed for Bytestring {}
 impl super::node::StorageType for Bytestring {}
 
+impl super::flags::Flaggable for Bytestring {
+    fn storage_key(&self) -> &crate::types::StorageKey {
+        self.key.get()
+    }
+}
+
 impl super::deletable::Deletable for Bytestring {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        let keypath_flags = if self.key.keypath().is_exclusive() {
-            StorageDeltaFlags::ExclusiveLock
-        } else {
-            StorageDeltaFlags::None
-        };
-        let effective = StorageDeltaFlags(flags.0 | keypath_flags.0);
-        crate::sys_exn::delete::delete_with_flags(self.key.get(), effective);
+    fn delete_internal(&mut self, exclusive: bool) {
+        let exclusive = exclusive || self.key.is_exclusive();
+        crate::sys_exn::delete::delete(self.key.get(), exclusive);
     }
 }

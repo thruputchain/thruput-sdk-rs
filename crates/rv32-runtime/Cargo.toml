@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-rv32-runtime"
+name = "thruput-rv32-runtime"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Bare-metal RV32 runtime support for Groundhog contracts: _start, panic handler, allocator, linker script"
+description = "Bare-metal RV32 runtime support for Thruput contracts: _start, panic handler, allocator, linker script"
 
 # Build script publishes link args to bin crates that depend on us, and
 # re-runs when the linker script changes.
@@ -20,8 +20,8 @@ crate-type = ["rlib"]
 
 [features]
 default = []
-# Install the bump `#[global_allocator]`. Forwarded from `sdk`'s `alloc`
-# feature so contracts that don't allocate don't carry an allocator.
+# Install the bump `#[global_allocator]`. Forwarded from `thruput-sdk`'s
+# `alloc` feature so contracts that don't allocate don't carry an allocator.
 alloc = []
 
 [dependencies]

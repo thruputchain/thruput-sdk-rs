@@ -1,7 +1,7 @@
 # Trait Contract Specs Implementation Plan (rv32-native)
 
 > **Revision (2026-06-24): Tasks 2 & 4 dropped as redundant.** groundhog-rpc
-> already extracts rv32 specs from the ELF (`groundhog build --target rv32` →
+> already extracts rv32 specs from the ELF (`thruput build --target rv32` →
 > `build_rv32_project` → `finalize_rv32_spec` → `load_rv32_contract_spec_from_bytes`,
 > using `groundhog_rv32_lower::elf::parse_elf` + `groundhog_spec_tool::{parse_raw_fragments,
 > canonicalize_spec}`). So the `object`-based ELF reader / `spec --elf` (Task 2)
@@ -563,7 +563,7 @@ and wasm-free:
 spec extraction (it only packages the deploy artifact and drops the spec from VM
 memory).
 
-**For `groundhog build --target rv32` (groundhog-rpc):** this is where the rv32
+**For `thruput build --target rv32` (groundhog-rpc):** this is where the rv32
 spec extraction belonged and appears to be missing. Wire the rv32 build path to
 call `groundhog_spec_tool::elf::elf_to_spec` on the freshly built ELF and emit
 the spec JSON sidecar, exactly as the wasm path emits its spec. No new

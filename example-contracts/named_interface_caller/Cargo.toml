@@ -13,15 +13,15 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "named_interface_callee/dev"]
+dev = ["thruput-sdk/dev", "named_interface_callee/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 named_interface_callee = { path = "../named_interface_callee" }
 
 [dev-dependencies]

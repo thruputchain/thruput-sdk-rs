@@ -1,7 +1,6 @@
 #![no_std]
-#![feature(used_with_arg)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract_exception]
 pub enum ImportedError {

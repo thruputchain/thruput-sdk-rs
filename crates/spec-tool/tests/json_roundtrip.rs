@@ -1,14 +1,25 @@
-use groundhog_contract_spec::{
+use thruput_contract_spec::{
     ContractArrayType, ContractEnumDef, ContractEnumVariant,
-    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
-    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
-    ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, ContractVectorType,
+    ContractExceptionType, ContractField, ContractSpec, ContractSpecId,
+    ContractSpecInterface, ContractSpecMethod, ContractSpecString,
+    ContractStructDef, ContractType, ContractTypeDef, ContractUnionCase,
+    ContractUnionCaseType, ContractUnionDef, ContractVectorType,
 };
-use groundhog_spec_tool::{parse_spec_json, spec_to_json};
+use thruput_spec_tool::{parse_spec_json, spec_to_json};
 
 fn s(value: &str) -> ContractSpecString {
     ContractSpecString::try_from(value).unwrap()
+}
+
+/// A spec id for a test fixture: only `declared` varies, so a fixture reads
+/// the way it used to while still carrying a well-formed id.
+fn id(value: &str) -> ContractSpecId {
+    ContractSpecId {
+        crate_name: s("testcrate"),
+        major: s("0"),
+        module_path: s("testcrate"),
+        declared: s(value),
+    }
 }
 
 fn exn(ty: ContractType) -> ContractExceptionType {
@@ -83,6 +94,8 @@ fn all_primitive_types_roundtrip() {
         ContractType::I64,
         ContractType::U128,
         ContractType::I128,
+        ContractType::U256,
+        ContractType::I256,
         ContractType::String,
         ContractType::Bytes,
         ContractType::Address,
@@ -91,6 +104,7 @@ fn all_primitive_types_roundtrip() {
         .iter()
         .enumerate()
         .map(|(i, ty)| ContractSpecMethod {
+            effect: None,
             name: s(&format!("m{i}")),
             args: vec![ContractField {
                 name: s("arg"),
@@ -201,10 +215,11 @@ fn named_type_roundtrips() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("get"),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::Named {
-                    named: s("Payload"),
+                    named: id("Payload"),
                 },
             }]
             .try_into()
@@ -215,7 +230,7 @@ fn named_type_roundtrips() {
         events: vec![].try_into().unwrap(),
         type_defs: vec![ContractTypeDef::TypeDefStruct {
             struct_def: ContractStructDef {
-                name: s("Payload"),
+                name: id("Payload"),
                 fields: vec![ContractField {
                     name: s("count"),
                     ty: ContractType::U32,
@@ -239,7 +254,9 @@ fn deeply_nested_types_roundtrip() {
     // Option<Vec<(Named, [u8; 32])>>
     let inner_tuple = ContractType::Tuple {
         tuple: vec![
-            ContractType::Named { named: s("Widget") },
+            ContractType::Named {
+                named: id("Widget"),
+            },
             ContractType::Array {
                 array: ContractArrayType {
                     element: Box::new(ContractType::U8),
@@ -266,6 +283,7 @@ fn deeply_nested_types_roundtrip() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("nested"),
                 args: vec![ContractField {
                     name: s("data"),
@@ -283,7 +301,7 @@ fn deeply_nested_types_roundtrip() {
         events: vec![].try_into().unwrap(),
         type_defs: vec![ContractTypeDef::TypeDefStruct {
             struct_def: ContractStructDef {
-                name: s("Widget"),
+                name: id("Widget"),
                 fields: vec![ContractField {
                     name: s("id"),
                     ty: ContractType::U64,
@@ -305,7 +323,7 @@ fn deeply_nested_types_roundtrip() {
 fn struct_typedef_roundtrips() {
     roundtrip(&spec_with_typedef(ContractTypeDef::TypeDefStruct {
         struct_def: ContractStructDef {
-            name: s("Point"),
+            name: id("Point"),
             fields: vec![
                 ContractField {
                     name: s("x"),
@@ -326,7 +344,7 @@ fn struct_typedef_roundtrips() {
 fn empty_struct_roundtrips() {
     roundtrip(&spec_with_typedef(ContractTypeDef::TypeDefStruct {
         struct_def: ContractStructDef {
-            name: s("Unit"),
+            name: id("Unit"),
             fields: vec![].try_into().unwrap(),
         },
     }));
@@ -336,7 +354,7 @@ fn empty_struct_roundtrips() {
 fn enum_typedef_roundtrips() {
     roundtrip(&spec_with_typedef(ContractTypeDef::TypeDefEnum {
         enum_def: ContractEnumDef {
-            name: s("Color"),
+            name: id("Color"),
             variants: vec![
                 ContractEnumVariant {
                     name: s("Red"),
@@ -361,7 +379,7 @@ fn enum_typedef_roundtrips() {
 fn enum_with_nonsequential_discriminants_roundtrips() {
     roundtrip(&spec_with_typedef(ContractTypeDef::TypeDefEnum {
         enum_def: ContractEnumDef {
-            name: s("Sparse"),
+            name: id("Sparse"),
             variants: vec![
                 ContractEnumVariant {
                     name: s("A"),
@@ -386,7 +404,7 @@ fn enum_with_nonsequential_discriminants_roundtrips() {
 fn union_with_void_case_roundtrips() {
     roundtrip(&spec_with_typedef(ContractTypeDef::TypeDefUnion {
         union_def: ContractUnionDef {
-            name: s("MaybeData"),
+            name: id("MaybeData"),
             cases: vec![
                 ContractUnionCase {
                     name: s("None"),
@@ -411,7 +429,7 @@ fn union_with_void_case_roundtrips() {
 fn union_with_struct_case_roundtrips() {
     roundtrip(&spec_with_typedef(ContractTypeDef::TypeDefUnion {
         union_def: ContractUnionDef {
-            name: s("Envelope"),
+            name: id("Envelope"),
             cases: vec![
                 ContractUnionCase {
                     name: s("Empty"),
@@ -464,15 +482,16 @@ fn interface_with_throws_roundtrips() {
             vers: s("0.1.0"),
             throws: vec![
                 exn(ContractType::Named {
-                    named: s("AppError"),
+                    named: id("AppError"),
                 }),
                 exn(ContractType::Named {
-                    named: s("AuthError"),
+                    named: id("AuthError"),
                 }),
             ]
             .try_into()
             .unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("risky"),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::Bool,
@@ -486,7 +505,7 @@ fn interface_with_throws_roundtrips() {
         type_defs: vec![
             ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("AppError"),
+                    name: id("AppError"),
                     variants: vec![ContractEnumVariant {
                         name: s("NotFound"),
                         value: 0,
@@ -497,7 +516,7 @@ fn interface_with_throws_roundtrips() {
             },
             ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("AuthError"),
+                    name: id("AuthError"),
                     variants: vec![ContractEnumVariant {
                         name: s("Denied"),
                         value: 0,
@@ -524,6 +543,7 @@ fn method_with_multiple_args_roundtrips() {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("transfer"),
                 args: vec![
                     ContractField {
@@ -565,12 +585,13 @@ fn kitchen_sink_roundtrips() {
                 name: s("TokenInterface"),
                 vers: s("1.0.0"),
                 throws: vec![exn(ContractType::Named {
-                    named: s("TokenError"),
+                    named: id("TokenError"),
                 })]
                 .try_into()
                 .unwrap(),
                 methods: vec![
                     ContractSpecMethod {
+                        effect: None,
                         name: s("balance"),
                         args: vec![ContractField {
                             name: s("owner"),
@@ -581,6 +602,7 @@ fn kitchen_sink_roundtrips() {
                         return_type: ContractType::U128,
                     },
                     ContractSpecMethod {
+                        effect: None,
                         name: s("transfer"),
                         args: vec![
                             ContractField {
@@ -597,10 +619,11 @@ fn kitchen_sink_roundtrips() {
                         return_type: ContractType::Void,
                     },
                     ContractSpecMethod {
+                        effect: None,
                         name: s("metadata"),
                         args: vec![].try_into().unwrap(),
                         return_type: ContractType::Named {
-                            named: s("TokenMeta"),
+                            named: id("TokenMeta"),
                         },
                     },
                 ]
@@ -612,6 +635,7 @@ fn kitchen_sink_roundtrips() {
                 vers: s("0.1.0"),
                 throws: vec![].try_into().unwrap(),
                 methods: vec![ContractSpecMethod {
+                    effect: None,
                     name: s("set_admin"),
                     args: vec![ContractField {
                         name: s("new_admin"),
@@ -631,7 +655,7 @@ fn kitchen_sink_roundtrips() {
         type_defs: vec![
             ContractTypeDef::TypeDefEnum {
                 enum_def: ContractEnumDef {
-                    name: s("TokenError"),
+                    name: id("TokenError"),
                     variants: vec![
                         ContractEnumVariant {
                             name: s("InsufficientBalance"),
@@ -648,7 +672,7 @@ fn kitchen_sink_roundtrips() {
             },
             ContractTypeDef::TypeDefStruct {
                 struct_def: ContractStructDef {
-                    name: s("TokenMeta"),
+                    name: id("TokenMeta"),
                     fields: vec![
                         ContractField {
                             name: s("name"),
@@ -680,7 +704,7 @@ fn kitchen_sink_roundtrips() {
             },
             ContractTypeDef::TypeDefUnion {
                 union_def: ContractUnionDef {
-                    name: s("Event"),
+                    name: id("Event"),
                     cases: vec![
                         ContractUnionCase {
                             name: s("Transfer"),
@@ -747,10 +771,11 @@ fn xdr_to_json_to_xdr_roundtrips() {
         interfaces: vec![ContractSpecInterface {
             name: s("Iface"),
             vers: s("0.1.0"),
-            throws: vec![exn(ContractType::Named { named: s("Err") })]
+            throws: vec![exn(ContractType::Named { named: id("Err") })]
                 .try_into()
                 .unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("run"),
                 args: vec![ContractField {
                     name: s("input"),
@@ -778,7 +803,7 @@ fn xdr_to_json_to_xdr_roundtrips() {
         events: vec![].try_into().unwrap(),
         type_defs: vec![ContractTypeDef::TypeDefEnum {
             enum_def: ContractEnumDef {
-                name: s("Err"),
+                name: id("Err"),
                 variants: vec![ContractEnumVariant {
                     name: s("Bad"),
                     value: 1,
@@ -816,6 +841,7 @@ fn spec_with_method(name: &str, return_type: ContractType) -> ContractSpec {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s(name),
                 args: vec![].try_into().unwrap(),
                 return_type,
@@ -843,6 +869,7 @@ fn spec_with_typedef(type_def: ContractTypeDef) -> ContractSpec {
             vers: s("0.1.0"),
             throws: vec![].try_into().unwrap(),
             methods: vec![ContractSpecMethod {
+                effect: None,
                 name: s("get"),
                 args: vec![].try_into().unwrap(),
                 return_type: ContractType::Named {
@@ -863,7 +890,7 @@ fn spec_with_typedef(type_def: ContractTypeDef) -> ContractSpec {
 // Events
 // ---------------------------------------------------------------------------
 
-use groundhog_contract_spec::ContractEventDef;
+use thruput_contract_spec::ContractEventDef;
 
 #[test]
 fn spec_with_events_roundtrips() {
@@ -877,7 +904,7 @@ fn spec_with_events_roundtrips() {
         .try_into()
         .unwrap(),
         events: vec![ContractEventDef {
-            name: s("TransferEvent"),
+            name: id("TransferEvent"),
             signature: [0xAB; 32].into(),
             topics: vec![
                 ContractField {
@@ -904,14 +931,140 @@ fn spec_with_events_roundtrips() {
     };
     roundtrip(&spec);
 
-    let rendered = groundhog_spec_tool::render_spec_json(&spec);
+    let rendered = thruput_spec_tool::render_spec_json(&spec);
     assert!(rendered.contains("\"events\""), "{rendered}");
+    // The id renders as an object, not a flattened string: the sidecar is
+    // read by consumers, so they get the segments rather than a name to split.
     assert!(
-        rendered.contains("\"name\":\"TransferEvent\""),
+        rendered.contains("\"declared\":\"TransferEvent\""),
         "{rendered}"
     );
+    assert!(rendered.contains("\"crate\":\"testcrate\""), "{rendered}");
     assert!(
         rendered.contains(&format!("\"signature\":\"{}\"", "ab".repeat(32))),
         "{rendered}"
+    );
+}
+
+#[test]
+fn signed_token_types_roundtrip() {
+    let signed_named = ContractType::SignedToken {
+        signed_token_preimage:
+            thruput_contract_spec::ContractSignedTokenPreimage {
+                preimage_type: Some(Box::new(ContractType::Named {
+                    named: id("TransferAuth"),
+                })),
+            },
+    };
+    // A nested token whose child is an erased token (`None` preimage,
+    // i.e. Signed<Opaque>).
+    let signed_nested = ContractType::SignedToken {
+        signed_token_preimage:
+            thruput_contract_spec::ContractSignedTokenPreimage {
+                preimage_type: Some(Box::new(ContractType::SignedToken {
+                    signed_token_preimage:
+                        thruput_contract_spec::ContractSignedTokenPreimage {
+                            preimage_type: None,
+                        },
+                })),
+            },
+    };
+
+    roundtrip(&ContractSpec {
+        interfaces: vec![ContractSpecInterface {
+            name: s("Token"),
+            vers: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+            methods: vec![ContractSpecMethod {
+                effect: None,
+                name: s("transfer"),
+                args: vec![
+                    ContractField {
+                        name: s("auth"),
+                        ty: signed_named,
+                    },
+                    ContractField {
+                        name: s("amount"),
+                        ty: ContractType::U64,
+                    },
+                ]
+                .try_into()
+                .unwrap(),
+                return_type: signed_nested,
+            }]
+            .try_into()
+            .unwrap(),
+        }]
+        .try_into()
+        .unwrap(),
+        type_defs: vec![ContractTypeDef::TypeDefStruct {
+            struct_def: ContractStructDef {
+                name: id("TransferAuth"),
+                fields: vec![ContractField {
+                    name: s("amount"),
+                    ty: ContractType::U64,
+                }]
+                .try_into()
+                .unwrap(),
+            },
+        }]
+        .try_into()
+        .unwrap(),
+        events: vec![].try_into().unwrap(),
+    });
+}
+
+#[test]
+fn render_spec_json_renders_signed_token() {
+    let spec = ContractSpec {
+        interfaces: vec![ContractSpecInterface {
+            name: s("Token"),
+            vers: s("0.1.0"),
+            throws: vec![].try_into().unwrap(),
+            methods: vec![ContractSpecMethod {
+                effect: None,
+                name: s("transfer"),
+                args: vec![
+                    ContractField {
+                        name: s("auth"),
+                        ty: ContractType::SignedToken {
+                            signed_token_preimage:
+                                thruput_contract_spec::ContractSignedTokenPreimage {
+                                    preimage_type: Some(Box::new(ContractType::U64)),
+                                },
+                        },
+                    },
+                    ContractField {
+                        name: s("erased"),
+                        ty: ContractType::SignedToken {
+                            signed_token_preimage:
+                                thruput_contract_spec::ContractSignedTokenPreimage {
+                                    preimage_type: None,
+                                },
+                        },
+                    },
+                ]
+                .try_into()
+                .unwrap(),
+                return_type: ContractType::Void,
+            }]
+            .try_into()
+            .unwrap(),
+        }]
+        .try_into()
+        .unwrap(),
+        type_defs: vec![].try_into().unwrap(),
+        events: vec![].try_into().unwrap(),
+    };
+
+    let json = thruput_spec_tool::render_spec_json(&spec);
+    let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        value["interfaces"][0]["methods"][0]["args"][0]["type"],
+        serde_json::json!({"kind": "signed_token", "preimage": {"kind": "u64"}})
+    );
+    assert_eq!(
+        value["interfaces"][0]["methods"][0]["args"][1]["type"],
+        serde_json::json!({"kind": "signed_token", "preimage": null})
     );
 }

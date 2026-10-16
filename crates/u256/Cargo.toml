@@ -1,0 +1,69 @@
+[package]
+name = "thruput-u256"
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+version.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Signed and unsigned 256-bit integers for Thruput contracts, with a 32-bit-native representation and the OpenZeppelin Math/SignedMath surface"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+thruput-contract-spec = { workspace = true }
+xdrs = { workspace = true }
+
+[dev-dependencies]
+# Self-dependency, to turn features on for tests only. The crate defaults to
+# `no_std` (see `[features]`), but the differential tests exercise `Display`
+# and `FromStr`, so a plain `cargo test` has to build with `std` and `fmt`.
+# Gating those tests on the features instead would let them silently stop
+# running. `nightly` keeps the tests on the exact `overflow_checks` keying
+# guest builds use (the workspace toolchain is nightly anyway); the stable
+# fallback arm is covered by the `--no-default-features` check below.
+#
+# Side effect: feature unification means every `cargo test -p thruput-u256`
+# builds the lib with `std` + `fmt`, and `--no-default-features` is silently a
+# no-op for tests -- the no-feature guest config is only ever *compiled*, never
+# tested. `test_package` in scripts/dev.sh keeps a
+# `cargo check --no-default-features` alongside the tests so that config
+# cannot rot unnoticed.
+thruput-u256 = { path = ".", features = ["std", "fmt", "nightly"] }
+# Oracle only. Parity's `uint` is the implementation this crate replaces;
+# the differential tests assert we agree with it everywhere. It must never
+# become a normal dependency -- its u64 limbs and u128 intermediates are the
+# whole reason this crate exists.
+uint = { version = "0.10.0", default-features = false }
+# Integration tests link dev-dependencies, not the lib's normal dependencies,
+# so the XDR round-trip tests need their own handle on xdrs.
+xdrs = { workspace = true, features = ["alloc"] }
+# Likewise: the ABI-pinning test names spec types directly.
+thruput-contract-spec = { workspace = true }
+
+[features]
+# No default features: this crate is built into contracts, and a guest build
+# that picks up `std` by accident does not link. Hosts opt in with
+# `features = ["std"]`.
+default = []
+std = ["alloc", "fmt", "thruput-contract-spec/alloc", "xdrs/alloc"]
+alloc = ["xdrs/alloc"]
+
+# Decimal and hex formatting (`Display`, `FromStr`, `LowerHex`, `UpperHex`).
+#
+# Off by default in guest builds: `Display`/`FromStr` need a repeated
+# decimal-division loop and its rodata, which no release contract should be
+# paying for. `Debug` is NOT behind this feature -- see `fmt.rs`.
+fmt = []
+
+# Requires a nightly compiler: enables `#![feature(cfg_overflow_checks)]` so
+# the operators key their overflow panics off the real `-C overflow-checks`
+# flag, exactly like the primitives. Off (the default, so stable consumers like
+# the CLI's spec-tool build still compile) overflow checks are always on -- see
+# lib.rs. `thruput-sdk` turns this on for guest targets only, which always
+# build nightly.
+nightly = []

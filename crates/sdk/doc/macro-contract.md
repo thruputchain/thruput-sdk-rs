@@ -32,8 +32,9 @@ For trait impls, the trait is authoritative for the client name. Adding an
 explicit `client = ...` attribute to the impl is rejected to avoid
 double-generation.
 
-The macro reserves `new`, `with_gas_limit`, and the `try_` prefix for
-method/function identifiers on exported contract surfaces. `#[contract]`
+The macro reserves `new`, `with_gas_limit`, `with_commit_locking`,
+`with_read_only`, and the `try_` prefix for method/function identifiers on
+exported contract surfaces. `#[contract]`
 rejects trait methods, trait-impl methods, public inherent-impl methods, and
 free `#[contract] fn` names that use them to avoid collisions with generated
 client helpers and keep naming consistent across contract surfaces.
@@ -73,13 +74,17 @@ or a list of type paths:
 - or on an inherent impl
 - not on a trait impl
 
-Generated client error enums use the last path segment as the variant name. For
-example, `throws(errors::MyError)` generates `ClientError::MyError(...)`.
-Collisions like `foo::Error` and `bar::Error` are rejected at compile time.
+`throws` declares the interface's error contract: it is published in the
+contract spec and documents what callers should expect. It does not restrict
+what a caller can catch — exceptions are identified on the wire by a selector
+derived from the type, so a caller can match any exception type it knows
+about, declared or not. Two types sharing a last path segment (`foo::Error`
+and `bar::Error`) are fine.
 
 Generated clients expose:
 - `client.method(...)` for the success-oriented path
-- `client.try_method(...) -> Result<_, ClientError>` for inspecting exceptions
+- `client.try_method(...) -> Result<_, CallError>` for inspecting exceptions,
+  matched with [`match_exn!`](crate::match_exn)
 
 #### Storage
 
@@ -91,9 +96,6 @@ method completes successfully. Exceptions and faults revert the frame.
 
 The state type should derive [`Storage`](derive@crate::Storage) (or use
 [`storage`](macro@crate::storage)).
-
-Use `storage = false` for stateless contracts that should be called on a
-temporary default value instead of persistent state.
 
 #### Endpoint identifier customization
 
@@ -107,12 +109,21 @@ Each exported contract entrypoint is named with an identifier derived from:
 For bare impls, omitting `interface = "..."` uses the self type name for this
 metadata by default.
 
-For trait impls, repeat that `interface = "..."` on the impl when the trait
-uses a custom interface name. The impl's exported entrypoint names are fixed
-during macro expansion, so mismatches are rejected at compile time rather than
-inherited automatically.
+For trait impls, a plain `#[contract]` inherits the interface name, full
+version, and entrypoint IDs from the trait, including across crates and through
+trait aliases or re-exports. The implementing crate's version does not affect
+that interface's identity. There is no need to repeat `interface` or `version`
+on the impl.
 
-`version = "0.3.0"` overrides the version used for entrypoint identifiers. When
-implementing a separately versioned trait interface, repeat that version on the
-impl if you need the impl's entrypoint IDs to match the trait's explicit
-version.
+`version = "0.3.0"` overrides the version on a trait definition, bare impl, or
+free function; otherwise those declarations use their crate's own version.
+Entrypoint IDs use the version through its first nonzero component: `1.2.3`
+uses `1`, `0.2.3` uses `0.2`, and `0.0.3` uses `0.0.3`. For `0.0.0`, the
+entire version string is used, including any prerelease or build suffix.
+
+`version` is not allowed on trait impls, even if it matches the trait. Remove
+the argument to inherit the trait's version.
+
+For compatibility, an explicit `interface` argument on a trait impl is accepted
+as an assertion that the name matches the trait. A mismatch is rejected at
+compile time; the trait remains authoritative.

@@ -2,19 +2,19 @@
 
 #![allow(unexpected_cfgs)]
 
-use sdk::collect_auth_handles::CollectAuthHandles;
-use sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
-use sdk::receive_auth_handles::ReceiveAuthHandles;
-use sdk::signer::Signed;
-use sdk::*;
 use signer_tuple_test::TupleAuth;
+use thruput_sdk::collect_auth_handles::CollectAuthHandles;
+use thruput_sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
+use thruput_sdk::receive_auth_handles::ReceiveAuthHandles;
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 fn addr(byte: u8) -> ContractAddress {
     ContractAddress::from([byte; 32])
 }
 
 pub type TupleAuthPreimage =
-    <TupleAuth as sdk::mintable::MintableType>::Preimage;
+    <TupleAuth as thruput_sdk::mintable::MintableType>::Preimage;
 
 #[test]
 fn tuple_struct_auth_token_tree() {
@@ -61,8 +61,8 @@ fn tuple_struct_payload_roundtrip() {
     let root_node = build_auth_token_node::<TupleAuth>(preimage);
 
     let payload_bytes: &[u8] = root_node.payload.as_ref();
-    let mut decoded: TupleAuth =
-        sdk::xdr::cxs::decode(payload_bytes).expect("payload decode failed");
+    let mut decoded: TupleAuth = thruput_sdk::xdr::cxs::decode(payload_bytes)
+        .expect("payload decode failed");
 
     // Before ReceiveAuthHandles: Signed has sentinel handle
     assert_eq!(decoded.1.handle(), u32::MAX);
@@ -82,7 +82,7 @@ fn tuple_struct_collect_handles() {
     let mut iter = [5u32].into_iter();
     auth.receive_auth_handles(&mut iter).unwrap();
 
-    let mut buf = sdk::collect_auth_handles::AuthHandleBuf::new();
+    let mut buf = thruput_sdk::collect_auth_handles::AuthHandleBuf::new();
     auth.collect_auth_handles(&mut buf).unwrap();
     assert_eq!(buf.as_slice(), &[5]);
 }

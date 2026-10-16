@@ -14,7 +14,8 @@
  * `--no-check-sections` (set in the contract .cargo/config.toml); the overlap
  * is intentional, not a layout bug.
  *
- * DATA is laid out stack-first (the wasm-ld `--stack-first` discipline):
+ * DATA is laid out stack-first, so a stack overflow runs off the bottom of
+ * memory and traps instead of silently corrupting .data:
  *
  *   0x0 .. __stack_top    stack, growing DOWN from __stack_top
  *   __stack_top ..        .rodata / .data / .bss
@@ -56,15 +57,14 @@
 ENTRY(_start)
 
 /* Stack reserve size. 30K by default: a no-alloc contract's scratch buffers
- * (SCRATCH_MAX = 4K each, see `sdk::call::with_call_scratch`) are plain
- * stack locals, and several are live at once — an entrypoint holds the 4K
- * calldata buffer for its whole frame, and a chain like
- * entrypoint -> method -> storage helper carries a scratch per frame that
- * encodes. Measured worst case is ~9K; 30K leaves headroom for a deeper
- * chain rather than trapping on overflow. The reserve costs nothing in the
- * stored artifact — the lowerer trims it via `initial_memory_start` — only
- * address space shared with the heap, which no-alloc contracts don't use at
- * all.
+ * (SCRATCH_MAX = 4K each, see `thruput_sdk::call::with_call_scratch`) are
+ * plain stack locals, and several are live at once — an entrypoint holds the
+ * 4K calldata buffer for its whole frame, and a chain like entrypoint ->
+ * method -> storage helper carries a scratch per frame that encodes. Measured
+ * worst case is ~9K; 30K leaves headroom for a deeper chain rather than
+ * trapping on overflow. The reserve costs nothing in the stored artifact — the
+ * lowerer trims it via `initial_memory_start` — only address space shared with
+ * the heap, which no-alloc contracts don't use at all.
  *
  * Per-contract override (must be a multiple of 16, enforced by the ASSERT
  * at the bottom): pass a linker --defsym in the contract's rustflags,
@@ -77,17 +77,29 @@ ENTRY(_start)
 PROVIDE(__stack_size = 30K);
 
 /* True guest data-memory size. The VM provisions exactly this much
- * (memory_bytes in the artifact header). MUST stay in lockstep with
- * MAX_MEMORY_BYTES in groundhog-rpc crates/rv32/artifact/src/format.rs
- * and hogd/hogexec/runtime/rv32/artifact.h. */
-__memory_size = 64K;
+ * (memory_bytes in the artifact header). 64K is the protocol default: what
+ * a chain admits unless its configuration raises max_rv32_memory_bytes,
+ * and what the lowerer stamps unless told otherwise.
+ *
+ * Per-contract override: `thruput build` passes the contract's
+ * `[package.metadata.thruput] initial_memory_bytes` as a --defsym on the
+ * final link and stamps the same value into the artifact header, so the
+ * heap bound below and the memory the VM provisions agree. A hand-driven
+ * build passes the same --defsym as for __stack_size:
+ *
+ *   "-C", "link-arg=--defsym=__memory_size=0x20000",
+ *
+ * PROVIDE yields to such an external definition. Only a chain whose
+ * max_rv32_memory_bytes admits the value accepts the resulting artifact.
+ */
+PROVIDE(__memory_size = 64K);
 
 /* Relaxed sanity bounds only — deliberately never-binding. The real
- * 64 KiB code/memory limits are enforced by the CLI lowerer / artifact
- * writer, which produces proper error messages instead of a cryptic
- * "section '.text' will not fit in region 'CODE'". Keep these <= 1M so
- * all direct `jal` calls stay in range and relocation errors remain
- * impossible. */
+ * code/memory limits are the deploying chain's, checked where the contract
+ * is attached; the CLI lowerer reports data past __memory_size with a
+ * proper error message instead of a cryptic "section '.text' will not fit
+ * in region 'CODE'". Keep these <= 1M so all direct `jal` calls stay in
+ * range and relocation errors remain impossible. */
 MEMORY
 {
   CODE (rx) : ORIGIN = 0, LENGTH = 1M
@@ -154,6 +166,31 @@ SECTIONS
   {
     *(.sdata .sdata.*)
     *(.data .data.*)
+  } > DATA
+
+  /* Interface table: one 8-byte InterfaceId record per #[contract] impl
+   * block, emitted by the groundhog-macros expansion via #[link_section =
+   * "groundhog_rv32_interfaces"] and read by thruput_sdk::interface_table.
+   * Same shape as the dispatch table above: KEEP'd (nothing references the
+   * records) and bracketed by script-defined symbols. Its own output section
+   * rather than a slice of .rodata because the lowerer decides whether it
+   * reaches the deployed image: the section is copied into VM memory only when
+   * groundhog_rv32_interfaces_anchor is present, and that anchor is an
+   * ordinary GC-able word that survives the link only if
+   * thruput_sdk::interface_table::implements was instantiated (an ERC-165
+   * impl). Both live at the top of the data image so a dropped table shortens
+   * it rather than leaving a hole. Section names are shared with the SDK
+   * macros and the groundhog-rpc lowerer's allowlist. */
+  groundhog_rv32_interfaces : ALIGN(8)
+  {
+    __groundhog_rv32_interfaces_start = .;
+    KEEP(*(groundhog_rv32_interfaces))
+    __groundhog_rv32_interfaces_end = .;
+  } > DATA
+
+  groundhog_rv32_interfaces_anchor : ALIGN(4)
+  {
+    *(groundhog_rv32_interfaces_anchor)
   } > DATA
 
   . = ALIGN(8);

@@ -6,11 +6,11 @@
 #[cfg(feature = "owned-model")]
 use crate::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,
-    ContractExceptionType, ContractField, ContractSpec, ContractSpecInterface,
-    ContractSpecMethod, ContractSpecString, ContractStructDef, ContractType,
-    ContractTypeDef, ContractUnionCase, ContractUnionCaseType,
-    ContractUnionDef, SpecFragment, SpecInterfaceAnchor,
-    SpecInterfaceFragment, SpecMethodFragment,
+    ContractExceptionType, ContractField, ContractSignedTokenPreimage,
+    ContractSpec, ContractSpecId, ContractSpecInterface, ContractSpecMethod,
+    ContractSpecString, ContractStructDef, ContractType, ContractTypeDef,
+    ContractUnionCase, ContractUnionCaseType, ContractUnionDef, SpecFragment,
+    SpecInterfaceAnchor, SpecInterfaceFragment, SpecMethodFragment,
 };
 #[cfg(feature = "owned-model")]
 use alloc::{boxed::Box, vec::Vec};
@@ -20,6 +20,54 @@ use xdrs::*;
 #[cfg(feature = "owned-model")]
 fn to_spec_string(s: &str) -> ContractSpecString {
     ContractSpecString::try_from(s).expect("spec string conversion")
+}
+
+/// Const-friendly view of a [`ContractSpecId`]: what a user-defined type or
+/// event is called in a spec.
+///
+/// The segments are carried apart because every segment is something the
+/// declaring macro already holds whole, so nothing here is parsed out of
+/// anything. Nor could a joined `CRATE@MAJOR::module::path::Name` form be
+/// relied on to split back: the SDK's macros refuse `::` in `name = "..."`,
+/// but nothing stops a hand-written `ContractTypeName` impl from putting one
+/// in `declared`.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    ConstWriteXDR,
+    WriteXDR,
+)]
+pub struct ContractSpecIdView<'a> {
+    /// Declaring crate, as Cargo names the package: hyphenated.
+    pub crate_name: &'a str,
+    /// Leftmost non-zero component of the declaring crate's semver, or of the
+    /// item's own pinned `version = "..."`.
+    pub major: &'a str,
+    /// `module_path!()` at the declaration, verbatim, leading crate segment
+    /// and all -- so its spelling of the crate is the underscored Rust ident,
+    /// not `crate_name`'s.
+    pub module_path: &'a str,
+    /// The declared name, verbatim. The SDK's macros never put `::` in it,
+    /// but a hand-written `ContractTypeName` impl may.
+    pub declared: &'a str,
+}
+
+#[cfg(feature = "owned-model")]
+impl From<ContractSpecIdView<'_>> for ContractSpecId {
+    fn from(value: ContractSpecIdView<'_>) -> Self {
+        Self {
+            crate_name: to_spec_string(value.crate_name),
+            major: to_spec_string(value.major),
+            module_path: to_spec_string(value.module_path),
+            declared: to_spec_string(value.declared),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -42,6 +90,27 @@ pub struct ContractSpecMethodView<'a> {
     pub name: &'a str,
     pub args: &'a [ContractFieldView<'a>],
     pub return_type: ContractTypeView<'a>,
+    pub effect: Option<ContractMethodEffectView>,
+}
+
+/// Const-friendly author declaration; not a compiler or runtime guarantee.
+/// Covers the complete invocation, including nested calls and event emission.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
+#[repr(i32)]
+pub enum ContractMethodEffectView {
+    /// Arguments and constants only, without state/context reads or effects.
+    Pure = 1,
+    /// May read state and execution context, without application effects.
+    ReadOnly = 2,
+    /// May produce application effects.
+    StateChanging = 3,
+}
+
+#[cfg(feature = "owned-model")]
+impl From<ContractMethodEffectView> for crate::ContractMethodEffect {
+    fn from(value: ContractMethodEffectView) -> Self {
+        Self(value as i32)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -67,9 +136,17 @@ pub enum ContractTypeView<'a> {
     Option(&'a ContractTypeView<'a>) = 11,
     Vector(ContractVectorTypeView<'a>) = 12,
     Tuple(&'a [ContractTypeView<'a>]) = 13,
-    Named(&'a str) = 14,
+    Named(ContractSpecIdView<'a>) = 14,
     U8 = 15,
     Array(ContractArrayTypeView<'a>) = 16,
+    /// A signed auth token whose preimage has the referenced type, or
+    /// `None` for a type-erased (opaque) payload. Encodes identically to
+    /// the owned model's `ContractSignedTokenPreimage` wrapper (a single
+    /// optional `ContractType` field). Consumes no calldata bytes; the
+    /// token handle arrives out of band.
+    SignedToken(Option<&'a ContractTypeView<'a>>) = 17,
+    U256 = 18,
+    I256 = 19,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
@@ -99,7 +176,7 @@ pub enum ContractTypeDefView<'a> {
 }
 
 impl<'a> ContractTypeDefView<'a> {
-    pub const fn symbol(self) -> &'a str {
+    pub const fn symbol(self) -> ContractSpecIdView<'a> {
         match self {
             Self::Struct(def) => def.name,
             Self::Enum(def) => def.name,
@@ -114,13 +191,13 @@ impl<'a> ContractTypeDefView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractStructDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub fields: &'a [ContractFieldView<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractEnumDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub variants: &'a [ContractEnumVariantView<'a>],
 }
 
@@ -132,7 +209,7 @@ pub struct ContractEnumVariantView<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractUnionDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub cases: &'a [ContractUnionCaseView<'a>],
 }
 
@@ -156,7 +233,7 @@ pub enum ContractUnionCaseTypeView<'a> {
 /// fields (topics 1..), and `fields` form the XDR-encoded payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct ContractEventDefView<'a> {
-    pub name: &'a str,
+    pub name: ContractSpecIdView<'a>,
     pub signature: [u8; 32],
     pub topics: &'a [ContractFieldView<'a>],
     pub fields: &'a [ContractFieldView<'a>],
@@ -178,23 +255,31 @@ pub enum SpecFragmentView<'a> {
 pub struct SpecInterfaceFragmentView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
+    pub declared_by: ContractSpecIdView<'a>,
     pub throws: &'a [ContractExceptionTypeView<'a>],
+    /// Names of the events this interface declares via `emits(...)`.
+    /// References into the artifact's event-def pool; the post-processor
+    /// retains only event defs referenced by a surviving interface (or
+    /// force-exported via `#[event_spec(export)]`).
+    pub emits: &'a [ContractSpecIdView<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct SpecMethodFragmentView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
+    pub declared_by: ContractSpecIdView<'a>,
     pub method: ContractSpecMethodView<'a>,
 }
 
 /// The "include this interface" marker an impl emits so the post-processor
 /// retains a trait's (otherwise candidate) interface spec. Mirrors
-/// `groundhog_spec::SpecInterfaceAnchor`.
+/// `thruput_spec::SpecInterfaceAnchor`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ConstWriteXDR, WriteXDR)]
 pub struct SpecInterfaceAnchorView<'a> {
     pub interface_name: &'a str,
     pub interface_version: &'a str,
+    pub declared_by: ContractSpecIdView<'a>,
 }
 
 #[cfg(feature = "owned-model")]
@@ -233,7 +318,7 @@ impl From<ContractSpecView<'_>> for ContractSpec {
 impl From<ContractEventDefView<'_>> for ContractEventDef {
     fn from(value: ContractEventDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             signature: value.signature.into(),
             topics: value
                 .topics
@@ -305,6 +390,7 @@ impl From<ContractSpecMethodView<'_>> for ContractSpecMethod {
                 .try_into()
                 .unwrap(),
             return_type: value.return_type.into(),
+            effect: value.effect.map(Into::into),
         }
     }
 }
@@ -349,13 +435,23 @@ impl From<ContractTypeView<'_>> for ContractType {
                     .try_into()
                     .unwrap(),
             },
-            ContractTypeView::Named(name) => ContractType::Named {
-                named: to_spec_string(name),
-            },
+            ContractTypeView::Named(name) => {
+                ContractType::Named { named: name.into() }
+            }
             ContractTypeView::U8 => ContractType::U8,
             ContractTypeView::Array(array) => ContractType::Array {
                 array: array.into(),
             },
+            ContractTypeView::SignedToken(inner) => {
+                ContractType::SignedToken {
+                    signed_token_preimage: ContractSignedTokenPreimage {
+                        preimage_type: inner
+                            .map(|inner| Box::new((*inner).into())),
+                    },
+                }
+            }
+            ContractTypeView::U256 => ContractType::U256,
+            ContractTypeView::I256 => ContractType::I256,
         }
     }
 }
@@ -403,7 +499,7 @@ impl From<ContractTypeDefView<'_>> for ContractTypeDef {
 impl From<ContractStructDefView<'_>> for ContractStructDef {
     fn from(value: ContractStructDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             fields: value
                 .fields
                 .iter()
@@ -420,7 +516,7 @@ impl From<ContractStructDefView<'_>> for ContractStructDef {
 impl From<ContractEnumDefView<'_>> for ContractEnumDef {
     fn from(value: ContractEnumDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             variants: value
                 .variants
                 .iter()
@@ -447,7 +543,7 @@ impl From<ContractEnumVariantView<'_>> for ContractEnumVariant {
 impl From<ContractUnionDefView<'_>> for ContractUnionDef {
     fn from(value: ContractUnionDefView<'_>) -> Self {
         Self {
-            name: to_spec_string(value.name),
+            name: value.name.into(),
             cases: value
                 .cases
                 .iter()
@@ -547,6 +643,7 @@ impl From<SpecInterfaceAnchorView<'_>> for SpecInterfaceAnchor {
         Self {
             interface_name: to_spec_string(value.interface_name),
             interface_version: to_spec_string(value.interface_version),
+            declared_by: value.declared_by.into(),
         }
     }
 }
@@ -557,8 +654,17 @@ impl From<SpecInterfaceFragmentView<'_>> for SpecInterfaceFragment {
         Self {
             interface_name: to_spec_string(value.interface_name),
             interface_version: to_spec_string(value.interface_version),
+            declared_by: value.declared_by.into(),
             throws: value
                 .throws
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<_>>()
+                .try_into()
+                .unwrap(),
+            emits: value
+                .emits
                 .iter()
                 .copied()
                 .map(Into::into)
@@ -575,6 +681,7 @@ impl From<SpecMethodFragmentView<'_>> for SpecMethodFragment {
         Self {
             interface_name: to_spec_string(value.interface_name),
             interface_version: to_spec_string(value.interface_version),
+            declared_by: value.declared_by.into(),
             method: value.method.into(),
         }
     }

@@ -1,29 +1,16 @@
-# This is for building production contracts:
+# Layered on by `thruput build` for every contract build, and by a manual
 #
-#    cargo --config ${SDK}/.cargo/contract.toml --release build
+#    cargo --config .cargo/contract.toml --release build
 #
-
-[build]
-target = ["wasm32-unknown-unknown"]
-
-[target.wasm32-unknown-unknown]
-rustflags = [
-    "-C", "panic=immediate-abort",
-    "-C", "link-args=-zstack-size=30000",
-    "-Z", "unstable-options",
-    "--deny", "warnings",
-    ]
-
-[profile.release]
-opt-level = 3 # anecdotally, "s" and "z" are worse for size
-overflow-checks = false
-debug = false
-strip = "symbols"
-debug-assertions = false
-panic = "abort"
-lto = true
-codegen-units = 1
-
+# This file exists to hold `[unstable] build-std` OUT of .cargo/config.toml:
+# that config also applies to host `cargo test` runs from this directory, and
+# build-std without --target fails them.
+#
+# Keep it to `[unstable]`. Cargo JOINS `[target.*]` rustflags across the
+# config chain, so a flag repeated here and in .cargo/config.toml is passed
+# twice — and a duplicated `-Tgroundhog-rv32.ld` redefines the linker
+# script's MEMORY regions ("region 'CODE' already defined"). The rv32
+# rustflags and the release profile live in .cargo/config.toml.
 [unstable]
 build-std = ["core", "alloc"]
 build-std-features = ["std/optimize_for_size"]

@@ -1,8 +1,8 @@
 //! Test "storage" datatypes: keypaths, handles, vectors and maps
 
-use sdk::storage::*;
-use sdk::*;
 use std::panic::UnwindSafe;
+use thruput_sdk::storage::*;
+use thruput_sdk::*;
 const ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 
 #[test]
@@ -138,13 +138,4 @@ fn run(
     f: impl FnOnce() + UnwindSafe,
 ) -> TransactResult {
     env.transact(|tx| tx.call(&ADDR).run(f))
-}
-
-#[allow(dead_code)]
-fn tx_result_try_as<E: Exn + xdr::ReadXDROwned>(
-    txr: &TransactResult,
-) -> Option<E> {
-    let caught =
-        RawException::from_abort_buf(txr.frame().abort_buffer()).unwrap();
-    caught.try_as::<E>()
 }

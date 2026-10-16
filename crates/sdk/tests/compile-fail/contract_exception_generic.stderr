@@ -1,0 +1,5 @@
+error: generic parameters (including lifetimes) are not supported on #[contract_exception] types
+ --> tests/compile-fail/contract_exception_generic.rs:6:23
+  |
+6 | pub enum GenericError<T> {
+  |                       ^

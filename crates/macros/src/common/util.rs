@@ -68,6 +68,46 @@ where
     Error::new(spanned.span(), msg.as_ref())
 }
 
+/// Reject generic parameters on `subject`, with a spanned error on the
+/// first offending parameter. Generated code (clients, entrypoint wrappers,
+/// spec consts, `Exn` impls) is non-generic, so generics would otherwise
+/// surface as unresolved-type errors deep inside code the author never
+/// wrote. `allow_lifetimes` is only for positions where lifetime params
+/// are genuinely handled (`#[derive(Event)]` folds them to `'static`);
+/// everywhere else even explicit lifetimes are rejected — the generated
+/// companion items declare no lifetime parameters, so a spliced `'a` dies
+/// with E0261 in code the author never wrote. Elided borrow lifetimes are
+/// not generics params and are unaffected.
+///
+/// The single shared guard for every macro that splices user types into
+/// non-generic output — new macros should call this rather than hand-roll
+/// the check (hand-rolled copies are how `#[contract_exception]` was
+/// originally missed).
+pub fn validate_no_generics(
+    generics: &syn::Generics,
+    allow_lifetimes: bool,
+    subject: &str,
+) -> Result<(), Error> {
+    for param in &generics.params {
+        if allow_lifetimes && matches!(param, syn::GenericParam::Lifetime(_)) {
+            continue;
+        }
+        let msg = if allow_lifetimes {
+            format!(
+                "generic parameters are not supported on {subject} \
+                 (lifetimes are allowed)"
+            )
+        } else {
+            format!(
+                "generic parameters (including lifetimes) are not \
+                 supported on {subject}"
+            )
+        };
+        return Err(error(param, msg));
+    }
+    Ok(())
+}
+
 /// Validate a user-supplied `version = "..."` attribute value before it
 /// reaches the panicking semver parser inside the selector/entrypoint
 /// hash derivation. `span` should be the span of the attribute value so
@@ -76,7 +116,7 @@ pub fn validate_version_string(
     span: proc_macro2::Span,
     version: &str,
 ) -> Result<(), Error> {
-    if groundhog_contract_util::semver::try_major_version_from_string(version)
+    if thruput_contract_util::semver::try_major_version_from_string(version)
         .is_none()
     {
         return Err(Error::new(
@@ -110,4 +150,71 @@ pub fn validate_ident_string(
         ));
     }
     Ok(())
+}
+
+/// Validate a user-supplied `name = "..."` before it becomes the declared
+/// segment of a spec id. `span` should be the span of the attribute value so
+/// the error points at it.
+///
+/// `::` is the id's path separator, and the path is derived from where the
+/// item is declared, not chosen by its author. A name carrying one would spell
+/// path segments of its own, and an id joined for display could no longer
+/// tell `name = "a::B"` from a `B` declared in a module `a`.
+pub fn validate_spec_name(
+    span: proc_macro2::Span,
+    name: &str,
+) -> Result<(), Error> {
+    if name.contains("::") {
+        return Err(Error::new(
+            span,
+            format!(
+                "name = {name:?} must not contain `::` (it replaces only \
+                 the final segment of the spec id; the module path comes \
+                 from where the type is declared)"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// Validate an explicit package label used only in an on-wire hash preimage.
+pub fn validate_wire_crate_name(
+    span: proc_macro2::Span,
+    name: &str,
+) -> syn::Result<()> {
+    if name.is_empty()
+        || !name
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+    {
+        return Err(syn::Error::new(
+            span,
+            "wire_crate must be a non-empty package label containing only ASCII letters, digits, '-' or '_'",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_spec_name_without_a_path_separator_is_accepted() {
+        validate_spec_name(proc_macro2::Span::call_site(), "SpecPayload")
+            .unwrap();
+    }
+
+    /// Wherever it sits, a `::` would read as a path separator.
+    #[test]
+    fn a_spec_name_carrying_a_path_separator_anywhere_is_rejected() {
+        for name in ["spelled::Out", "::Out", "Out::", "::", "a::b::C"] {
+            let err = validate_spec_name(proc_macro2::Span::call_site(), name)
+                .unwrap_err();
+            assert!(
+                err.to_string().contains("must not contain `::`"),
+                "{name:?}: {err}"
+            );
+        }
+    }
 }

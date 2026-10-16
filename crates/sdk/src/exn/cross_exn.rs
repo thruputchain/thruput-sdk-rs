@@ -12,7 +12,7 @@ pub(crate) struct ContractExn<E: WriteXDR> {
 }
 
 impl<E: WriteXDR + crate::exn::Exn> ContractExn<E> {
-    #[cfg_attr(feature = "debugging", track_caller)]
+    #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
     pub(crate) fn new(exn: E) -> Self {
         Self {
             selector: E::SELECTOR,

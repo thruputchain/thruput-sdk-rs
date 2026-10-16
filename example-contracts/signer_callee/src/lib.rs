@@ -1,10 +1,10 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-use sdk::mintable::{AuthTokenPreimage, MintableType};
-use sdk::signer::Signed;
-use sdk::*;
+use thruput_sdk::mintable::{AuthTokenPreimage, MintableType};
+use thruput_sdk::signer::Signed;
+use thruput_sdk::*;
 
 type TransferAuthPreimage = <TransferAuth as MintableType>::Preimage;
 
@@ -29,8 +29,8 @@ impl SignerCallee {
         consumer: &ContractAddress,
         amount: u64,
     ) -> Signed<TransferAuth> {
-        let expiry = sdk::block::get_block_height();
-        sdk::signer::mint_auth_token::<TransferAuth>(
+        let expiry = thruput_sdk::block::get_block_height();
+        thruput_sdk::signer::mint_auth_token::<TransferAuth>(
             expiry,
             AuthTokenPreimage {
                 consumer: *consumer,

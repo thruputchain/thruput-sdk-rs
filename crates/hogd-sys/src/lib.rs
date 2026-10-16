@@ -1,9 +1,10 @@
-//! # groundhog-sys
+//! # thruput-sys
 //!
 //! Low-level Rust FFI bindings to the `hogd` test harness runtime.
 //!
-//! This crate is an internal implementation detail exposing C bindings and constants needed for the
-//! higher-level `groundhog` Rust crate. The contents are auto-generated from the `hogd` C headers via bindgen.
+//! This crate is an internal implementation detail exposing C bindings and
+//! constants needed for the higher-level `thruput-sdk` Rust crate. The
+//! contents are auto-generated from the `hogd` C headers via bindgen.
 
 // suppress spurious warnings from bindgen
 #![allow(non_camel_case_types)]
@@ -24,7 +25,6 @@ pub use bindings::{
     TEST_FFI_VERSION_MAJOR,
     TEST_FFI_VERSION_MINOR,
     TEST_FFI_VERSION_PATCH,
-
 };
 
 // Types
@@ -46,6 +46,7 @@ pub use bindings::{
     VerifyAuthResultFromDBResult,
     FFIDataBuffer,
     GetCostModelResult,
+    GetNetworkConfigResult,
     GetSnapshotStorageItemResult,
     VerifyContractResult,
     FFISerializedAddressAndKey,
@@ -57,6 +58,7 @@ pub use bindings::{
     create_db,
     free_db,
     get_cost_model,
+    get_network_config,
     get_snapshot_storage_item,
     advance_new_block,
     open_runtime_context,

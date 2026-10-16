@@ -1,5 +1,5 @@
-use groundhog_native_exec::mock_contract::MockContract;
 use linkme::distributed_slice;
+use thruput_native_exec::mock_contract::MockContract;
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -86,7 +86,7 @@ fn collect_mock_fragments<'a>(
 }
 
 pub fn register_mock_package(
-    env: &groundhog_native_exec::test_environment::TestEnvironmentHandle,
+    env: &thruput_native_exec::test_environment::TestEnvironmentHandle,
     package_name: &str,
 ) -> MockContract {
     let fragments =
@@ -97,6 +97,11 @@ pub fn register_mock_package(
     for fragment in fragments {
         (fragment.register)(&mut contract);
     }
+    // Mirror the rv32 dispatcher's undefined-method behavior, so a
+    // contract's tests observe what its deployed image would do.
+    contract.register_unknown_method(|| {
+        crate::exn::library_throw(crate::exn::LibraryExn::UnknownMethod)
+    });
     env.setup_create_contract(&contract.as_contract());
     contract
 }

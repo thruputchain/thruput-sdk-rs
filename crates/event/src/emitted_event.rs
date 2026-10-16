@@ -1,5 +1,5 @@
 use crate::{Event, Topic};
-use groundhog_xdr::event::TxEmittedEvent;
+use thruput_xdr::event::TxEmittedEvent;
 
 /// Size of each topic in serialized event data
 pub const TOPIC_SIZE: usize = 32;
@@ -16,7 +16,7 @@ impl<'a> EmittedEvent<'a> {
     /// 32-bit guest targets.
     fn topics_byte_len(&self) -> Option<usize> {
         let event = self.0;
-        if event.num_topics > groundhog_xdr::event::kMaxTopics {
+        if event.num_topics > thruput_xdr::event::kMaxTopics {
             return None;
         }
         let extent = TOPIC_SIZE * event.num_topics as usize;
@@ -234,8 +234,8 @@ impl<'a, E: Event> TypedEvent<'a, E> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use groundhog_xdr::event::TxEmittedEvent;
-    use groundhog_xdr::types::ContractAddress;
+    use thruput_xdr::event::TxEmittedEvent;
+    use thruput_xdr::types::ContractAddress;
 
     // `&'static [u8]` so this builds whether or not BytesM's `alloc` backing is
     // enabled for the standalone test build.
@@ -321,10 +321,7 @@ mod tests {
         fn decode_payload(bytes: &[u8]) -> Result<u32, xdrs::ReadError> {
             match <[u8; 4]>::try_from(bytes) {
                 Ok(b) => Ok(u32::from_be_bytes(b)),
-                Err(_) => Err(xdrs::ReadError::SourceEmpty {
-                    requested: 4,
-                    remaining: bytes.len(),
-                }),
+                Err(_) => Err(xdrs::ReadError::source_empty(4, bytes.len())),
             }
         }
     }

@@ -61,14 +61,11 @@ produce_metric() {
     }
 }
 
-# METRIC: sdk_codesizes
-produce_metric sdk_codesizes "target/optimized"
-
 # METRIC: sdk_codesizes_rv32
 produce_metric sdk_codesizes_rv32 "target/riscv32im-unknown-none-elf/release"
 
 # METRIC: sdk_codesizes_rv32_lowered
-produce_metric sdk_codesizes_rv32_lowered "target/groundhog"
+produce_metric sdk_codesizes_rv32_lowered "target/thruput"
 
 # METRIC: sdk_perf_gas
 produce_metric sdk_perf_gas

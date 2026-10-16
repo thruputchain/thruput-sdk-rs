@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-sys"
+name = "thruput-sys"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,26 +9,13 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Bindings for the external Groundhog test environment"
+description = "Bindings for the external Thruput test environment"
 links = "groundhog_test_ffi"
 
 [lib]
 crate-type = ["rlib"]
 
 [features]
-# If this feature is enabled, then the native_exec crate will be built with
-# wasm backtraces enabled.  Those will be largely meaningless unless you also
-# build contracts with minimal debug info (line numbers and function names).
-#
-# This feature also turns on the logging feature in the contracts that are
-# built in integration_test/contracts within hogexec.  The only contract for
-# which that is relevant for the SDK is the initial_token_claim contract, in
-# that this feature will change the gas consumption (and hash) of that
-# contract.
-#
-# Currently is only available with build from source enabled.
-wasm_backtraces = []
-
 # Build the FFI library from source (used with HOGD_FFI_BUILD=1). Off by
 # default so the prebuilt-download path doesn't carry cmake/bindgen in its
 # build-dependency graph.
@@ -39,6 +26,6 @@ thiserror = { version = "2.0.12", default-features = false }
 
 [build-dependencies]
 cmake = { version = "0.1", optional = true }
-bindgen = { version = "0.71", optional = true }
+bindgen = { version = "0.73", optional = true }
 sha2 = { workspace = true }
 fslock = "0.2"

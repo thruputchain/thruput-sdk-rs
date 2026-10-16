@@ -1,4 +1,5 @@
-//! Native-test-only tracking of live deferred-write guards (`ValueMut`).
+//! Native-test-only tracking of live deferred-write guards (`ValueMut`,
+//! `CapacityConstraint`).
 //!
 //! On a real guest a terminal Return syscall skips `Drop`, silently
 //! discarding a live guard's flush; the native mock unwinds, so `Drop`
@@ -17,7 +18,8 @@ std::thread_local! {
 }
 
 /// RAII registration token, held as a field by every deferred-write storage
-/// guard (today only [`ValueMut`](super::ValueMut)).
+/// guard (today [`ValueMut`](super::ValueMut) and
+/// [`CapacityConstraint`](super::CapacityConstraint)).
 ///
 /// Holding the field *is* the registration: the count is maintained by the
 /// type system rather than by paired `guard_created`/`guard_dropped` calls a
@@ -54,16 +56,17 @@ pub(crate) fn assert_no_live_guards() {
         return;
     }
     std::eprintln!(
-        "contract_return with {n} live ValueMut guard(s): on a real guest \
-         the terminal Return syscall skips Drop, silently discarding their \
-         storage writes. Drop the guard(s) before returning."
+        "contract_return with {n} live deferred-write storage guard(s): on \
+         a real guest the terminal Return syscall skips Drop, silently \
+         discarding their storage writes. Drop the guard(s) before \
+         returning."
     );
-    #[cfg(feature = "mock")]
+    #[cfg(feature = "dev")]
     std::panic::panic_any(
-        groundhog_native_exec::invoke_error::unrecoverable_error(),
+        thruput_native_exec::invoke_error::unrecoverable_error(),
     );
-    #[cfg(not(feature = "mock"))]
-    panic!("contract_return with {n} live ValueMut guard(s)");
+    #[cfg(not(feature = "dev"))]
+    panic!("contract_return with {n} live deferred-write storage guard(s)");
 }
 
 /// Zeroes the counter for the duration of a nested in-process mock frame

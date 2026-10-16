@@ -1,17 +1,18 @@
-use groundhog_xdr::types::ContractAddress;
 use sha2::{Digest, Sha256};
+use thruput_xdr::types::ContractAddress;
 
 /// Create deterministic test addresses from human-readable names.
 ///
 /// ```
-/// use groundhog_native_exec::test_helpers::Named;
-/// use groundhog_xdr::types::ContractAddress;
+/// use thruput_native_exec::test_helpers::Named;
+/// use thruput_xdr::types::ContractAddress;
 ///
 /// let alice = ContractAddress::named("alice");
 /// assert_eq!(alice, ContractAddress::named("alice")); // deterministic
 /// assert_ne!(alice, ContractAddress::named("bob"));   // distinct
 /// ```
 pub trait Named {
+    /// The deterministic address derived from `name`.
     fn named(name: &str) -> Self;
 }
 

@@ -13,17 +13,17 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "bare_impl_callee/dev"]
+dev = ["thruput-sdk/dev", "bare_impl_callee/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 bare_impl_callee = { path = "../bare_impl_callee" }
 
 [dev-dependencies]
 bare_impl_caller = { path = ".", features = ["dev"] }
-groundhog-contract-util = { workspace = true }
+thruput-contract-util = { workspace = true }

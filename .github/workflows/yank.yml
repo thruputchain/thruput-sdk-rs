@@ -1,0 +1,108 @@
+# Yanks (or un-yanks) a published release from the Thruput registry.
+#
+# The crates here release on two version lines (see publish.yml): the
+# workspace-versioned crates share one `v<version>` release, while each
+# standard-interface crate versions independently. So a yank targets either
+# the whole workspace release or a single interface crate, never "every crate
+# at this version" — an interface version could coincide with an unrelated
+# old workspace release.
+name: Yank package
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to yank (e.g. 0.37.0)'
+        required: true
+        type: string
+      target:
+        description: 'The workspace release, or one independently-versioned interface crate'
+        required: true
+        type: choice
+        default: workspace
+        # Keep in sync with INTERFACE_PACKAGES in publish.yml.
+        options:
+          - workspace
+          - thruput-erc20-if
+          - thruput-erc20-metadata-if
+          - thruput-erc20-pausable-if
+          - thruput-signed-op-if
+          - thruput-signed-op
+          - thruput-erc20-permit-if
+          - thruput-erc165-if
+          - thruput-erc721-if
+          - thruput-sep41
+          - thruput-access-control-if
+          - thruput-access-control
+      undo:
+        description: 'Un-yank (restore) instead of yank'
+        required: false
+        type: boolean
+        default: false
+
+# A yank racing a publish of the same version would leave registry state
+# depending on which finished last; queue behind publish.yml.
+concurrency:
+  group: publish
+
+env:
+  # Everything published under the `v<version>` tag: PRIMARY_PACKAGES plus
+  # INTERFACE_DEPENDENT_PACKAGES in publish.yml. Keep in sync with those.
+  WORKSPACE_PACKAGES: >-
+    thruput-event
+    thruput-exn
+    thruput-storage-cost
+    thruput-contract-util
+    thruput-contract-spec
+    thruput-sys
+    thruput-macros
+    thruput-domain-separator
+    thruput-native-exec
+    thruput-u256
+    thruput-test-vectors
+    thruput-rv32-runtime
+    thruput-sdk
+    bottle-test-if
+    thruput-spec-tool
+    erc20-test
+    erc20-native-test
+    erc20-bottle-test
+
+jobs:
+  yank:
+    permissions:
+      contents: read
+    runs-on: hog1
+
+    steps:
+      - name: Clean up .gitconfig
+        run: |
+            echo "Cleaning up .gitconfig"
+            rm -f /home/hogci/.gitconfig
+
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Select packages
+        id: select
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          if [ "$TARGET" = "workspace" ]; then
+            packages="$WORKSPACE_PACKAGES"
+          else
+            packages="$TARGET"
+          fi
+          echo "packages=$packages" >> "$GITHUB_OUTPUT"
+
+      - name: Yank
+        uses: thruputchain/actions/cargo-yank@6693fac8133585728ad3a4ca14e3441073b6def8
+        with:
+          version: ${{ inputs.version }}
+          undo: ${{ inputs.undo }}
+          packages: ${{ steps.select.outputs.packages }}
+          registry-name: thruput
+          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}

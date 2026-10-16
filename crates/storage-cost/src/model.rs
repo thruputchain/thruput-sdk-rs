@@ -1,4 +1,4 @@
-use groundhog_xdr::storage_cost::StorageCostModelXdr;
+use thruput_xdr::storage_cost::StorageCostModelXdr;
 
 pub struct StorageCostModel {
     cost_model: StorageCostModelXdr,
@@ -12,7 +12,7 @@ impl StorageCostModel {
     pub fn no_cost_model() -> Self {
         Self {
             cost_model: StorageCostModelXdr {
-                ext: groundhog_xdr::types::ExtensionPoint::_0,
+                ext: thruput_xdr::types::ExtensionPoint::_0,
                 base_data_item_cost: 0u64,
                 bytestring_cost_per_byte: 0u32,
                 base_contract_deployment_cost: 0u64,

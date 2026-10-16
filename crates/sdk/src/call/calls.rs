@@ -4,10 +4,8 @@ use super::contract_result::*;
 use super::encode::*;
 use super::raw_call_error::*;
 use crate::contract::ContractEntrypointID;
-use crate::exn::{FaultString, RawExceptionRef};
-use crate::types::transaction::{
-    InvocationFrameStatusCode, kMaxReturnBufferLen,
-};
+use crate::exn::{FaultInfo, FaultString, RawExceptionRef};
+use crate::types::transaction::InvocationFrameStatusCode;
 use crate::types::{ContractAddress, RuntimeMemoryLength};
 use crate::xdr::*;
 use crate::{AuthHandleBuf, sys};
@@ -17,7 +15,7 @@ use crate::{AuthHandleBuf, sys};
 /// `on_exn` runs while the abort bytes are still borrowed from the call
 /// scratch: [`RawExceptionRef::payload`] is a plain slice, valid exactly for
 /// the closure. Decode it into owned typed errors (zero-copy),
-/// [`RawExceptionRef::re_throw`] it (zero-copy), or
+/// re-throw it (zero-copy, via [`ReThrow`](crate::ReThrow)), or
 /// [`RawExceptionRef::to_owned`] it (one copy) — whatever `X` the closure
 /// returns is what escapes.
 ///
@@ -25,7 +23,7 @@ use crate::{AuthHandleBuf, sys};
 /// event) hits the cold fresh-buffer fallback, since the scratch is already
 /// borrowed here (no-alloc: a 4 KiB stack buffer) — keep the closure small:
 /// decode, `re_throw`, or `to_owned` only.
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn try_call_raw_with<ARGS, RET, X>(
     address: &ContractAddress,
     entrypoint: ContractEntrypointID,
@@ -43,12 +41,12 @@ where
         args.collect_auth_handles(auth_buf)
             .map_err(RawCallError::EncodingArgs)?;
 
-        let is_ok =
+        let (is_ok, returned_auth_tokens) =
             call_core(address, entrypoint, gas_limit, flags, buf, auth_buf)
                 .map_err(widen_uninhabited_exn)?;
 
         if is_ok {
-            contract_call_decode(buf.as_slice(), auth_buf.as_slice())
+            contract_call_decode(buf.as_slice(), returned_auth_tokens)
                 .map_err(widen_uninhabited_exn)
         } else {
             match RawExceptionRef::parse(buf.as_slice()) {
@@ -80,9 +78,10 @@ fn encode_args_into<T: WriteXDR + ?Sized>(
 }
 
 /// The whole call orchestration, with no type parameters: invoke the child
-/// frame and land whatever it produced (return value or abort payload) in
-/// `buf`, its returned auth-token ids in `auth_buf`. Reports whether the
-/// child returned (`true`) or aborted (`false`).
+/// frame, forwarding the auth tokens in `auth_buf`, and land whatever it
+/// produced (return value or abort payload) in `buf`. Reports whether the
+/// child returned (`true`) or aborted (`false`), and the ids its returned
+/// auth tokens took in this frame.
 ///
 /// `buf` is in-out and holds the encoded calldata on entry: the `Invoke`
 /// syscall has already copied the args out by the time the child's payload
@@ -108,8 +107,8 @@ fn call_core(
     gas_limit: u64,
     flags: crate::invoke_config::InvokeFlagSet,
     buf: &mut Buf,
-    auth_buf: &mut AuthHandleBuf,
-) -> Result<bool, CallFault> {
+    auth_buf: &AuthHandleBuf,
+) -> Result<(bool, core::ops::Range<u32>), CallFault> {
     let (is_ok, outputs) = invoke_frame(
         address,
         entrypoint,
@@ -122,17 +121,17 @@ fn call_core(
     buf.clear();
 
     // No `reserve` here, unlike `contract_call`: `reset_call_scratch` already
-    // sized the scratch to `SCRATCH_MAX`, which `invoke_frame` has checked the
-    // payload against (`kMaxReturnBufferLen`). `contract_call`'s buffer is
+    // sized the scratch to `SCRATCH_MAX`, and `checked_returned_len` refuses a
+    // payload that does not fit it. `contract_call`'s buffer is
     // caller-supplied and has no such guarantee.
-    fetch_frame_payload(is_ok, &outputs, buf, auth_buf)?;
+    let returned_auth_tokens = fetch_frame_payload(is_ok, &outputs, buf)?;
 
-    Ok(is_ok)
+    Ok((is_ok, returned_auth_tokens))
 }
 
 /// Pull the child frame's payload — returned value or abort bytes — out of
-/// the VM into `buf`, and its returned auth-token ids into `auth_buf`, sized
-/// per the lengths the `Invoke` syscall reported.
+/// the VM into `buf`, sized per the length the `Invoke` syscall reported,
+/// and return the ids the child's returned auth tokens took in this frame.
 ///
 /// The one place that reads `CopyableInvokeOutputs`, shared by [`call_core`]
 /// and [`contract_call`] (which otherwise cannot share a body: one owns its
@@ -143,14 +142,11 @@ fn fetch_frame_payload(
     is_ok: bool,
     outputs: &sys::CopyableInvokeOutputs,
     buf: &mut Buf,
-    auth_buf: &mut AuthHandleBuf,
-) -> Result<(), CallFault> {
-    resize_auth_handles(auth_buf, outputs)?;
+) -> Result<core::ops::Range<u32>, CallFault> {
     fill_return_buf(
         outputs.return_buffer_len,
-        outputs.returned_auth_token_len,
+        outputs.returned_auth_token_count,
         buf,
-        auth_buf,
     )
     .map_err(|fault| unparseable(is_ok, fault))
 }
@@ -218,20 +214,17 @@ where
     #[cfg(feature = "alloc")]
     return_buf.reserve(outputs.return_buffer_len as usize);
 
-    // `fetch_frame_payload` grows `returned_auth_token_ids` to its final
-    // length (zero-filled placeholders for `fill_return_buf`'s syscall to
-    // overwrite) before any of the actual parsing/validation can fail — and
-    // `fill_return_buf` itself sets `return_buf`'s length before its own
-    // trailing auth-handle-length check can fail. Every early return through
-    // there would otherwise leave one or both out-buffers non-empty despite
-    // the documented "cleared on Err" contract, so any failure clears both
-    // before propagating.
-    if let Err(e) = fetch_frame_payload(
-        is_ok,
-        &outputs,
-        return_buf,
-        returned_auth_token_ids,
-    ) {
+    // `fill_return_buf` sets `return_buf`'s length before its own trailing
+    // auth-token check can fail, and `push_auth_handles` can fail part way.
+    // Either would otherwise leave an out-buffer non-empty despite the
+    // documented "cleared on Err" contract, so any failure clears both
+    // before propagating. The returned ids are listed out because a
+    // forwarder hands them on with `Return`, which takes a list.
+    if let Err(e) =
+        fetch_frame_payload(is_ok, &outputs, return_buf).and_then(|returned| {
+            push_auth_handles(returned_auth_token_ids, returned)
+        })
+    {
         return_buf.clear();
         returned_auth_token_ids.clear();
         return Err(e);
@@ -250,6 +243,9 @@ where
 pub(crate) fn widen_uninhabited_exn<X>(e: CallFault) -> RawCallError<X> {
     match e {
         RawCallError::Invalid => RawCallError::Invalid,
+        RawCallError::Reentrance => RawCallError::Reentrance,
+        RawCallError::DepthExceeded => RawCallError::DepthExceeded,
+        RawCallError::InvokeRejected(c) => RawCallError::InvokeRejected(c),
         RawCallError::Exception(x) => match x {},
         RawCallError::Fault(f) => RawCallError::Fault(f),
         RawCallError::UnparseableReturn(f) => {
@@ -291,10 +287,11 @@ fn invoke_frame(
         entrypoint_id: entrypoint,
         gas_limit,
         flags,
+        reserved: 0,
     };
     let mut outputs = sys::CopyableInvokeOutputs {
         return_buffer_len: 0,
-        returned_auth_token_len: 0,
+        returned_auth_token_count: 0,
         // Placeholder; overwritten by the syscall whenever a child frame runs
         // (i.e. when `raw_Invoke` returns `Ok`). Never read on the error path.
         frame_status: InvocationFrameStatusCode::Fault,
@@ -316,58 +313,54 @@ fn invoke_frame(
             } else if status == InvocationFrameStatusCode::Abort {
                 false
             } else {
-                // Fault (trap / out of gas) or an unexpected status code.
-                return Err(RawCallError::Fault(FaultString::from_display(
-                    format_args!("child frame faulted: {status:?}"),
-                )));
+                // A child frame ran and produced neither a return nor an
+                // abort buffer: it faulted (panic, trap, or out of gas). An
+                // out-of-range status would mean the host broke the syscall
+                // contract; it lands here too, which is the safe reading —
+                // the frame did not return a result either way.
+                //
+                // Empty because nothing on this path has a message to give:
+                // the frame status is all the runtime reports, and the
+                // callee's own panic was caught inside the runtime's frame.
+                // The harness records a message only for a frame it ran
+                // itself — see `into_root_call_result`.
+                return Err(RawCallError::Fault(FaultInfo::empty()));
             }
         }
-        // The call was rejected before any child frame ran.
-        Err(syserr) if syserr.is_invalid_input() => {
-            return Err(RawCallError::Invalid);
-        }
-        Err(syserr) => {
-            return Err(RawCallError::Fault(FaultString::from_display(
-                format_args!("{syserr:?}"),
-            )));
-        }
+        // The call was rejected before any child frame ran. Each documented
+        // rejection keeps its own identity: folding reentrance or the depth
+        // bound into a fault would tell the caller its callee misbehaved,
+        // when in fact the callee never ran.
+        Err(syserr) => return Err(classify_invoke_rejection(syserr)),
     };
 
-    // The protocol caps returns at kMaxReturnBufferLen; a larger reported
-    // length means the host broke the syscall contract.
-    if outputs.return_buffer_len > kMaxReturnBufferLen {
-        return Err(unparseable(
-            is_ok,
-            FaultString::from_display(format_args!(
-                "reported return length {} exceeds the protocol cap {}",
-                outputs.return_buffer_len, kMaxReturnBufferLen
-            )),
-        ));
-    }
-
+    // No cap here: `checked_returned_len` bounds the length against the
+    // receiving buffer, and a chain's limit is configuration, not a constant.
     Ok((is_ok, outputs))
 }
 
-/// Size the auth-handle buffer to hold the token-id list the syscall
-/// outputs report.
-fn resize_auth_handles(
+/// Append the returned auth token ids to the auth-handle list.
+fn push_auth_handles(
     buf: &mut AuthHandleBuf,
-    outputs: &sys::CopyableInvokeOutputs,
+    ids: core::ops::Range<u32>,
 ) -> Result<(), CallFault> {
-    let count =
-        outputs.returned_auth_token_len as usize / core::mem::size_of::<u32>();
     #[cfg(feature = "alloc")]
     {
-        buf.resize(count, 0);
+        buf.extend(ids);
         Ok(())
     }
     #[cfg(not(feature = "alloc"))]
     {
-        buf.resize(count, 0).map_err(|_| {
-            RawCallError::UnparseableAuthHandles(FaultString::from_display(
-                "auth handle buffer capacity exceeded",
-            ))
-        })
+        for id in ids {
+            buf.push(id).map_err(|_| {
+                RawCallError::UnparseableAuthHandles(
+                    FaultString::from_display(
+                        "auth handle buffer capacity exceeded",
+                    ),
+                )
+            })?;
+        }
+        Ok(())
     }
 }
 
@@ -461,11 +454,7 @@ pub(crate) fn with_scratch<R>(f: impl FnOnce(&mut Buf) -> R) -> R {
     with_call_scratch(|buf, _auth| f(buf))
 }
 
-#[cfg(all(
-    test,
-    not(any(target_family = "wasm", target_arch = "riscv32")),
-    feature = "std"
-))]
+#[cfg(all(test, not(target_arch = "riscv32"), feature = "std"))]
 mod scratch_tests {
     use super::*;
 
@@ -516,24 +505,21 @@ mod scratch_tests {
 #[inline]
 fn fill_return_buf(
     return_len: u32,
-    auth_token_id_list_return_len: u32,
+    returned_auth_token_count: u32,
     return_buf: &mut ReturnBuf,
-    auth_token_id_list_buf: &mut AuthHandleBuf,
-) -> Result<(), FaultString> {
+) -> Result<core::ops::Range<u32>, FaultString> {
     let mut written_mu: core::mem::MaybeUninit<RuntimeMemoryLength> =
         core::mem::MaybeUninit::uninit();
-    let mut auth_token_id_list_written_mu: core::mem::MaybeUninit<
-        RuntimeMemoryLength,
-    > = core::mem::MaybeUninit::uninit();
-
-    let auth_token_id_list_bytes =
-        auth_handles_as_mut_bytes(auth_token_id_list_buf);
+    let mut start_mu: core::mem::MaybeUninit<u32> =
+        core::mem::MaybeUninit::uninit();
+    let mut count_mu: core::mem::MaybeUninit<u32> =
+        core::mem::MaybeUninit::uninit();
 
     sys::uninit_GetReturnedBuffer(
         return_buf.spare_capacity_mut(),
         &mut written_mu,
-        auth_token_id_list_bytes,
-        &mut auth_token_id_list_written_mu,
+        &mut start_mu,
+        &mut count_mu,
     )
     .map_err(|syserr| FaultString::from_display(format_args!("{syserr:?}")))?;
 
@@ -551,12 +537,11 @@ fn fill_return_buf(
         return_buf.set_len(written);
     }
 
-    validate_auth_token_id_list_len(
-        unsafe { auth_token_id_list_written_mu.assume_init() },
-        auth_token_id_list_return_len,
-    )?;
-
-    Ok(())
+    returned_auth_token_range(
+        unsafe { start_mu.assume_init() },
+        unsafe { count_mu.assume_init() },
+        returned_auth_token_count,
+    )
 }
 
 /// Validate the length the host reports for a returned buffer before it is used
@@ -592,19 +577,28 @@ fn checked_returned_len(
     Ok(written)
 }
 
-fn validate_auth_token_id_list_len(
-    written_auth_token_id_list: RuntimeMemoryLength,
-    auth_token_id_list_return_len: u32,
-) -> Result<(), FaultString> {
-    if written_auth_token_id_list != auth_token_id_list_return_len {
+/// The ids the child's returned auth tokens took in this frame: `count`
+/// consecutive ids from `start`. The count must match the one `Invoke`
+/// reported and the range must fit in a `u32`; otherwise the host broke the
+/// syscall contract.
+fn returned_auth_token_range(
+    start: u32,
+    count: u32,
+    invoke_count: u32,
+) -> Result<core::ops::Range<u32>, FaultString> {
+    if count != invoke_count {
         return Err(FaultString::from_display(format_args!(
-            "unexpected auth token id list length from system call: \
-                    written = {written_auth_token_id_list}, \
-                    auth_token_id_list_return_len = {auth_token_id_list_return_len}"
+            "unexpected returned auth token count from system call: \
+                    GetReturnedBuffer = {count}, Invoke = {invoke_count}"
         )));
     }
-
-    Ok(())
+    let end = start.checked_add(count).ok_or_else(|| {
+        FaultString::from_display(format_args!(
+            "returned auth token ids overflow: start = {start}, \
+                    count = {count}"
+        ))
+    })?;
+    Ok(start..end)
 }
 
 #[cfg(test)]

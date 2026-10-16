@@ -1,3 +1,4 @@
+use super::deletable::Deletable;
 use super::node::StorageType;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
@@ -60,5 +61,14 @@ impl<Owner, S: StorageType> Deref for SlotMut<'_, Owner, S> {
 impl<Owner, S: StorageType> DerefMut for SlotMut<'_, Owner, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.slot
+    }
+}
+
+impl<'a, Owner, S> Deletable for SlotMut<'a, Owner, S>
+where
+    S: StorageType + Deletable,
+{
+    fn delete_internal(&mut self, exclusive: bool) {
+        self.slot.delete_internal(exclusive);
     }
 }

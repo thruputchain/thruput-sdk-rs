@@ -1,6 +1,6 @@
 [package]
 name = "counter"
-description = "Example counter contract for the Groundhog blockchain"
+description = "Example counter contract for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -13,15 +13,25 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
+# Keep the host cdylib lane aligned with `thruput new`; it catches exported
+# symbol names that an rlib-only build never presents to the platform linker.
 crate-type = ["cdylib", "rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `thruput build -p counter` derives `--bin counter` from
+# the package name, so the name here must stay the underscored package name.
+# `required-features` keeps it out of host builds.
+[[bin]]
+name = "counter"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [dev-dependencies]
 counter = { path = ".", features = ["dev"] }

@@ -2,7 +2,7 @@
 // `check_duplicate` flags two roots that share a domain. The real link-level
 // proof (a generated #[test] panicking on a genuine collision) lives in the
 // workspace-excluded `multi_root_collision` crate plus its detection script.
-use sdk::storage::{
+use thruput_sdk::storage::{
     DomainRecord, FramedDomain, check_duplicate, frame_domain,
     framed_domain_len,
 };

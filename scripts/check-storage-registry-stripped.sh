@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 #
-# Verifies the host-only storage domain registry is absent from a guest (wasm) build.
+# Verifies the host-only storage domain registry is absent from a guest (rv32)
+# build.
 #
 # The domain registry (STORAGE_DOMAINS, DomainRecord, __GH_DOMAIN_* statics) is
-# guarded by cfg(not(target_arch = "wasm32")) and must never appear in a deployed
-# contract artifact.
+# guarded by cfg(not(target_arch = "riscv32")) and must never appear in a
+# deployed contract artifact.
+#
+# Takes a contract package; its [[bin]] name is the underscored package name,
+# which is the ELF name.
 #
 # Usage:
 #   scripts/check-storage-registry-stripped.sh [package]
@@ -24,12 +28,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_DIR="$SCRIPT_DIR/.."
 
 PKG="${1:-complex-storage}"
-WASM_NAME="${PKG//-/_}"
+BIN_NAME="${PKG//-/_}"
+RV32_TARGET="riscv32im-unknown-none-elf"
 
 EXAMPLE_CONTRACTS_DIR="${SDK_DIR}/example-contracts"
 # example-contracts/.cargo/config.toml sets target-dir = "../target" so artifacts
 # land in the SDK-level target directory, not example-contracts/target/.
-ARTIFACT="${SDK_DIR}/target/wasm32-unknown-unknown/release/${WASM_NAME}.wasm"
+ARTIFACT="${SDK_DIR}/target/${RV32_TARGET}/release/${BIN_NAME}"
 
 # --- SKIP path (exit 0) is reserved EXCLUSIVELY for an unconfirmable toolchain ---
 #
@@ -40,7 +45,7 @@ ARTIFACT="${SDK_DIR}/target/wasm32-unknown-unknown/release/${WASM_NAME}.wasm"
 # unconfirmable toolchain fall through into a build.
 #
 # Once the toolchain IS confirmed, a build failure is a HARD ERROR (exit 1), not a
-# skip: a regression that un-gates STORAGE_DOMAINS and breaks the wasm build must
+# skip: a regression that un-gates STORAGE_DOMAINS and breaks the rv32 build must
 # be caught, not silently swallowed.
 
 # `strings` is required to inspect the artifact; if absent, we cannot perform the
@@ -90,17 +95,20 @@ fi
 
 # --- Toolchain confirmed: from here on, any failure is a real failure ---
 
-# Build the contract using the same mechanism as scripts/dev.sh build_wasm:
-#   cd <workspace> && cargo --config .cargo/contract.toml build -p <pkg> -F entrypoints --release
-# Note: uses example-contracts/.cargo/contract.toml (sets target=wasm32-unknown-unknown
-# and build-std), not the SDK-level one (which has the target commented out).
-echo "Building $PKG for wasm32-unknown-unknown ..."
+# Build the ELF with plain cargo rather than through the Thruput CLI: this
+# check only needs the linked guest binary, not the lowered artifact, so it
+# stays runnable without the CLI installed. example-contracts/.cargo/config.toml
+# supplies the rv32 rustflags; build-std goes on the command line (it must not
+# live in [unstable] there — it would break host `cargo test` from that cwd).
+echo "Building $PKG for $RV32_TARGET ..."
 (
     cd "$EXAMPLE_CONTRACTS_DIR" &&
-    cargo --config ".cargo/contract.toml" \
-        build -p "$PKG" -F entrypoints --release
+    cargo build -p "$PKG" -F entrypoints --release \
+        --target "$RV32_TARGET" \
+        -Zbuild-std=core,alloc \
+        -Zbuild-std-features=std/optimize_for_size
 ) || {
-    echo "ERROR: wasm build failed; see output above" >&2
+    echo "ERROR: rv32 build failed; see output above" >&2
     exit 1
 }
 

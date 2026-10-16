@@ -1,8 +1,8 @@
 use crate::exn::{LibraryExn, syscall_exn};
 use crate::internal::ScratchBuf;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::SyscallNo;
 use crate::sys_result::rcq as rcq_result;
-use crate::syscall_throw;
 use crate::types::StorageKey;
 
 #[cfg(feature = "alloc")]
@@ -14,17 +14,15 @@ use alloc::boxed::Box;
 // the historical thrown exceptions already used the consume number.
 
 pub fn retrocausal_queue_insert(key: &StorageKey, queue_entry: &[u8]) {
-    rcq_result::retrocausal_queue_insert(key, queue_entry).unwrap_or_else(
-        |errno| syscall_throw(SyscallNo::kRetrocausalQueueInsert, errno),
-    )
+    rcq_result::retrocausal_queue_insert(key, queue_entry)
+        .or_syscall_throw(SyscallNo::kRetrocausalQueueInsert)
 }
 
 pub fn retrocausal_queue_consume_sized<const N: usize>(
     key: &StorageKey,
 ) -> [u8; N] {
-    rcq_result::retrocausal_queue_get_sized(key, false).unwrap_or_else(
-        |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
-    )
+    rcq_result::retrocausal_queue_get_sized(key, false)
+        .or_syscall_throw(SyscallNo::kRetrocausalQueueConsume)
 }
 
 /// Consume the next queue entry as an `N`-byte array, reporting failure as
@@ -44,9 +42,8 @@ pub fn retrocausal_queue_try_consume_sized<const N: usize>(
 pub fn retrocausal_queue_peek_sized<const N: usize>(
     key: &StorageKey,
 ) -> [u8; N] {
-    rcq_result::retrocausal_queue_get_sized(key, true).unwrap_or_else(
-        |errno| syscall_throw(SyscallNo::kRetrocausalQueueConsume, errno),
-    )
+    rcq_result::retrocausal_queue_get_sized(key, true)
+        .or_syscall_throw(SyscallNo::kRetrocausalQueueConsume)
 }
 
 /// Peek at the next queue entry as an `N`-byte array; the `try_`-law
@@ -66,7 +63,7 @@ fn retrocausal_queue_try_sized<const N: usize>(
     peek: bool,
 ) -> Result<[u8; N], LibraryExn> {
     let found = rcq_result::retrocausal_queue_peek_len(key)
-        .map_err(|e| syscall_exn(SyscallNo::kRetrocausalQueueConsume, e))?;
+        .or_syscall_exn(SyscallNo::kRetrocausalQueueConsume)?;
     if found != N as u32 {
         return Err(LibraryExn::RetrocausalQueueEntryWrongSize {
             expected: N as u32,
@@ -74,7 +71,7 @@ fn retrocausal_queue_try_sized<const N: usize>(
         });
     }
     rcq_result::retrocausal_queue_get_sized(key, peek)
-        .map_err(|e| syscall_exn(SyscallNo::kRetrocausalQueueConsume, e))
+        .or_syscall_exn(SyscallNo::kRetrocausalQueueConsume)
 }
 
 /// Read the next queue entry into `buf` (cleared first), reporting every
@@ -107,7 +104,7 @@ pub(crate) fn retrocausal_queue_try_discard(
     key: &StorageKey,
 ) -> Result<(), LibraryExn> {
     rcq_result::retrocausal_queue_consume_discard(key)
-        .map_err(|e| syscall_exn(SyscallNo::kRetrocausalQueueConsume, e))
+        .or_syscall_exn(SyscallNo::kRetrocausalQueueConsume)
 }
 
 #[cfg(feature = "alloc")]
@@ -153,5 +150,5 @@ fn retrocausal_queue_try_get(
     peek: bool,
 ) -> Result<Box<[u8]>, LibraryExn> {
     rcq_result::retrocausal_queue_get(key, peek)
-        .map_err(|e| syscall_exn(SyscallNo::kRetrocausalQueueConsume, e))
+        .or_syscall_exn(SyscallNo::kRetrocausalQueueConsume)
 }

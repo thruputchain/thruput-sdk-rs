@@ -1,6 +1,6 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(interface = "TraitOnly")]
 pub trait TraitOnly {

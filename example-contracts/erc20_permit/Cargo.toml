@@ -1,0 +1,45 @@
+[package]
+name = "erc20_permit"
+description = "Example ERC20 with wallet-authorized bounded transfers and signed allowances"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = [
+    "thruput-sdk/dev",
+    "thruput-erc20-if/dev",
+    "thruput-erc20-permit-if/dev",
+]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p erc20_permit` derives
+# `--bin erc20_permit` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "erc20_permit"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+thruput-erc20-if = { workspace = true }
+thruput-erc20-permit-if = { workspace = true }
+
+[dev-dependencies]
+erc20_permit = { path = ".", features = ["dev"] }
+permit_wallet = { path = "../permit_wallet", features = ["dev"] }
+thruput-signed-op-if = { workspace = true, features = ["dev"] }
+thruput-domain-separator = { workspace = true, features = ["std"] }
+ed25519-dalek = { workspace = true }

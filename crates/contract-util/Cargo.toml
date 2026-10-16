@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-contract-util"
+name = "thruput-contract-util"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,9 +12,9 @@ categories.workspace = true
 description = "Utility functions for contract development"
 
 [dependencies]
-groundhog-xdr = { workspace = true, features = ["std", "xdrs"] }
+thruput-xdr = { workspace = true, features = ["std", "xdrs"] }
 sha2 = { workspace = true }
-syn = { optional = true, version = "2.0.93" , features = [ "full", "extra-traits", "visit", "printing", "fold" ] }
+syn = { optional = true, version = "3.0.3" , features = [ "full", "extra-traits", "visit", "printing", "fold" ] }
 
 [features]
 syn = ["dep:syn"]

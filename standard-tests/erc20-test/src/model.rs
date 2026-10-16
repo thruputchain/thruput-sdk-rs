@@ -1,14 +1,14 @@
 use alloc::collections::BTreeMap as Map;
 use alloc::vec::Vec;
-use groundhog_erc20_if::*;
-use sdk::types::event::TxEmittedEvent;
-use sdk::*;
+use thruput_erc20_if::*;
+use thruput_sdk::types::event::TxEmittedEvent;
+use thruput_sdk::*;
 
 /// A model of an ERC20 contract, for comparing state to ERC20 contracts under test
 #[derive(Default, Clone)]
 pub struct Model {
     pub contract_owner: Option<ContractAddress>,
-    pub total_supply: u128,
+    pub total_supply: Amount,
     pub balances: Map<ContractAddress, Amount>,
     pub allowances: Map<(ContractAddress, ContractAddress), Amount>,
     pub events: Vec<StdERC20Event>,
@@ -39,30 +39,30 @@ impl Model {
 
         *balance = (*balance).checked_add(amount).unwrap();
 
-        self.log_transfer_event(CONTRACT_ADDR_ZERO, receiver, amount);
-    }
-
-    pub fn burn(&mut self, owner: &ContractAddress, amount: Amount) {
-        self.total_supply = self.total_supply.checked_sub(amount).unwrap();
-
-        let balance = self.balances.entry(*owner).or_insert(0);
-
-        *balance = (*balance).checked_sub(amount).unwrap();
-
-        self.log_transfer_event(owner, CONTRACT_ADDR_ZERO, amount);
+        self.log_mint_event(receiver, amount);
     }
 
     pub fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
-        diff: Difference,
+        difference: Difference,
     ) {
         let owner = self.get_caller();
-        let entry = self.allowances.entry((owner, *spender)).or_insert(0);
+        let allowance = self.allowances.entry((owner, *spender)).or_insert(0);
+        *allowance = allowance.checked_add(difference).unwrap();
+        let event = ERC20Event::AllowanceChange(AllowanceChangeEvent::new(
+            &owner, spender, difference,
+        ));
+        self.events.push((&event).into());
+    }
 
-        *entry = (*entry).checked_add_signed(diff).unwrap();
-
-        self.log_approval_event(&owner, spender, diff);
+    pub fn delete_allowance(&mut self, spender: &ContractAddress) {
+        let owner = self.get_caller();
+        let old = self.allowances.insert((owner, *spender), 0).unwrap_or(0);
+        let event = ERC20Event::AllowanceDelete(AllowanceDeleteEvent::new(
+            &owner, spender, old,
+        ));
+        self.events.push((&event).into());
     }
 
     pub fn transfer(
@@ -71,7 +71,7 @@ impl Model {
         amount: Amount,
     ) {
         let owner = self.get_caller();
-        let diff: Difference = amount.try_into().unwrap();
+        let diff: Difference = amount;
 
         self.adjust_balance(&owner, -diff);
         self.adjust_balance(receiver, diff);
@@ -82,29 +82,22 @@ impl Model {
     fn adjust_balance(&mut self, owner: &ContractAddress, diff: Difference) {
         let bal = self.balances.entry(*owner).or_insert(0);
 
-        *bal = (*bal).checked_add_signed(diff).unwrap();
+        *bal = (*bal).checked_add(diff).unwrap();
     }
 
     fn log_transfer_event(
         &mut self,
         from: &ContractAddress,
         to: &ContractAddress,
-        amount: u128,
+        amount: Amount,
     ) {
-        let amount = i128::try_from(amount).expect("model amount fits i128");
         let event = ERC20Event::Transfer(TransferEvent::new(from, to, amount));
 
         self.events.push((&event).into());
     }
 
-    fn log_approval_event(
-        &mut self,
-        owner: &ContractAddress,
-        spender: &ContractAddress,
-        amount: i128,
-    ) {
-        let event =
-            ERC20Event::Approval(ApprovalEvent::new(owner, spender, amount));
+    fn log_mint_event(&mut self, to: &ContractAddress, amount: Amount) {
+        let event = ERC20Event::Mint(MintEvent::new(to, amount));
 
         self.events.push((&event).into());
     }

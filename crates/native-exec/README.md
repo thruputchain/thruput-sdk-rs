@@ -1,14 +1,14 @@
-# native_exec Build Configuration
+# thruput-native-exec Build Configuration
 
-The `native_exec` crate provides Rust bindings to the hogd test_ffi library,
-linked in through the `groundhog-sys` crate. `groundhog-sys`'s build script
+The `thruput-native-exec` crate provides Rust bindings to the hogd test_ffi library,
+linked in through the `thruput-sys` crate. `thruput-sys`'s build script
 obtains the library in one of three ways, selected by environment variables.
 
 ## Default Behavior
 
 **On supported platforms** (x86_64 Linux, aarch64 Linux, aarch64 macOS), the
 build script **automatically downloads** prebuilt libraries from
-`groundhog.dev`. No environment variables, extra features, or hogd checkout
+a public S3 bucket. No environment variables, extra features, or hogd checkout
 are required.
 
 **On unsupported platforms**, you must use the build-from-source or custom
@@ -24,7 +24,7 @@ cargo build
 ```
 
 This will automatically:
-- Download the prebuilt tarball from `groundhog.dev` using `curl`
+- Download the prebuilt tarball from public S3 using `curl`
 - Verify the SHA256 checksum
 - Assert the archive contains exactly the expected files, then extract and
   link the library
@@ -35,8 +35,7 @@ This will automatically:
 - Linux ARM64: `libtest_ffi-linux-arm64.tar.gz`
 - macOS ARM64: `libtest_ffi-macos-arm64.tar.gz`
 
-If the download host requires authentication, set `HOGD_FFI_PASSWORD` (and
-optionally `HOGD_FFI_USER`); the credentials are passed to `curl`.
+Downloads are public and require no authentication or AWS credentials.
 
 ### 2. Build from Source (Override)
 
@@ -46,17 +45,17 @@ are not compiled on the default path) and the `HOGD_FFI_BUILD=1` environment
 variable (which selects the source build for this invocation):
 
 ```bash
-# Building groundhog-sys / native-exec directly:
-HOGD_FFI_BUILD=1 cargo build -p groundhog-sys --features source-build
+# Building thruput-sys / native-exec directly:
+HOGD_FFI_BUILD=1 cargo build -p thruput-sys --features source-build
 
-# From a contract crate that uses the sdk's dev/mock features for testing,
-# the feature is forwarded through the sdk:
-HOGD_FFI_BUILD=1 cargo test --features sdk/source-build
+# From a contract crate that uses the SDK's dev/mock features for testing,
+# the feature is forwarded through the SDK:
+HOGD_FFI_BUILD=1 cargo test --features thruput-sdk/source-build
 ```
 
 The feature is forwarded along the dependency chain
-`sdk/source-build` → `groundhog-native-exec/source-build` →
-`groundhog-sys/source-build`. If you build from source routinely, enable
+`thruput-sdk/source-build` → `thruput-native-exec/source-build` →
+`thruput-sys/source-build`. If you build from source routinely, enable
 `source-build` permanently in your manifest's feature forwarding and just
 toggle `HOGD_FFI_BUILD=1` per invocation — with the feature on but the
 environment variable unset, you still get the prebuilt download.
@@ -73,8 +72,7 @@ prebuilt download.
 
 **Use this when:**
 - You're on an unsupported platform
-- You want to build with custom flags or modifications (see also the
-  `wasm_backtraces` feature, which is only available with source builds)
+- You want to build with custom flags or modifications
 - You're developing changes to the C++ code
 
 ### 3. Use Custom Library Path (Override)
@@ -96,8 +94,6 @@ This will:
   if unset)
 - `HOGD_DOWNLOAD_CACHE_DIR`: Override the prebuilt download cache location
   (default: under `OUT_DIR`)
-- `HOGD_FFI_USER` / `HOGD_FFI_PASSWORD`: Credentials for the prebuilt
-  download host
 - `NATIVE_EXEC_ALWAYS_CONFIGURE`: Force CMake reconfiguration when building
   from source
 
@@ -111,7 +107,7 @@ Uses the `TEST_FFI_VERSION` constant in `crates/hogd-sys/build.rs` to
 determine which release to download. The prebuilt tarball includes both the
 library and a pre-generated `bindings.rs`, so no hogd checkout is needed.
 
-Current version: **0.17.0** (tag: `test-ffi-v0.17.0`)
+Current version: **0.37.1** (tag: `test-ffi-v0.37.1`)
 
 ### Source / Custom-lib-dir Path
 
@@ -150,7 +146,28 @@ This is intentional to prevent silent failures and ensure reproducible builds.
 ## Prebuilt Releases
 
 Prebuilt libraries are published to:
-`https://groundhog.dev/builds/test-ffi/test-ffi-v{VERSION}/`
+`https://groundhog-public-release-artifacts-017820684264.s3.us-west-2.amazonaws.com/test-ffi/test-ffi-v{VERSION}/`
 
 Each release includes, per platform:
 - `libtest_ffi-<platform>.tar.gz` (+ `.sha256`)
+
+## Native allocation estimates
+
+Install `thruput_native_exec::install_counting_allocator!()` once at the top
+of a test binary (or use the SDK re-export). After a mocked transaction,
+`result.frame().alloc_stats()` returns the frame's own cumulative allocation
+count, requested bytes and `estimated_heap_bytes`. It returns `None` without
+the allocator. Frees do not reduce these counters; continuation steps keep
+the same simulated bump cursor.
+
+`cross_call_alloc_records()` contains completed mock bodies in completion
+order, including bodies that fail. Each record identifies the contract
+and requested method and excludes its callees' allocations. Explicit child
+frames own their records. Full transactions run through
+`TransactionHandler::root_invoke` have no allocation-report API.
+
+Use these estimates for native-test regressions. Native pointer sizes, test
+closures, panic diagnostics and guest code paths can change the numbers;
+they are not exact or conservative RV32 heap bounds. They do not measure stack
+use. See the [generated-client](../sdk/tests/alloc_stats.rs) and
+[nested-call](tests/alloc_stats.rs) tests for examples.

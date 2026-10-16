@@ -5,10 +5,10 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-sdk = { package = "sdk", path = "../.." }
+thruput-sdk = { path = "../.." }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-sdk = { package = "sdk", path = "../..", features = ["std"] }
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+thruput-sdk = { path = "../..", features = ["std"] }
 
 [features]
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]

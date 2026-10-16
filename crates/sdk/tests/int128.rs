@@ -1,4 +1,4 @@
-use sdk::types::{int128_xdr, uint128_xdr};
+use thruput_sdk::types::{int128_xdr, uint128_xdr};
 use xdrs::txs::encode;
 
 // Can we roundtrip-convert u128->uint128_xdr->u128?

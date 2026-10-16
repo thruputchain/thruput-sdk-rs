@@ -7,6 +7,7 @@ members = [
     "contracts/calldata_raw",
     "contracts/calldata_wrapper",
     # "contracts/cxs_roundtrip",
+    "contracts/default_wallet",
     "contracts/dev_wallet",
     "contracts/delegate_call_test",
     "contracts/deploy_and_transfer",
@@ -16,7 +17,7 @@ members = [
     "contracts/fibonacci_raw",
     "contracts/hash_bug",
     "contracts/htlc",
-    "contracts/initial_token_claim",
+    "contracts/genesis_root",
     "contracts/itc_erc20",
     # "contracts/manual_revert_caller",
     # "contracts/manual_revert_test",
@@ -38,29 +39,29 @@ members = [
 
 [workspace.package]
 version = "0.2.0"
-authors = ["Groundhog Team"]
+authors = ["Thruput Team"]
 license = "Apache-2.0"
-publish = ["groundhog"]
-repository = "https://github.com/groundhogchain/example-contracts.git"
-homepage = "https://github.com/groundhogchain/example-contracts.git"
-keywords = ["groundhog"]
+publish = ["thruput"]
+repository = "https://github.com/groundhogchain/sdk_rs"
+homepage = "https://github.com/groundhogchain/sdk_rs"
+keywords = ["thruput"]
 categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk" , registry = "groundhog", version = "=0.17.1" }
+thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.51.4" }
+thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.51.4", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.4" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.4" }
+thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.58" }
 
-erc20-test = { path = "../standard-tests/erc20-test" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test" }
-bottle-test-if = { path = "../crates/bottle-test-if" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.51.4" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.51.4" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.51.4" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "thruput", version = "=0.51.4" }
 
 # External groundhog dependencies
-groundhog-xdr = { registry = "groundhog", version = "=0.19.7", features = ["xdrs", "syscalls"] }
-groundhog-syscall = { registry = "groundhog", version = "=0.19.7" }
+thruput-xdr = { registry = "thruput", version = "=0.55.0", features = ["xdrs", "syscalls"] }
+thruput-syscall = { registry = "thruput", version = "=0.55.0" }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }

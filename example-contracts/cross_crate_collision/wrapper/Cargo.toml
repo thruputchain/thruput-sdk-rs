@@ -18,9 +18,9 @@ required-features = ["entrypoints"]
 [dependencies]
 alpha = { path = "../alpha" }
 beta = { path = "../beta" }
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 
 [dev-dependencies]
 alpha = { path = "../alpha", features = ["dev"] }
 beta = { path = "../beta", features = ["dev"] }
-sdk = { workspace = true, features = ["dev"] }
+thruput-sdk = { workspace = true, features = ["dev"] }

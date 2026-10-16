@@ -1,25 +1,17 @@
 //! System function: Delete
 
+use crate::re_throw::OrSyscallThrow;
 use crate::sys_result::delete as result;
 use crate::types::StorageKey;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 pub fn delete_shared(key: &StorageKey) {
-    result::delete_shared(key).unwrap_or_else(|errno| {
-        crate::exn::syscall_throw(crate::sys::SyscallNo::kDeleteObject, errno)
-    });
+    result::delete_shared(key)
+        .or_syscall_throw(crate::sys::SyscallNo::kDeleteObject);
 }
 
 pub fn delete_exclusive(key: &StorageKey) {
-    result::delete_exclusive(key).unwrap_or_else(|errno| {
-        crate::exn::syscall_throw(crate::sys::SyscallNo::kDeleteObject, errno)
-    });
-}
-
-pub fn delete_with_flags(key: &StorageKey, flags: StorageDeltaFlags) {
-    result::delete_with_flags(key, flags).unwrap_or_else(|errno| {
-        crate::exn::syscall_throw(crate::sys::SyscallNo::kDeleteObject, errno)
-    });
+    result::delete_exclusive(key)
+        .or_syscall_throw(crate::sys::SyscallNo::kDeleteObject);
 }
 
 /// Delete anything stored at the given key.

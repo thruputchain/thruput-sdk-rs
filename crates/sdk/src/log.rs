@@ -1,14 +1,14 @@
 //! System functions: logging
 
+use crate::re_throw::OrSyscallThrow;
 use crate::sys;
 
 pub fn log(buffer: &[u8]) {
-    sys::raw_ConsoleLog(buffer).unwrap_or_else(|errno| {
-        crate::syscall_throw(crate::sys::SyscallNo::kConsoleLog, errno)
-    });
+    sys::raw_ConsoleLog(buffer)
+        .or_syscall_throw(crate::sys::SyscallNo::kConsoleLog);
 }
 
-#[cfg(feature = "mock")]
+#[cfg(feature = "dev")]
 pub fn log_str<S: AsRef<str>>(msg: S) {
     std::println!("::LOG:: {}", msg.as_ref());
 }

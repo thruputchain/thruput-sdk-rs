@@ -1,5 +1,5 @@
 use crate::ImportedErrorCallee;
-use sdk::*;
+use thruput_sdk::*;
 
 pub struct ImportedErrorCalleeContract;
 

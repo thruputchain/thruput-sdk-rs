@@ -4,14 +4,6 @@ rustflags = [
     "--deny", "warnings",
     ]
 
-[target.wasm32-unknown-unknown]
-rustflags = [
-    "-C", "panic=immediate-abort",
-    "-C", "link-args=-zstack-size=30000",
-    "-Z", "unstable-options",
-    "--deny", "warnings",
-    ]
-
 [profile.release]
 opt-level = 3
 overflow-checks = false

@@ -6,11 +6,11 @@
 //!
 //! Expected result: 1000 + 10 + 20 + 30 = 1060
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[test]
 fn full_mint_consume_forward_lifecycle() {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
 
     let leaf_mock = signer_leaf::register_mock_contract(&env);
     let middle_mock = signer_middle::register_mock_contract(&env);

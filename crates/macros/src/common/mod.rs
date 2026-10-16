@@ -3,6 +3,7 @@ pub mod config;
 pub mod contract;
 pub mod entrypoint;
 pub mod exports;
+pub mod spec_id;
 pub mod spec_reg;
 pub mod strip;
 pub mod test_reg;

@@ -7,24 +7,24 @@
 //! result.assert_success();
 //! ```
 //! `contract_test!` and `client_test` are thin sugar over that pattern.
-//! `test_wasm` is the harness for running real wasm blobs through the full
-//! SignedTransaction path (the only place gas_consumed is observable).
+//! `test_rv32` is the harness for running real rv32 artifacts through the
+//! full SignedTransaction path (the only place gas_consumed is observable).
 
 use crate::call::RawCallError;
-use crate::exn::FaultString;
+use crate::exn::FaultInfo;
 use crate::exn::RawException;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
-use groundhog_native_exec as native_exec;
-use groundhog_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::transaction::{
-    Invocation, InvocationFrameStatusCode, SignedTransaction, Transaction,
-    Uniquifier,
-};
 use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
 use std::vec::Vec;
+use thruput_native_exec as native_exec;
+use thruput_xdr::auth_claim::{AuthClaim, AuthClaim_source_address_claim};
+use thruput_xdr::contract::ContractEntrypointID;
+use thruput_xdr::transaction::{
+    Invocation, InvocationFrameStatusCode, SignedTransaction, Transaction,
+    Uniquifier,
+};
 
 /// Decode a `TransactResult`'s root-frame outcome into the same
 /// `Result<T, RawCallError>` shape that contract clients produce.
@@ -51,7 +51,7 @@ where
             // them back to.
             crate::call::contract_call_decode::<T>(
                 return_buffer.as_slice(),
-                &[],
+                [],
             )
             .map_err(crate::call::widen_uninhabited_exn)
         }
@@ -65,7 +65,18 @@ where
                 )),
             }
         }
-        Fault => Err(RawCallError::Fault(FaultString::empty())),
+        // Whatever the harness recorded for this frame's own panic. There
+        // is no record when the frame faulted without an ordinary panic to
+        // catch — a syscall that runs out of gas unwinds an `InvokeError`
+        // instead, which carries no message — or when the fault came from a
+        // called contract (see `TransactResult::fault_panic`). Both read
+        // back as `"<fault>"`.
+        Fault => Err(RawCallError::Fault(
+            result
+                .fault_panic()
+                .map(FaultInfo::from)
+                .unwrap_or_default(),
+        )),
         other => {
             panic!("unsupported InvocationFrameOutput variant: {:?}", other)
         }
@@ -122,7 +133,7 @@ where
     .assert_success();
 }
 
-mod contract_test_wasm {
+mod contract_test_guest {
     use crate::SHA256Hash;
     use alloc::boxed::Box;
     use core::error::Error;
@@ -135,7 +146,7 @@ mod contract_test_wasm {
     }
 }
 
-pub use contract_test_wasm::*;
+pub use contract_test_guest::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Stats {
@@ -144,13 +155,13 @@ pub struct Stats {
 
 /// Build a one-shot TransactionHandler that runs `test` as a mock contract
 /// method through the full SignedTransaction path. Internal harness for
-/// `test_wasm` — everything else uses `env.transact`.
-fn wasm_test_handler<F>(
+/// `test_rv32` — everything else uses `env.transact`.
+fn guest_test_handler<F>(
     env: &TestEnvironmentHandle,
     test: F,
 ) -> TransactionHandler
 where
-    F: Fn() + UnwindSafe + Clone + 'static,
+    F: Fn() + UnwindSafe + Clone + Send + Sync + 'static,
 {
     let mut test_contract = env.add_contract();
     let entrypoint = ContractEntrypointID::from([0; 8]);
@@ -184,24 +195,25 @@ where
             },
             contracts_to_deploy: Vec::new().try_into().unwrap(),
         },
+        pubkey_claim_key: None,
     };
 
     TransactionHandler::new(env.clone(), &stx)
 }
 
-pub fn test_wasm<P, T>(path: P, test: T) -> Stats
+pub fn test_rv32<P, T>(path: P, test: T) -> Stats
 where
     P: AsRef<std::path::Path>,
-    T: ContractTest + Clone + 'static + core::panic::UnwindSafe,
+    T: ContractTest + Clone + 'static + core::panic::UnwindSafe + Send + Sync,
 {
-    let contract = load_wasm_contract(path);
+    let contract = load_rv32_contract(path);
 
     // Set up the contract
     let env = TestEnvironment::new(None);
     TestEnvironment::enable_syscall_logging();
     let contract_hash = env.setup_create_contract(&contract);
 
-    let mut handler = wasm_test_handler(&env, move || -> () {
+    let mut handler = guest_test_handler(&env, move || -> () {
         test.run(&contract_hash)
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
@@ -225,45 +237,6 @@ where
     }
 
     Stats { gas_consumed }
-}
-
-pub fn load_wasm_contract<P>(path: P) -> Contract
-where
-    P: AsRef<std::path::Path>,
-{
-    use crate::contract::ContractBlob;
-
-    let raw_wasm = std::fs::read(path.as_ref()).unwrap_or_else(|e| {
-        panic!(
-            "{}: couldn't load wasm: {}",
-            path.as_ref().to_str().unwrap_or("?"),
-            e
-        )
-    });
-
-    let instrument_config = groundhog_wasm_meter::Config {
-        max_imported_functions: 1,
-        reject_floats: true,
-        ..groundhog_wasm_meter::Config::default()
-    };
-
-    let instrumented =
-        groundhog_wasm_meter::instrument(&raw_wasm, &instrument_config)
-            .unwrap_or_else(|e| {
-                panic!(
-                    "{}: wasm instrumentation failed: {}",
-                    path.as_ref().to_str().unwrap_or("?"),
-                    e
-                )
-            });
-
-    let contract: ContractBlob = ContractBlob {
-        data: BytesM(instrumented),
-    };
-
-    Contract::kWasmi {
-        wasmi_contract: contract,
-    }
 }
 
 pub fn load_rv32_contract<P>(path: P) -> Contract
@@ -291,11 +264,11 @@ where
 
 pub fn deploy_address(
     deployer_address: &ContractAddress,
-    nonce: &Hash256,
-    contract_hash: &Hash256,
+    nonce: &SHA256Hash,
+    contract_hash: &SHA256Hash,
 ) -> ContractAddress {
-    use groundhog_xdr::contract::ContractDeploymentHashPreimage;
     use sha2::{Digest, Sha256};
+    use thruput_xdr::contract::ContractDeploymentHashPreimage;
 
     let preimage = ContractDeploymentHashPreimage {
         deployer_address: *deployer_address,
@@ -315,8 +288,8 @@ pub fn deploy_address(
 
 #[cfg(test)]
 mod tests {
+    use super::guest_test_handler;
     use super::load_rv32_contract;
-    use super::wasm_test_handler;
     use crate::TestEnvironment;
     use std::format;
     use std::fs;
@@ -341,7 +314,7 @@ mod tests {
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let env = TestEnvironment::new(None);
-                let mut handler = wasm_test_handler(&env, || {});
+                let mut handler = guest_test_handler(&env, || {});
                 // Transaction invoked but never committed or aborted: Drop must
                 // abort it during unwind.
                 let _ = handler.root_invoke();
@@ -373,7 +346,7 @@ mod tests {
 
         fs::remove_file(&path).unwrap();
         match contract {
-            groundhog_xdr::contract::Contract::kRv32 { rv32_contract } => {
+            thruput_xdr::contract::Contract::kRv32 { rv32_contract } => {
                 assert_eq!(rv32_contract.data.0, bytes);
             }
             other => panic!("expected rv32 contract, got {other:?}"),

@@ -1,0 +1,56 @@
+name: Scaffold Smoke
+
+# Builds a `thruput new` scaffold from the Thruput CLI this repo pins
+# (scripts/thruput-cli-version.sh) against the SDK at head (see
+# scripts/scaffold-smoke.sh). Guards the CLI x sdk-head combination — the
+# class of breakage sdk 0.17.8 shipped (scaffold build broken by an xdrs
+# feature edge) — so it runs on pushes to main rather than on every PR
+# commit: each run costs a cold scaffold build, and the drift it catches is
+# against the CLI's scaffold, not a function of individual PR diffs.
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+  # Namespace-cached CLI install root: scaffold-smoke.sh installs the pinned
+  # Thruput CLI here once per version bump instead of recompiling it every
+  # run. Mirrors ci.yml.
+  THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
+
+permissions:
+  contents: read
+
+jobs:
+  scaffold-smoke:
+    runs-on: namespace-profile-hogd-linux-2604
+
+    steps:
+      # No submodules or FFI secrets: the workspace has no git
+      # dependencies, the only submodule (integration_test/contracts) is not
+      # a workspace member, and the scaffold build never enables the SDK's `dev` feature.
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Authenticate pinned CLI source
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
+
+      # NB: deliberately NOT caching ./target — cargo's many-small-file churn
+      # stalls on the network-backed cache mount. Cache only the dependency
+      # sources and the compiled Thruput CLI. Mirrors ci.yml.
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/thruput-cli-source
+            ${{ github.workspace }}/.thruput-cli
+
+      - name: Scaffold and build
+        run: ./scripts/scaffold-smoke.sh

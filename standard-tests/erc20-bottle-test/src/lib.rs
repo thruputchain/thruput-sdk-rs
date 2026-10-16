@@ -2,8 +2,8 @@
 
 pub use bottle_test_if::*;
 use erc20_test::*;
-use sdk::storage::Value;
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 #[derive(Debug)]
 #[storage]
@@ -11,7 +11,7 @@ pub struct BT {
     target_addr: Value<Option<ContractAddress>>,
 }
 
-#[contract(version = "0.1.0")]
+#[contract]
 impl BottleTest for BT {
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         let target_addr = erc20_test_setup(target_contract_hash);

@@ -3,7 +3,7 @@
 #[cfg(feature = "std")]
 extern crate std;
 
-mod interface;
 mod implementation;
+mod interface;
 
 pub use interface::{Client, HTLC};

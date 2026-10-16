@@ -1,9 +1,14 @@
-use sdk::exn::Exn;
+use thruput_sdk::exn::Exn;
 
 #[derive(
-    Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, thiserror::Error,
+    Debug,
+    Clone,
+    PartialEq,
+    thruput_sdk::ReadXDR,
+    thruput_sdk::WriteXDR,
+    thiserror::Error,
 )]
-#[sdk::exn]
+#[thruput_sdk::exn]
 #[repr(i32)]
 enum TestError {
     #[error("a")]
@@ -13,9 +18,14 @@ enum TestError {
 }
 
 #[derive(
-    Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, thiserror::Error,
+    Debug,
+    Clone,
+    PartialEq,
+    thruput_sdk::ReadXDR,
+    thruput_sdk::WriteXDR,
+    thiserror::Error,
 )]
-#[sdk::exn]
+#[thruput_sdk::exn]
 #[repr(i32)]
 enum UnitOnlyError {
     #[error("first")]
@@ -25,9 +35,14 @@ enum UnitOnlyError {
 }
 
 #[derive(
-    Debug, Clone, PartialEq, sdk::ReadXDR, sdk::WriteXDR, thiserror::Error,
+    Debug,
+    Clone,
+    PartialEq,
+    thruput_sdk::ReadXDR,
+    thruput_sdk::WriteXDR,
+    thiserror::Error,
 )]
-#[sdk::exn]
+#[thruput_sdk::exn]
 #[error("named fields")]
 struct NamedFieldsError {
     code: u32,
@@ -44,7 +59,7 @@ fn derive_exn_produces_stable_selector() {
 
 #[test]
 fn derive_exn_selector_matches_contract_util() {
-    let expected = groundhog_contract_util::exception_selector(
+    let expected = thruput_contract_util::exception_selector(
         env!("CARGO_PKG_VERSION"),
         env!("CARGO_PKG_NAME"),
         "TestError",

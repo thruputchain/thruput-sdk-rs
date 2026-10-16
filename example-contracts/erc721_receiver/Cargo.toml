@@ -1,0 +1,37 @@
+[package]
+name = "erc721_receiver"
+description = "Example ERC721 receiver: records tokens delivered by safe transfers"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "thruput-erc721-if/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p erc721_receiver` derives
+# `--bin erc721_receiver` from the package name, so the name here must stay
+# the underscored package name. `required-features` keeps it out of host
+# builds.
+[[bin]]
+name = "erc721_receiver"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+thruput-erc721-if = { workspace = true }
+
+[dev-dependencies]
+erc721_receiver = { path = ".", features = ["dev"] }

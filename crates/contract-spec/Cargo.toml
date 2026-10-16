@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-contract-spec"
+name = "thruput-contract-spec"
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -9,7 +9,15 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Canonical contract spec model for Groundhog contracts"
+description = "Canonical contract spec model for Thruput contracts"
+
+# Read by the `thruput` CLI via `cargo metadata` on a contract's resolved
+# dependency graph, so build-time version skew is reported before compiling
+# rather than as a fragment parse failure afterwards. Must match
+# `format::RAW_SPEC_FORMAT`; `manifest_metadata_matches_raw_spec_format` pins
+# the two together.
+[package.metadata.groundhog]
+raw_spec_format = 4
 
 [lib]
 crate-type = ["rlib"]
@@ -17,15 +25,15 @@ crate-type = ["rlib"]
 [features]
 default = ["owned-model"]
 alloc = ["xdrs/alloc"]
-owned-model = ["alloc", "dep:groundhog-spec"]
-serde = ["owned-model", "groundhog-spec/serde"]
+owned-model = ["alloc", "dep:thruput-spec"]
+serde = ["owned-model", "thruput-spec/serde"]
 
 [dependencies]
-groundhog-xdr = { workspace = true }
-groundhog-spec = { workspace = true, optional = true }
+thruput-xdr = { workspace = true }
+thruput-spec = { workspace = true, optional = true }
 xdrs = { workspace = true, features = ["heapless", "derive"] }
 xdr-common = { workspace = true }
 heapless = { workspace = true }
 
 [[test]]
-name = "groundhog_xdr_refspec"
+name = "thruput_xdr_refspec"

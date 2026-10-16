@@ -1,0 +1,5 @@
+error: associated types are not supported in #[contract] traits
+ --> tests/compile-fail/contract_trait_assoc_type.rs:7:5
+  |
+7 |     type Asset;
+  |     ^^^^^^^^^^^

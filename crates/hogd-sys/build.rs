@@ -3,22 +3,31 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
+
+#[path = "build/download.rs"]
+mod download;
 
 #[cfg(feature = "source-build")]
 const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
 
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
-const TEST_FFI_VERSION: &str = "0.20.0";
+const TEST_FFI_VERSION: &str = "0.39.0";
 
-/// Must match the version expected by hogd/built_contracts/build_wasm.sh.
+/// Must match the version expected by hogd/built_contracts' build scripts.
+/// Bump this in lockstep with `TEST_FFI_VERSION`: the hogd tag we check out
+/// gates its contract builds on an exact `groundhog <version>` match, so a
+/// stale pin fails the source build in built_contracts/build_risc.sh.
 #[cfg(feature = "source-build")]
-const GROUNDHOG_CLI_VERSION: &str = "0.5.12";
+const GROUNDHOG_CLI_VERSION: &str = "0.26.0";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
 /// - If `HOGD_SRC` is set but empty/missing, clone there
-/// - Otherwise, clone to `OUT_DIR/hogd_clone`
+/// - Otherwise, clone under the system temporary directory, keyed by OUT_DIR
+///   and TEST_FFI_VERSION. Keep this independent workspace outside the SDK
+///   configuration tree: its pinned source still uses a different registry alias.
 #[cfg(feature = "source-build")]
 fn ensure_hogd_clone(
     out_dir: &Path,
@@ -37,8 +46,16 @@ fn ensure_hogd_clone(
         return Ok(hogd_path);
     }
 
-    // Default: clone to OUT_DIR/hogd_clone
-    let hogd_path = out_dir.join("hogd_clone");
+    // Preserve per-build/per-version isolation without inheriting SDK Cargo config.
+    let build_key: String =
+        Sha256::digest(out_dir.as_os_str().as_encoded_bytes())
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect();
+    let hogd_path = env::temp_dir()
+        .join("thruput-sdk-hogd")
+        .join(build_key)
+        .join(format!("test-ffi-v{TEST_FFI_VERSION}"));
     if !hogd_path.exists() {
         clone_hogd_repo(&hogd_path, &expected_tag)?;
     }
@@ -197,11 +214,6 @@ fn stage_shared_lib(
 
     if src != dst {
         fs::copy(&src, &dst)?;
-        println!(
-            "cargo:warning=Staged {} to {}",
-            src.display(),
-            dst.display()
-        );
     }
 
     Ok(stage_dir)
@@ -229,10 +241,6 @@ fn find_prebuilt_bindings(
     }
 
     fs::copy(&bindings_src, &bindings_dst)?;
-    println!(
-        "cargo:warning=Copied bindings.rs from tarball to: {}",
-        bindings_dst.display()
-    );
 
     Ok(())
 }
@@ -242,12 +250,21 @@ fn find_prebuilt_bindings(
 /// rpath entries configured in .cargo/config.toml.
 fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
-    // OUT_DIR is target/<profile>/build/<pkg>-<hash>/out
+    // OUT_DIR is <profile>/build/<pkg>-<hash>/out (cargo <= 1.98) or
+    // <profile>/build/<pkg>/<hash>/out (cargo 1.99+), so a fixed number of
+    // `parent()` hops is wrong for one layout or the other. Find the `build`
+    // ancestor instead; its parent is the profile dir in both. (Our package
+    // is not itself named `build`, so the first match is the right one.)
     let deps_dir = out_dir
-        .parent()
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .ok_or("OUT_DIR does not have expected depth (target/<profile>/build/<pkg>-<hash>/out)")?
+        .ancestors()
+        .find(|p| p.file_name() == Some(std::ffi::OsStr::new("build")))
+        .and_then(|build| build.parent())
+        .ok_or_else(|| {
+            format!(
+                "OUT_DIR {} has no `build` ancestor; cannot locate <profile>/deps",
+                out_dir.display()
+            )
+        })?
         .join("deps");
 
     let lib_name = shared_lib_name();
@@ -255,15 +272,21 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let dst = deps_dir.join(&lib_name);
 
     if src.exists() {
-        fs::copy(&src, &dst)?;
-        println!(
-            "cargo:warning=Copied {} to {} for rpath resolution",
-            src.display(),
-            dst.display()
-        );
+        // On a cold target dir the build script can run before anything has
+        // created <profile>/deps (cargo 1.99+ no longer pre-creates it).
+        fs::create_dir_all(&deps_dir).map_err(|e| {
+            format!("failed to create {}: {e}", deps_dir.display())
+        })?;
+        fs::copy(&src, &dst).map_err(|e| {
+            format!(
+                "failed to copy {} to {}: {e}",
+                src.display(),
+                dst.display()
+            )
+        })?;
     } else {
         println!(
-            "cargo:warning=Shared library not found at {} — rpath resolution may fail at runtime",
+            "cargo:warning=Shared library not found at {}; rpath resolution may fail at runtime",
             src.display()
         );
     }
@@ -273,7 +296,7 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Which build strategy the build script should use.
 enum BuildMethod {
-    /// Download prebuilt binaries from `groundhog.dev`.
+    /// Download prebuilt binaries from public S3.
     Prebuilt,
     /// User pointed us at a directory containing the library.
     CustomLib(String),
@@ -322,14 +345,20 @@ fn resolve_build_method() -> Result<BuildMethod, Box<dyn std::error::Error>> {
     .into())
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let target = env::var("TARGET").unwrap();
-    println!("cargo:warning=TARGET is '{target}'");
+fn main() {
+    // Print with `Display` rather than returning the error: the multi-line
+    // messages below render as one `\n`-escaped line under `Debug`.
+    if let Err(e) = run() {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
+}
 
-    if target == "wasm32-unknown-unknown" {
-        return Err(
-            "native_exec does not build for wasm32-unknown-unknown".into()
-        );
+fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let target = env::var("TARGET").unwrap();
+
+    if target.starts_with("riscv32") {
+        return Err(format!("native_exec does not build for {target}").into());
     }
 
     println!("cargo:rerun-if-env-changed=HOGD_FFI_BUILD");
@@ -344,7 +373,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             run_prebuilt_download(&out_dir)?;
         }
         BuildMethod::CustomLib(dir) => {
-            println!("cargo:warning=Using custom library directory");
             let lib_path = PathBuf::from(&dir);
             find_prebuilt_bindings(&lib_path, &out_dir)?;
             use_prebuilt_lib(&dir, &out_dir)?;
@@ -356,7 +384,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             return Err(
                 "HOGD_FFI_BUILD=1 requires the `source-build` feature so \
                  cmake and bindgen are available.\n\
-                 Build with: cargo build -p groundhog-sys --features source-build"
+                 Build with: cargo build -p thruput-sys --features source-build"
                     .into(),
             );
         }
@@ -374,7 +402,7 @@ fn run_prebuilt_download(
         .unwrap()
         .parent()
         .unwrap()
-        .join("groundhog-sys.fslock");
+        .join("thruput-sys.fslock");
     let mut lockfile = fslock::LockFile::open(&lock_path)
         .expect("bug: could not open build lock file");
     lockfile.lock_with_pid().expect(
@@ -383,11 +411,6 @@ fn run_prebuilt_download(
 
     let arch = target_arch();
     let os = target_os();
-    println!(
-        "cargo:warning=Platform {arch}-{os} supports prebuilt libraries, downloading...",
-    );
-    println!("cargo:warning=Using hardcoded version: {TEST_FFI_VERSION}");
-
     download_and_extract(out_dir, &arch, &os, TEST_FFI_VERSION)
 }
 
@@ -471,7 +494,7 @@ fn fetch_hogd_rust_deps(
                 "fetch",
                 "-Zbuild-std",
                 "--target",
-                "wasm32-unknown-unknown",
+                "riscv32im-unknown-none-elf",
             ])
             .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
             .current_dir(&contracts_dir)
@@ -479,8 +502,9 @@ fn fetch_hogd_rust_deps(
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(format!(
-                "cargo fetch -Zbuild-std --target wasm32-unknown-unknown \
-                 in built_contracts failed: {stderr}"
+                "cargo fetch -Zbuild-std --target \
+                 riscv32im-unknown-none-elf in built_contracts failed: \
+                 {stderr}"
             )
             .into());
         }
@@ -523,7 +547,13 @@ fn fetch_hogd_rust_deps(
             .as_ref()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
             .unwrap_or_default();
-        if installed_ver == expected_ver {
+        // `groundhog --version` appends build detail, e.g.
+        // "groundhog 0.11.0 (commit abc1234)". Compare the release version
+        // only, or this never matches and we reinstall on every build.
+        let installed_release = installed_ver
+            .split_once(" (")
+            .map_or(installed_ver.as_str(), |(release, _)| release);
+        if installed_release == expected_ver {
             println!(
                 "cargo:warning=groundhog-cli {GROUNDHOG_CLI_VERSION} \
                  already installed, skipping",
@@ -557,12 +587,12 @@ fn fetch_hogd_rust_deps(
                 "--root",
                 cli_root.to_str().unwrap(),
                 "--registry",
-                "groundhog",
+                "thruput",
                 &pkg,
             ])
             .env(
-                "CARGO_REGISTRIES_GROUNDHOG_INDEX",
-                "sparse+https://groundhog.dev/crates/api/v1/crates/",
+                "CARGO_REGISTRIES_THRUPUT_INDEX",
+                "sparse+https://crates.thruput.network/api/v1/crates/",
             )
             .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
             .output()?;
@@ -656,83 +686,10 @@ fn use_prebuilt_lib(
     Ok(())
 }
 
-fn add_auth_to_curl(cmd: &mut Command, user: &str) {
-    if let Ok(pass) = env::var("HOGD_FFI_PASSWORD") {
-        if !user.is_empty() {
-            println!(
-                "cargo:warning=Using credentials from HOGD_FFI_USER and HOGD_FFI_PASSWORD env variables."
-            );
-            cmd.arg("-u").arg(format!("{user}:{pass}"));
-        }
-    } else {
-        println!(
-            "cargo:warning=HOGD_FFI_PASSWORD env variable not set. Attempting to download without authentication."
-        );
-    }
-}
-
-/// Download a file with retry and exponential backoff.
-///
-/// Downloads to a `.tmp` file first and atomically renames on success, so
-/// a partial download never corrupts the cache.
-fn download_with_retry(
-    url: &str,
-    dest: &Path,
-    max_retries: u32,
-    user: &str,
-) -> Result<(), String> {
-    let tmp = dest.with_extension("tmp");
-    if tmp.exists() {
-        let _ = fs::remove_file(&tmp);
-    }
-
-    let mut wait_secs = 5;
-    for attempt in 0..=max_retries {
-        let mut cmd = Command::new("curl");
-        cmd.arg("--fail").arg("-L").arg("-o").arg(&tmp).arg(url);
-        add_auth_to_curl(&mut cmd, user);
-
-        let status = cmd.status();
-
-        match status {
-            Ok(s) if s.success() && tmp.exists() => {
-                // Atomic rename
-                fs::rename(&tmp, dest)
-                    .map_err(|e| format!("rename failed: {e}"))?;
-                return Ok(());
-            }
-            Ok(s) => {
-                let _ = fs::remove_file(&tmp);
-                if attempt < max_retries {
-                    let code = s.code().unwrap_or(-1);
-                    let next = attempt + 1;
-                    println!(
-                        "cargo:warning=download attempt {next} failed (exit {code}), retrying in {wait_secs}s...",
-                    );
-                    std::thread::sleep(std::time::Duration::from_secs(
-                        wait_secs,
-                    ));
-                    wait_secs *= 2;
-                }
-            }
-            Err(e) => {
-                let _ = fs::remove_file(&tmp);
-                return Err(format!(
-                    "curl not found or failed to execute: {e}"
-                ));
-            }
-        }
-    }
-
-    let total = max_retries + 1;
-    Err(format!("download failed after {total} attempts: {url}"))
-}
-
 /// Download a file if not already cached, using URL-based invalidation.
 fn ensure_cached_download(
     url: &str,
     dest: &Path,
-    user: &str,
     label: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let sum_path = dest.with_extension("sum");
@@ -743,10 +700,6 @@ fn ensure_cached_download(
             .unwrap_or(false);
 
     if cache_valid {
-        println!(
-            "cargo:warning={label} cache hit at {}, skipping download",
-            dest.display()
-        );
         return Ok(());
     }
 
@@ -756,8 +709,15 @@ fn ensure_cached_download(
 
     println!("cargo:warning=Downloading {label} from: {url}");
 
-    download_with_retry(url, dest, 3, user)
-        .map_err(|e| format!("{label} download failed: {e}"))?;
+    download::download_with_retry(
+        Path::new("curl"),
+        url,
+        dest,
+        TEST_FFI_VERSION,
+        3,
+        Duration::from_secs(5),
+    )
+    .map_err(|e| format!("{label} download failed: {e}"))?;
 
     fs::write(&sum_path, url)
         .map_err(|e| format!("failed to write {label} cache sum: {e}"))?;
@@ -771,10 +731,12 @@ fn verify_checksum(
     archive_bytes: &[u8],
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !checksum_path.exists() {
-        println!(
-            "cargo:warning=Checksum file not found, skipping verification"
-        );
-        return Ok(());
+        return Err(format!(
+            "Checksum file not found at {}; refusing to use an unverified \
+             archive.",
+            checksum_path.display()
+        )
+        .into());
     }
 
     let checksum_content = fs::read_to_string(checksum_path)?;
@@ -801,11 +763,10 @@ fn verify_checksum(
         )
         .into());
     }
-    println!("cargo:warning=Checksum verified: {actual}");
     Ok(())
 }
 
-/// Download and extract the prebuilt library from `groundhog.dev`.
+/// Download and extract the prebuilt library from public S3.
 fn download_and_extract(
     out_dir: &Path,
     target_arch: &str,
@@ -827,35 +788,22 @@ fn download_and_extract(
     };
 
     let download_url = format!(
-        "https://groundhog.dev/builds/test-ffi/test-ffi-v{version}/{archive_name}",
+        "https://groundhog-public-release-artifacts-017820684264.s3.us-west-2.amazonaws.com/test-ffi/test-ffi-v{version}/{archive_name}",
     );
 
     let cache_dir = download_cache_dir();
     fs::create_dir_all(&cache_dir)?;
     let archive_path = cache_dir.join(archive_name);
 
-    let user =
-        env::var("HOGD_FFI_USER").unwrap_or_else(|_| "marmot".to_string());
+    ensure_cached_download(&download_url, &archive_path, "Archive")?;
 
-    println!("cargo:rerun-if-env-changed=HOGD_FFI_USER");
-    println!("cargo:rerun-if-env-changed=HOGD_FFI_PASSWORD");
-
-    ensure_cached_download(&download_url, &archive_path, &user, "Archive")?;
-
-    // Download checksum (non-fatal on failure)
+    // Download checksum. A failed or absent checksum is a hard error: an
+    // unverifiable archive is indistinguishable from a tampered one. Cached
+    // builds are unaffected — a cache hit on both files skips both downloads.
     let checksum_url = format!("{download_url}.sha256");
     let checksum_path = cache_dir.join(format!("{archive_name}.sha256"));
-    if let Err(e) = ensure_cached_download(
-        &checksum_url,
-        &checksum_path,
-        &user,
-        "Checksum",
-    ) {
-        let _ = fs::remove_file(&checksum_path);
-        println!(
-            "cargo:warning=Checksum download failed ({e}), skipping verification",
-        );
-    }
+    ensure_cached_download(&checksum_url, &checksum_path, "Checksum")
+        .map_err(|e| format!("refusing to use an unverified archive: {e}"))?;
 
     let archive_bytes = fs::read(&archive_path)?;
     verify_checksum(&archive_path, &checksum_path, &archive_bytes)?;
@@ -924,11 +872,6 @@ fn download_and_extract(
         .into());
     }
 
-    println!(
-        "cargo:warning=Extracted library to: {}",
-        extract_dir.display()
-    );
-
     let lib_found = extract_dir.join("libtest_ffi.so").exists()
         || extract_dir.join("libtest_ffi.dylib").exists()
         || extract_dir.join("test_ffi.dll").exists();
@@ -965,16 +908,13 @@ fn build_from_cmake(
         .define("CMAKE_CXX_COMPILER_LAUNCHER", "ccache")
         .define("ENABLE_TEST_CONTRACTS", "OFF");
 
-    #[cfg(feature = "wasm_backtraces")]
-    cfg.define("WASM_DEBUG_BACKTRACES", "ON");
-
     // Force re-configuration before building, if requested
     cfg.always_configure(
         env::var("NATIVE_EXEC_ALWAYS_CONFIGURE").is_ok_and(|s| !s.is_empty()),
     );
 
-    // Put the locally-installed groundhog-cli on PATH so cmake/build_wasm.sh
-    // can find it without touching the user's global cargo bin.
+    // Put the locally-installed groundhog-cli on PATH so hogd's cmake
+    // contract builds can find it without touching the user's global cargo bin.
     let cli_bin = out_dir.join("groundhog-cli/bin");
     if cli_bin.exists() {
         let path = env::var("PATH").unwrap_or_default();

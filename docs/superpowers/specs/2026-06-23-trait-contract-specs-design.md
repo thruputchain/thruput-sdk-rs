@@ -40,7 +40,7 @@ Constraints from the user:
 
 - Must work for the **rv32 (`riscv32im-unknown-none-elf`) target** — that is the
   primary target going forward. A wasm-only solution is not acceptable.
-- Should be **driven by the groundhog CLI**. The CLI may be extended; ergonomics
+- Should be **driven by the Thruput CLI**. The CLI may be extended; ergonomics
   over the long term is the priority.
 
 ## Key findings (current state)
@@ -80,7 +80,7 @@ Constraints from the user:
    crate is compiled to the artifact.
 
 5. **Extraction pipeline already exists per target.**
-   - wasm: `groundhog build` → `groundhog-spec-tool rewrite --wasm`
+   - wasm: `thruput build` → `groundhog-spec-tool rewrite --wasm`
      (`parse_raw_fragments` → canonicalize → `spec_to_json`).
    - rv32: `cargo build --features entrypoints --target riscv32im-...` →
      published `rv32-lower` extracts the `#[used] groundhogspecrawv0` section.
@@ -152,12 +152,12 @@ For `groundhog-erc20`, `groundhog-erc1271`, `groundhog-erc20-metadata`:
 ### 3. CLI (external; blurb only)
 
 Expected to be near-zero. Once changes 1–2 land,
-`groundhog build -p groundhog-erc20-if --features entrypoints` should flow
+`thruput build -p groundhog-erc20-if --features entrypoints` should flow
 through the existing wasm-rewrite / rv32-lower extraction unchanged and emit the
 spec JSON.
 
 The one plausible CLI change: an interface compiles to a contract with **zero**
-dispatch entrypoints. If `groundhog build` or `rv32-lower` asserts "at least one
+dispatch entrypoints. If `thruput build` or `rv32-lower` asserts "at least one
 entrypoint," that guard must be relaxed or gated behind an explicit
 `--interface` / `--allow-empty` flag. A short note will be handed to whoever owns
 the CLI repo describing exactly this.

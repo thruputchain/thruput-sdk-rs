@@ -3,19 +3,20 @@ use crate::frame_result::FrameResult;
 use crate::invoke_error::InvokeError;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
-use groundhog_sys::ForeignTryCommitResult;
-use groundhog_trace::InvocationFrameTrace;
-use groundhog_xdr::auth_claim::AuthClaim;
-use groundhog_xdr::event::TxEmittedEvent;
-use groundhog_xdr::transaction::InvocationFrameOutput;
-use groundhog_xdr::types::SHA256Hash;
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::panic::UnwindSafe;
 use std::panic::panic_any;
 use std::rc::Rc;
+use thruput_sys::ForeignTryCommitResult;
+use thruput_trace::InvocationFrameTrace;
+use thruput_xdr::auth_claim::AuthClaim;
+use thruput_xdr::event::TxEmittedEvent;
+use thruput_xdr::syscall_error::SyscallErrorCode;
+use thruput_xdr::transaction::InvocationFrameOutput;
+use thruput_xdr::types::SHA256Hash;
 
-use groundhog_sys::FFIErrorCode;
+use thruput_sys::FFIErrorCode;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum MockTransactionState {
@@ -36,10 +37,12 @@ enum MockInvocationFrameState {
     ),
 }
 
+/// Builder for one invocation frame's configuration, opened with
+/// [`build`](Self::build).
 pub struct MockInvocationFrameConfig<'a> {
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
-    invocation: groundhog_xdr::transaction::Invocation,
-    invoke_flags: i32,
+    invocation: thruput_xdr::transaction::Invocation,
+    invoke_flags: thruput_xdr::invoke_flag::InvokeFlagSet,
 
     root_handler: *mut c_void,
     // when we build the frame, the new frame will be emplaced into this value
@@ -48,8 +51,14 @@ pub struct MockInvocationFrameConfig<'a> {
 }
 
 impl<'a> MockInvocationFrameConfig<'a> {
+    // The invoked address is a constructor parameter rather than an optional
+    // builder step: the test FFI admits mock frames under production's
+    // reentrance rule, which refuses an address that already has an active
+    // frame (hogd #3301). A default would make "forgot to set it" the
+    // reentrant case, and only at run time.
     fn new(
         root_handler: *mut c_void,
+        contract_address: thruput_xdr::types::ContractAddress,
         to_emplace: &'a mut Option<Box<MockInvocationFrame>>,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
@@ -57,8 +66,8 @@ impl<'a> MockInvocationFrameConfig<'a> {
         Self {
             context_pushcount,
             root_handler,
-            invocation: groundhog_xdr::transaction::Invocation {
-                invoked_address: [0; 32].into(),
+            invocation: thruput_xdr::transaction::Invocation {
+                invoked_address: contract_address,
                 entrypoint: [0; 8].into(),
                 gas_limit: u64::MAX,
                 calldata: xdr_common::BytesM::default(),
@@ -69,33 +78,32 @@ impl<'a> MockInvocationFrameConfig<'a> {
         }
     }
 
-    pub fn at_contract_address(
-        mut self,
-        contract_address: groundhog_xdr::types::ContractAddress,
-    ) -> Self {
-        self.invocation.invoked_address = contract_address;
-        self
-    }
-
+    /// Set the calldata the invoked frame observes (default: empty).
     pub fn with_calldata(mut self, calldata: xdr_common::BytesM) -> Self {
         self.invocation.calldata = calldata;
         self
     }
 
-    pub fn with_invoke_flags(mut self, invoke_flags: i32) -> Self {
+    /// Set the frame's invoke flags, a bitset of
+    /// [`InvokeFlag`](thruput_xdr::invoke_flag::InvokeFlag) values
+    /// (default: none).
+    pub fn with_invoke_flags(
+        mut self,
+        invoke_flags: thruput_xdr::invoke_flag::InvokeFlagSet,
+    ) -> Self {
         self.invoke_flags = invoke_flags;
         self
     }
 
+    /// Set the frame's gas limit (default: `u64::MAX`).
     pub fn with_gas_limit(mut self, gas_limit: u64) -> Self {
         self.invocation.gas_limit = gas_limit;
         self
     }
 
+    /// Open the frame at the FFI level, returning the
+    /// [`MockInvocationFrame`].
     pub fn build(self) -> &'a mut Box<MockInvocationFrame> {
-        // Frame-open bookkeeping (invocation encode, frame Box, FFI
-        // open) is harness work, not the enclosing frame's contract
-        // code.
         let _alloc_pause = crate::alloc_stats::PauseGuard::new();
         let serialized_invocation: Vec<u8> =
             xdrs::txs::encode(&self.invocation).unwrap();
@@ -111,45 +119,93 @@ impl<'a> MockInvocationFrameConfig<'a> {
     }
 }
 
+/// One open invocation frame in a mocked transaction. Drive it with
+/// [`execute`](Self::execute), then read the outcome with
+/// [`result`](Self::result). Prefer the fluent
+/// [`crate::frame_builder::FrameBuilder`] API unless a test needs this
+/// level of control.
 pub struct MockInvocationFrame {
     root_handler: *mut c_void,
     child_frame: Option<Box<MockInvocationFrame>>,
     state: MockInvocationFrameState,
     context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
     root_frame_closed: Option<Rc<Cell<bool>>>,
-    // Exclusive allocation stats accumulated across this frame's
-    // `execute` steps (a frame spans several via FrameAction::Continue),
-    // plus the cross-call records claimed from those windows.
-    alloc_stats: crate::alloc_stats::AllocStats,
+    /// The panic that faulted THIS frame's body, recorded at `execute`'s
+    /// catch site.
+    ///
+    /// Set only for a plain panic out of this frame's own lambda, which is
+    /// what makes it this frame's rather than a nested one's: a child frame
+    /// catches its own panic and closes itself, so the panic never reaches
+    /// here; and a `raw_Invoke`ed callee is caught by `invoke_wrapper`,
+    /// which has no frame to record against at all (see `fault_panic`).
+    fault_panic: Option<crate::invoke_error::PanicRecord>,
+    alloc_stats: Option<crate::alloc_stats::AllocStats>,
     cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
+}
+
+/// Name the rule that refused a frame, rather than leaving a caller with a
+/// bare code. These are production's own refusals: a contract's `Invoke` is
+/// turned away for the same reasons, and sees the same codes.
+fn frame_refusal_message(code: SyscallErrorCode) -> String {
+    let rule = match code {
+        c if c == SyscallErrorCode::kSyscallErrorCodeReentrance => {
+            "that address already has a frame open on this transaction's \
+             stack -- nested frames need distinct addresses"
+        }
+        c if c == SyscallErrorCode::kSyscallErrorCodeInvokeDepthExceeded => {
+            "the transaction already holds the chain's \
+             max_cross_invoke_depth frames open"
+        }
+        c if c == SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput => {
+            "the invoke flags carry bits production does not admit (only \
+             TryInvoke and ReadOnly are implemented)"
+        }
+        _ => "production refused the invocation",
+    };
+    format!(
+        "mock invocation frame refused: {rule} ({code}); a contract handles \
+         this through Invoke (thruput_sdk::call::try_call_raw_with)"
+    )
 }
 
 impl MockInvocationFrame {
     fn new(
         root_handler: *mut c_void,
         serialized_invocation: &[u8],
-        invoke_flags: i32,
+        invoke_flags: thruput_xdr::invoke_flag::InvokeFlagSet,
         context_pushcount: Rc<RefCell<ThreadlocalContextPushcount>>,
         root_frame_closed: Option<Rc<Cell<bool>>>,
     ) -> Self {
-        let ffi_invocation = groundhog_sys::FFISerializedInvocation {
+        let ffi_invocation = thruput_sys::FFISerializedInvocation {
             data: serialized_invocation.as_ptr() as *mut u8,
             len: serialized_invocation.len().try_into().unwrap(),
         };
 
-        let handler_res: groundhog_sys::FFIErrorCode = unsafe {
-            groundhog_sys::open_mock_invocation_frame(
+        let res = unsafe {
+            thruput_sys::open_mock_invocation_frame(
                 root_handler,
                 ffi_invocation,
                 invoke_flags,
             )
-            .into()
         };
+
+        // Two distinct failures, and the FFI keeps them apart: an FFI code
+        // means this harness called the API wrong, a syscall code means the
+        // call was well-formed and production refused it. Both open no frame.
+        let handler_res: thruput_sys::FFIErrorCode = res.ffi_error_code.into();
         if handler_res != FFIErrorCode::None {
+            // An InvokeError payload, not a plain panic!: the Unrecoverable
+            // code propagates out of any enclosing frame instead of being
+            // recorded as a contract panic.
             eprintln!(
                 "failed to open mock invocation frame: {:?}",
                 handler_res
             );
+            panic_any(crate::invoke_error::unrecoverable_error());
+        }
+        let refused = SyscallErrorCode(res.syscall_error_code);
+        if refused != SyscallErrorCode::kSyscallErrorCodeNone {
+            eprintln!("{}", frame_refusal_message(refused));
             panic_any(crate::invoke_error::unrecoverable_error());
         }
 
@@ -159,7 +215,8 @@ impl MockInvocationFrame {
             state: MockInvocationFrameState::Started,
             context_pushcount,
             root_frame_closed,
-            alloc_stats: crate::alloc_stats::AllocStats::ZERO,
+            fault_panic: None,
+            alloc_stats: None,
             cross_call_alloc_records: Vec::new(),
         }
     }
@@ -174,7 +231,18 @@ impl MockInvocationFrame {
         )
     }
 
-    pub fn open_child_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+    /// Configure a child frame of this one, invoking `contract_address`.
+    ///
+    /// The address must differ from every frame already open on the stack: the
+    /// test FFI admits mock frames under the same reentrance rule production
+    /// applies to `Invoke`, so an address that already has an active frame is
+    /// refused (hogd #3301) and `build()` panics unrecoverably. Frames that
+    /// have already finished, and frames in other transactions, do not count —
+    /// only the ones open at the same time.
+    pub fn open_child_frame(
+        &mut self,
+        contract_address: thruput_xdr::types::ContractAddress,
+    ) -> MockInvocationFrameConfig<'_> {
         // One open child at a time: `FrameAction::Continue` exists to
         // interleave frames across separate transactions, not to nest
         // multiple open frames inside one parent. (The test FFI lib guards
@@ -188,6 +256,7 @@ impl MockInvocationFrame {
         }
         let config = MockInvocationFrameConfig::new(
             self.root_handler,
+            contract_address,
             &mut self.child_frame,
             self.context_pushcount.clone(),
             None,
@@ -213,13 +282,16 @@ impl MockInvocationFrame {
         }
 
         let handler_res = unsafe {
-            groundhog_sys::finish_mock_invocation_frame(
+            thruput_sys::finish_mock_invocation_frame(
                 self.root_handler,
                 error_code.0,
             )
         };
         let err: FFIErrorCode = handler_res.ffi_error_code.into();
         if err != FFIErrorCode::None {
+            // An InvokeError payload, not a plain panic!: consumers assert
+            // on the Unrecoverable payload (see
+            // example-contracts/storage_errors).
             eprintln!("failed to close mock invocation frame: {:?}", err);
             panic_any(crate::invoke_error::unrecoverable_error());
         }
@@ -268,17 +340,20 @@ impl MockInvocationFrame {
         self.context_pushcount.borrow_mut().pop_context();
     }
 
+    /// Run `lambda` as this frame's contract code, mapping panics out of it
+    /// to frame outcomes. Unrecoverable [`InvokeError`] payloads (harness
+    /// misuse, FFI refusals) propagate instead. The returned `FrameAction`
+    /// closes the frame or leaves it open for another `execute`.
     pub fn execute(
         &mut self,
         lambda: impl FnOnce(&mut Self) -> crate::frame_builder::FrameAction
         + UnwindSafe,
     ) -> &mut Self {
         use crate::frame_builder::FrameAction;
+        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
 
         if self.state != MockInvocationFrameState::Started {
-            eprintln!(
-                "Should be impossible to execute a frame while it is not started"
-            );
+            eprintln!("cannot execute a frame that has already been closed");
             panic_any(crate::invoke_error::unrecoverable_error());
         }
 
@@ -297,32 +372,21 @@ impl MockInvocationFrame {
         }
 
         self.push_context();
-        crate::invoke_error::activate_panic_hook();
 
-        let records_start = crate::alloc_stats::records_len();
-        let alloc_scope = crate::alloc_stats::FrameMeasureScope::open();
+        let records = self.context_pushcount.borrow().alloc_records.open();
+        // Install the panic hook outside the allocation measurement window.
+        let hook = crate::invoke_error::PanicHookGuard::enter();
+        let scope =
+            crate::alloc_stats::FrameMeasureScope::open(self.alloc_stats);
         let result =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 lambda(self)
             }));
-        // Closing after catch_unwind covers panic/abort paths too. The
-        // scope reports stats exclusive of nested frames (child mock
-        // frames and trampoline cross-calls both open their own scopes),
-        // matching the real system where each frame is a separate guest
-        // instance with its own heap. Cross-call records logged during
-        // this window are claimed onto this frame; explicit child
-        // frames claimed theirs before this window closes.
-        let step_stats = alloc_scope.close();
-        // The rest of execute is frame-teardown bookkeeping (record
-        // claiming, context pop, FFI frame close + output/trace/event
-        // decode); pause so nested frames don't charge it to their
-        // parent's still-open window.
-        let _alloc_pause = crate::alloc_stats::PauseGuard::new();
-        self.alloc_stats = self.alloc_stats + step_stats;
-        self.cross_call_alloc_records
-            .extend(crate::alloc_stats::take_records_from(records_start));
-
-        crate::invoke_error::deactivate_panic_hook();
+        self.alloc_stats = scope.close();
+        drop(hook);
+        if let Some(records) = records {
+            self.cross_call_alloc_records.extend(records.finish());
+        }
         self.pop_context();
 
         match result {
@@ -334,23 +398,38 @@ impl MockInvocationFrame {
             Ok(FrameAction::Continue) => {}
             Err(err) => {
                 if let Some(my_error) = err.downcast_ref::<InvokeError>() {
+                    // Unrecoverable codes (harness misuse, FFI refusals)
+                    // propagate back out of the close as Unrecoverable
+                    // rather than becoming this frame's outcome.
                     self.close_frame_internal(my_error.error_type);
                 } else {
-                    eprintln!("unrecoverable error: {:?}", err);
-                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable);
+                    // The lambda always runs with the panic hook active, so
+                    // an ordinary panic payload is contract code panicking
+                    // (already printed by the hook): a deterministic failure
+                    // of this frame.
+                    //
+                    // Keep the panic before closing: this is the one point
+                    // where the payload and the frame it belongs to are both
+                    // in hand, on one thread, with no ambiguity about which
+                    // frame faulted. The hook's record (which carries the
+                    // location) is taken here too, on that same thread.
+                    self.fault_panic =
+                        Some(crate::invoke_error::take_panic_record(&*err));
+                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Deterministic);
                 }
             }
         };
         self
     }
 
+    /// The closed frame's [`FrameResult`]. Panics if the frame is still
+    /// open.
     pub fn result(&mut self) -> FrameResult {
-        // FrameResult construction clones output/trace/events — harness
-        // bookkeeping, possibly inside a parent frame's open window.
         let _alloc_pause = crate::alloc_stats::PauseGuard::new();
         let res = match &self.state {
             MockInvocationFrameState::Closed(output, trace, events) => {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())
+                    .with_fault_panic(self.fault_panic.clone())
                     .with_alloc_measurements(
                         self.alloc_stats,
                         self.cross_call_alloc_records.clone(),
@@ -358,7 +437,7 @@ impl MockInvocationFrame {
             }
             _ => {
                 eprintln!(
-                    "Cannot get the result of a frame while it is not closed"
+                    "cannot get the result of a frame while it is not closed"
                 );
                 panic_any(crate::invoke_error::unrecoverable_error());
             }
@@ -387,7 +466,7 @@ impl Drop for MockInvocationFrame {
             // abort with a SIGABRT that hides it. Force-finishing is the
             // recoverable cleanup the old `panic!` never performed.
             let res = unsafe {
-                groundhog_sys::finish_mock_invocation_frame(
+                thruput_sys::finish_mock_invocation_frame(
                     self.root_handler,
                     hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
                         .0,
@@ -415,16 +494,20 @@ impl Drop for MockInvocationFrame {
 
 pub(crate) struct ThreadlocalContextPushcount {
     count: i32,
+    alloc_records: crate::alloc_stats::RecordLog,
 }
 
 impl ThreadlocalContextPushcount {
-    pub fn new() -> Self {
-        Self { count: 0 }
+    pub fn new(alloc_records: crate::alloc_stats::RecordLog) -> Self {
+        Self {
+            count: 0,
+            alloc_records,
+        }
     }
 
     pub fn push_context(&mut self, handler: *mut c_void) {
         if self.count == 0 {
-            let push_res = unsafe { groundhog_sys::push_context(handler) };
+            let push_res = unsafe { thruput_sys::push_context(handler) };
             let err: FFIErrorCode = push_res.into();
             if err != FFIErrorCode::None {
                 panic!("failed to push context: {:?}", err);
@@ -439,7 +522,7 @@ impl ThreadlocalContextPushcount {
         }
         self.count -= 1;
         if self.count == 0 {
-            let pop_res = unsafe { groundhog_sys::pop_context() };
+            let pop_res = unsafe { thruput_sys::pop_context() };
             let err: FFIErrorCode = pop_res.into();
             if err != FFIErrorCode::None {
                 panic!("failed to pop context: {:?}", err);
@@ -455,7 +538,7 @@ impl Drop for ThreadlocalContextPushcount {
                 "Dropping transaction while threadlocal context active: count={}",
                 self.count
             );
-            let pop_res = unsafe { groundhog_sys::pop_context() };
+            let pop_res = unsafe { thruput_sys::pop_context() };
             let err: FFIErrorCode = pop_res.into();
             if err != FFIErrorCode::None {
                 crate::drop_failure(format_args!(
@@ -467,8 +550,46 @@ impl Drop for ThreadlocalContextPushcount {
     }
 }
 
-// Can run one, and only one, transaction,
-// and then get the results
+/// Configuration for a mocked transaction, applied when the handler is
+/// created. Build one with [`TestEnvironment::transaction`], or use
+/// [`MockTransactionConfig::default`] for the standard setup.
+///
+/// This is the extension point for the mocked transaction context: new knobs
+/// (e.g. the source-tx hash) become fields here rather than new constructor
+/// overloads.
+#[derive(Clone)]
+pub struct MockTransactionConfig {
+    /// The auth-claim attached to the mocked transaction, observed by the
+    /// contract under test (e.g. via `get_auth_claim`).
+    pub auth_claim: AuthClaim,
+}
+
+impl MockTransactionConfig {
+    /// A `kSourceAddressAuthData` claim with no allowed keys and zero required weight.
+    pub fn default_auth_claim() -> AuthClaim {
+        use thruput_xdr::auth_claim::AuthClaim_source_address_claim;
+        AuthClaim::kSourceAddressAuthData {
+            source_address_claim: AuthClaim_source_address_claim {
+                allowed_keys: 0,
+                required_weight: 0,
+            },
+        }
+    }
+}
+
+impl Default for MockTransactionConfig {
+    fn default() -> Self {
+        Self {
+            auth_claim: Self::default_auth_claim(),
+        }
+    }
+}
+
+/// A mocked transaction context: runs one, and only one, transaction, with
+/// exactly one root frame ([`call`](Self::call) /
+/// [`open_root_frame`](Self::open_root_frame) panic on a second
+/// invocation). Nest further calls as child frames, or use a second
+/// transaction.
 pub struct MockTransactionHandler {
     pub(crate) handler: *mut c_void,
     pub(crate) _env: Rc<TestEnvironment>,
@@ -479,23 +600,30 @@ pub struct MockTransactionHandler {
 }
 
 impl MockTransactionHandler {
+    /// Create a mock transaction handler with the default configuration
+    /// (see [`MockTransactionConfig`]).
+    ///
+    /// Use [`TestEnvironment::transaction`] to customize the configuration
+    /// before creating the handler.
     pub fn new(env: Rc<TestEnvironment>) -> Self {
-        // TODO(geoff): ways to mock this out
-        use groundhog_xdr::auth_claim::AuthClaim_source_address_claim;
-        let auth_claim: AuthClaim = AuthClaim::kSourceAddressAuthData {
-            source_address_claim: AuthClaim_source_address_claim {
-                allowed_keys: 0,
-                required_weight: 0,
-            },
-        };
+        Self::new_with_config(env, MockTransactionConfig::default())
+    }
 
-        let serialized_auth_claim = xdrs::txs::encode(&auth_claim).unwrap();
+    /// Create a mock transaction handler from an explicit
+    /// [`MockTransactionConfig`], letting a test configure the context of the
+    /// mocked transaction.
+    pub fn new_with_config(
+        env: Rc<TestEnvironment>,
+        config: MockTransactionConfig,
+    ) -> Self {
+        let serialized_auth_claim =
+            xdrs::txs::encode(&config.auth_claim).unwrap();
         let source_tx_hash: SHA256Hash = [0; 32].into();
         let handler_res = unsafe {
-            groundhog_sys::open_mocked_syscall_handler(
+            thruput_sys::open_mocked_syscall_handler(
                 env.inner.borrow().db.db,
                 env.inner.borrow().contract_context.context,
-                groundhog_sys::FFISerializedAuthClaimData {
+                thruput_sys::FFISerializedAuthClaimData {
                     data: serialized_auth_claim.as_ptr() as *mut u8,
                     len: serialized_auth_claim.len().try_into().unwrap(),
                 },
@@ -508,18 +636,29 @@ impl MockTransactionHandler {
             panic!("failed to open mocked syscall handler: {:?}", err);
         }
         assert!(!handler_res.syscall_handler.is_null());
+        let alloc_records = env.inner.borrow().alloc_records.clone();
         Self {
             handler: handler_res.syscall_handler,
             _env: env,
             state: MockTransactionState::NotStarted,
             root_frame: None,
             context_pushcount: Rc::new(RefCell::new(
-                ThreadlocalContextPushcount::new(),
+                ThreadlocalContextPushcount::new(alloc_records),
             )),
             root_frame_closed: Rc::new(Cell::new(false)),
         }
     }
 
+    /// True while a transaction has started but is neither committed nor
+    /// aborted.
+    pub(crate) fn is_running(&self) -> bool {
+        self.state == MockTransactionState::Running
+    }
+
+    /// Abort the running transaction, discarding its writes.
+    ///
+    /// Panics unless the transaction is running and its root frame is
+    /// closed.
     pub fn abort_transaction(&mut self) {
         assert_eq!(self.state, MockTransactionState::Running);
         assert!(
@@ -528,12 +667,16 @@ impl MockTransactionHandler {
         );
         self.state = MockTransactionState::Aborted;
         let err: FFIErrorCode =
-            unsafe { groundhog_sys::abort_transaction(self.handler) }.into();
+            unsafe { thruput_sys::abort_transaction(self.handler) }.into();
         if err != FFIErrorCode::None {
             panic!("failed to abort transaction: {:?}", err);
         }
     }
 
+    /// Attempt the two-phase commit of the running transaction.
+    ///
+    /// Panics unless the transaction is running and its root frame is
+    /// closed.
     pub fn try_commit_transaction(&mut self) -> crate::TryCommitResult {
         assert_eq!(self.state, MockTransactionState::Running);
         assert!(
@@ -542,7 +685,7 @@ impl MockTransactionHandler {
         );
         self.state = MockTransactionState::Committed;
         let result: ForeignTryCommitResult =
-            unsafe { groundhog_sys::try_commit_transaction(self.handler) };
+            unsafe { thruput_sys::try_commit_transaction(self.handler) };
         let err: FFIErrorCode = result.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("ffi error: failed to commit transaction: {:?}", err);
@@ -556,15 +699,30 @@ impl MockTransactionHandler {
 
     /// Convenience: open a root frame targeting the given contract address.
     /// Returns a FrameBuilder for configuring and executing the frame.
+    ///
+    /// A transaction has exactly one root frame, so a second `call` panics;
+    /// call further contracts via child frames (`FrameHandle::child_call`,
+    /// [`MockInvocationFrame::open_child_frame`]) or a separate
+    /// transaction.
     pub fn call(
         &mut self,
-        addr: &groundhog_xdr::types::ContractAddress,
+        addr: &thruput_xdr::types::ContractAddress,
     ) -> FrameBuilder<'_> {
-        let config = self.open_root_frame().at_contract_address(*addr);
+        let config = self.open_root_frame(*addr);
         FrameBuilder::new(config)
     }
 
-    pub fn open_root_frame(&mut self) -> MockInvocationFrameConfig<'_> {
+    /// Configure this transaction's root frame, invoking `contract_address`.
+    ///
+    /// A transaction has exactly one root frame: calling this (or
+    /// [`call`](Self::call)) a second time on the same handler panics.
+    ///
+    /// Child frames opened underneath it must name different addresses; see
+    /// [`MockInvocationFrame::open_child_frame`].
+    pub fn open_root_frame(
+        &mut self,
+        contract_address: thruput_xdr::types::ContractAddress,
+    ) -> MockInvocationFrameConfig<'_> {
         assert_eq!(
             self.state,
             MockTransactionState::NotStarted,
@@ -573,6 +731,7 @@ impl MockTransactionHandler {
         self.state = MockTransactionState::Running;
         let config = MockInvocationFrameConfig::new(
             self.handler,
+            contract_address,
             &mut self.root_frame,
             self.context_pushcount.clone(),
             Some(self.root_frame_closed.clone()),
@@ -602,8 +761,7 @@ impl Drop for MockTransactionHandler {
             // SIGABRT that hides the original message.
             self.state = MockTransactionState::Aborted;
             let err: FFIErrorCode =
-                unsafe { groundhog_sys::abort_transaction(self.handler) }
-                    .into();
+                unsafe { thruput_sys::abort_transaction(self.handler) }.into();
             if err != FFIErrorCode::None {
                 crate::drop_failure(format_args!(
                     "failed to abort uncommitted transaction during cleanup: {:?}",
@@ -613,8 +771,7 @@ impl Drop for MockTransactionHandler {
         }
 
         let err: FFIErrorCode =
-            unsafe { groundhog_sys::close_syscall_handler(self.handler) }
-                .into();
+            unsafe { thruput_sys::close_syscall_handler(self.handler) }.into();
         if err != FFIErrorCode::None {
             crate::drop_failure(format_args!(
                 "failed to close syscall handler: {:?}",
@@ -626,11 +783,63 @@ impl Drop for MockTransactionHandler {
 
 #[cfg(test)]
 mod tests {
-    use groundhog_xdr::transaction::InvocationFrameStatusCode;
+    use thruput_xdr::transaction::InvocationFrameStatusCode;
 
     use crate::frame_builder::FrameAction;
 
     use super::*;
+
+    // Frames that are open at the same time need distinct invoked_addresses:
+    // the test FFI admits mock frames under production's reentrance rule, which
+    // refuses an address that already has an active frame on the stack (hogd
+    // #3301). Addresses may be reused across separate handlers (separate
+    // transactions, separate frame stacks) and by sequential frames at the same
+    // depth, so these three cover every nesting the tests below build.
+    fn root_addr() -> thruput_xdr::types::ContractAddress {
+        [0xA0u8; 32].into()
+    }
+
+    fn child_addr() -> thruput_xdr::types::ContractAddress {
+        [0xB0u8; 32].into()
+    }
+
+    fn sibling_addr() -> thruput_xdr::types::ContractAddress {
+        [0xC0u8; 32].into()
+    }
+
+    #[test]
+    fn misuse_inside_nested_execute_propagates_instead_of_faulting_parent() {
+        // Regression: a misuse guard firing inside an enclosing frame's
+        // `execute` lambda (here: executing an already-closed child) must
+        // propagate out as Unrecoverable, not be recorded as a
+        // deterministic contract fault of the parent.
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                frame.execute(|frame| {
+                    let child = frame
+                        .open_child_frame(child_addr())
+                        .with_invoke_flags(0)
+                        .build();
+                    child.execute(|_| FrameAction::Close);
+                    let _ = child.result();
+                    // Misuse: drive the already-closed child again.
+                    child.execute(|_| FrameAction::Close);
+                    FrameAction::Close
+                });
+            }));
+
+        assert_unrecoverable_payload(caught.expect_err(
+            "misuse inside a nested execute closure must propagate as a \
+             panic, not close the parent frame as a contract fault",
+        ));
+    }
 
     #[test]
     fn test_mock_transaction_handler() {
@@ -641,7 +850,7 @@ mod tests {
         static mut SECOND: bool = false;
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -685,7 +894,10 @@ mod tests {
                 let mut handler = MockTransactionHandler::new(env);
                 // Transaction -> Running, root frame -> Started, but never
                 // closed or committed.
-                handler.open_root_frame().with_invoke_flags(0).build();
+                handler
+                    .open_root_frame(root_addr())
+                    .with_invoke_flags(0)
+                    .build();
                 panic!("original failure message");
             }));
 
@@ -713,7 +925,7 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
@@ -735,12 +947,12 @@ mod tests {
         static mut SECOND: bool = false;
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -773,19 +985,18 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         let result = handler
-            .open_root_frame()
-            .with_invoke_flags(0)
-            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(thruput_xdr::types::ContractAddress::from(
                 [1; 32],
             ))
+            .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                    thruput_xdr::types::ContractAddress::from([1; 32])
                 );
                 FrameAction::Close
             })
@@ -802,39 +1013,38 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
-                // Outer frame: hook should be active at depth 1
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                // Outer frame: the hook covers the frame's body.
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
-                    // First execute: Continue, depth goes to 2 then back to 1
+                    // First execute: Continue, then the child's guard drops.
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Continue
                     })
-                    // Second execute: still depth 2 inside, then Close
+                    // Second execute: still covered inside, then Close.
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Close
                     })
                     .result();
 
-                // Back in outer frame after inner deactivate: still depth 1
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                // The child finishing must not uncover the outer frame. This
+                // is why the marker counts rather than flags.
                 assert!(crate::invoke_error::is_panic_hook_active());
 
                 FrameAction::Close
             })
             .result();
 
-        // After everything: depth back to 0
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        // After everything: no frame is running.
         assert!(!crate::invoke_error::is_panic_hook_active());
     }
 
@@ -844,13 +1054,13 @@ mod tests {
         let mut handler = MockTransactionHandler::new(env);
 
         let result = handler
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
                 // Child panics
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
@@ -860,7 +1070,6 @@ mod tests {
 
                 // Outer frame should still be active and running
                 assert!(crate::invoke_error::is_panic_hook_active());
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
 
                 FrameAction::Close
             })
@@ -870,97 +1079,95 @@ mod tests {
             result.output().status_code(),
             InvocationFrameStatusCode::Return
         );
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
     }
 
     #[test]
-    fn test_interleaved_handlers_panic_hook_depth() {
+    fn test_interleaved_handlers_keep_panic_hook_active() {
         let env = TestEnvironment::new(None);
         let mut handler1 = MockTransactionHandler::new(env.clone());
         let mut handler2 = MockTransactionHandler::new(env);
 
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler1: Continue with nested child frame
         let frame1 = handler1
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|frame| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Close
                     })
                     .result();
 
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Continue
             });
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler2: Continue (no children)
         let frame2 = handler2
-            .open_root_frame()
+            .open_root_frame(root_addr())
             .with_invoke_flags(0)
             .build()
             .execute(|_| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Continue
             });
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler1: Close with nested child that panics
         let result1 = frame1
             .execute(|frame| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
                         panic!("child panic in handler1");
                     })
                     .result();
 
-                // Child panicked but depth is back to 1
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                // The child panicking must not uncover this frame.
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Close
             })
             .result();
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         // handler2: Close with nested child doing Continue then Close
         let result2 = frame2
             .execute(|frame| {
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
 
                 frame
-                    .open_child_frame()
+                    .open_child_frame(child_addr())
                     .with_invoke_flags(0)
                     .build()
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Continue
                     })
                     .execute(|_| {
-                        assert_eq!(crate::invoke_error::panic_hook_depth(), 2);
+                        assert!(crate::invoke_error::is_panic_hook_active());
                         FrameAction::Close
                     })
                     .result();
 
-                assert_eq!(crate::invoke_error::panic_hook_depth(), 1);
+                assert!(crate::invoke_error::is_panic_hook_active());
                 FrameAction::Close
             })
             .result();
-        assert_eq!(crate::invoke_error::panic_hook_depth(), 0);
+        assert!(!crate::invoke_error::is_panic_hook_active());
 
         assert_eq!(
             result1.output().status_code(),
@@ -995,14 +1202,17 @@ mod tests {
         // PARENT frame, poisoning the transaction. Guard it loudly.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 frame.execute(|frame| {
                     // Leave the child frame open (Continue, never Close)...
                     frame
-                        .open_child_frame()
+                        .open_child_frame(child_addr())
                         .with_invoke_flags(0)
                         .build()
                         .execute(|_| FrameAction::Continue);
@@ -1023,13 +1233,16 @@ mod tests {
         // order, so the propagated panic is the unrecoverable guard error.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 frame.execute(|frame| -> FrameAction {
                     frame
-                        .open_child_frame()
+                        .open_child_frame(child_addr())
                         .with_invoke_flags(0)
                         .build()
                         .execute(|_| FrameAction::Continue);
@@ -1052,11 +1265,14 @@ mod tests {
         // — losing the child handle. Guard it loudly.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         frame.execute(|frame| {
             frame
-                .open_child_frame()
+                .open_child_frame(child_addr())
                 .with_invoke_flags(0)
                 .build()
                 .execute(|_| FrameAction::Continue);
@@ -1085,12 +1301,15 @@ mod tests {
         // nest multiple open frames inside one parent.
         let env = TestEnvironment::new(None);
         let mut handler = MockTransactionHandler::new(env);
-        let frame = handler.open_root_frame().with_invoke_flags(0).build();
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
 
         frame.execute(|frame| {
             // First child stays open.
             frame
-                .open_child_frame()
+                .open_child_frame(child_addr())
                 .with_invoke_flags(0)
                 .build()
                 .execute(|_| FrameAction::Continue);
@@ -1099,7 +1318,9 @@ mod tests {
 
         let caught =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                frame.open_child_frame();
+                // A fresh address, so the panic is the one-open-child guard
+                // rather than anything the reentrance rule would have caught.
+                frame.open_child_frame(sibling_addr());
             }));
 
         assert_unrecoverable_payload(caught.expect_err(
@@ -1114,48 +1335,46 @@ mod tests {
         let mut handler2 = MockTransactionHandler::new(env);
 
         let frame1 = handler1
-            .open_root_frame()
-            .with_invoke_flags(0)
-            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(thruput_xdr::types::ContractAddress::from(
                 [1; 32],
             ))
+            .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                    thruput_xdr::types::ContractAddress::from([1; 32])
                 );
                 FrameAction::Continue
             });
 
         let frame2 = handler2
-            .open_root_frame()
-            .with_invoke_flags(0)
-            .at_contract_address(groundhog_xdr::types::ContractAddress::from(
+            .open_root_frame(thruput_xdr::types::ContractAddress::from(
                 [2; 32],
             ))
+            .with_invoke_flags(0)
             .build()
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                    thruput_xdr::types::ContractAddress::from([2; 32])
                 );
                 FrameAction::Continue
             });
         let result1 = frame1
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([1; 32])
+                    thruput_xdr::types::ContractAddress::from([1; 32])
                 );
                 FrameAction::Close
             })
@@ -1164,11 +1383,11 @@ mod tests {
         let result2 = frame2
             .execute(|_| {
                 std::println!("getting current address");
-                let res = groundhog_xdr::syscalls::GetCurrentAddress();
+                let res = thruput_xdr::syscalls::GetCurrentAddress();
                 std::println!("res: {:?}", res);
                 assert_eq!(
                     res.unwrap(),
-                    groundhog_xdr::types::ContractAddress::from([2; 32])
+                    thruput_xdr::types::ContractAddress::from([2; 32])
                 );
                 FrameAction::Close
             })
@@ -1180,6 +1399,116 @@ mod tests {
         );
         assert_eq!(
             result2.output().status_code(),
+            InvocationFrameStatusCode::Return
+        );
+    }
+
+    // The point of test-ffi 0.32.0: a refused frame says which rule refused
+    // it. Production hands a contract the same codes for the same reasons.
+    #[test]
+    fn refusal_messages_name_the_rule() {
+        let msg = frame_refusal_message(
+            SyscallErrorCode::kSyscallErrorCodeReentrance,
+        );
+        assert!(msg.contains("distinct addresses"), "{msg}");
+
+        let msg = frame_refusal_message(
+            SyscallErrorCode::kSyscallErrorCodeInvokeDepthExceeded,
+        );
+        assert!(msg.contains("max_cross_invoke_depth"), "{msg}");
+
+        let msg = frame_refusal_message(
+            SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput,
+        );
+        assert!(msg.contains("TryInvoke"), "{msg}");
+
+        // An unnamed code still reports itself rather than going silent.
+        let msg = frame_refusal_message(SyscallErrorCode(9999));
+        assert!(msg.contains("9999"), "{msg}");
+
+        // Every message points at the path that can handle the condition.
+        assert!(msg.contains("try_call_raw_with"), "{msg}");
+    }
+
+    // The diagnostic only reaches the developer if the panic carrying it
+    // gets out. An enclosing frame's catch site records any other payload
+    // as a deterministic fault in its own body, which would close the
+    // parent as failed and leave the refusal unreported.
+    #[test]
+    fn a_refused_frame_propagates_instead_of_faulting_its_parent() {
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        let frame = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build();
+
+        let caught =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                frame.execute(|frame| {
+                    // Reentrance: the root's address already has a frame
+                    // open on this stack.
+                    frame
+                        .open_child_frame(root_addr())
+                        .with_invoke_flags(0)
+                        .build();
+                    FrameAction::Close
+                });
+            }));
+
+        assert_unrecoverable_payload(caught.expect_err(
+            "a refused frame must propagate as unrecoverable, not close \
+             the parent frame as a contract fault",
+        ));
+    }
+
+    // Invoke flags reach the frame with their bits intact: a child opened
+    // ReadOnly refuses the write that the same child, opened without flags,
+    // makes.
+    #[test]
+    fn read_only_invoke_flag_refuses_writes_in_the_frame() {
+        let env = TestEnvironment::new(None);
+        env.setup_grant_storage_tokens(&child_addr(), 1_000_000_000);
+        let mut handler = MockTransactionHandler::new(env);
+        let key = thruput_xdr::types::StorageKeyContractData::new([0x5A; 32]);
+        let read_only = thruput_xdr::invoke_flag::InvokeFlag::ReadOnly
+            .0
+            .cast_unsigned();
+
+        let result = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build()
+            .execute(|frame| {
+                for (flags, admitted) in [(read_only, false), (0, true)] {
+                    let child = frame
+                        .open_child_frame(child_addr())
+                        .with_invoke_flags(flags)
+                        .build();
+                    child.execute(|_| {
+                        let res = thruput_xdr::syscalls::raw_BytestringSet(
+                            &key, b"x",
+                        );
+                        if admitted {
+                            res.unwrap();
+                        } else {
+                            assert!(res.unwrap_err().is_invalid_input());
+                        }
+                        FrameAction::Close
+                    });
+                    // A failed assertion above faults the child rather than
+                    // failing the test, so check how it closed.
+                    assert_eq!(
+                        child.result().output().status_code(),
+                        InvocationFrameStatusCode::Return,
+                        "flags {flags:#x}",
+                    );
+                }
+                FrameAction::Close
+            })
+            .result();
+        assert_eq!(
+            result.output().status_code(),
             InvocationFrameStatusCode::Return
         );
     }

@@ -1,6 +1,6 @@
 [package]
 name = "erc20_raw_storage"
-description = "Example ERC20 contract for the Groundhog blockchain"
+description = "Example ERC20 contract for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -12,18 +12,26 @@ categories.workspace = true
 edition.workspace = true
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `thruput build -p erc20_raw_storage` derives
+# `--bin erc20_raw_storage` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "erc20_raw_storage"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [features]
 entrypoints = []
-dev = ["sdk/dev", "groundhog-erc20-if/dev"]
-bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "sdk/alloc"]
+dev = ["thruput-sdk/dev", "thruput-erc20-if/dev"]
+bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "thruput-sdk/alloc"]
 
 [dependencies]
-sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
+thruput-sdk = { workspace = true }
+thruput-erc20-if = { workspace = true }
 
 # Optional testing dependencies
 erc20-bottle-test = { workspace = true, optional = true }

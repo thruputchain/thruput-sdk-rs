@@ -1,0 +1,37 @@
+[package]
+name = "iface_conflict_caller"
+description = "Caller linking two interface crates whose Token traits collide on the interface key (implementing neither) — conflict-shaking e2e"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "iface_conflict_if_a/dev", "iface_conflict_if_b/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p iface_conflict_caller` derives
+# `--bin iface_conflict_caller` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "iface_conflict_caller"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+iface_conflict_if_a = { path = "../iface_conflict_if_a" }
+iface_conflict_if_b = { path = "../iface_conflict_if_b" }
+
+[dev-dependencies]
+iface_conflict_caller = { path = ".", features = ["dev"] }

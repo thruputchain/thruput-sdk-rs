@@ -4,9 +4,12 @@ use crate::mock_transaction_handler::{
 };
 use std::panic::UnwindSafe;
 
+/// What an `execute` closure tells the harness to do with its frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameAction {
+    /// Leave the frame open for further `run_continuable` steps.
     Continue,
+    /// Close the frame, producing its [`FrameResult`].
     Close,
 }
 
@@ -20,13 +23,20 @@ impl<'a> FrameBuilder<'a> {
         Self { config }
     }
 
+    /// Set the calldata the invoked frame observes (default: empty).
     pub fn with_calldata(self, calldata: xdr_common::BytesM) -> Self {
         Self {
             config: self.config.with_calldata(calldata),
         }
     }
 
-    pub fn with_flags(self, flags: i32) -> Self {
+    /// Set the frame's invoke flags, a bitset of
+    /// [`InvokeFlag`](thruput_xdr::invoke_flag::InvokeFlag) values
+    /// (default: none).
+    pub fn with_flags(
+        self,
+        flags: thruput_xdr::invoke_flag::InvokeFlagSet,
+    ) -> Self {
         Self {
             config: self.config.with_invoke_flags(flags),
         }
@@ -73,7 +83,7 @@ impl<'a> FrameBuilder<'a> {
             } else {
                 // Sets the return buffer and diverges; the frame closes
                 // via the unwind path, equivalently to FrameAction::Close.
-                groundhog_xdr::syscalls::raw_Return(&encoded, false, &[])
+                thruput_xdr::syscalls::raw_Return(&encoded, false, &[])
             }
         });
         frame.result()
@@ -116,11 +126,14 @@ pub struct FrameHandle<'a> {
 }
 
 impl<'a> FrameHandle<'a> {
+    /// Open a child frame of the current frame, invoking `addr`. The
+    /// address must differ from every frame already open on the stack (the
+    /// reentrance rule); see [`MockInvocationFrame::open_child_frame`].
     pub fn child_call(
         &mut self,
-        addr: &groundhog_xdr::types::ContractAddress,
+        addr: &thruput_xdr::types::ContractAddress,
     ) -> FrameBuilder<'_> {
-        let config = self.frame.open_child_frame().at_contract_address(*addr);
+        let config = self.frame.open_child_frame(*addr);
         FrameBuilder::new(config)
     }
 }
@@ -147,9 +160,9 @@ impl<'a> ContinuableFrame<'a> {
     /// Open a child frame from within this continuable frame.
     pub fn child_call(
         &mut self,
-        addr: &groundhog_xdr::types::ContractAddress,
+        addr: &thruput_xdr::types::ContractAddress,
     ) -> FrameBuilder<'_> {
-        let config = self.frame.open_child_frame().at_contract_address(*addr);
+        let config = self.frame.open_child_frame(*addr);
         FrameBuilder::new(config)
     }
 

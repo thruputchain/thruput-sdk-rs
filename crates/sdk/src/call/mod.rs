@@ -14,7 +14,9 @@
 //! - `client.method(...)`: success-oriented path; typed exceptions are
 //!   re-thrown and faults stay faults
 //! - `client.try_method(...)`: inspection path;
-//!   `Result<ReturnType, ClientError>`
+//!   `Result<ReturnType, CallError>`, where a caught exception stays an
+//!   untyped [`RawException`](crate::exn::RawException) to be matched with
+//!   [`match_exn!`](crate::match_exn)
 //!
 //! The procedure for a call is:
 //!
@@ -27,9 +29,11 @@ mod contract_client;
 mod contract_result;
 mod encode;
 mod raw_call_error;
+mod ref_arg;
 
 pub use calls::*;
 pub use contract_client::*;
 pub use contract_result::*;
 pub use encode::*;
 pub use raw_call_error::*;
+pub use ref_arg::*;

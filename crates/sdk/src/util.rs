@@ -1,4 +1,4 @@
-#[cfg_attr(feature = "debugging", track_caller)]
+#[cfg_attr(not(target_arch = "riscv32"), track_caller)]
 pub fn ensure<E>(pred: bool, err: E)
 where
     E: crate::Exn,
@@ -11,15 +11,15 @@ where
 #[macro_export]
 macro_rules! hash_ident {
     { $vis:vis static $name:ident: SHA256Hash; } => {
-        $vis static $name: ::sdk::SHA256Hash =
-            ::sdk::SHA256Hash::new(::sdk::sha256_array_ident!($name));
+        $vis static $name: $crate::SHA256Hash =
+            $crate::SHA256Hash::new($crate::sha256_array_ident!($name));
     };
     { $vis:vis static $name:ident: ContractAddress; } => {
-        $vis static $name: ::sdk::ContractAddress =
-            ::sdk::ContractAddress::new(::sdk::sha256_array_ident!($name));
+        $vis static $name: $crate::ContractAddress =
+            $crate::ContractAddress::new($crate::sha256_array_ident!($name));
     };
     { $vis:vis static $name:ident: Address; } => {
-        $vis static $name: ::sdk::ContractAddress =
-            ::sdk::ContractAddress::new(::sdk::sha256_array_ident!($name));
+        $vis static $name: $crate::ContractAddress =
+            $crate::ContractAddress::new($crate::sha256_array_ident!($name));
     };
 }

@@ -53,12 +53,14 @@ impl_collect_noop!(
     bool,
     (),
     str,
-    sdk::types::ContractAddress,
-    sdk::types::BlockHeight,
-    sdk::types::SHA256Hash,
-    sdk::types::Ed25519PublicKey,
-    sdk::types::Ed25519Signature,
-    sdk::types::ContractEntrypointID,
+    crate::types::ContractAddress,
+    crate::types::BlockHeight,
+    crate::types::SHA256Hash,
+    crate::types::Ed25519PublicKey,
+    crate::types::Ed25519Signature,
+    thruput_u256::U256,
+    thruput_u256::I256,
+    crate::types::ContractEntrypointID,
 );
 
 impl<T: CollectAuthHandles, const N: usize> CollectAuthHandles for [T; N] {
@@ -111,7 +113,7 @@ impl<T: CollectAuthHandles> CollectAuthHandles for [T] {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: CollectAuthHandles + 'static, const MAX: u32> CollectAuthHandles
+impl<T: CollectAuthHandles, const MAX: u32> CollectAuthHandles
     for xdrs::VecM<T, MAX>
 {
     #[inline(always)]

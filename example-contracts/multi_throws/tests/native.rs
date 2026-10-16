@@ -1,10 +1,10 @@
 mod common;
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[test]
 fn native_multi_throws() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
@@ -17,7 +17,7 @@ fn native_multi_throws() {
 
 #[test]
 fn native_multi_throws_undecodable() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
@@ -30,7 +30,7 @@ fn native_multi_throws_undecodable() {
 
 #[test]
 fn native_multi_throws_relay_preserves_payload() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
@@ -44,7 +44,7 @@ fn native_multi_throws_relay_preserves_payload() {
 
 #[test]
 fn native_multi_throws_relay_payload_readable_after_interleave() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
@@ -60,7 +60,7 @@ fn native_multi_throws_relay_payload_readable_after_interleave() {
 
 #[test]
 fn native_multi_throws_relay_undecodable_twice() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 
@@ -74,7 +74,7 @@ fn native_multi_throws_relay_undecodable_twice() {
 
 #[test]
 fn native_multi_throws_malicious_library_error() {
-    let env = sdk::TestEnvironment::default();
+    let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
     let contract_hash = test_contract.as_hash().clone();
 

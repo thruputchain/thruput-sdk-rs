@@ -1,5 +1,5 @@
 [package]
-name = "groundhog-storage-cost"
+name = "thruput-storage-cost"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -9,10 +9,10 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Storage cost calculation for Groundhog smart contracts"
+description = "Storage cost calculation for Thruput smart contracts"
 
 [dependencies]
-groundhog-xdr = { workspace = true, features = [] }
+thruput-xdr = { workspace = true, features = [] }
 xdrs = { workspace = true, features = ["alloc"] }
 
 [features]

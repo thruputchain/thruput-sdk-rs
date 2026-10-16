@@ -6,35 +6,24 @@ use proc_macro2::Span;
 use quote::ToTokens;
 use std::collections::BTreeMap;
 
+/// One entry of a `throws(...)` list: the path naming an exception type.
+///
+/// A thrown type is just a type. It used to double as a variant name for
+/// the generated client error enum, which is why differently-scoped types
+/// sharing a last segment (`alpha::E` and `beta::E`) used to collide; with
+/// no enum to name, they no longer do.
 #[derive(Clone, Debug)]
 pub struct ThrownType {
     ty: syn::Path,
-    variant: syn::Ident,
 }
 
 impl ThrownType {
-    fn from_path(path: &syn::Path) -> darling::Result<Self> {
-        let variant = path
-            .segments
-            .last()
-            .map(|seg| seg.ident.clone())
-            .ok_or_else(|| {
-                darling::Error::custom("throws expects a type path")
-                    .with_span(path)
-            })?;
-
-        Ok(Self {
-            ty: path.clone(),
-            variant,
-        })
+    fn from_path(path: &syn::Path) -> Self {
+        Self { ty: path.clone() }
     }
 
     pub fn ty(&self) -> &syn::Path {
         &self.ty
-    }
-
-    pub fn variant(&self) -> &syn::Ident {
-        &self.variant
     }
 
     fn ty_string(&self) -> String {
@@ -47,34 +36,21 @@ pub struct ThrowsList(Vec<ThrownType>);
 
 impl ThrowsList {
     fn new(thrown_types: Vec<ThrownType>) -> darling::Result<Self> {
-        const RESERVED: &[&str] = &["Library", "Fault", "Unknown"];
-
         if thrown_types.is_empty() {
             return Err(darling::Error::custom(
                 "throws() requires at least one type",
             ));
         }
 
-        let mut seen_variants = BTreeMap::new();
+        // Same type listed twice: harmless to the client, but it would
+        // duplicate the entry in the contract spec, and it is never what
+        // the author meant.
+        let mut seen = BTreeMap::new();
         for thrown in &thrown_types {
-            let variant_name = thrown.variant.to_string();
-            if RESERVED.contains(&variant_name.as_str()) {
+            if seen.insert(thrown.ty_string(), ()).is_some() {
                 return Err(darling::Error::custom(format!(
-                    "`{}` is a reserved error variant name \
-                     (used by the generated client enum)",
-                    thrown.variant
-                ))
-                .with_span(thrown.variant()));
-            }
-
-            if let Some(prev_ty) =
-                seen_variants.insert(variant_name.clone(), thrown.ty_string())
-            {
-                return Err(darling::Error::custom(format!(
-                    "throws contains duplicate generated client error variant `{}`; `{}` and `{}` would both map to it",
-                    variant_name,
-                    prev_ty,
-                    thrown.ty_string()
+                    "throws lists `{}` more than once",
+                    thrown.ty_string(),
                 ))
                 .with_span(thrown.ty()));
             }
@@ -96,7 +72,7 @@ impl FromMeta for ThrowsList {
     fn from_expr(expr: &syn::Expr) -> darling::Result<Self> {
         match expr {
             syn::Expr::Path(ep) if ep.qself.is_none() => {
-                Self::new(vec![ThrownType::from_path(&ep.path)?])
+                Self::new(vec![ThrownType::from_path(&ep.path)])
             }
             _ => Err(darling::Error::custom(
                 "throws expects a type path or list of type paths",
@@ -109,7 +85,7 @@ impl FromMeta for ThrowsList {
         for item in items {
             match item {
                 darling::ast::NestedMeta::Meta(syn::Meta::Path(path)) => {
-                    thrown_types.push(ThrownType::from_path(path)?);
+                    thrown_types.push(ThrownType::from_path(path));
                 }
                 _ => {
                     return Err(darling::Error::custom(
@@ -178,7 +154,6 @@ impl FromMeta for EmitsList {
 #[derive(Clone, Debug, FromMeta)]
 pub struct Config {
     pub exports: Option<SpannedValue<String>>,
-    pub test_setup: Option<String>,
     pub interface: Option<SpannedValue<String>>,
     pub version: Option<SpannedValue<String>>,
 
@@ -275,6 +250,17 @@ mod tests {
         parse_config("")
     }
 
+    #[test]
+    fn test_setup_key_is_rejected_as_unknown() {
+        // Dead config key: darling's unknown-field error handles it
+        // uniformly across item kinds and features.
+        let tokens: proc_macro2::TokenStream =
+            r#"test_setup = "setup_fn""#.parse().unwrap();
+        let meta_list = NestedMeta::parse_meta_list(tokens).unwrap();
+        let err = Config::from_list(&meta_list).unwrap_err();
+        assert!(err.to_string().contains("test_setup"), "{err}");
+    }
+
     // -- internal_exports_mod_ident --
 
     #[test]
@@ -310,7 +296,6 @@ mod tests {
         let config = parse_config(r#"throws = MyError"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 1);
-        assert_eq!(throws[0].variant().to_string(), "MyError");
         assert_eq!(throws[0].ty().to_token_stream().to_string(), "MyError");
     }
 
@@ -319,9 +304,7 @@ mod tests {
         let config = parse_config(r#"throws(SwapError, ERC20Error)"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 2);
-        assert_eq!(throws[0].variant().to_string(), "SwapError");
         assert_eq!(throws[0].ty().to_token_stream().to_string(), "SwapError");
-        assert_eq!(throws[1].variant().to_string(), "ERC20Error");
         assert_eq!(throws[1].ty().to_token_stream().to_string(), "ERC20Error");
     }
 
@@ -330,7 +313,7 @@ mod tests {
         let config = parse_config(r#"throws(SwapError)"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 1);
-        assert_eq!(throws[0].variant().to_string(), "SwapError");
+        assert_eq!(throws[0].ty().to_token_stream().to_string(), "SwapError");
     }
 
     #[test]
@@ -338,7 +321,6 @@ mod tests {
         let config = parse_config(r#"throws = alpha::MyError"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 1);
-        assert_eq!(throws[0].variant().to_string(), "MyError");
         assert_eq!(
             throws[0].ty().to_token_stream().to_string(),
             "alpha :: MyError"
@@ -351,8 +333,22 @@ mod tests {
             parse_config(r#"throws(alpha::SwapError, beta::ERC20Error)"#);
         let throws = config.throws_list();
         assert_eq!(throws.len(), 2);
-        assert_eq!(throws[0].variant().to_string(), "SwapError");
-        assert_eq!(throws[1].variant().to_string(), "ERC20Error");
+        assert_eq!(
+            throws[0].ty().to_token_stream().to_string(),
+            "alpha :: SwapError"
+        );
+        assert_eq!(
+            throws[1].ty().to_token_stream().to_string(),
+            "beta :: ERC20Error"
+        );
+    }
+
+    /// Types that only share a last segment used to collide, because the
+    /// last segment named a variant of the generated client error enum.
+    #[test]
+    fn throws_allows_same_named_types_from_different_modules() {
+        let config = parse_config(r#"throws(alpha::E, beta::E)"#);
+        assert_eq!(config.throws_list().len(), 2);
     }
 
     #[test]

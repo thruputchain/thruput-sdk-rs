@@ -1,6 +1,6 @@
 #![allow(clippy::result_large_err)]
 
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(client = VersionedClient)]
 pub trait VersionedTrait {

@@ -1,60 +1,40 @@
-//! Per-frame allocation stats through the SDK's real client-call path:
-//! `try_call_raw_with` → `Invoke` syscall → hogd → trampoline → mock method.
+//! Allocation estimates through the generated client and native dispatcher.
+#![allow(unexpected_cfgs)]
 
-sdk::install_counting_allocator!();
+use thruput_sdk::*;
 
-use sdk::contract::ContractEntrypointID;
-use sdk::{ContractAddress, TestEnvironment};
+thruput_sdk::install_counting_allocator!();
 
-const PARENT_ADDR: ContractAddress = ContractAddress::new([0x41; 32]);
-const CHILD_ADDR: ContractAddress = ContractAddress::new([0x42; 32]);
+#[thruput_sdk::storage]
+struct AllocatingContract;
+
+#[contract]
+impl AllocatingContract {
+    pub fn allocate(&self) -> u32 {
+        std::hint::black_box(vec![0u8; 32768]);
+        42
+    }
+}
 
 #[test]
-fn client_style_cross_call_produces_labeled_alloc_record() {
-    const MOCK_ALLOC: usize = 32 * 1024;
-    let entrypoint = ContractEntrypointID::from_u64(0x0102_0304_0506_0708);
-
+fn generated_client_reports_callee_allocations() {
     let env = TestEnvironment::no_cost();
-    let mock = env.register_mock(|c| {
-        c.register_method(entrypoint, || {
-            let v = vec![0u8; MOCK_ALLOC];
-            std::hint::black_box(&v);
-        });
-    });
-    mock.deploy_contract_to(&CHILD_ADDR);
-
+    let address = ContractAddress::new([0x42; 32]);
+    let mock = env.register_mock(AllocatingContract::__mock);
+    mock.deploy_contract_to(&address);
     let result = env.transact(|tx| {
-        tx.call(&PARENT_ADDR).run(|| {
-            let () = sdk::call::try_call_raw_with(
-                &CHILD_ADDR,
-                entrypoint,
-                u64::MAX,
-                &(),
-                0,
-                |exn| exn.to_owned(),
-            )
-            .expect("cross-call failed");
+        tx.call(&ContractAddress::new([0x41; 32])).run(|| {
+            assert_eq!(AllocatingContractClient::new(&address).allocate(), 42);
         })
     });
     result.assert_success();
-
     let records = result.frame().cross_call_alloc_records();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].contract, mock.as_contract());
     assert_eq!(
-        records.len(),
-        1,
-        "one client-style cross-call must produce one record, got {records:?}"
+        records[0].entrypoint,
+        AllocatingContractEntrypoints::allocate.into()
     );
-    assert_eq!(records[0].entrypoint, entrypoint);
-    assert!(
-        records[0].stats.bytes_total >= MOCK_ALLOC as u64,
-        "callee frame must be charged its 32 KiB Vec, got {:?}",
-        records[0].stats
-    );
-
-    let caller = result.frame().alloc_stats();
-    assert!(
-        caller.bytes_total < MOCK_ALLOC as u64 / 2,
-        "caller frame must NOT be charged the callee's allocation, \
-         got {caller:?}"
-    );
+    assert!(records[0].stats.bytes_total >= 32768);
+    assert!(result.frame().alloc_stats().unwrap().bytes_total < 16384);
 }

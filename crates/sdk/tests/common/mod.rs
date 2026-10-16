@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 
-use sdk::call::RawCallError;
-use sdk::exn::{Exn, LibraryExn};
-use sdk::sys::{SyscallErrorCode, SyscallNo};
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::exn::{Exn, LibraryExn};
+use thruput_sdk::sys::{SyscallErrorCode, SyscallNo};
 
 /// Decode a LibraryExn from an exception payload (which may have trailing
 /// debug info when the `debugging` feature is active).
 pub fn decode_library_exn(payload: &[u8]) -> LibraryExn {
-    use sdk::ReadXDR;
+    use thruput_sdk::ReadXDR;
     let mut reader = xdrs::cxs::buf_reader::BufReader::new(payload);
     ReadXDR::read_xdr(&mut reader)
         .expect("Failed to decode LibraryExn from exception payload")

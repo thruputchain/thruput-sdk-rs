@@ -1,7 +1,9 @@
 pub use erc20_test::*;
 
-use sdk::hash_ident;
-use sdk::{ContractAddress, Named, SHA256Hash, TestEnvironmentHandle};
+use thruput_sdk::hash_ident;
+use thruput_sdk::{
+    ContractAddress, MatchExn, Named, SHA256Hash, TestEnvironmentHandle,
+};
 
 pub fn test_erc20_contract(
     env: TestEnvironmentHandle,
@@ -23,15 +25,15 @@ pub fn test_erc20_contract(
     print_events(&result);
 
     // Check that the event log matches the model
-    let expected: Vec<groundhog_erc20_if::StdERC20Event> =
+    let expected: Vec<thruput_erc20_if::StdERC20Event> =
         result.assert_return_as();
     check_events(&expected, result.events());
 }
 
 // Print out a transaction's event log
-fn print_events(result: &sdk::TransactResult) {
-    use groundhog_erc20_if::*;
-    use sdk::EmittedEvent;
+fn print_events(result: &thruput_sdk::TransactResult) {
+    use thruput_erc20_if::*;
+    use thruput_sdk::EmittedEvent;
 
     for (i, event) in result.events().iter().enumerate() {
         let event: EmittedEvent = event.into();
@@ -50,42 +52,49 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// The precompile intentionally diverges from the reference contract (see
 /// hogd's `precompile_native_token.cc`):
 ///
-/// - `initialize`, `mint` and `burn` always fault: the supply is fixed at
-///   genesis and there is no administrator.
-/// - `total_supply` is the constant total HOG supply.
-/// - An overdraft `transfer` is not rejected at invoke time with
-///   [`groundhog_erc20_if::ERC20Error::TooLarge`]; the balance check is
-///   deferred, so the transaction instead fails at commit.
+/// - `initialize` always faults: the genesis root plays the reference's
+///   stored contract owner, so there is nothing to initialize. `mint`
+///   follows the reference's owner check, with the genesis root as
+///   the owner: any other caller gets the reference's
+///   [`thruput_erc20_if::ERC20Error::MustBeContractOwner`] rejection.
+/// - `total_supply` tracks mints; nothing is pre-minted in the
+///   test environment, so the supply is exactly what this test mints.
+///
+/// An overdraft `transfer` used to be a third divergence: the balance check
+/// was deferred, so it passed invoke and failed at commit. As of test-ffi
+/// 0.21.0 the precompile throws
+/// [`thruput_erc20_if::ERC20Error::TooLarge`] at invoke time like the
+/// reference contract, so it is asserted the same way the rest of this file
+/// asserts a typed throw: `try_*` plus a match on the error.
 ///
 /// Those divergences are asserted here too, so a change on either side
 /// shows up as a regression.
 pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
-    use groundhog_erc20_if::*;
-    use sdk::precompiles::{
-        ADDRESS_INITIAL_TOKEN_CLAIM, ADDRESS_PRECOMPILED_HOG_TOKEN,
+    use thruput_erc20_if::*;
+    use thruput_sdk::precompiles::{
+        ADDRESS_GENESIS_ROOT, ADDRESS_NATIVE_TOKEN,
     };
 
     let caller = ContractAddress::named("erc20_test");
-    let token = &ADDRESS_PRECOMPILED_HOG_TOKEN;
+    let token = &ADDRESS_NATIVE_TOKEN;
 
     const BALANCE: Amount = 101;
-    // Const-evaluated, so an overflow would be a compile error.
-    const TOTAL_SUPPLY: Amount = groundhog_xdr::types::kTotalHogSupply
-        as Amount
-        * groundhog_xdr::types::kHogDivisibility as Amount;
+    // Nothing is pre-minted in the test environment, so after the funding
+    // mint below the total supply is exactly the caller's balance.
+    const TOTAL_SUPPLY: Amount = BALANCE;
 
-    // Fund the test caller from the genesis allocation, which is held by
-    // the initial-token-claim precompile.
+    // Fund the test caller by minting as the genesis root, the only caller
+    // the native token accepts for `mint`.
     let result = env.transact(|tx| {
-        tx.call(&ADDRESS_INITIAL_TOKEN_CLAIM).run(move || {
-            ERC20Client::new(token).transfer(&caller, BALANCE);
+        tx.call(&ADDRESS_GENESIS_ROOT).run(move || {
+            ERC20Client::new(token).mint(&caller, BALANCE);
         })
     });
     result.assert_success();
     env.advance_block();
 
     // Run the standard ERC20 test subset that applies to a pre-funded token
-    // without mint/burn, and check the emitted events against the model.
+    // without mint, and check the emitted events against the model.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let model = erc20_funded_test(token, BALANCE, TOTAL_SUPPLY);
@@ -114,10 +123,13 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
             let owner_balance = client.get_balance_of(&caller);
             let spender_balance = client.get_balance();
 
-            assert!(matches!(
-                client.try_transfer_from(&caller, &SPENDER, 6),
-                Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-            ));
+            assert_eq!(
+                client
+                    .try_transfer_from(&caller, &SPENDER, 6)
+                    .unwrap_err()
+                    .try_as(),
+                Some(ERC20Error::TooLarge),
+            );
 
             client.transfer_from(&caller, &SPENDER, 5);
             assert_eq!(client.allowance(&caller, &SPENDER), 0);
@@ -128,8 +140,8 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     result.assert_success();
     env.advance_block();
 
-    // Divergence: initialize/mint/burn have no meaning for the native token
-    // and always fault rather than throwing a typed ERC20Error.
+    // Divergence: initialize has no meaning for the native token and always
+    // faults rather than throwing a typed ERC20Error.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             ERC20Client::new(token).initialize(&caller);
@@ -137,28 +149,34 @@ pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     });
     result.assert_fault();
 
+    // mint follows the reference's owner check with the genesis root as the
+    // owner: any other caller gets the typed rejection.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
-            ERC20Client::new(token).mint(&caller, 1);
+            let client = ERC20Client::new(token);
+            assert_eq!(
+                client.try_mint(&caller, 1).unwrap_err().try_as(),
+                Some(ERC20Error::MustBeContractOwner),
+            );
         })
     });
-    result.assert_fault();
+    result.assert_success();
 
-    let result = env.transact(|tx| {
-        tx.call(&caller).run(move || {
-            ERC20Client::new(token).burn(&caller, 1);
-        })
-    });
-    result.assert_fault();
-
-    // Divergence: an overdraft transfer is not rejected at invoke time;
-    // the balance check is deferred and the transaction fails at commit.
+    // Overdrafts are rejected at invoke time with the same error the
+    // reference contract throws, asserted the same way erc20-test does
+    // (`try_*` + `try_as`) so the two are directly comparable.
     let result = env.transact(|tx| {
         tx.call(&caller).run(move || {
             let client = ERC20Client::new(token);
             let balance = client.get_balance();
-            client.transfer(&SPENDER, balance + 1);
+            assert_eq!(
+                client
+                    .try_transfer(&SPENDER, balance + 1)
+                    .unwrap_err()
+                    .try_as(),
+                Some(ERC20Error::TooLarge),
+            );
         })
     });
-    result.assert_commit_failed();
+    result.assert_success();
 }

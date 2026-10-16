@@ -1,0 +1,5 @@
+error: contract method arguments cannot be `&mut`; take the argument by value, or by shared reference `&`
+  --> tests/compile-fail/contract_ref_arg_mut.rs:10:34
+   |
+10 |     pub fn bump(&self, counter: &mut u32) -> u32 {
+   |                                  ^^^

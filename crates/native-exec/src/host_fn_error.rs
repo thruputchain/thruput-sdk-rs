@@ -1,7 +1,10 @@
-use groundhog_xdr::syserr::SysErr;
 use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
+use thruput_xdr::syserr::SysErr;
 
+/// Perform one guest syscall against the mocked FFI handler, returning its
+/// result code. Host-side terminations unwind with the matching
+/// [`crate::invoke_error`] payload instead of returning.
 #[allow(clippy::too_many_arguments)]
 pub fn perform_mocked_syscall(
     syscall: i32,
@@ -13,15 +16,9 @@ pub fn perform_mocked_syscall(
     arg6: u64,
     arg7: u64,
 ) -> i32 {
-    // Syscall implementations are host-side work — on the real target
-    // they never touch the guest heap — so their (Rust-side)
-    // allocations are excluded from frame stats. Contract code
-    // re-entered through here (Invoke -> trampoline) re-enables
-    // counting via its own measurement scope, and the guard's Drop
-    // restores the flag even on the panic_any unwind paths below.
     let _alloc_pause = crate::alloc_stats::PauseGuard::new();
-    let result: groundhog_sys::ForeignHostFnResult = unsafe {
-        groundhog_sys::mock_syscall_entrypoint(
+    let result: thruput_sys::ForeignHostFnResult = unsafe {
+        thruput_sys::mock_syscall_entrypoint(
             syscall, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
         )
     };
@@ -34,10 +31,16 @@ pub fn perform_mocked_syscall(
         x if x == HostFnErrorCode::Unrecoverable.0 => {
             panic_any(crate::invoke_error::unrecoverable_error());
         }
-        x if x == HostFnErrorCode::Return.0
-            || x == HostFnErrorCode::Exit.0 =>
-        {
+        x if x == HostFnErrorCode::Return.0 => {
             panic_any(crate::invoke_error::control_flow_unwind());
+        }
+        // Exit is a deterministic frame revert on every runtime (rv32,
+        // native precompiles): the `Exit` syscall and every host-side
+        // rejection of `Return` (over-limit buffer, bad returned auth
+        // tokens) raise it. Unwinding it as a completed frame would report
+        // the caller an `Ok(Return)` with an empty buffer instead.
+        x if x == HostFnErrorCode::Exit.0 => {
+            panic_any(crate::invoke_error::deterministic_error());
         }
         x if x == HostFnErrorCode::ValidationFailure.0 => {
             panic_any(crate::invoke_error::validation_error());
@@ -51,9 +54,11 @@ pub fn perform_mocked_syscall(
     }
 }
 
+/// The symbol thruput-xdr's `syscalls_mock` extern declaration links
+/// against; forwards to [`perform_mocked_syscall`].
 #[unsafe(no_mangle)]
 pub extern "C-unwind" fn syscall_wrapper_impl(
-    // Matches groundhog-xdr's `syscalls_mock` extern declaration, which passes
+    // Matches thruput-xdr's `syscalls_mock` extern declaration, which passes
     // `SyscallNo` widened to a native `SyscallWord` (u64). `SyscallNo` itself is
     // now `repr(transparent)` over a `u32`, so taking it directly here would be
     // an ABI mismatch.

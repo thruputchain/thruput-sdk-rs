@@ -13,21 +13,31 @@ use syn::*;
 
 pub trait Method {
     fn sig(&self) -> &syn::Signature;
+    fn attrs(&self) -> &[syn::Attribute];
 }
 
 impl Method for syn::ItemFn {
+    fn attrs(&self) -> &[syn::Attribute] {
+        &self.attrs
+    }
     fn sig(&self) -> &syn::Signature {
         &self.sig
     }
 }
 
 impl Method for syn::ImplItemFn {
+    fn attrs(&self) -> &[syn::Attribute] {
+        &self.attrs
+    }
     fn sig(&self) -> &syn::Signature {
         &self.sig
     }
 }
 
 impl Method for syn::TraitItemFn {
+    fn attrs(&self) -> &[syn::Attribute] {
+        &self.attrs
+    }
     fn sig(&self) -> &syn::Signature {
         &self.sig
     }
@@ -129,6 +139,22 @@ where
                     None => combined = Some(err),
                 }
             }
+            // A `&mut` argument would be a mutable borrow of a value
+            // decoded from calldata that nothing reads back, so it has no
+            // meaning a caller could rely on.
+            if let syn::Type::Reference(reference) = pat_type.ty.as_ref()
+                && let Some(mutability) = reference.mutability
+            {
+                let err = error(
+                    &mutability,
+                    "contract method arguments cannot be `&mut`; take the \
+                     argument by value, or by shared reference `&`",
+                );
+                match combined.as_mut() {
+                    Some(existing) => existing.combine(err),
+                    None => combined = Some(err),
+                }
+            }
         }
     }
 
@@ -136,6 +162,29 @@ where
         Some(err) => Err(err),
         None => Ok(()),
     }
+}
+
+/// Reject generic parameters on contract methods: the method signatures
+/// are spliced into non-generic module-level consts and client fns (spec
+/// defs, entrypoint wrappers, clients), so a method-scoped `T` — or an
+/// explicit `<'a>` lifetime parameter, verified to die with E0261 inside
+/// the generated client — would surface as an error in code the author
+/// never wrote. Elided borrow lifetimes (`&self`, `&[u8]`) are not
+/// generic parameters and remain fine.
+pub fn validate_method_generics<M>(
+    methods: impl IntoIterator<Item = M>,
+) -> Result<()>
+where
+    M: Method,
+{
+    for method in methods {
+        super::util::validate_no_generics(
+            &method.sig().generics,
+            false,
+            "contract methods",
+        )?;
+    }
+    Ok(())
 }
 
 use core::cmp::Ordering;
@@ -159,7 +208,6 @@ impl ContractSrc for syn::ItemTrait {
     }
 
     fn interface_vers(&self) -> Option<String> {
-        // TODO: some mechanism for specifying a version
         None
     }
 
@@ -219,11 +267,11 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn trait_path(&self) -> Option<syn::Path> {
-        self.trait_.as_ref().map(|(_, path, _)| path.clone())
+        self.trait_.as_ref().map(|(path, _)| path.clone())
     }
 
     fn interface_name(&self) -> Option<String> {
-        if let Some((_, path, _)) = &self.trait_ {
+        if let Some((path, _)) = &self.trait_ {
             return Some(path_last_segment_ident(path).to_string());
         }
 
@@ -235,7 +283,6 @@ impl ContractSrc for syn::ItemImpl {
     }
 
     fn interface_vers(&self) -> Option<String> {
-        // TODO: some mechanism for specifying a version
         None
     }
 
@@ -373,8 +420,8 @@ pub fn throws_spec_tokens(
             let ty: syn::Type = syn::parse_quote! { #path };
             let type_view = contract_type_view_tokens(&ty)?;
             Ok(quote! {
-                ::sdk::__contract_spec::ContractExceptionTypeView {
-                    selector: <#ty as ::sdk::exn::Exn>::SELECTOR,
+                ::thruput_sdk::__contract_spec::ContractExceptionTypeView {
+                    selector: <#ty as ::thruput_sdk::exn::Exn>::SELECTOR,
                     ty: #type_view,
                 }
             })
@@ -456,7 +503,7 @@ pub fn method_arg_spec_tokens(
             };
             let ty = contract_type_view_tokens(pat_type.ty.as_ref())?;
             Ok(quote! {
-                ::sdk::__contract_spec::ContractFieldView {
+                ::thruput_sdk::__contract_spec::ContractFieldView {
                     name: #name,
                     ty: #ty,
                 }
@@ -469,9 +516,9 @@ pub fn method_return_spec_token(
     method: &impl Method,
 ) -> Result<proc_macro2::TokenStream> {
     match &method.sig().output {
-        syn::ReturnType::Default => {
-            Ok(quote! { ::sdk::__contract_spec::ContractTypeView::Void })
-        }
+        syn::ReturnType::Default => Ok(
+            quote! { ::thruput_sdk::__contract_spec::ContractTypeView::Void },
+        ),
         syn::ReturnType::Type(_, ty) => contract_type_view_tokens(ty),
     }
 }
@@ -489,12 +536,48 @@ pub fn method_spec_view_tokens(
     let name = method.sig().ident.to_string();
     let args = method_arg_spec_tokens(method)?;
     let return_type = method_return_spec_token(method)?;
+    let effect = method_effect_tokens(method)?;
     Ok(quote! {
-        ::sdk::__contract_spec::ContractSpecMethodView {
+        ::thruput_sdk::__contract_spec::ContractSpecMethodView {
             name: #name,
             args: &[#(#args),*],
             return_type: #return_type,
+            effect: #effect,
         }
+    })
+}
+
+/// Parse the method's explicit declaration, never its name or receiver.
+pub fn method_effect_tokens(method: &impl Method) -> Result<TokenStream> {
+    let mut effect = None;
+    for attr in method
+        .attrs()
+        .iter()
+        .filter(|attr| attr.path().is_ident("contract"))
+    {
+        attr.parse_nested_meta(|meta| {
+            if !meta.path.is_ident("effect") {
+                return Err(meta.error("expected `effect = \"pure\"`, `\"readOnly\"`, or `\"stateChanging\"`"));
+            }
+            if effect.is_some() {
+                return Err(meta.error("duplicate method effect declaration"));
+            }
+            let value: syn::LitStr = meta.value()?.parse()?;
+            let name = match value.value().as_str() {
+                "pure" => "Pure",
+                "readOnly" => "ReadOnly",
+                "stateChanging" => "StateChanging",
+                _ => return Err(error(&value, "expected `pure`, `readOnly`, or `stateChanging`; omit the declaration for unknown effects")),
+            };
+            effect = Some(syn::Ident::new(name, value.span()));
+            Ok(())
+        })?;
+    }
+    Ok(match effect {
+        Some(effect) => {
+            quote! { ::core::option::Option::Some(::thruput_sdk::__contract_spec::ContractMethodEffectView::#effect) }
+        }
+        None => quote! { ::core::option::Option::None },
     })
 }
 
@@ -514,7 +597,7 @@ pub fn method_anchor_tokens(
 
     match &method.sig().output {
         syn::ReturnType::Default => tokens.push(quote! {
-            <() as ::sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            <() as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
         }),
         syn::ReturnType::Type(_, ty) => {
             tokens.push(contract_type_anchor_token(ty)?);
@@ -524,9 +607,19 @@ pub fn method_anchor_tokens(
     Ok(tokens)
 }
 
-fn lower_via_type_ref_trait(ty: &syn::Type) -> TokenStream {
+/// The crate path spec-emitting macros use unless told otherwise.
+///
+/// Everything reached through it (`__contract_spec`, `__xdrs`) is a
+/// `thruput-sdk` re-export of a crate *below* `thruput-sdk`, so a crate that
+/// `thruput-sdk` depends on can name those targets directly and pass its own
+/// shim path instead. See `#[contract_type_spec(crate = "...")]`.
+pub fn sdk_crate_path() -> syn::Path {
+    syn::parse_quote!(::thruput_sdk)
+}
+
+fn lower_via_type_ref_trait(krate: &syn::Path, ty: &syn::Type) -> TokenStream {
     quote! {
-        ::sdk::__contract_spec::type_ref::<#ty>()
+        #krate::__contract_spec::type_ref::<#ty>()
     }
 }
 
@@ -540,11 +633,11 @@ pub fn contract_type_anchor_token(ty: &syn::Type) -> Result<TokenStream> {
         | syn::Type::Slice(_)
         | syn::Type::Array(_)
         | syn::Type::Tuple(_) => Ok(quote! {
-            <#ty as ::sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            <#ty as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
         }),
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)
-        | syn::Type::BareFn(_)
+        | syn::Type::FnPtr(_)
         | syn::Type::Ptr(_) => Err(error(
             ty,
             "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
@@ -557,18 +650,29 @@ pub fn contract_type_anchor_token(ty: &syn::Type) -> Result<TokenStream> {
 }
 
 pub fn contract_type_view_tokens(ty: &syn::Type) -> Result<TokenStream> {
+    contract_type_view_tokens_in(&sdk_crate_path(), ty)
+}
+
+/// As [`contract_type_view_tokens`], but resolving the spec traits through
+/// `krate` rather than `::thruput_sdk`.
+pub fn contract_type_view_tokens_in(
+    krate: &syn::Path,
+    ty: &syn::Type,
+) -> Result<TokenStream> {
     match ty {
         syn::Type::Reference(reference) => {
-            contract_type_view_tokens(&reference.elem)
+            contract_type_view_tokens_in(krate, &reference.elem)
         }
-        syn::Type::Path(_) => Ok(lower_via_type_ref_trait(ty)),
-        syn::Type::Paren(paren) => contract_type_view_tokens(&paren.elem),
+        syn::Type::Path(_) => Ok(lower_via_type_ref_trait(krate, ty)),
+        syn::Type::Paren(paren) => {
+            contract_type_view_tokens_in(krate, &paren.elem)
+        }
         syn::Type::Slice(_) | syn::Type::Array(_) | syn::Type::Tuple(_) => {
-            Ok(lower_via_type_ref_trait(ty))
+            Ok(lower_via_type_ref_trait(krate, ty))
         }
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)
-        | syn::Type::BareFn(_)
+        | syn::Type::FnPtr(_)
         | syn::Type::Ptr(_) => Err(error(
             ty,
             "unsupported contract spec type; supported shapes are named types, tuples, arrays, options, vecs, and references to supported types",
@@ -675,9 +779,9 @@ mod tests {
     #[test]
     fn builtin_byte_blob_types_lower_to_bytes() {
         for ty in [
-            syn::parse_quote!(sdk::Ed25519Signature),
-            syn::parse_quote!(sdk::Ed25519PublicKey),
-            syn::parse_quote!(sdk::ContractEntrypointID),
+            syn::parse_quote!(thruput_sdk::Ed25519Signature),
+            syn::parse_quote!(thruput_sdk::Ed25519PublicKey),
+            syn::parse_quote!(thruput_sdk::ContractEntrypointID),
         ] {
             let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
@@ -688,7 +792,7 @@ mod tests {
 
     #[test]
     fn block_height_lowers_to_i64() {
-        let ty: syn::Type = syn::parse_quote!(sdk::BlockHeight);
+        let ty: syn::Type = syn::parse_quote!(thruput_sdk::BlockHeight);
 
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 
@@ -698,7 +802,7 @@ mod tests {
 
     #[test]
     fn contract_address_lowers_via_trait_resolution() {
-        let ty: syn::Type = syn::parse_quote!(sdk::ContractAddress);
+        let ty: syn::Type = syn::parse_quote!(thruput_sdk::ContractAddress);
 
         let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
 

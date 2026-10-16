@@ -13,17 +13,17 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["erc20/dev", "sdk/dev", "groundhog-erc20-if/dev"]
+dev = ["erc20/dev", "thruput-sdk/dev", "thruput-erc20-if/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 erc20 = { package = "erc20_low_level", path = "../erc20_low_level/" }
-groundhog-erc20-if = { workspace = true }
+thruput-erc20-if = { workspace = true }
 
 [dev-dependencies]
 simple_wallet_old = { path = ".", features = ["dev"] }

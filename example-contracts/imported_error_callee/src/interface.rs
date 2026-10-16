@@ -1,4 +1,4 @@
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract(throws(imported_error_type::ImportedError))]
 pub trait ImportedErrorCallee {

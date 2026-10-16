@@ -1,6 +1,6 @@
 [package]
 name = "erc20"
-description = "Example ERC20 contract for the Groundhog blockchain"
+description = "Example ERC20 contract for the Thruput blockchain"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -14,24 +14,32 @@ edition.workspace = true
 [features]
 entrypoints = []
 dev = [
-    "sdk/dev",
+    "thruput-sdk/dev",
     "metadata",
-    "groundhog-erc20-if/dev",
-    "groundhog-erc20-metadata-if/dev",
+    "thruput-erc20-if/dev",
+    "thruput-erc20-metadata-if/dev",
     "erc20-native-test/metadata"
     ]
-bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "sdk/alloc"]
-metadata = ["dep:groundhog-erc20-metadata-if"]
+bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "thruput-sdk/alloc"]
+metadata = ["dep:thruput-erc20-metadata-if"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `thruput build -p erc20` derives `--bin erc20` from the
+# package name, so the name here must stay the underscored package name.
+# `required-features` keeps it out of host builds.
+[[bin]]
+name = "erc20"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [dependencies]
-sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
-groundhog-erc20-metadata-if = { workspace = true, optional = true }
+thruput-sdk = { workspace = true }
+thruput-erc20-if = { workspace = true }
+thruput-erc20-metadata-if = { workspace = true, optional = true }
 
 # Optional testing dependencies
 erc20-bottle-test = { workspace = true, optional = true }

@@ -1,10 +1,10 @@
 use crate::{AuthTokenError, FaultString};
 
-pub fn receive_auth_handles_from_slice<T: ReceiveAuthHandles>(
+pub fn receive_auth_handles_from_iter<T: ReceiveAuthHandles>(
     value: &mut T,
-    handles: &[u32],
+    handles: impl IntoIterator<Item = u32>,
 ) -> Result<(), AuthTokenError> {
-    let mut iter = handles.iter().copied();
+    let mut iter = handles.into_iter();
     value.receive_auth_handles(&mut iter)?;
 
     if iter.next().is_some() {
@@ -30,7 +30,7 @@ pub fn receive_auth_handles_from_slice<T: ReceiveAuthHandles>(
 ///
 /// Errors if `handles` runs out before every `Signed` field is filled.
 /// Callers that own the full handle list (the entrypoint path via
-/// [`receive_auth_handles_from_slice`], and
+/// [`receive_auth_handles_from_iter`], and
 /// [`Signed::consume`](crate::signer::Signed::consume)) additionally reject
 /// leftover handles after the walk.
 pub trait ReceiveAuthHandles {
@@ -66,12 +66,15 @@ impl_receive_noop!(
     i128,
     bool,
     (),
-    sdk::types::ContractAddress,
-    sdk::types::BlockHeight,
-    sdk::types::SHA256Hash,
-    sdk::types::Ed25519PublicKey,
-    sdk::types::Ed25519Signature,
-    sdk::types::ContractEntrypointID,
+    str,
+    crate::types::ContractAddress,
+    crate::types::BlockHeight,
+    crate::types::SHA256Hash,
+    crate::types::Ed25519PublicKey,
+    crate::types::Ed25519Signature,
+    thruput_u256::U256,
+    thruput_u256::I256,
+    crate::types::ContractEntrypointID,
 );
 
 impl<T: ReceiveAuthHandles, const N: usize> ReceiveAuthHandles for [T; N] {
@@ -124,7 +127,7 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for [T] {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: ReceiveAuthHandles + 'static, const MAX: u32> ReceiveAuthHandles
+impl<T: ReceiveAuthHandles, const MAX: u32> ReceiveAuthHandles
     for xdrs::VecM<T, MAX>
 {
     #[inline(always)]

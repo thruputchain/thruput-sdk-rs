@@ -16,13 +16,13 @@ rustdoc, and erc20-test abort checks (re-enabled by default and repaired)
 + the hardcoded mint-event amount.
 
 Additionally, the ERC20 error contract was standardized: the trait in
-`standard-interfaces/groundhog-erc20` now documents exactly which
+`standard-interfaces/thruput-erc20` now documents exactly which
 `ERC20Error` each method throws, all four implementations (`erc20`,
 `erc20_low_level`, `erc20_raw_storage`, `itc_erc20`) throw
 `ERC20Error::TooLarge` on balance/allowance overdraft instead of leaking
 storage-layer `NonNegativeIntUnderflow`, and erc20-test pins the exact
 error in its abort checks. (This partially addresses the
-"groundhog-erc20-if trait omits authorization and error contracts"
+"thruput-erc20-if trait omits authorization and error contracts"
 finding below — the trait-docs half is done; the `StdERC20Event`
 i128::MAX conversion panic is not.)
 
@@ -43,11 +43,11 @@ contracts that don't implement it. Each package passes in isolation,
 which is how CI runs them — but it's another instance of the
 feature-unification fragility called out below.
 
-Two more silent-failure instances in `scripts/dev.sh` observed during
-verification: `./scripts/dev.sh test` dispatches to a nonexistent
-`test_all` function and exits 0, and `dev.sh test-examples` run from any
-directory other than the repo root iterates zero packages (relative
-`example-contracts` path) and also exits 0.
+One more silent-failure instance in `scripts/dev.sh` observed during
+verification: `dev.sh test-examples` run from any directory other than
+the repo root iterates zero packages (relative `example-contracts` path)
+and exits 0. (The bare `dev.sh test` arm's dispatch to a nonexistent
+`test_all` has since been fixed.)
 
 **Addressed in the 2026-06-11 fix pass** (sections removed below):
 
@@ -104,15 +104,15 @@ directory other than the repo root iterates zero packages (relative
   `calldata_raw`), but if the module additionally exports no functions
   it is a hard error with a "likely missing #[contract]" diagnosis —
   surfacing this shape immediately caught `genesis_deployer` missing
-  its `#[contract]` macro entirely (zero wasm exports, uninvokable); it
+  its `#[contract]` macro entirely (zero exported entrypoints, uninvokable); it
   now publishes a real interface and dev.sh asserts the spec instead of
   asserting spec-lessness; rendered JSON keys unified
   (`"type"`, `"element"`); the lossless JSON is reachable via
   `--json-format round-trip`; the CLI gained `--out`, atomic writes, and
   `--help` (in-place rewrite and stale-sidecar deletion are kept but now
   documented); unknown-variant handling panics consistently; the leak check
-  encodes fragments once; `ContractTypeInfo`/`rewrite_wasm`/`RewrittenWasm`/
-  `parse_raw_fragments`/`describe::write_output` got docs; the unreachable
+  encodes fragments once; `ContractTypeInfo`/`parse_raw_fragments`/
+  `describe::write_output` got docs; the unreachable
   `ContractType::Bytes` policy is documented at the `[u8]` impl.
 - *Partial:* of the "[macros/redundancy] copy-pasted auth-handle walkers,
   duplicated entrypoint_export_name, always-Some Option" finding, only the
@@ -212,6 +212,18 @@ rewrite + buffer unification #241; sections removed below):
   hogd-side robustness gap.) Regression test
   `panic_with_open_transaction_is_not_masked_by_drop` pins the behavior.
 
+**Addressed in the 2026-08-24 devnet-readiness pass** (sections removed
+below):
+
+- *native-exec diagnostics and docs:* frame assertions decode the abort
+  selector and append trace context; `transact_manual` panics when the
+  closure forgets to commit/abort instead of silently drop-aborting; the
+  mock frame executor re-raises the misuse guards' Unrecoverable payload
+  instead of recording it as a contract fault of the enclosing frame; and
+  the crate now builds under `#![warn(missing_docs)]`, with the
+  one-root-frame-per-transaction invariant documented on
+  `call`/`open_root_frame`/`TestEnvironment::transact`.
+
 ## medium severity (5 remaining)
 
 ### [sdk-core/footgun] FaultString wire format silently changes with the `debugging` feature, breaking cross-build exception decoding
@@ -238,13 +250,13 @@ The type's entire rustdoc is `/// Non-negative integer`, yet `set(-5)` succeeds 
 
 For the same task ('make a deterministic test id'), the corpus a new author reads uses: `SHA256Hash::new(hash_to_array!("..."))` (README, sdk/src/mock/contract_test.rs:112), `sdk::sha256_static!("...")` (counter, versioned_caller, bare_impl_caller tests), `hash_ident! { static FOO: SHA256Hash; }` (erc20-test/src/contract_test.rs:16-17, swap_driver tests), `ContractAddress::named("test")` (everywhere for caller addresses), and raw `[0xAA; 32].into()` (erc1271_caller/tests/lifecycle.rs). The first two are not even value-equivalent (see the quote-hashing finding). A new user cannot tell which is canonical; the SDK exports all of them (sdk/src/lib.rs:166-168, util.rs:12) with no rustdoc on any.
 
-### [consumer-experience/missing-docs] groundhog-erc20-if trait omits authorization and error contracts; std-event conversion panics above i128::MAX
+### [consumer-experience/missing-docs] thruput-erc20-if trait omits authorization and error contracts; std-event conversion panics above i128::MAX
 
-**File:** `standard-interfaces/groundhog-erc20/src/lib.rs:23-65`
+**File:** `standard-interfaces/thruput-erc20/src/lib.rs:23-65`
 
 The published ERC20 standard interface documents nothing a wallet/token integrator needs: `initialize` has no doc at all (it throws `AlreadyInitialized`; who becomes administrator?); `mint`/`burn` don't say they are owner-restricted (`MustBeContractOwner`) or which `ERC20Error` variants each method can throw; `adjust_allowance` deviates from ERC-20 `approve` semantics (signed delta, not absolute) but that is documented only on the ApprovalEvent type (events.rs:135-138), not the trait method clients call. Also, `Amount` is `u128`, but `From<&TransferEvent> for stdevt::TransferEvent` does `TryInto::<i128>::try_into(val.amount).unwrap()` (events.rs:90) — converting an event for a supply above i128::MAX panics, an undocumented invariant, despite `amount_to_diff` in error.rs:20-22 showing the throwing alternative.
 
-## low severity (36 remaining)
+## low severity (33 remaining)
 
 ### [sdk-core/missing-docs] Public syscall wrappers and InvokeConfig lack rustdoc on throwing behavior, limits, and default semantics
 
@@ -306,29 +318,11 @@ NNInt stores a bare `Keypath` and calls `self.keypath.generate_key()` in every m
 
 `impl_assume_tokens!` is instantiated for 0..=8 elements (signer.rs:104-120), but `impl_receive_tuple!` and `impl_collect_tuple!` both cover arities 1..=20 (receive_auth_handles.rs:207, collect_auth_handles.rs:189). A caller destructuring 9+ opaque tokens gets a confusing 'trait not implemented' error in an API family that otherwise handles 20. Also note `AssumeTokens::assume_tokens` panics on length mismatch (assert_eq) rather than returning Result — consistent with tests but worth a doc line since the rest of the receive surface returns AuthTokenError.
 
-### [native-exec/footgun] tx.call() may only be invoked once per transaction; second call panics — undocumented
-
-**File:** `crates/native-exec/src/mock_transaction_handler.rs:438-451`
-
-`call()` is documented only as "Convenience: open a root frame targeting the given contract address", but it delegates to `open_root_frame()` which does `assert_eq!(self.state, MockTransactionState::NotStarted, "cannot open root frame: transaction already started")`. The natural test pattern — calling two entrypoints inside one `env.transact(|tx| ...)` closure — panics. The one-transaction-one-root-frame invariant is stated only in a non-rustdoc `//` comment on the struct ("Can run one, and only one, transaction", line 348-349), invisible in generated docs. Neither `call`, `transact`, nor the `TestEnvironment` doc example mentions it.
-
 ### [native-exec/footgun] UnwindSafe bounds on run/execute/run_continuable are theater: the impl uses AssertUnwindSafe anyway
 
 **File:** `crates/native-exec/src/mock_transaction_handler.rs:226-245`
 
 `execute` requires `impl FnOnce(&mut Self) -> FrameAction + UnwindSafe` but then immediately does `std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| lambda(self)))`, discarding the bound's guarantee. The bound propagates to `FrameBuilder::run` (frame_builder.rs:59-61), `run_continuable` (99-101), `ContinuableFrame::run_continuable` (136-138), `invoke_wrapper` (invoke_error.rs:219-223), and `MockContract::register_method` (mock_contract.rs:63-65). So test authors who capture `&mut` state or RefCell in a closure get a compile error and must wrap in `AssertUnwindSafe` themselves — pure friction with zero added safety, since the harness already asserts unwind safety internally.
-
-### [native-exec/footgun] transact_manual silently aborts the transaction if the closure forgets to commit
-
-**File:** `crates/native-exec/src/test_environment.rs:518-529`
-
-The rustdoc says "The closure ... is responsible for calling tx.try_commit_transaction() or tx.abort_transaction()", but nothing enforces it. If the author forgets, `MockTransactionHandler::drop` (mock_transaction_handler.rs:463-471) auto-aborts with only an `eprintln!("Cleanup: Aborting mock transaction that was not committed")` — captured and hidden by the test harness — so the test passes while none of its state changes were committed; later `advance_block()`/snapshot reads see nothing and the author debugs the wrong layer. Conversely, calling `tx.try_commit_transaction()` yourself inside the auto-commit `transact()` closure panics on the second commit via `assert_eq!(self.state, MockTransactionState::Running)`; neither doc mentions these interactions.
-
-### [native-exec/footgun] Harness misuse errors surface as opaque `Box<dyn Any>` panics (eprintln + panic_any pattern)
-
-**File:** `crates/native-exec/src/mock_transaction_handler.rs:270-284`
-
-`MockInvocationFrame::result()` on a not-yet-closed frame does `eprintln!("Cannot get the result of a frame while it is not closed"); panic_any(crate::invoke_error::unrecoverable_error())`. The same pattern is used at frame-open failure (lines 139-145) and close failure (177-180). When this fires outside an `execute` catch_unwind — e.g. calling `ContinuableFrame::finish()` after a closure that returned `FrameAction::Continue` — the test fails with panic payload `Box<dyn Any>` and no message in the panic itself; the explanatory eprintln is on captured stderr where users rarely look. `finish()`'s rustdoc says "Call this after the frame has been closed" but doesn't say what happens otherwise. Plain `panic!` with the message would diagnose itself.
 
 ### [native-exec/redundancy] FFI trace/events decoding copy-pasted between MockInvocationFrame and TransactionHandler, with drift
 
@@ -354,12 +348,6 @@ The entrypoint ID is computed as `sha256(INTERFACE_NAME || MAJOR_VERSION || METH
 
 `payload()` computes `topics_extent = min(TOPIC_SIZE * event.num_topics as usize, event.serialized_event.len())` and returns `&event.serialized_event[topics_extent..]`. For a malformed event where `num_topics * 32 > serialized_event.len()`, this silently returns an empty payload (which may then XDR-decode "successfully" for zero-field payload types) instead of surfacing the corruption. Meanwhile `topic()` (lines 35-37) returns `None` for exactly the same out-of-bounds condition. Two accessors on the same view classify the same malformed input as "fine, empty" vs "absent". Also `num_topics as usize * 32` relies on the clamp to avoid garbage; nothing validates the documented 0..=3 topic cap. A contract author asserting on payload contents will get a confusing decode error (or false-positive empty match) rather than "event is malformed".
 
-### [small-crates/redundancy] wasm and rv32 bump allocators are copy-pasted and have already drifted (checked vs unchecked arithmetic, stale name/docs)
-
-**File:** `crates/wasm-runtime/src/allocator.rs:28-31`
-
-The two guest allocators are near-identical copies. The rv32 version (crates/rv32-runtime/src/allocator.rs:34-42) was hardened to use `checked_add(...)` and returns null on overflow; the wasm version still does unchecked `let aligned = (cursor + align - 1) & !(align - 1); let new_cursor = aligned + size;` — it is only saved from wrap-around by `Layout`'s size<=isize::MAX invariant, and the divergence shows the copies are no longer maintained together. The wasm struct is also named `SlabAllocator` though it is a bump allocator (the rv32 copy says `BumpAllocator`), and the rv32 module doc still says "Mirrors `sdk::allocator::SlabAllocator` (the WASM version)" — a path that no longer exists since the allocator moved into crates/wasm-runtime. The shared logic could live in one target-independent function (like rv32's `dispatch.rs` pattern) with only the bound differing.
-
 ### [small-crates/missing-docs] StorageCostModel public API has zero rustdoc: no units, no warning on no_cost_model(), missing accessors for three model fields
 
 **File:** `crates/storage-cost/src/model.rs:3-30`
@@ -370,7 +358,7 @@ The two guest allocators are near-identical copies. The rv32 version (crates/rv3
 
 **File:** `crates/hogd-sys/build.rs:330-334`
 
-The wasm-target rejection reads `"native_exec does not build for wasm32-unknown-unknown"`, the version-mismatch error (line 419) instructs "Please update TEST_FFI_VERSION in native_exec/build.rs to match the header", and the force-reconfigure env var is `NATIVE_EXEC_ALWAYS_CONFIGURE` (lines 339, 969). The package is `groundhog-sys` in `crates/hogd-sys`, and the workspace contains a separate `crates/native-exec` crate (which has no build.rs constant to update). A user hitting the version-mismatch error is directed to edit the wrong crate. Evidence of a rename that never updated the user-facing strings.
+The guest-target rejection reads `"native_exec does not build for <target>"`, the version-mismatch error (line 419) instructs "Please update TEST_FFI_VERSION in native_exec/build.rs to match the header", and the force-reconfigure env var is `NATIVE_EXEC_ALWAYS_CONFIGURE` (lines 339, 969). The package is `thruput-sys` in `crates/hogd-sys`, and the workspace contains a separate `crates/native-exec` crate (which has no build.rs constant to update). A user hitting the version-mismatch error is directed to edit the wrong crate. Evidence of a rename that never updated the user-facing strings.
 
 ### [small-crates/footgun] Download auth passes user:password on the curl command line; empty HOGD_FFI_USER silently disables auth
 
@@ -382,13 +370,13 @@ The wasm-target rejection reads `"native_exec does not build for wasm32-unknown-
 
 **File:** `crates/bottle-test-if/Cargo.toml:3-9`
 
-Unlike every other crates/* package (which use `version.workspace`, `authors.workspace`, `license.workspace`, etc.), bottle-test-if hardcodes `version = "0.1.0"`, `authors = ["Groundhog Team"]`, `license = "MIT OR Apache-2.0"`, and `repository = "https://github.com/groundhogchain/sdk_rs"`, and its root-workspace pin is path-only (`bottle-test-if = { path = "crates/bottle-test-if" }`, root Cargo.toml:78) with no `registry`/`version ="=..."` like the other 14 pins. It will silently miss every workspace-wide version bump (the bump-version flow keys off the inherited fields). Also `#![cfg_attr(not(any(feature = "dev")), no_std)]` in src/lib.rs:4 wraps a single predicate in `any(...)` — harmless but a reread-trigger suggesting clauses were deleted without cleanup.
+Unlike every other crates/* package (which use `version.workspace`, `authors.workspace`, `license.workspace`, etc.), bottle-test-if hardcodes `version = "0.1.0"`, `authors = ["Thruput Team"]`, `license = "MIT OR Apache-2.0"`, and `repository = "https://github.com/groundhogchain/sdk_rs"`, and its root-workspace pin is path-only (`bottle-test-if = { path = "crates/bottle-test-if" }`, root Cargo.toml:78) with no `registry`/`version ="=..."` like the other 14 pins. It will silently miss every workspace-wide version bump (the bump-version flow keys off the inherited fields). Also `#![cfg_attr(not(any(feature = "dev")), no_std)]` in src/lib.rs:4 wraps a single predicate in `any(...)` — harmless but a reread-trigger suggesting clauses were deleted without cleanup.
 
 ### [consumer-experience/footgun] Counter example demonstrates unguarded initialize() and a silent i128→u64 truncating cast
 
 **File:** `example-contracts/counter/src/implementation.rs:17-31`
 
-The flagship-simple example's `initialize(&mut self, initial_value: u64)` is just `self.value.strict_inc(initial_value as i128)` — callable any number of times by anyone, each call adding to the counter. Other code in the same repo shows two different guard patterns (swap_driver/src/swapv2_driver.rs:25 uses `panic!("Already initialized.")`, i.e. a fault instead of a typed throw; groundhog-erc20-if defines `ERC20Error::AlreadyInitialized`). A contract author copying counter's pattern into a contract where initialize sets an owner gets a re-initialization/ownership-takeover bug. Additionally `get()` returns `self.value.try_get().unwrap_or(0) as u64` — NNInt stores i128 (storage/nnint.rs:28), so values above u64::MAX (reachable via repeated `increment`) are silently truncated.
+The flagship-simple example's `initialize(&mut self, initial_value: u64)` is just `self.value.strict_inc(initial_value as i128)` — callable any number of times by anyone, each call adding to the counter. Other code in the same repo shows two different guard patterns (swap_driver/src/swapv2_driver.rs:25 uses `panic!("Already initialized.")`, i.e. a fault instead of a typed throw; thruput-erc20-if defines `ERC20Error::AlreadyInitialized`). A contract author copying counter's pattern into a contract where initialize sets an owner gets a re-initialization/ownership-takeover bug. Additionally `get()` returns `self.value.try_get().unwrap_or(0) as u64` — NNInt stores i128 (storage/nnint.rs:28), so values above u64::MAX (reachable via repeated `increment`) are silently truncated.
 
 ### [consumer-experience/footgun] Generated client builder helpers have asymmetric receivers: with_gas_limit(&self) vs with_commit_locking(self)/with_read_only(self)
 
@@ -402,11 +390,11 @@ Every generated client gets three look-alike builder methods, but `with_gas_limi
 
 `members` contains "rcq_test" at two positions (after "hasher" and after "test_bytestring") — harmless to cargo but clear copy-paste drift in exactly the file the root manifest warns must be manually kept in sync (sdk_rs/Cargo.toml:53-55). The embedded workspace also pins `xdrs = "0.7.0"` with no features while the root pins `xdrs = { version = "0.7.1", features = ["int128", "heapless"] }`. Related drift: the rcq_test crate is disabled via an empty marker file `example-contracts/rcq_test/disabled` that only scripts/dev.sh:406 understands — an undocumented mechanism a reader of the example corpus has no way to discover.
 
-### [consumer-experience/weird] groundhog-erc20-metadata-if: wrong crate description, unconditional no_std, and undocumented initialize overlap with ERC20
+### [consumer-experience/weird] thruput-erc20-metadata-if: wrong crate description, unconditional no_std, and undocumented initialize overlap with ERC20
 
-**File:** `standard-interfaces/groundhog-erc20-metadata/Cargo.toml:8 and src/lib.rs:1,13`
+**File:** `standard-interfaces/thruput-erc20-metadata/Cargo.toml:8 and src/lib.rs:1,13`
 
-The Cargo description is "ERC20 standard interface for Groundhog smart contracts" — copy-pasted from groundhog-erc20-if; it should say metadata. The crate uses bare `#![no_std]` while its two sibling interfaces use `#![cfg_attr(not(feature = "dev"), no_std)]`. More substantively, `ERC20Metadata::initialize(administrator, name, symbol, decimals)` is undocumented and silently subsumes `ERC20::initialize`: erc20-test/src/contract_test.rs:34-53 calls ONLY the metadata initialize when the `metadata` feature is on (the plain `client.initialize` is under `#[cfg(not(feature = "metadata"))]`), so a conforming token must make the metadata initialize also perform ERC20 initialization — an interface contract stated nowhere.
+The Cargo description is "ERC20 standard interface for Thruput smart contracts" — copy-pasted from thruput-erc20-if; it should say metadata. The crate uses bare `#![no_std]` while its two sibling interfaces use `#![cfg_attr(not(feature = "dev"), no_std)]`. More substantively, `ERC20Metadata::initialize(administrator, name, symbol, decimals)` is undocumented and silently subsumes `ERC20::initialize`: erc20-test/src/contract_test.rs:34-53 calls ONLY the metadata initialize when the `metadata` feature is on (the plain `client.initialize` is under `#[cfg(not(feature = "metadata"))]`), so a conforming token must make the metadata initialize also perform ERC20 initialization — an interface contract stated nowhere.
 
 ### [consumer-experience/footgun] swap_driver test setup silently discards the airdrop transaction result
 
@@ -419,12 +407,6 @@ The Cargo description is "ERC20 standard interface for Groundhog smart contracts
 **File:** `crates/sdk/src/lib.rs:81-92`
 
 The sdk deliberately ships two parallel primitive-storage APIs: `sys_result` (returns `SysResult`) and `sys_exn` (throws), with identical function names — `sdk::bytestring_get_len(key) -> u32` (throws) vs `sdk::sys_result::bytestring::bytestring_get_len(key) -> Result<u32>`. Only the import path distinguishes them, and `sys_exn` is `#[doc(hidden)]` while its contents are glob-re-exported at the root, so rustdoc shows the throwing functions as root items with no visible counterpart. Worse, the two stacks have drifted: nnint exists only in sys_exn (no Result API at all); sys_exn/rcq.rs has 9 functions (alloc + try_ variants) while sys_result/rcq.rs has 4 and is the only place `retrocausal_queue_peek_len` exists; sys_exn/delete.rs additionally has `delete(key, exclusive: bool)`, a bool-flag duplicate of delete_shared/delete_exclusive (the kind of redundant spelling commit 49b7f08 claimed to remove). A user switching between styles will find functions missing or behaving differently under the same name.
-
-### [cross-crate/footgun] sdk `panic_logging` feature silently does nothing on rv32 targets
-
-**File:** `crates/sdk/Cargo.toml:97`
-
-`panic_logging = ["groundhog-wasm-runtime/panic_logging"]` is documented in sdk's Cargo.toml as 'send panic messages to the log() syscall' with no target qualifier, but it forwards only to the wasm runtime. groundhog-rv32-runtime has no panic_logging feature (crates/rv32-runtime/Cargo.toml features: default, alloc) and its `#[panic_handler]` (crates/rv32-runtime/src/panic.rs) discards `_info` entirely and issues `ebreak` — the file's own TODO admits panic info routing is unimplemented. A contract author debugging an rv32 contract enables the feature, rebuilds, and gets no panic messages with no warning. The asymmetry between the two guest runtimes (wasm: optional formatted ConsoleLog; rv32: silent trap) is undocumented at the sdk level.
 
 ### [cross-crate/redundancy] Two deploy-address computations with confusable names: syscall-based get_deploy_address* vs host-side deploy_address
 
@@ -444,11 +426,11 @@ The sdk deliberately ships two parallel primitive-storage APIs: `sys_result` (re
 
 `grep -c '///'` returns 0 for both crates/sdk/src/crypto.rs and crates/sdk/src/deploy.rs, yet their items (`sha256`, `verify_signature_ed25519`, `get_deploy_address`, `get_deploy_address_for_other`, `deploy_contract`) are core, root-exported contract-author API. Undocumented hazards a user will hit: (1) all of them throw syscall exceptions on failure (not Result, not panic) — invisible from the signatures; (2) `verify_signature_ed25519` returns `sys::uninit_VerifySignature(...).is_ok()`, conflating 'signature invalid' with every other syscall failure (bad input length, out of gas at the boundary, etc.) into `false`; (3) `deploy_contract` performs an actual deployment while its name pattern matches the pure `get_deploy_address` computations; (4) `get_deploy_address` vs `get_deploy_address_for_other` differ only in the implicit self-address — none of the nonce/hash domain semantics are stated.
 
-### [cross-crate/redundancy] Dependency pins duplicated outside [workspace.dependencies], one already diverging (sha2 default features); root workspace pins groundhog-syscall that no member uses
+### [cross-crate/redundancy] Dependency pins duplicated outside [workspace.dependencies], one already diverging (sha2 default features); root workspace pins thruput-syscall that no member uses
 
 **File:** `crates/native-exec/Cargo.toml:43`
 
-The workspace table pins `sha2 = { version = "0.11.0", default-features = false }`, but native-exec declares `sha2 = { version = "0.11.0" }` directly — same version, different features (defaults on), bypassing the single-source-of-truth table. Likewise hogd-sys declares `thiserror = { version = "2.0.12", default-features = false }` directly instead of `workspace = true` (the workspace table has the identical entry), and `syn = "2.0.93"` is spelled out independently in crates/contract-util/Cargo.toml and crates/macros/Cargo.toml. Also: root Cargo.toml:84 pins `groundhog-syscall = "=0.17.0"` in [workspace.dependencies], but no member of the root workspace depends on it — only the separate integration_test workspace, which carries its own copy of the pin (integration_test/Cargo.toml:62), so the root entry is dead and the two copies can drift. example-contracts/Cargo.toml:79 pins `xdrs = "0.7.0"` vs the root's `0.7.1` with features ["int128", "heapless"]. The root Cargo.toml comment already admits these embedded-workspace configs 'need updating' manually whenever versions bump.
+The workspace table pins `sha2 = { version = "0.11.0", default-features = false }`, but native-exec declares `sha2 = { version = "0.11.0" }` directly — same version, different features (defaults on), bypassing the single-source-of-truth table. Likewise hogd-sys declares `thiserror = { version = "2.0.12", default-features = false }` directly instead of `workspace = true` (the workspace table has the identical entry), and `syn = "2.0.93"` is spelled out independently in crates/contract-util/Cargo.toml and crates/macros/Cargo.toml. Also: root Cargo.toml:84 pins `thruput-syscall = "=0.17.0"` in [workspace.dependencies], but no member of the root workspace depends on it — only the separate integration_test workspace, which carries its own copy of the pin (integration_test/Cargo.toml:62), so the root entry is dead and the two copies can drift. example-contracts/Cargo.toml:79 pins `xdrs = "0.7.0"` vs the root's `0.7.1` with features ["int128", "heapless"]. The root Cargo.toml comment already admits these embedded-workspace configs 'need updating' manually whenever versions bump.
 
 ### [cross-crate/redundancy] Three public spellings for the XDR vocabulary and two names for the hash type at the sdk root
 
@@ -456,25 +438,16 @@ The workspace table pins `sha2 = { version = "0.11.0", default-features = false 
 
 `sdk::serialize` re-exports {ReadError, ReadResult, ReadXDR, ReadXDROwned, WriteError, ...} from xdrs; `sdk::xdr` is a full `pub use xdrs::*` glob (crates/sdk/src/xdr.rs); and lib.rs re-exports an overlapping subset at the root both via `pub use serialize::*` (line 142) and via `pub use xdr::{ReadError, ...}` (line 150) — so `sdk::ReadXDR`, `sdk::xdr::ReadXDR`, and `sdk::serialize::ReadXDR` all coexist, one commit after #236 'narrowed the xdrs glob at the sdk root'. Similarly `crates/sdk/src/hash.rs:5` declares `pub type Hash256 = crate::crypto::SHA256Hash;` and the root re-exports both names (`pub use hash::*` and `pub use types::*`), so the same 32-byte hash type has two interchangeable public names (deploy_address takes `&Hash256`, deploy_contract takes `&SHA256Hash`). There is also a name collision in spirit: public `sdk::serialize::encode_xdr` returns `Vec<u8>` while doc-hidden `sdk::internal::encode_xdr` returns a stack `MUBuf` — same name, different buffer semantics.
 
-### [cross-crate/redundancy] Guest bump allocators are copy-pasted and have drifted (checked vs unchecked arithmetic, stale cross-reference)
-
-**File:** `crates/wasm-runtime/src/allocator.rs:28`
-
-rv32-runtime/src/allocator.rs and wasm-runtime/src/allocator.rs are the same bump allocator duplicated, but the rv32 copy was hardened with `checked_add` overflow guards while the wasm copy still computes `(cursor + align - 1) & !(align - 1)` and `aligned + size` unchecked (safe today only because Layout caps size at isize::MAX and the page is 64 KiB — an invariant nobody wrote down). The rv32 file's module doc also says it 'Mirrors `sdk::allocator::SlabAllocator` (the WASM version)' — a stale path; the wasm allocator lives in groundhog-wasm-runtime, not sdk, since the runtime split. Future fixes (like the checked-add hardening that already happened once) must be applied twice and demonstrably aren't.
-
-
 ## Completeness critic notes (none addressed)
 
 Additional observations (areas no finding touched):
 
-1. **PR CI never runs integration tests, examples, lint, fmt, or the wasm-string guard — and one skip flag is dead** (`.github/workflows/sdk_tests.yml:34-41`, `scripts/schedules/ci.toml:43`). The GitHub workflow sets `SKIP_DOCS/EXAMPLES/INTEGRATION/LOGGING/LINT/FMT/WASM_STRINGS=1` and runs only sdk unit tests; the internal scheduled CI conversely sets `SKIP_SDK_TESTS=1`. No single gate runs everything, and `SKIP_SPEC_TESTS="1"` in sdk_tests.yml matches no `skip SPEC_TESTS` point in `scripts/dev.sh` — a stale flag implying a spec-test stage silently vanished.
+1. **PR CI never runs integration tests, examples, lint, or fmt — and one skip flag is dead** (`.github/workflows/sdk_tests.yml:34-41`, `scripts/schedules/ci.toml:43`). The GitHub workflow sets `SKIP_DOCS/EXAMPLES/INTEGRATION/LOGGING/LINT/FMT=1` and runs only sdk unit tests; the internal scheduled CI conversely sets `SKIP_SDK_TESTS=1`. No single gate runs everything, and `SKIP_SPEC_TESTS="1"` in sdk_tests.yml matches no `skip SPEC_TESTS` point in `scripts/dev.sh` — a stale flag implying a spec-test stage silently vanished.
 
 2. **~8 of 35 integration_test contracts are silently disabled via two inconsistent mechanisms** (`integration_test/Cargo.toml:8-37`, `integration_test/contracts/*/disabled`). Four (cxs_roundtrip, txs_roundtrip, manual_revert_*) are commented out of `members`; four more (nnint_output_fault_test, output_alias_test, syscall_parse_hardening_test, rv32_smoke_counter) are not members at all and are skipped only by a bare `disabled` marker file that `scripts/dev.sh ls_contract_packages` honors — nothing even type-checks them, so they bitrot invisibly. None of the markers say why. Notably rv32_smoke_counter is disabled even though rv32 dispatch is active recent work, and `scripts/check-rv32-dispatch.sh` has no in-repo caller (only a comment mention in `crates/rv32-runtime/Cargo.toml`).
 
-3. **Stale allowlist in the wasm-size guard** (`scripts/check-wasm-size.sh:30`): `ALLOW_LIST="exceptions swap_router"` — no `swap_router` package exists anywhere (example-contracts has `swap`, `swap_driver`, `swap_request`), so the entry is dead and either a renamed debugging-built contract now fails the check or was quietly dropped.
+3. **Embedded-workspace hygiene drift** — `integration_test/Cargo.toml:40-41` declares `repository`/`homepage` as `github.com/groundhogchain/example-contracts.git` (copy-paste, wrong repo); integration_test/ and logging-test/ still have no `.gitignore` of their own (example-contracts does). The root Cargo.toml comment admits version pins in these embedded workspaces "must unfortunately be updated manually" — the root cause behind the consumer-experience xdrs-pin-mismatch finding, but no one named the structural problem. (The `target/`-pollution sub-claim is since fixed: root `.gitignore` now lists `/integration_test/target/` and `/example-contracts/target/`.)
 
-4. **Embedded-workspace hygiene drift** — `integration_test/Cargo.toml:40-41` declares `repository`/`homepage` as `github.com/groundhogchain/example-contracts.git` (copy-paste, wrong repo); integration_test/ and logging-test/ still have no `.gitignore` of their own (example-contracts does). The root Cargo.toml comment admits version pins in these embedded workspaces "must unfortunately be updated manually" — the root cause behind the consumer-experience xdrs-pin-mismatch finding, but no one named the structural problem. (The `target/`-pollution sub-claim is since fixed: root `.gitignore` now lists `/integration_test/target/` and `/example-contracts/target/`.)
-
-5. **The committed root `TODO` file already confesses the sweep's biggest themes** (`TODO:1-8`): "tests to fix: test_bytestring disabled, tests/aborts disabled in Cargo.toml, itc: several are disabled?", and "finish converting syscalls to abort-on-err" — direct corroboration of the cross-crate sys_exn/sys_result drift finding and the erc20-test disabled-abort-checks finding. Known debt is tracked only in a flat TODO with no issue links, so reviewers rediscovered it independently.
+4. **The committed root `TODO` file already confesses the sweep's biggest themes** (`TODO:1-8`): "tests to fix: test_bytestring disabled, tests/aborts disabled in Cargo.toml, itc: several are disabled?", and "finish converting syscalls to abort-on-err" — direct corroboration of the cross-crate sys_exn/sys_result drift finding and the erc20-test disabled-abort-checks finding. Known debt is tracked only in a flat TODO with no issue links, so reviewers rediscovered it independently.
 
 Coverage gaps: no reviewer looked at CI/workflow wiring (`scripts/dev.sh`, `.github/workflows/`, `scripts/schedules/`), integration_test/ (35 contracts, zero findings), logging-test/, `crates/rv32-runtime` (the disabled smoke contract is its only end-to-end exercise), `crates/test-vectors`, or `etc/`. Systemic theme nobody named: **test debt is managed by silent disablement** — `disabled` marker files, commented-out workspace members, SKIP_* env flags, off-by-default abort checks — with no CI signal that anything is skipped, so coverage erodes invisibly across three separate disablement mechanisms.

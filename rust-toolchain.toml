@@ -1,9 +1,9 @@
 [toolchain]
 # see doc: https://rust-lang.github.io/rustup/overrides.html
 
-channel = "nightly-2026-01-30"
+channel = "nightly-2026-07-01"
 
-targets = ["wasm32-unknown-unknown", "riscv32im-unknown-none-elf"]
+targets = ["riscv32im-unknown-none-elf"]
 # (in addition to host target)
 
 profile = "default"

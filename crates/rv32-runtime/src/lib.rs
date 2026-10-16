@@ -1,11 +1,10 @@
-//! # groundhog-rv32-runtime
+//! # thruput-rv32-runtime
 //!
-//! Bare-metal runtime support for Groundhog contracts targeting
+//! Bare-metal runtime support for Thruput contracts targeting
 //! `riscv32im-unknown-none-elf`.
 //!
 //! This crate is the rv32 analog of what the system + linker provide for
-//! hosted targets, and what the WASM toolchain provides implicitly for
-//! `wasm32-unknown-unknown`. It supplies:
+//! hosted targets. It supplies:
 //!
 //!   - a `_start` entry symbol that the linker can resolve;
 //!   - a `#[panic_handler]`;
@@ -32,10 +31,10 @@
 //! The linker script lays guest data memory out stack-first: the stack
 //! occupies `[0, __stack_size)` growing down (overflow wraps below zero and
 //! traps as an OOB access), statics sit above it, and the heap grows from the
-//! top of statics to the end of the 64K data space. `__stack_size` defaults
-//! to 24K and is a hard limit. It costs no artifact bytes (the lowerer trims
-//! the stack region from the stored image), only address space shared with
-//! the heap.
+//! top of statics to `__memory_size`, the end of the guest data space.
+//! `__stack_size` defaults to 30K and is a hard limit. It costs no artifact
+//! bytes (the lowerer trims the stack region from the stored image), only
+//! address space shared with the heap.
 //!
 //! To override it per contract, add a `--defsym` to the contract's rv32
 //! rustflags (value must be a multiple of 16; the link fails otherwise):
@@ -48,6 +47,19 @@
 //!     "-C", "link-arg=--defsym=__stack_size=0x8000",  # 32K stack
 //! ]
 //! ```
+//!
+//! ## Memory size
+//!
+//! `__memory_size` is the guest data space the VM provisions, 64K unless
+//! overridden: the protocol default, and what a chain admits unless its
+//! configuration raises `max_rv32_memory_bytes`. It has to agree with the
+//! `memory_bytes` the artifact header declares, so it is set from one place:
+//! `thruput build` reads `initial_memory_bytes` under
+//! `[package.metadata.thruput]` in the contract's `Cargo.toml`, passes it
+//! as `--defsym=__memory_size=<bytes>` on the link, and stamps the same value
+//! into the artifact. A hand-driven build passes the same `--defsym` next to
+//! `__stack_size`. The linker script `PROVIDE`s the default, so either
+//! definition wins over it.
 
 #![cfg_attr(not(test), no_std)]
 // Forbid the compiler from introducing calls to builtin functions in this
@@ -58,17 +70,27 @@
 
 #[cfg(not(any(target_arch = "riscv32", doc, test)))]
 compile_error!(
-    "groundhog-rv32-runtime can only be built for the riscv32 target"
+    "thruput-rv32-runtime can only be built for the riscv32 target"
 );
 
 // Pure, target-independent — compiled everywhere (host tests included).
 mod dispatch;
 pub use dispatch::{Entrypoint, lookup};
 
-// Allocator gated on `alloc`, matching `sdk`'s `alloc` feature. rv32-only:
-// it binds linker-script externs and installs a `#[global_allocator]`.
+// Allocator gated on `alloc`, matching `thruput-sdk`'s `alloc` feature.
+// rv32-only: it binds linker-script externs and installs a
+// `#[global_allocator]`.
 #[cfg(all(feature = "alloc", target_arch = "riscv32"))]
 mod allocator;
+
+// The allocator's pure bump arithmetic, split out so it also compiles for
+// host unit tests (same pattern as dispatch.rs and mem.rs). On target it
+// follows `allocator`'s gating exactly -- that module is its only caller, so
+// without `alloc` it would be dead code and trip `--deny warnings`. Under
+// `test` it is always compiled, so a default host `cargo test --lib` runs
+// its tests without needing the feature.
+#[cfg(any(all(feature = "alloc", target_arch = "riscv32"), test))]
+mod bump;
 
 // Strong mem-intrinsic overrides (rv32) + their pure copy/fill cores, which
 // also compile for host unit tests (same pattern as dispatch.rs). Not

@@ -1,0 +1,35 @@
+[package]
+name = "dup_entrypoint_neg"
+description = "Negative fixture: two colliding traits with the same method name — the duplicate entrypoint ID must fail every build (host cargo build and the rv32 link)"
+version = "0.4.0"
+authors = ["Thruput Team"]
+license = "Apache-2.0"
+publish = ["thruput"]
+repository = "https://github.com/groundhogchain/example-contracts.git"
+homepage = "https://github.com/groundhogchain/example-contracts.git"
+keywords = ["thruput"]
+categories = ["blockchain"]
+edition = "2024"
+
+# Stand-alone workspace root: this fixture's HOST build fails at codegen on
+# the crate-scoped duplicate-entrypoint guard symbols (deliberately), so it
+# is excluded from the example-contracts workspace, whose host build must
+# succeed. See the `disabled` marker for the checks that own it.
+[workspace]
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[[bin]]
+name = "dup_entrypoint_neg"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.51.4" }

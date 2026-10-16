@@ -1,19 +1,32 @@
 //! Bump allocator for rv32 contracts.
 //!
-//! Mirrors `sdk::allocator::SlabAllocator` (the WASM version) but bounds
-//! against `__heap_end` from the linker script instead of the WASM page
-//! size constant. `__heap_end` is pinned to `__memory_size`, the true end
+//! Bounds allocation against `__heap_end` from the linker script.
+//! `__heap_end` is pinned to `__memory_size`, the true end
 //! of guest memory (intentionally smaller than the linker script's relaxed
 //! DATA region): the stack is parked at the bottom of memory (stack-first
-//! layout), so the heap is the topmost region. The 64 KiB guest memory cap
-//! means a bump allocator
-//! is the right choice: contracts allocate small, transient values during a
-//! single invocation, and the VM resets memory between invocations anyway.
+//! layout), so the heap is the topmost region. The small guest memory
+//! (64 KiB unless the contract declares more) means a bump allocator is the
+//! right choice: contracts allocate small, transient values during a single
+//! invocation, and the VM resets memory between invocations anyway.
 
 use core::alloc::{GlobalAlloc, Layout};
 
+/// Provenance footprint of the heap: `__heap_base` is typed as an array this
+/// large so that every pointer the allocator derives from an address inside
+/// the heap lies within a declared object, whatever `__memory_size` a
+/// contract sets. It is the largest object size Rust admits, so no guest
+/// memory a 32-bit VM can provision outgrows it. The functional bound is
+/// `__heap_end`, read from the linker at runtime; an extern declaration
+/// reserves no storage, so the size costs nothing.
+const HEAP_FOOTPRINT_BYTES: usize = usize::MAX >> 1;
+
+// `__heap_base` is declared as an array rather than a bare `u8` so pointers
+// derived from it carry provenance over the region the allocator hands out.
+// `__heap_end` stays a bare symbol: it is absolute (`= __memory_size`), so only
+// its address is ever wanted, never a byte at that address. Both are
+// declarations and reserve no storage.
 unsafe extern "C" {
-    static __heap_base: u8;
+    static __heap_base: [u8; HEAP_FOOTPRINT_BYTES];
     static __heap_end: u8;
 }
 
@@ -24,31 +37,25 @@ struct BumpAllocator;
 unsafe impl GlobalAlloc for BumpAllocator {
     #[inline(always)]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let size = layout.size();
-        let align = layout.align();
-
         let mut cursor = unsafe { CURSOR };
         if cursor == usize::MAX {
-            cursor = unsafe { &__heap_base as *const u8 as usize };
+            cursor = (&raw const __heap_base).cast::<u8>() as usize;
         }
 
-        let heap_end = unsafe { &__heap_end as *const u8 as usize };
+        // `__heap_end` is an absolute linker symbol (`= __memory_size`), so it
+        // names an address one past the end of guest memory rather than a real
+        // object. Take its address without forming a reference: `&__heap_end`
+        // would assert a valid, dereferenceable byte that does not exist.
+        let heap_end = (&raw const __heap_end) as usize;
 
-        let Some(aligned) =
-            cursor.checked_add(align - 1).map(|c| c & !(align - 1))
+        let Some((start, new_cursor)) =
+            crate::bump::bump(cursor, heap_end, layout)
         else {
             return core::ptr::null_mut();
         };
-        let Some(new_cursor) = aligned.checked_add(size) else {
-            return core::ptr::null_mut();
-        };
-
-        if new_cursor > heap_end {
-            return core::ptr::null_mut();
-        }
 
         unsafe { CURSOR = new_cursor };
-        aligned as *mut u8
+        start as *mut u8
     }
 
     #[inline(always)]

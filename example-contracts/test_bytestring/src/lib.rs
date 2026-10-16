@@ -1,12 +1,20 @@
+//! Raw contract: entrypoints registered by hand, with no `#[contract]` macro.
+//!
+//! rv32 dispatches guest-side off the `groundhog_rv32_entrypoints` section,
+//! which the macro normally populates. Writing the records by hand registers
+//! these entrypoints outside the macro's calldata/Return glue — which is the
+//! point of this fixture: it exercises the bytestring syscalls directly.
+//!
+//! The dispatcher traps (ebreak) when a wrapper returns, so each wrapper ends
+//! in `raw_Return`.
+
 #![no_std]
 
-use sdk::*;
+use thruput_sdk::*;
 
-#[cfg_attr(target_family = "wasm", unsafe(export_name = "0"))]
-pub extern "C" fn write_bytestring() -> i32 {
-    let mut calldata_buf = sdk::internal::new_scratch();
-    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+pub fn write_bytestring() {
+    let mut calldata_buf = thruput_sdk::internal::new_scratch();
+    fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
@@ -14,15 +22,11 @@ pub extern "C" fn write_bytestring() -> i32 {
     let string = &calldata[32..];
 
     bytestring_set(&key, string);
-
-    0
 }
 
-#[cfg_attr(target_family = "wasm", unsafe(export_name = "1"))]
-pub extern "C" fn log_bytestring() -> i32 {
-    let mut calldata_buf = sdk::internal::new_scratch();
-    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+pub fn log_bytestring() {
+    let mut calldata_buf = thruput_sdk::internal::new_scratch();
+    fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
@@ -34,15 +38,11 @@ pub extern "C" fn log_bytestring() -> i32 {
     let bstring = bytestring_get(&key);
 
     log(&bstring);
-
-    0
 }
 
-#[cfg_attr(target_family = "wasm", unsafe(export_name = "2"))]
-pub extern "C" fn expect_bytestring() -> i32 {
-    let mut calldata_buf = sdk::internal::new_scratch();
-    let mut auth_ids = sdk::contract_op::AuthTokenIdBuf::new();
-    fetch_calldata_and_auth_tokens(&mut calldata_buf, &mut auth_ids);
+pub fn expect_bytestring() {
+    let mut calldata_buf = thruput_sdk::internal::new_scratch();
+    fetch_calldata_and_auth_tokens(&mut calldata_buf);
     let calldata: &[u8] = calldata_buf.as_ref();
     let key_array: [u8; 32] = calldata.try_into().unwrap();
     let key = key_array.into();
@@ -53,6 +53,29 @@ pub extern "C" fn expect_bytestring() -> i32 {
     if bstring.as_ref() != expected_bstring {
         panic!("unexpected bytestring");
     }
+}
 
-    0
+#[cfg(target_arch = "riscv32")]
+mod rv32_entries {
+    use thruput_sdk::__rv32::Entrypoint;
+
+    macro_rules! raw_entrypoint {
+        ($static_name:ident, $wrapper:ident, $method_id:expr, $body:path) => {
+            extern "C" fn $wrapper() {
+                $body();
+                thruput_sdk::sys::raw_Return(&[], false, &[])
+            }
+
+            #[used]
+            #[unsafe(link_section = "groundhog_rv32_entrypoints")]
+            static $static_name: Entrypoint = Entrypoint {
+                method_id: $method_id,
+                wrapper: $wrapper,
+            };
+        };
+    }
+
+    raw_entrypoint!(WRITE, write_bytestring, 0x0, super::write_bytestring);
+    raw_entrypoint!(LOG, log_bytestring, 0x1, super::log_bytestring);
+    raw_entrypoint!(EXPECT, expect_bytestring, 0x2, super::expect_bytestring);
 }

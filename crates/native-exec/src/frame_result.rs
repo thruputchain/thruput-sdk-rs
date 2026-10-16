@@ -1,91 +1,183 @@
-use groundhog_event::{EmittedEvent, Event, TypedEvent};
-use groundhog_trace::InvocationFrameTrace;
-use groundhog_xdr::event::TxEmittedEvent;
-use groundhog_xdr::transaction::InvocationFrameOutput;
-use groundhog_xdr::types::ContractAddress;
+use crate::invoke_error::PanicRecord;
+use thruput_event::{EmittedEvent, Event, TypedEvent};
+use thruput_exn::{Exn, RawExceptionRef};
+use thruput_trace::InvocationFrameTrace;
+use thruput_xdr::event::TxEmittedEvent;
+use thruput_xdr::transaction::InvocationFrameOutput;
+use thruput_xdr::types::ContractAddress;
+
+/// One-line trace context for assertion messages: the syscalls the frame
+/// made, ending with the one closest to the failure.
+fn describe_trace(trace: Option<&InvocationFrameTrace>) -> String {
+    let Some(trace) = trace else {
+        return String::new();
+    };
+    let count = trace.system_calls.len();
+    let last = trace.system_calls.iter().last().map(|syscall| {
+        let mut dbg = format!("{syscall:?}");
+        const MAX: usize = 160;
+        if dbg.len() > MAX {
+            let mut end = MAX;
+            while !dbg.is_char_boundary(end) {
+                end -= 1;
+            }
+            dbg.truncate(end);
+            dbg.push('…');
+        }
+        dbg
+    });
+    match last {
+        None => format!("\n  trace: {count} syscalls"),
+        Some(last) => {
+            format!("\n  trace: {count} syscalls, last: {last}")
+        }
+    }
+}
 
 /// Result of executing a single invocation frame.
 /// Wraps InvocationFrameOutput + optional trace + per-frame events.
 #[derive(Debug, Clone)]
 pub struct FrameResult {
+    alloc_stats: Option<crate::alloc_stats::AllocStats>,
+    cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
     output: InvocationFrameOutput,
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
-    alloc_stats: crate::alloc_stats::AllocStats,
-    cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
+    fault_panic: Option<PanicRecord>,
 }
 
 impl FrameResult {
+    pub(crate) fn with_alloc_measurements(
+        mut self,
+        stats: Option<crate::alloc_stats::AllocStats>,
+        records: Vec<crate::alloc_stats::FrameAllocRecord>,
+    ) -> Self {
+        self.alloc_stats = stats;
+        self.cross_call_alloc_records = records;
+        self
+    }
+
+    /// This frame's cumulative native allocation estimate, excluding callees.
+    /// Returns `None` without the counting allocator. See [`crate::alloc_stats`]
+    /// for the differences from RV32 heap usage.
+    pub fn alloc_stats(&self) -> Option<crate::alloc_stats::AllocStats> {
+        self.alloc_stats
+    }
+
+    /// Completed mock calls in this frame's execute windows, in completion order.
+    /// Explicit child frames own their records. Empty without the counting allocator;
+    /// Standalone `TransactionHandler::root_invoke` has no record owner.
+    pub fn cross_call_alloc_records(
+        &self,
+    ) -> &[crate::alloc_stats::FrameAllocRecord] {
+        &self.cross_call_alloc_records
+    }
+
+    /// Wrap a frame's output, optional trace, and emitted events.
     pub fn new(
         output: InvocationFrameOutput,
         trace: Option<InvocationFrameTrace>,
         events: Vec<TxEmittedEvent>,
     ) -> Self {
         Self {
+            alloc_stats: None,
+            cross_call_alloc_records: Vec::new(),
             output,
             trace,
             events,
-            alloc_stats: crate::alloc_stats::AllocStats::ZERO,
-            cross_call_alloc_records: Vec::new(),
+            fault_panic: None,
         }
     }
 
-    pub(crate) fn with_alloc_measurements(
+    /// Attach the panic that faulted this frame.
+    ///
+    /// Crate-internal: the frame executor is the only thing that may set
+    /// this, which is what makes a record here always *this* frame's body.
+    pub(crate) fn with_fault_panic(
         mut self,
-        alloc_stats: crate::alloc_stats::AllocStats,
-        cross_call_alloc_records: Vec<crate::alloc_stats::FrameAllocRecord>,
+        panic: Option<PanicRecord>,
     ) -> Self {
-        self.alloc_stats = alloc_stats;
-        self.cross_call_alloc_records = cross_call_alloc_records;
+        self.fault_panic = panic;
         self
+    }
+
+    /// The panic that faulted this frame's own body.
+    ///
+    /// `None` whenever there is nothing to report rather than nothing to
+    /// find, and the two are worth telling apart:
+    ///
+    /// - the frame did not fault, or faulted with neither a string payload
+    ///   nor a hook record;
+    /// - the frame faulted because a `raw_Invoke`ed callee did. That callee
+    ///   ran in a frame the runtime owns, caught its own panic in
+    ///   `invoke_wrapper`, and reported an error code — nothing reaches this
+    ///   side. It is still printed to stderr by the panic hook.
+    ///
+    /// So a record here is always *this* frame's body panicking, never a
+    /// nested frame's.
+    pub fn fault_panic(&self) -> Option<&PanicRecord> {
+        self.fault_panic.as_ref()
+    }
+
+    /// Just the message from [`fault_panic`](Self::fault_panic), for callers
+    /// that do not want the location.
+    pub fn fault_message(&self) -> Option<&str> {
+        self.fault_panic.as_ref()?.message.as_deref()
     }
 
     // -- Status checks (using pattern matching for safety) --
 
+    /// True if the frame returned successfully.
     pub fn is_success(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Return { .. })
     }
 
+    /// True if the frame aborted (threw a contract exception).
     pub fn is_abort(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Abort { .. })
     }
 
+    /// True if the frame faulted (panicked or trapped, with no abort data).
     pub fn is_fault(&self) -> bool {
         matches!(&self.output, InvocationFrameOutput::Fault)
     }
 
     // -- Assertions --
 
+    /// Assert the frame returned successfully. Frame-only check; use
+    /// [`TransactResult::assert_success`] when the commit outcome matters.
+    ///
+    /// [`TransactResult::assert_success`]: crate::transact_result::TransactResult::assert_success
     #[track_caller]
     pub fn assert_success(&self) {
-        match &self.output {
-            InvocationFrameOutput::Return { .. } => {}
-            InvocationFrameOutput::Abort { abort_buffer } => panic!(
-                "expected success, got abort (abort buffer: {:02x?})",
-                abort_buffer.as_slice()
-            ),
-            other => panic!(
-                "expected success, got status code {}",
-                other.status_code()
-            ),
-        }
+        assert!(
+            self.is_success(),
+            "expected success, got {:?}{}",
+            self.output,
+            describe_trace(self.trace())
+        );
     }
 
+    /// Assert the frame aborted (threw a contract exception). Frame-only
+    /// check.
     #[track_caller]
     pub fn assert_abort(&self) {
         assert!(
             self.is_abort(),
-            "expected abort, got status code {}",
-            self.output.status_code()
+            "expected abort, got {:?}{}",
+            self.output,
+            describe_trace(self.trace())
         );
     }
 
+    /// Assert the frame faulted (panicked or trapped). Frame-only check.
     #[track_caller]
     pub fn assert_fault(&self) {
         assert!(
             self.is_fault(),
-            "expected fault, got status code {}",
-            self.output.status_code()
+            "expected fault, got {:?}{}",
+            self.output,
+            describe_trace(self.trace())
         );
     }
 
@@ -97,10 +189,11 @@ impl FrameResult {
             InvocationFrameOutput::Return { return_buffer } => {
                 return_buffer.as_slice()
             }
-            _ => panic!(
-                "return_buffer() called on non-success frame (status {})",
-                self.output.status_code()
-            ),
+            other => {
+                panic!(
+                    "return_buffer() called on non-success frame: {other:?}"
+                )
+            }
         }
     }
 
@@ -110,10 +203,9 @@ impl FrameResult {
             InvocationFrameOutput::Abort { abort_buffer } => {
                 abort_buffer.as_slice()
             }
-            _ => panic!(
-                "abort_buffer() called on non-abort frame (status {})",
-                self.output.status_code()
-            ),
+            other => {
+                panic!("abort_buffer() called on non-abort frame: {other:?}")
+            }
         }
     }
 
@@ -133,22 +225,6 @@ impl FrameResult {
         check(&decoded);
     }
 
-    // -- Typed abort assertion --
-
-    /// Assert the frame aborted and decode the abort buffer as a typed error.
-    #[track_caller]
-    pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
-    where
-        E: xdrs::ReadXDROwned,
-    {
-        self.assert_abort();
-        let buf = self.abort_buffer();
-        let decoded: E = xdrs::cxs::decode(buf).unwrap_or_else(|e| {
-            panic!("failed to decode abort buffer: {}", e)
-        });
-        check(&decoded);
-    }
-
     /// Assert the frame succeeded and decode the return buffer, returning
     /// the decoded value. The returning twin of `assert_return_with`.
     #[track_caller]
@@ -162,63 +238,54 @@ impl FrameResult {
         })
     }
 
-    /// Assert the frame aborted and decode the abort buffer, returning
-    /// the decoded error. The returning twin of `assert_abort_with`.
+    // -- Typed abort assertion --
+
+    /// Assert the frame aborted with a thrown `E` and return it. Panics
+    /// unless the frame aborted with a `[CXS(E::SELECTOR)][payload]` buffer
+    /// whose payload decodes as `E`.
     #[track_caller]
     pub fn assert_abort_as<E>(&self) -> E
     where
-        E: xdrs::ReadXDROwned,
+        E: Exn + xdrs::ReadXDROwned,
     {
         self.assert_abort();
-        xdrs::cxs::decode(self.abort_buffer())
-            .unwrap_or_else(|e| panic!("failed to decode abort buffer: {}", e))
+        let buf = self.abort_buffer();
+        let exn = RawExceptionRef::parse(buf).unwrap_or_else(|e| {
+            panic!("abort buffer is not a contract exception ({e}): {buf:?}")
+        });
+        let name = core::any::type_name::<E>();
+        match exn.try_decode::<E>() {
+            Some(Ok(e)) => e,
+            Some(Err(e)) => {
+                panic!("failed to decode abort payload as {name}: {e}")
+            }
+            None => panic!(
+                "expected exception {name} (selector {:#x}), got {exn:?}",
+                E::SELECTOR
+            ),
+        }
     }
 
     // -- Raw access --
 
+    /// The frame's raw [`InvocationFrameOutput`].
     pub fn output(&self) -> &InvocationFrameOutput {
         &self.output
     }
 
+    /// The frame's execution trace, when tracing was enabled.
     pub fn trace(&self) -> Option<&InvocationFrameTrace> {
         self.trace.as_ref()
     }
 
-    /// Allocation stats for this frame's native execution, exclusive of
-    /// child frames. Reads zero unless the test binary installs the
-    /// counting allocator via
-    /// `groundhog_native_exec::install_counting_allocator!()`.
-    ///
-    /// A proxy for rv32 guest heap consumption (the guest bump allocator
-    /// never frees, so cumulative allocation is the budget metric) —
-    /// good for relative comparisons and regression bounds, not exact
-    /// budget math. See the `alloc_stats` module docs for the known
-    /// native-vs-guest divergences.
-    pub fn alloc_stats(&self) -> crate::alloc_stats::AllocStats {
-        self.alloc_stats
-    }
-
-    /// Allocation records for the cross-call frames (`client.foo()`
-    /// invocations) that completed during this frame's execution, in
-    /// completion order. Each record's stats are exclusive of the
-    /// callee's own nested calls; nested cross-calls appear as their
-    /// own records. Cross-calls made inside an explicitly opened child
-    /// frame appear on that child's `FrameResult`, not here.
-    ///
-    /// Requires the counting allocator (see [`Self::alloc_stats`]);
-    /// without it the records still appear but their stats read zero.
-    pub fn cross_call_alloc_records(
-        &self,
-    ) -> &[crate::alloc_stats::FrameAllocRecord] {
-        &self.cross_call_alloc_records
-    }
-
     // -- Per-frame events --
 
+    /// The events this frame emitted (empty if the frame reverted).
     pub fn events(&self) -> &[TxEmittedEvent] {
         &self.events
     }
 
+    /// Assert exactly `expected` events were emitted by this frame.
     #[track_caller]
     pub fn assert_event_count(&self, expected: usize) {
         let actual = self.events.len();
@@ -229,6 +296,7 @@ impl FrameResult {
         );
     }
 
+    /// Assert this frame emitted no events.
     #[track_caller]
     pub fn assert_no_events(&self) {
         assert!(

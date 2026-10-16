@@ -7,19 +7,25 @@ members = [
     "complex-storage",
     "counter",
     "erc20",
+    "erc20_issuer",
+    "erc20_permit",
+    "erc20_pausable",
+    "erc721",
+    "erc721_receiver",
     "erc20_raw_storage",
     "erc20_low_level",
     "exceptions",
     "genesis_deployer",
     "hasher",
+    "signed_op_wallet",
+    "permit_wallet",
     "rcq_test",
     "simple_wallet_old",
-    "swap",
-    "swap_driver",
     "test_bytestring",
-    "rcq_test",
-    "swap_request",
+    "trait_sourced_method_spec",
+    "u256_roundtrip",
     "stateless",
+    "split_module_iface",
     "codegen_trait_noclient",
     "codegen_trait_client",
     "codegen_hygiene",
@@ -27,6 +33,7 @@ members = [
     "codegen_impl_client",
     "storage_errors",
     "multi_throws",
+    "exn_catch",
     "multi_imported_traits",
     "named_interface_callee",
     "named_interface_caller",
@@ -34,9 +41,12 @@ members = [
     "bare_impl_caller",
     "free_fn_unnamed",
     "spec_named_types",
+    "ref_args",
     "recursive_type",
     "versioned_callee",
     "versioned_caller",
+    "versioned_interface",
+    "versioned_impl",
     "imported_error_type",
     "imported_error_callee",
     "imported_error_caller",
@@ -46,51 +56,93 @@ members = [
     "signer_middle",
     "signer_minter",
     "signer_tuple_test",
-    "erc1271_wallet",
-    "erc1271_caller",
     "invoke_flags_test",
-    "counter-rv32",
     "multi_root_storage",
     "slot_reorder",
-    "heap_usage",
+    "velocity_limit",
+    "event_shaking_if",
+    "event_shaking_subset",
+    "typedef_shaking_if_v1",
+    "typedef_shaking_if_v2",
+    "typedef_shaking_caller",
+    "typedef_ids_coexist",
+    "dup_name_if_a",
+    "dup_name_if_b",
+    "spec_name_reuse",
+    "iface_conflict_if_a",
+    "iface_conflict_if_b",
+    "iface_conflict_caller",
+    "iface_conflict_impl",
+    "raw_iface_dep",
+    "phantom_method_if_a",
+    "phantom_method_if_b",
+    "phantom_method_impl",
+    "prerelease_version",
+    "missing_contract_macro",
+    "unknown_method",
+    # Built only by scripts/bigint-bench.sh (34 rv32 variants); carries a
+    # `disabled` marker so the generic contract loops skip it. See its
+    # Cargo.toml.
+    "bigint-bench-contract",
 ]
 
 exclude = [
+    # Cargo workspaces cannot contain two packages with the same name.
+    # This second release is a path dependency of versioned_impl instead.
+    "versioned_interface_v2",
     "multi_root_collision",
     "cross_crate_collision",
+    # Negative duplicate-entrypoint fixture: its HOST build now fails at
+    # codegen on the crate-scoped guard symbols (that is the point), so it
+    # cannot be a member of a workspace whose host build must succeed.
+    # Exercised by scripts/check-duplicate-entrypoint-detected.sh (host) and
+    # check_rv32_duplicate_entrypoint_detected in scripts/dev.sh (guest).
+    "dup_entrypoint_neg",
 ]
 
 [workspace.package]
 version = "0.4.0"
-authors = ["Groundhog Team"]
+authors = ["Thruput Team"]
 license = "Apache-2.0"
-publish = ["groundhog"]
-repository = "https://github.com/groundhogchain/example-contracts.git"
-homepage = "https://github.com/groundhogchain/example-contracts.git"
-keywords = ["groundhog"]
+publish = ["thruput"]
+repository = "https://github.com/groundhogchain/sdk_rs"
+homepage = "https://github.com/groundhogchain/sdk_rs"
+keywords = ["thruput"]
 categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-sdk = { path = "../crates/sdk", registry = "groundhog", version = "=0.17.1" }
-groundhog-contract-util = { path = "../crates/contract-util", registry = "groundhog", version = "=0.17.1" }
+thruput-erc20-controls-if = { path = "../standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.58" }
+thruput-erc165-if = { path = "../standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.58" }
+thruput-sdk = { path = "../crates/sdk", registry = "thruput", version = "=0.51.4" }
+thruput-contract-util = { path = "../crates/contract-util", registry = "thruput", version = "=0.51.4" }
+thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.51.4", default-features = false }
 
-groundhog-erc20-if = { path = "../standard-interfaces/groundhog-erc20", registry = "groundhog", version = "=0.1.4" }
-groundhog-erc20-metadata-if = { path = "../standard-interfaces/groundhog-erc20-metadata", registry = "groundhog", version = "=0.1.4" }
-groundhog-erc1271-if = { path = "../standard-interfaces/groundhog-erc1271", registry = "groundhog", version = "=0.1.4" }
+thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.58" }
+thruput-erc20-metadata-if = { path = "../standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.58" }
+thruput-erc20-pausable-if = { path = "../standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.58" }
+thruput-access-control-if = { path = "../standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.58" }
+thruput-access-control = { path = "../standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.58" }
+thruput-signed-op-if = { path = "../standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.58" }
+thruput-signed-op = { path = "../standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.58" }
+thruput-sep41 = { path = "../standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.58" }
+thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.58" }
+thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.58" }
 
-erc20-test = { path = "../standard-tests/erc20-test" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test" }
-bottle-test-if = { path = "../crates/bottle-test-if" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.51.4" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.51.4" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.51.4" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "thruput", version = "=0.51.4" }
+bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # External groundhog dependencies
-xdrs = { registry = "groundhog", version = "0.8.0", default-features = false }
+xdrs = { registry = "thruput", version = "0.10.3", default-features = false }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }
 thiserror = { version = "2.0.12", default-features = false }
 hex-literal = "1.0.0"
+ed25519-dalek = { version = "3" }
 heapless = { version = "0.9.2" }
 
 [profile.release]

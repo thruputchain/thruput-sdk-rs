@@ -28,7 +28,7 @@ fn generate_from_struct(
                 .iter()
                 .map(|f| {
                     let name = &f.ident;
-                    quote! { self.#name.delete_internal(flags); }
+                    quote! { self.#name.delete_internal(exclusive); }
                 })
                 .collect();
 
@@ -43,7 +43,8 @@ fn generate_from_struct(
 
             quote! { #(#calls)* }
         }
-        syn::Fields::Unit => TokenStream::new(),
+        // Nothing to delete, so the policy goes unused.
+        syn::Fields::Unit => quote! { let _ = exclusive; },
         _ => {
             return err(&item.fields, "Can only handle named or unit structs");
         }
@@ -53,13 +54,12 @@ fn generate_from_struct(
 
     Ok(quote! {
         const _: () = {
-            use ::sdk::storage::Deletable;
-            use ::sdk::StorageDeltaFlags;
+            use ::thruput_sdk::storage::Deletable;
 
             impl #impl_generics Deletable for #ident #ty_generics
                 #where_clause
             {
-                fn delete_internal(&mut self, flags: StorageDeltaFlags) {
+                fn delete_internal(&mut self, exclusive: bool) {
                     #body
                 }
             }

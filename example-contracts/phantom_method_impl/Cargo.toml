@@ -1,0 +1,37 @@
+[package]
+name = "phantom_method_impl"
+description = "Contract implementing A's Ledger while linking B's colliding Ledger — must build, and its spec must not advertise B's method"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "phantom_method_if_a/dev", "phantom_method_if_b/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p phantom_method_impl` derives
+# `--bin phantom_method_impl` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "phantom_method_impl"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+phantom_method_if_a = { path = "../phantom_method_if_a" }
+phantom_method_if_b = { path = "../phantom_method_if_b" }
+
+[dev-dependencies]
+phantom_method_impl = { path = ".", features = ["dev"] }

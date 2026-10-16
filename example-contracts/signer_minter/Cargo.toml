@@ -14,16 +14,16 @@ edition.workspace = true
 [features]
 default = ["alloc"]
 entrypoints = []
-alloc = ["sdk/alloc"]
-dev = ["sdk/dev", "signer_middle/dev", "signer_leaf/dev"]
+alloc = ["thruput-sdk/alloc"]
+dev = ["thruput-sdk/dev", "signer_middle/dev", "signer_leaf/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 signer_middle = { path = "../signer_middle" }
 signer_leaf = { path = "../signer_leaf" }
 

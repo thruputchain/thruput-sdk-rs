@@ -2,12 +2,12 @@
 name = "multi_root_collision"
 description = "Workspace-excluded fixture: two roots sharing a domain to exercise collision detection"
 version = "0.4.0"
-authors = ["Groundhog Team"]
+authors = ["Thruput Team"]
 license = "Apache-2.0"
-publish = ["groundhog"]
+publish = ["thruput"]
 repository = "https://github.com/groundhogchain/example-contracts.git"
 homepage = "https://github.com/groundhogchain/example-contracts.git"
-keywords = ["groundhog"]
+keywords = ["thruput"]
 categories = ["blockchain"]
 edition = "2024"
 
@@ -17,14 +17,14 @@ edition = "2024"
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
-sdk = { path = "../../crates/sdk", registry = "groundhog", version = "=0.17.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.51.4" }
 
 [dev-dependencies]
 multi_root_collision = { path = ".", features = ["dev"] }

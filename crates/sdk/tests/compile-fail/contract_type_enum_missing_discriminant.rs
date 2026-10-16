@@ -1,6 +1,6 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::contract_type;
+use thruput_sdk::contract_type;
 
 #[contract_type]
 pub enum Action {

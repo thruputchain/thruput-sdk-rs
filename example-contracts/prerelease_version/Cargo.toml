@@ -1,0 +1,35 @@
+[package]
+name = "prerelease_version"
+description = "Contract with a pre-release interface version override — the spec pipeline must accept it end to end"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p prerelease_version` derives
+# `--bin prerelease_version` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "prerelease_version"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+
+[dev-dependencies]
+prerelease_version = { path = ".", features = ["dev"] }

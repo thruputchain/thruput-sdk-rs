@@ -1,5 +1,5 @@
-use sdk::sys_exn::nnint::*;
-use sdk::*;
+use thruput_sdk::sys_exn::nnint::*;
+use thruput_sdk::*;
 
 const ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 const KEY: StorageKey = StorageKey::new([2u8; 32]);

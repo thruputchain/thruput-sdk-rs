@@ -1,19 +1,19 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
 extern crate alloc;
 
 use alloc::vec::Vec;
-use sdk::transaction::InvocationFrameStatusCode;
-use sdk::{SHA256Hash, sys, *};
+use thruput_sdk::transaction::InvocationFrameStatusCode;
+use thruput_sdk::{SHA256Hash, sys, *};
 
 pub struct GenesisDeployer;
 
 #[contract(client = GenesisDeployerClient)]
 impl GenesisDeployer {
     pub fn deploy(nonce: &SHA256Hash, contract_hash: &SHA256Hash) {
-        let _ = sdk::deploy_contract(nonce, contract_hash);
+        let _ = thruput_sdk::deploy_contract(nonce, contract_hash);
     }
 
     pub fn deploy_and_invoke(
@@ -22,17 +22,18 @@ impl GenesisDeployer {
         method: u64,
         calldata: Vec<u8>,
     ) {
-        let deployed_addr = sdk::deploy_contract(nonce, contract_hash);
+        let deployed_addr = thruput_sdk::deploy_contract(nonce, contract_hash);
         let flags = 0;
 
         let inputs = sys::CopyableInvokeInputs {
             entrypoint_id: method,
             gas_limit: u64::MAX,
             flags,
+            reserved: 0,
         };
         let mut outputs = sys::CopyableInvokeOutputs {
             return_buffer_len: 0,
-            returned_auth_token_len: 0,
+            returned_auth_token_count: 0,
             // Placeholder; overwritten by the syscall on Ok(). Using Fault
             // (not Return) ensures an unwritten field is caught by the
             // assert_eq below rather than silently passing.

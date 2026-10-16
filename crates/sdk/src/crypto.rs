@@ -2,16 +2,15 @@
 
 pub use crate::types::SHA256Hash;
 
-use crate::exn::*;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SyscallNo};
 use crate::types::{CryptographicScheme, Ed25519PublicKey, Ed25519Signature};
 
 pub fn sha256(input: &[u8]) -> SHA256Hash {
     let mut out_hash = core::mem::MaybeUninit::<SHA256Hash>::uninit();
 
-    sys::uninit_SHA256(input, &mut out_hash).unwrap_or_else(|errno| {
-        syscall_throw(SyscallNo::kSHA256, errno);
-    });
+    sys::uninit_SHA256(input, &mut out_hash)
+        .or_syscall_throw(SyscallNo::kSHA256);
 
     unsafe { out_hash.assume_init() }
 }

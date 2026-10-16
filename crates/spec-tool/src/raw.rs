@@ -1,13 +1,20 @@
-use groundhog_contract_spec::SpecFragment;
+use thruput_contract_spec::SpecFragment;
 use xdrs::{ReadXDR, txs::buf_reader::BufReader};
 
 use crate::SpecToolError;
 
-pub const RAW_SECTION_NAME: &str = "groundhogspecrawv0";
-pub const FINAL_SECTION_NAME: &str = "groundhogspecv0";
+/// Section naming and wire-format versioning live in
+/// `thruput-contract-spec`, which owns [`SpecFragment`] and so owns what
+/// counts as a format change. Re-exported here because consumers (the
+/// `thruput` CLI among them) reach them through this crate.
+pub use thruput_contract_spec::{
+    FINAL_SECTION_NAME, RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT,
+    SpecSection, classify_section,
+};
+
 pub const FINAL_FORMAT_TAG: &str = "gh_contract_spec_v1";
 
-/// Parse the contents of a raw spec custom section.
+/// Parse the contents of a raw spec ELF section.
 ///
 /// The section body is a bare concatenation of XDR-encoded [`SpecFragment`]
 /// values with no count prefix or framing: fragments are decoded one after
@@ -57,6 +64,7 @@ mod tests {
         for relative in [
             "crates/macros/src/common/spec_reg.rs",
             "crates/macros/src/derive_contract_type_spec.rs",
+            "crates/macros/src/derive_event.rs",
         ] {
             let path = workspace_root.join(relative);
             let source = fs::read_to_string(&path).unwrap_or_else(|err| {

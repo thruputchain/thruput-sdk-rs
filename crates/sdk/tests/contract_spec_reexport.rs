@@ -1,4 +1,4 @@
-use sdk::contract_spec::ContractSpec;
+use thruput_sdk::contract_spec::ContractSpec;
 
 #[test]
 fn alloc_enabled_sdk_reexports_owning_contract_spec_types() {

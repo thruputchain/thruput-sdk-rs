@@ -12,16 +12,24 @@ categories.workspace = true
 edition.workspace = true
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
+# The rv32 artifact. `thruput build -p genesis_deployer` derives
+# `--bin genesis_deployer` from the package name, so the name here must stay the
+# underscored package name. `required-features` keeps it out of host builds.
+[[bin]]
+name = "genesis_deployer"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
 
 [dependencies]
-sdk = { workspace = true, features = ["alloc"] }
+thruput-sdk = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 genesis_deployer = { path = ".", features = ["dev"] }

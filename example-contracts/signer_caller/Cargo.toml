@@ -13,17 +13,17 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev", "signer_callee/dev"]
+dev = ["thruput-sdk/dev", "signer_callee/dev"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
+thruput-sdk = { workspace = true }
 signer_callee = { path = "../signer_callee" }
 
 [dev-dependencies]
 signer_caller = { path = ".", features = ["dev"] }
-groundhog-contract-util = { workspace = true }
+thruput-contract-util = { workspace = true }

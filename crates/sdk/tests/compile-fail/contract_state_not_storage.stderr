@@ -9,7 +9,7 @@ help: the trait `StorageDomain` is not implemented for `Wallet`
    |
  5 | pub struct Wallet {
    | ^^^^^^^^^^^^^^^^^
-note: required by a bound in `sdk::storage::contract_state_root`
+note: required by a bound in `thruput_sdk::storage::contract_state_root`
   --> src/storage/node.rs
    |
    | pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {
@@ -29,7 +29,7 @@ help: the trait `From<Keypath>` is not implemented for `Wallet`
    = note: methods taking `&self`/`&mut self` require the state type to be a storage struct: add `#[storage]` to the definition of `Wallet`
    = note: contracts with only associated functions (no `self` methods) do not need `#[storage]`
    = note: required for `Wallet` to implement `ContractState`
-note: required by a bound in `sdk::storage::contract_state_root`
+note: required by a bound in `thruput_sdk::storage::contract_state_root`
   --> src/storage/node.rs
    |
    | pub fn contract_state_root<T: ContractState + StorageDomain>() -> Node<T> {

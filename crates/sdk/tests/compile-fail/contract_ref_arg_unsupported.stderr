@@ -1,0 +1,19 @@
+error[E0277]: `&&thruput_sdk::ContractAddress` cannot be a `#[contract]` method parameter
+  --> tests/compile-fail/contract_ref_arg_unsupported.rs:10:38
+   |
+10 |     pub fn owner_byte(&self, owner: &&ContractAddress) -> u32 {
+   |                                      ^^^^^^^^^^^^^^^^ no `RefArg` impl for `&thruput_sdk::ContractAddress`
+   |
+   = help: the trait `thruput_sdk::call::OwnedRefArg` is not implemented for `&thruput_sdk::ContractAddress`
+   = note: take the parameter by value; a slice `&[T]` of anything but bytes needs the thruput-sdk `alloc` feature; a type of your own becomes usable by reference with `#[contract_type]` or a `thruput_sdk::call::OwnedRefArg` impl
+   = help: the following other types implement trait `thruput_sdk::call::OwnedRefArg`:
+             ()
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and $N others
+   = note: required for `&thruput_sdk::ContractAddress` to implement `thruput_sdk::call::RefArg<'_>`

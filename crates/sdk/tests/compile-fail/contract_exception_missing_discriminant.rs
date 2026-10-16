@@ -1,6 +1,6 @@
 #![allow(unexpected_cfgs)]
 
-use sdk::contract_exception;
+use thruput_sdk::contract_exception;
 
 #[contract_exception]
 enum Error {

@@ -3,7 +3,7 @@ use std::panic::AssertUnwindSafe;
 
 use slot_reorder::*;
 
-static NONCE: SHA256Hash = sdk::sha256_static!("SLOT_REORDER_NONCE");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("SLOT_REORDER_NONCE");
 
 /// Slots >= 63 take multi-byte CXS index encodings (2-, 3-, and 5-byte
 /// forms). Lock the derive's field derivation against runtime `child()`
@@ -42,7 +42,7 @@ fn slot_pins_control_storage_placement() {
     let deploy = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
             }))
     });
     deploy.assert_success();
@@ -124,49 +124,49 @@ fn slot_pins_control_storage_placement() {
 /// matches its *pinned* slot index, not its declaration index.
 #[test]
 fn keypath_identity_matches_pinned_slot() {
+    // Keypaths hold live VM hash streams, so identity checks need a frame.
+    TestEnvironment::no_cost()
+        .transact(|tx| {
+            tx.call(&ContractAddress::named("identity"))
+                .run(|| keypath_identity_matches_pinned_slot_body())
+        })
+        .assert_success();
+}
+
+fn keypath_identity_matches_pinned_slot_body() {
     let root = Keypath::default().child("SlotReorder");
 
     // Build SlotReorder directly from its root keypath.
     let state = SlotReorder::from(root.clone());
 
     // `first` is at declaration position 0 but pinned to slot 1.
-    assert!(
-        state
-            .first
-            .keypath()
-            .addresses_same_slot(&root.child(&1u32)),
+    assert_eq!(
+        *state.first.key(),
+        root.child(&1u32).generate_key(),
         "`first` should address slot 1 (its pinned index)"
     );
-    assert!(
-        !state
-            .first
-            .keypath()
-            .addresses_same_slot(&root.child(&0u32)),
+    assert_ne!(
+        *state.first.key(),
+        root.child(&0u32).generate_key(),
         "`first` must NOT address slot 0 (its declaration position)"
     );
 
     // `second` is at declaration position 1 but pinned to slot 0.
-    assert!(
-        state
-            .second
-            .keypath()
-            .addresses_same_slot(&root.child(&0u32)),
+    assert_eq!(
+        *state.second.key(),
+        root.child(&0u32).generate_key(),
         "`second` should address slot 0 (its pinned index)"
     );
-    assert!(
-        !state
-            .second
-            .keypath()
-            .addresses_same_slot(&root.child(&1u32)),
+    assert_ne!(
+        *state.second.key(),
+        root.child(&1u32).generate_key(),
         "`second` must NOT address slot 1 (its declaration position)"
     );
 
     // `third` is at declaration position 2 with no pin → positional slot 2.
-    assert!(
-        state
-            .third
-            .keypath()
-            .addresses_same_slot(&root.child(&2u32)),
+    assert_eq!(
+        *state.third.key(),
+        root.child(&2u32).generate_key(),
         "`third` should address slot 2 (positional)"
     );
 }
@@ -175,20 +175,20 @@ fn keypath_identity_matches_pinned_slot() {
 /// runtime child() at every CXS index width.
 #[test]
 fn wide_slot_indices_match_runtime_child() {
+    // Keypaths hold live VM hash streams, so identity checks need a frame.
+    TestEnvironment::no_cost()
+        .transact(|tx| {
+            tx.call(&ContractAddress::named("wide"))
+                .run(|| wide_slot_indices_match_runtime_child_body())
+        })
+        .assert_success();
+}
+
+fn wide_slot_indices_match_runtime_child_body() {
     let root = Keypath::default().child("WideSlots");
     let state = WideSlots::from(root.clone());
-    assert!(state.a.keypath().addresses_same_slot(&root.child(&63u32)));
-    assert!(state.b.keypath().addresses_same_slot(&root.child(&300u32)));
-    assert!(
-        state
-            .c
-            .keypath()
-            .addresses_same_slot(&root.child(&70_000u32))
-    );
-    assert!(
-        state
-            .d
-            .keypath()
-            .addresses_same_slot(&root.child(&u32::MAX))
-    );
+    assert_eq!(*state.a.key(), root.child(&63u32).generate_key());
+    assert_eq!(*state.b.key(), root.child(&300u32).generate_key());
+    assert_eq!(*state.c.key(), root.child(&70_000u32).generate_key());
+    assert_eq!(*state.d.key(), root.child(&u32::MAX).generate_key());
 }

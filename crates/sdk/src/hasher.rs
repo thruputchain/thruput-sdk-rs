@@ -1,10 +1,9 @@
 use crate::SHA256Hash;
+use crate::re_throw::OrSyscallThrow;
+use crate::sys::{SysResult, SyscallNo};
 use core::fmt::*;
 
-/// The maximum number of hashers that can be in existence at once
-pub const N_HASHERS: usize = 8;
-
-type HasherIndex = u8;
+type HasherIndex = u32;
 
 /// An incremental hasher, implemented by the VM.
 ///
@@ -12,88 +11,103 @@ type HasherIndex = u8;
 /// so it can't be stored.
 pub struct Hasher {
     index: HasherIndex,
-    needs_reset: bool,
 }
 
 impl Hasher {
     /// Get a hasher.
     ///
-    /// Panics if more than [`N_HASHERS`] hashers are currently in use.
-    ///
+    /// Throws a syscall exception if the VM refuses the stream — its
+    /// live-stream cap (the chain's `max_sha256_buffers` network config
+    /// parameter) is reached.
     pub fn new() -> Hasher {
-        Hasher::try_new().unwrap_or_else(|| {
-            panic!("Hasher::new: no more hashers are available");
-        })
+        Hasher::try_new().or_syscall_throw(SyscallNo::kSHA256Update)
     }
 
-    /// Get a hasher if one is available.
-    pub fn try_new() -> Option<Hasher> {
-        slot_alloc().map(Self::new_at)
-    }
-
-    fn new_at(index: u8) -> Hasher {
-        assert!((index as usize) < N_HASHERS);
-
-        Hasher {
-            index,
-            needs_reset: true,
-        }
+    /// Get a hasher if the VM has a free stream, or the refusing syscall's
+    /// error.
+    pub fn try_new() -> SysResult<Hasher> {
+        let index = next_index();
+        // Create the VM-side stream now (an empty reset update): every live
+        // hasher owns a stream, so cap exhaustion surfaces here as the real
+        // syscall error rather than on some later use.
+        crate::sys::raw_SHA256Update(index, &[], true)?;
+        Ok(Hasher { index })
     }
 
     /// Append data to the hasher input.
+    ///
+    /// Throws a syscall exception (aborting the frame) if the host call
+    /// fails.
     pub fn update<I: AsRef<[u8]>>(&mut self, input: &I) {
-        let index = self.index as u32;
-        let reset = self.needs_reset;
-
-        self.needs_reset = false;
-
-        crate::sys::raw_SHA256Update(index, input.as_ref(), reset)
-            .unwrap_or_else(|e| {
-                panic!("SHA256Update: syscall failed: {:?}", e)
-            });
+        crate::sys::raw_SHA256Update(self.index, input.as_ref(), false)
+            .or_syscall_throw(SyscallNo::kSHA256Update);
     }
 
-    /// Consume the hasher and return the SHA256 hash of the prior input.
-    pub fn finish(mut self) -> SHA256Hash {
-        let index = self.index as u32;
+    /// Fork the hasher: a new hasher with a copy of the absorbed state,
+    /// after which the two diverge independently. The copy is
+    /// constant-time in the VM, so absorb a shared prefix once and fork
+    /// per suffix.
+    ///
+    /// Throws a syscall exception if the VM refuses the stream.
+    pub fn fork(&self) -> Hasher {
+        self.try_fork().or_syscall_throw(SyscallNo::kSHA256Copy)
+    }
 
-        // If the hasher was never updated, the VM has not created a buffer for
-        // this slot (and any buffer left over from a previously dropped hasher
-        // on the reused slot would be stale). Issue an empty reset update so
-        // that SHA256Finalize sees a fresh, empty buffer and returns the hash
-        // of the empty input. Mirrors how `update()` invokes the syscall.
-        if self.needs_reset {
-            self.needs_reset = false;
-            crate::sys::raw_SHA256Update(index, &[], true).unwrap_or_else(
-                |e| panic!("SHA256Update: syscall failed: {:?}", e),
-            );
-        }
+    /// Fork the hasher if the VM has a free stream (see
+    /// [`fork`](Self::fork)), or the refusing syscall's error.
+    pub fn try_fork(&self) -> SysResult<Hasher> {
+        let index = next_index();
+        crate::sys::raw_SHA256Copy(self.index, index)?;
+        Ok(Hasher { index })
+    }
+
+    /// Consume the hasher and return the SHA256 hash of the prior input,
+    /// freeing its VM-side stream.
+    ///
+    /// Throws a syscall exception (aborting the frame) if the host call
+    /// fails.
+    pub fn finish(self) -> SHA256Hash {
+        let index = self.index;
+        // The finalize below frees the stream itself; skip Drop's discard.
+        core::mem::forget(self);
 
         let mut output = core::mem::MaybeUninit::uninit();
 
-        crate::sys::uninit_SHA256Finalize(index, &mut output).unwrap_or_else(
-            |e| panic!("SHA256Finalize: syscall failed: {:?}", e),
-        );
+        crate::sys::uninit_SHA256Finalize(index, &mut output)
+            .or_syscall_throw(SyscallNo::kSHA256Finalize);
 
         // SAFETY: The syscall succeeded, so the output has been initialized
         unsafe { output.assume_init() }
     }
 }
 
-impl Default for Hasher {
-    fn default() -> Self {
-        Hasher::new()
+impl Drop for Hasher {
+    fn drop(&mut self) {
+        // Indices are never reused, so free the VM-side stream here
+        // (finalize, hash and errors ignored). Skipped while unwinding:
+        // the frame's streams die with it anyway, and a throwing syscall
+        // would double-panic. rv32 guests never unwind.
+        if !unwinding() {
+            let mut discard = core::mem::MaybeUninit::uninit();
+            let _ =
+                crate::sys::uninit_SHA256Finalize(self.index, &mut discard);
+        }
     }
 }
 
-impl Drop for Hasher {
-    fn drop(&mut self) {
-        // We could call `SHA256Finalize` to free the VM slot,
-        // but instead we'll leave it be.  If we use the slot again,
-        // `SHA256Update` with `reset = true` will reset the slot.
-        if !slot_free(self.index) {
-            panic!("Hasher::drop: internal error: already freed");
-        }
+#[cfg(all(not(any(doc, target_arch = "riscv32")), feature = "std"))]
+fn unwinding() -> bool {
+    std::thread::panicking()
+}
+
+#[cfg(any(doc, target_arch = "riscv32", not(feature = "std")))]
+fn unwinding() -> bool {
+    false
+}
+
+impl Default for Hasher {
+    fn default() -> Self {
+        Hasher::new()
     }
 }
 
@@ -108,90 +122,34 @@ impl Debug for Hasher {
 use crate::cell::ContractCell;
 use crate::contract_local;
 
-// A set of flags marking what hashers are available
+// Stream indices are just names: the VM keys streams by arbitrary u32 and
+// caps only how many are live at once, so allocation is a bare counter and
+// indices are never reused or reclaimed (u32 does not run out within an
+// invocation). Capacity is the VM's to enforce — creation syscalls fail at
+// the cap.
 contract_local! {
-    static AVAILABLE: ContractCell<u32> = const { ContractCell::new(0xffff_ffff) };
+    static NEXT_INDEX: ContractCell<u32> = const { ContractCell::new(0) };
 }
 
-// TODO: rewrite slot_alloc and slot_free to use .update() once
-// local_key_cell_update is stabilized (rust#143989). Using get/set for now
-// because .update() on LocalKey<Cell<T>> requires nightly, which breaks
-// doc builds on stable (e.g. kellnr).
-#[cfg(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-))]
-fn slot_alloc() -> Option<HasherIndex> {
-    let mut avail = AVAILABLE.get();
-
-    for i in 0..N_HASHERS {
-        if avail & (1 << i) != 0 {
-            avail &= !(1 << i);
-            AVAILABLE.set(avail);
-            return Some(i as _);
-        }
-    }
-
-    None
+#[cfg(any(doc, feature = "std", target_arch = "riscv32"))]
+fn next_index() -> HasherIndex {
+    let index = NEXT_INDEX.get();
+    NEXT_INDEX.set(index + 1);
+    index
 }
 
 // Suppress compile errors when building for native without std
-#[cfg(not(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-)))]
-fn slot_alloc() -> Option<HasherIndex> {
-    None
-}
-
-#[cfg(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-))]
-fn slot_free(i: HasherIndex) -> bool {
-    let mut avail = AVAILABLE.get();
-
-    if avail & (1 << i) == 0 {
-        avail |= 1 << i;
-        AVAILABLE.set(avail);
-        true
-    } else {
-        false
-    }
-}
-
-#[cfg(not(any(
-    doc,
-    feature = "std",
-    target_family = "wasm",
-    target_arch = "riscv32"
-)))]
-fn slot_free(_i: HasherIndex) -> bool {
-    false
+#[cfg(not(any(doc, feature = "std", target_arch = "riscv32")))]
+fn next_index() -> HasherIndex {
+    0
 }
 
 #[test]
-fn test_slots() {
-    use std::vec;
-
-    let mut slots = vec![];
-
-    for _ in 0..N_HASHERS {
-        let slot = slot_alloc().expect("No slots available");
-        // eprintln!("ALLOC {}", slot);
-        slots.push(slot);
-    }
-
-    for slot in slots.into_iter() {
-        if !slot_free(slot) {
-            panic!("Slot {} already freed", slot);
-        }
-        // eprintln!("FREE {}", slot);
+fn test_indices_are_never_reused() {
+    let mut last = next_index();
+    for _ in 0..16 {
+        let index = next_index();
+        assert!(index > last, "indices must increase monotonically");
+        last = index;
     }
 }

@@ -1,18 +1,20 @@
-use sdk::*;
-use storage_errors::{StorageErrorClient, StorageErrorClientError};
+use storage_errors::StorageErrorClient;
+use thruput_sdk::*;
 
 /// The contract under test.
 const CONTRACT_ADDR: ContractAddress = ContractAddress::new([0x01; 32]);
 /// A separate "caller" address — client calls originate from here.
 const CALLER_ADDR: ContractAddress = ContractAddress::new([0xFF; 32]);
 
-static NONCE: SHA256Hash = sdk::sha256_static!("STORAGE_ERRORS_NONCE");
-static NONCE_A: SHA256Hash = sdk::sha256_static!("STORAGE_ERRORS_NONCE_A");
-static NONCE_B: SHA256Hash = sdk::sha256_static!("STORAGE_ERRORS_NONCE_B");
+static NONCE: SHA256Hash = thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE");
+static NONCE_A: SHA256Hash =
+    thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_A");
+static NONCE_B: SHA256Hash =
+    thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_B");
 
 /// Register the mock contract and pre-deploy at CONTRACT_ADDR.
 fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
-    let env = sdk::TestEnvironment::no_cost();
+    let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = storage_errors::register_mock_contract(&env);
     let contract_hash = contract.as_hash().clone();
     contract.deploy_contract_to(&CONTRACT_ADDR);
@@ -81,11 +83,14 @@ fn corrupted_len_slot_aborts_instead_of_reading_zero() {
             // typed — NOT read as "empty vector" (which would let the next
             // push clobber whatever lives at element 0).
             match client.try_vector_len() {
-                Err(StorageErrorClientError::Library(
-                    LibraryExn::StorageSerialization,
-                )) => {}
-                other => panic!(
-                    "expected StorageSerialization abort, got {other:?}"
+                Err(e) => match_exn!(e, {
+                    LibraryExn::StorageSerialization => {}
+                    _ => panic!(
+                        "expected StorageSerialization abort, got {e:?}"
+                    ),
+                }),
+                Ok(len) => panic!(
+                    "expected StorageSerialization abort, got Ok({len})"
                 ),
             }
         })
@@ -117,10 +122,9 @@ fn vector_get_out_of_bounds_is_library_storage_error() {
             client.initialize();
 
             let err = client.try_vector_get(5).unwrap_err();
-            let lib = match err {
-                StorageErrorClientError::Library(lib) => lib,
-                other => panic!("Expected Library, got: {:?}", other),
-            };
+            let lib = err
+                .try_as::<LibraryExn>()
+                .unwrap_or_else(|| panic!("Expected LibraryExn, got: {err:?}"));
             match lib {
                 LibraryExn::StorageIndexOutOfBounds { len: 3, access: 5 } => {}
                 other => panic!(
@@ -142,10 +146,9 @@ fn vector_set_out_of_bounds_is_library_storage_error() {
             client.initialize();
 
             let err = client.try_vector_set(10, 999).unwrap_err();
-            let lib = match err {
-                StorageErrorClientError::Library(lib) => lib,
-                other => panic!("Expected Library, got: {:?}", other),
-            };
+            let lib = err
+                .try_as::<LibraryExn>()
+                .unwrap_or_else(|| panic!("Expected LibraryExn, got: {err:?}"));
             match lib {
                 LibraryExn::StorageIndexOutOfBounds { len: 3, access: 10 } => {}
                 other => panic!(
@@ -166,12 +169,10 @@ fn vector_get_on_uninitialized_contract_is_fault() {
             let client = StorageErrorClient::new(&CONTRACT_ADDR);
             // Contract not initialized — vector len is 0, so index 0 is OOB.
             let err = client.try_vector_get(0).unwrap_err();
-            match err {
-                StorageErrorClientError::Library(
-                    LibraryExn::StorageIndexOutOfBounds { len: 0, access: 0 },
-                ) => {}
-                other => panic!("Expected Library OOB, got: {:?}", other),
-            }
+            match_exn!(err, {
+                LibraryExn::StorageIndexOutOfBounds { len: 0, access: 0 } => {}
+                _ => panic!("Expected LibraryExn OOB, got: {err:?}"),
+            })
         })
     });
     result.assert_success();
@@ -186,10 +187,9 @@ fn map_get_missing_key_is_library_storage_error() {
             client.initialize();
 
             let err = client.try_map_get(999).unwrap_err();
-            let lib = match err {
-                StorageErrorClientError::Library(lib) => lib,
-                other => panic!("Expected Library, got: {:?}", other),
-            };
+            let lib = err
+                .try_as::<LibraryExn>()
+                .unwrap_or_else(|| panic!("Expected LibraryExn, got: {err:?}"));
             // get() on a missing key throws LibraryExn::Syscall with
             // kSyscallErrorCodeStorageKeyNotExist (key-not-exist is only
             // swallowed to None in try_get, not get).
@@ -197,7 +197,7 @@ fn map_get_missing_key_is_library_storage_error() {
                 LibraryExn::Syscall(exn) => {
                     assert!(
                         exn.has_code(
-                            sdk::sys::SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist
+                            thruput_sdk::sys::SyscallErrorCode::kSyscallErrorCodeStorageKeyNotExist
                         ),
                         "Expected StorageKeyNotExist error code, got: {:?}",
                         exn

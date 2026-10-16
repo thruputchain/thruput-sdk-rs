@@ -20,6 +20,10 @@ pub enum FFIErrorCode {
     UnrecoverableError,
     #[error("Contract verification failed")]
     ContractVerificationFailed,
+    #[error(
+        "An argument violated a documented precondition (e.g. a negative storage-token grant, or a mock invocation frame opened for an address that already has an active frame)"
+    )]
+    InvalidArgument,
     #[error("Unknown FFI error code: {0}")]
     Unknown(u32),
 }
@@ -34,6 +38,7 @@ impl From<crate::bindings::TestFFIErrorCode> for FFIErrorCode {
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeDeserializeError => FFIErrorCode::DeserializeError,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeUnrecoverableError => FFIErrorCode::UnrecoverableError,
             x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeContractVerificationFailed => FFIErrorCode::ContractVerificationFailed,
+            x if x == crate::bindings::TestFFIErrorCode_kTestFFIErrorCodeInvalidArgument => FFIErrorCode::InvalidArgument,
             other => FFIErrorCode::Unknown(other),
         }
     }

@@ -1,7 +1,7 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use sdk::*;
+use thruput_sdk::*;
 
 #[contract_type]
 pub struct Payload {
@@ -22,6 +22,16 @@ pub enum Envelope {
     Pair(Payload, Choice) = 3,
     Single(Payload) = 4,
 }
+
+/// Named only as the element of a bounded `heapless::Vec`: the spec spells
+/// the vector with its bound and the element by name, and publishes the
+/// element's definition.
+#[contract_type]
+pub struct Tally {
+    pub total: u32,
+}
+
+pub type Tallies = heapless::Vec<Tally, 4>;
 
 pub type PayloadPair = (Payload, Option<Payload>);
 pub type Byte = u8;
@@ -44,6 +54,25 @@ pub struct PayloadEvent<'a> {
 #[event_spec(export)]
 pub struct AuditEvent {
     pub tag: u64,
+}
+
+/// Event declared only on `UnimplementedInterface` below.  Because that trait
+/// is never implemented by `SpecNamedTypesContract`, spec shaking must remove
+/// this event from the final canonicalized spec.
+#[derive(Event)]
+pub struct GhostEvent {
+    pub code: u32,
+}
+
+/// A second `#[contract]` trait that carries `emits(GhostEvent)` but is
+/// intentionally NOT implemented by `SpecNamedTypesContract`.  Its candidate
+/// spec fragments (interface + method + GhostEvent def) co-travel into the
+/// raw spec section, but the absence of an `InterfaceAnchor` causes spec
+/// shaking to drop both the interface and GhostEvent from the final spec.
+/// This exercises the original bug: unimplemented-trait events must not leak.
+#[contract(emits(GhostEvent))]
+pub trait UnimplementedInterface {
+    fn ghost_ping() -> u32;
 }
 
 #[derive(Default)]
@@ -81,5 +110,9 @@ impl SpecNamedTypesContract {
 
     pub fn echo_blob_envelope(envelope: BlobEnvelope) -> BlobEnvelope {
         envelope
+    }
+
+    pub fn echo_tallies(tallies: Tallies) -> Tallies {
+        tallies
     }
 }

@@ -21,12 +21,15 @@ pub fn generate_impl_raw_spec_fragments(
     // canonical spec. The trait consts are plain associated data, available
     // cross-crate without the interface crate being built with `entrypoints`,
     // so impls of an external interface still emit a complete spec.
-    if let Some((_, trait_path, _)) = &item.trait_ {
+    if let Some((trait_path, _)) = &item.trait_ {
+        let declared_by = quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_DECLARED_BY };
         let interface_fragment = generate_interface_fragment_tokens(
             &entrypoints_cfg(),
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
+            declared_by.clone(),
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROWS },
+            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EMITS },
         );
         let method_fragments =
             generate_trait_method_fragments_tokens(self_ty, trait_path);
@@ -38,6 +41,7 @@ pub fn generate_impl_raw_spec_fragments(
             entrypoints_cfg(),
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
+            declared_by,
         );
         let anchor_roots = vec![
             quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT },
@@ -62,12 +66,20 @@ pub fn generate_impl_raw_spec_fragments(
     let iface_name = effective_interface_name(&contract);
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
+    // No trait declares this interface: the contract crate itself does.
+    let declared_by = crate::common::spec_id::crate_id_tokens(
+        &crate::common::contract::sdk_crate_path(),
+        Some(&iface_vers),
+    );
 
+    let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
         &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
+        declared_by.clone(),
         quote! { &[#(#throws),*] },
+        quote! { &[#(#emits_names),*] },
     );
     let event_fragments =
         generate_config_event_fragments_tokens(&entrypoints_cfg(), config);
@@ -76,6 +88,7 @@ pub fn generate_impl_raw_spec_fragments(
         entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
+        declared_by.clone(),
     );
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
     anchor_roots.extend(config_event_anchor_tokens(config));
@@ -86,6 +99,7 @@ pub fn generate_impl_raw_spec_fragments(
                 &entrypoints_cfg(),
                 quote! { #iface_name },
                 quote! { #iface_vers },
+                declared_by.clone(),
                 method,
             )
         })
@@ -114,17 +128,26 @@ pub fn generate_free_function_raw_spec_fragments(
     let iface_name = effective_interface_name(&contract);
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
+    // No trait declares this interface: the contract crate itself does.
+    let declared_by = crate::common::spec_id::crate_id_tokens(
+        &crate::common::contract::sdk_crate_path(),
+        Some(&iface_vers),
+    );
 
+    let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
         &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
+        declared_by.clone(),
         quote! { &[#(#throws),*] },
+        quote! { &[#(#emits_names),*] },
     );
     let method_fragment = generate_method_fragment_tokens(
         &entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
+        declared_by.clone(),
         item,
     )?;
     let event_fragments =
@@ -133,6 +156,7 @@ pub fn generate_free_function_raw_spec_fragments(
         entrypoints_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
+        declared_by.clone(),
     );
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
     anchor_roots.extend(method_anchor_tokens(item)?);
@@ -150,11 +174,10 @@ pub fn generate_free_function_raw_spec_fragments(
     })
 }
 
-/// Emit the `groundhogspecrawv0` fragments for a `#[contract]` trait
-/// (interface) definition: one Interface fragment, one Method fragment per
-/// trait method, event fragments, plus throws/event/signature anchor roots.
-/// Mirrors the bare-impl path of `generate_impl_raw_spec_fragments`, but
-/// methods come from the trait and there is no `self_ty`. Name/version match
+/// Emit the `groundhogspecrawv4` fragments for a `#[contract]` trait
+/// (interface) definition: one Interface fragment, event fragments, plus
+/// throws/event/signature anchor roots. Method fragments come from the
+/// anchoring site instead (see the comment in the body). Name/version match
 /// the trait branch's `__GROUNDHOG_IFACE_*` consts, so a trait-derived spec is
 /// byte-identical in format to the spec a concrete impl would carry.
 pub fn generate_trait_raw_spec_fragments(
@@ -168,17 +191,35 @@ pub fn generate_trait_raw_spec_fragments(
     let iface_vers = contract.defaulted_interface_vers();
     let throws = throws_spec_tokens(&contract)?;
 
-    // A trait emits its interface/method/event fragments as *candidates*,
+    // A trait emits its interface/event fragments as *candidates*,
     // target-gated (not `entrypoints`): present whenever the interface crate
     // compiles for a contract target, with no feature required, and retained
     // via `#[used]`. Post-processing drops them unless something anchors the
     // interface — a `#[contract] impl` does this, and a standalone interface
     // carrier does it explicitly via `export_interface_spec!`.
+    //
+    // Method fragments are deliberately NOT among them. Two unrelated traits
+    // that collide on the interface key (default name = trait ident, default
+    // version = crate version) merge into one bucket, so candidate methods
+    // from a trait nothing implements would surface in the artifact's spec as
+    // phantom methods — advertising an entrypoint that does not exist. Only
+    // an anchoring site emits methods: a `#[contract] impl` re-emits the
+    // trait's authoritative `__GROUNDHOG_IFACE_METHODS` (see
+    // `generate_trait_method_fragments_tokens`), and `export_interface_spec!`
+    // emits them from the module-level twin of that const.
+    // The trait's id, read from the module-level anchor const the
+    // `#[contract]` trait emits beside it, so this candidate and every
+    // anchor of the trait agree on it by construction.
+    let anchor_const =
+        quote::format_ident!("__GROUNDHOG_IFACE_ANCHOR_{}", item.ident);
+    let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
         &target_cfg(),
         quote! { #iface_name },
         quote! { #iface_vers },
+        quote! { #anchor_const.declared_by },
         quote! { &[#(#throws),*] },
+        quote! { &[#(#emits_names),*] },
     );
     let event_fragments =
         generate_config_event_fragments_tokens(&target_cfg(), config);
@@ -186,17 +227,11 @@ pub fn generate_trait_raw_spec_fragments(
     let mut anchor_roots = throws_anchor_tokens(&contract)?;
     anchor_roots.extend(config_event_anchor_tokens(config));
 
-    let method_fragments = methods
-        .iter()
-        .map(|method| {
-            generate_method_fragment_tokens(
-                &target_cfg(),
-                quote! { #iface_name },
-                quote! { #iface_vers },
-                method,
-            )
-        })
-        .collect::<Result<Vec<_>>>()?;
+    // Signature types stay link-GC roots even though the method fragments
+    // themselves are not emitted here: a carrier anchoring this interface
+    // needs their `SpecTypeDef` fragments present in the artifact. Unreached
+    // type defs are shaken in post-processing, so keeping them costs nothing
+    // in the published spec.
     for method in &methods {
         anchor_roots.extend(method_anchor_tokens(method)?);
     }
@@ -205,7 +240,6 @@ pub fn generate_trait_raw_spec_fragments(
 
     Ok(quote! {
         #interface_fragment
-        #(#method_fragments)*
         #event_fragments
         #anchor_root
     })
@@ -224,26 +258,27 @@ fn generate_trait_method_fragments_tokens(
     trait_path: &syn::Path,
 ) -> TokenStream {
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     quote! {
-        #[cfg(all(
-            any(target_family = "wasm", target_arch = "riscv32"),
-            feature = "entrypoints"
-        ))]
+        #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
-            const METHODS: &[::sdk::__contract_spec::ContractSpecMethodView<'static>] =
+            const METHODS: &[::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHODS;
             const NAME: &str = <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
             const VERS: &str =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION;
+            const DECLARED_BY:
+                ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> =
+                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_DECLARED_BY;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
                 while i < METHODS.len() {
-                    total += ::sdk::__contract_spec::SpecFragmentView::Method(
-                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                    total += ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                             interface_name: NAME,
                             interface_version: VERS,
+                            declared_by: DECLARED_BY,
                             method: METHODS[i],
                         },
                     )
@@ -254,23 +289,22 @@ fn generate_trait_method_fragments_tokens(
             };
 
             #[cfg_attr(
-                any(target_family = "wasm", target_arch = "riscv32"),
-                unsafe(link_section = "groundhogspecrawv0")
+                target_arch = "riscv32",
+                unsafe(link_section = "groundhogspecrawv4")
             )]
-            // RV32 only: `#[used]` keeps the section live through ELF linking
-            // for CLI extraction. On wasm the custom section is retained
-            // without it, and `#[used]` there would force the fragment bytes
-            // into linear memory (tripping the spec-tool leak guard).
+            // `#[used]` keeps the section live through ELF linking so the
+            // CLI can extract it.
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_METHOD_FRAGMENTS: [u8; RAW_LEN] = {
                 let mut w =
-                    ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                    ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
                 let mut i = 0;
                 while i < METHODS.len() {
-                    ::sdk::__contract_spec::SpecFragmentView::Method(
-                        ::sdk::__contract_spec::SpecMethodFragmentView {
+                    ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                             interface_name: NAME,
                             interface_version: VERS,
+                            declared_by: DECLARED_BY,
                             method: METHODS[i],
                         },
                     )
@@ -292,20 +326,17 @@ fn generate_trait_event_fragments_tokens(
     trait_path: &syn::Path,
 ) -> TokenStream {
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     quote! {
-        #[cfg(all(
-            any(target_family = "wasm", target_arch = "riscv32"),
-            feature = "entrypoints"
-        ))]
+        #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
-            const EVENTS: &[::sdk::__contract_spec::ContractEventDefView<'static>] =
+            const EVENTS: &[::thruput_sdk::__contract_spec::ContractEventDefView<'static>] =
                 <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENTS;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
                 while i < EVENTS.len() {
-                    total += ::sdk::__contract_spec::SpecFragmentView::Event(
+                    total += ::thruput_sdk::__contract_spec::SpecFragmentView::Event(
                         EVENTS[i],
                     )
                     .const_txs_size();
@@ -315,20 +346,18 @@ fn generate_trait_event_fragments_tokens(
             };
 
             #[cfg_attr(
-                any(target_family = "wasm", target_arch = "riscv32"),
-                unsafe(link_section = "groundhogspecrawv0")
+                target_arch = "riscv32",
+                unsafe(link_section = "groundhogspecrawv4")
             )]
-            // RV32 only: `#[used]` keeps the section live through ELF linking
-            // for CLI extraction. On wasm the custom section is retained
-            // without it, and `#[used]` there would force the fragment bytes
-            // into linear memory (tripping the spec-tool leak guard).
+            // `#[used]` keeps the section live through ELF linking so the
+            // CLI can extract it.
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_EVENT_FRAGMENTS: [u8; RAW_LEN] = {
                 let mut w =
-                    ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                    ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
                 let mut i = 0;
                 while i < EVENTS.len() {
-                    ::sdk::__contract_spec::SpecFragmentView::Event(EVENTS[i])
+                    ::thruput_sdk::__contract_spec::SpecFragmentView::Event(EVENTS[i])
                         .const_write_txs(&mut w);
                     i += 1;
                 }
@@ -343,7 +372,7 @@ fn generate_trait_event_fragments_tokens(
 /// for a contract target — independent of `entrypoints` — and are shaken out
 /// in post-processing unless an impl anchors the interface.
 fn target_cfg() -> TokenStream {
-    quote! { any(target_family = "wasm", target_arch = "riscv32") }
+    quote! { target_arch = "riscv32" }
 }
 
 /// The cfg gate for an *anchor*: emitted only at the site that wants the
@@ -351,33 +380,117 @@ fn target_cfg() -> TokenStream {
 /// or an interface carrier built with `spec`).
 fn entrypoints_cfg() -> TokenStream {
     quote! {
-        all(
-            any(target_family = "wasm", target_arch = "riscv32"),
-            feature = "entrypoints"
-        )
+        all(target_arch = "riscv32", feature = "entrypoints")
     }
 }
 
-/// Emit an `InterfaceAnchor` for a trait, target-gated. Used by the
-/// `export_interface_spec!` macro in an interface carrier (the trait's
-/// `main.rs`) so building the interface crate on its own yields its spec.
+/// Emit an `InterfaceAnchor` plus the trait's `Method` fragments,
+/// target-gated. Used by the `export_interface_spec!` macro in an interface
+/// carrier (the trait's `main.rs`) so building the interface crate on its own
+/// yields its spec.
 ///
-/// Resolves the module-level `__GROUNDHOG_IFACE_ANCHOR_<Trait>` const the
-/// `#[contract]` trait emits (the trait itself isn't dyn-compatible, so its
-/// associated consts aren't reachable without an implementor).
+/// The methods must be emitted here, not at the trait definition: a trait
+/// nothing implements contributes no methods to any artifact's spec (see
+/// `generate_trait_raw_spec_fragments`), and a carrier is the one place that
+/// wants an unimplemented interface published in full.
+///
+/// Resolves the module-level `__GROUNDHOG_IFACE_ANCHOR_<Trait>` and
+/// `__GROUNDHOG_IFACE_METHODS_<Trait>` consts the `#[contract]` trait emits
+/// (the trait itself isn't dyn-compatible, so its associated consts aren't
+/// reachable without an implementor).
 pub fn generate_interface_anchor_for_trait(path: &syn::Path) -> TokenStream {
-    let mut const_path = path.clone();
-    if let Some(last) = const_path.segments.last_mut() {
-        last.ident =
-            quote::format_ident!("__GROUNDHOG_IFACE_ANCHOR_{}", last.ident);
-        last.arguments = syn::PathArguments::None;
-    }
-    emit_raw_fragment_tokens_with_cfg(
+    let trait_const = |prefix: &str| {
+        let mut const_path = path.clone();
+        if let Some(last) = const_path.segments.last_mut() {
+            last.ident = quote::format_ident!("{prefix}{}", last.ident);
+            last.arguments = syn::PathArguments::None;
+        }
+        const_path
+    };
+    let anchor_path = trait_const("__GROUNDHOG_IFACE_ANCHOR_");
+    let methods_path = trait_const("__GROUNDHOG_IFACE_METHODS_");
+
+    let anchor = emit_raw_fragment_tokens_with_cfg(
         target_cfg(),
         quote! {
-            ::sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(#const_path)
+            ::thruput_sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(#anchor_path)
         },
-    )
+    );
+    let methods =
+        generate_carrier_method_fragments_tokens(&anchor_path, &methods_path);
+
+    quote! {
+        #anchor
+        #methods
+    }
+}
+
+/// Concatenated `Method` fragments for an interface carrier, read from the
+/// trait's module-level method const. Mirrors
+/// `generate_trait_method_fragments_tokens` (the impl-side twin); the
+/// name/version come from the same anchor const the carrier anchors with, so
+/// the two can never disagree.
+fn generate_carrier_method_fragments_tokens(
+    anchor_path: &syn::Path,
+    methods_path: &syn::Path,
+) -> TokenStream {
+    let cfg = target_cfg();
+    // `link_section` requires a string literal. Keep this in sync with
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    quote! {
+        #[cfg(#cfg)]
+        const _: () = {
+            const METHODS: &[::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] =
+                #methods_path;
+            const NAME: &str = #anchor_path.interface_name;
+            const VERS: &str = #anchor_path.interface_version;
+            const DECLARED_BY:
+                ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> =
+                #anchor_path.declared_by;
+            const RAW_LEN: usize = {
+                let mut total = 0usize;
+                let mut i = 0;
+                while i < METHODS.len() {
+                    total += ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
+                            interface_name: NAME,
+                            interface_version: VERS,
+                            declared_by: DECLARED_BY,
+                            method: METHODS[i],
+                        },
+                    )
+                    .const_txs_size();
+                    i += 1;
+                }
+                total
+            };
+
+            #[cfg_attr(
+                target_arch = "riscv32",
+                unsafe(link_section = "groundhogspecrawv4")
+            )]
+            // `#[used]` keeps the section live through ELF linking so the
+            // CLI can extract it.
+            #[cfg_attr(target_arch = "riscv32", used)]
+            pub static RAW_SPEC_CARRIER_METHOD_FRAGMENTS: [u8; RAW_LEN] = {
+                let mut w = ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                let mut i = 0;
+                while i < METHODS.len() {
+                    ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                        ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
+                            interface_name: NAME,
+                            interface_version: VERS,
+                            declared_by: DECLARED_BY,
+                            method: METHODS[i],
+                        },
+                    )
+                    .const_write_txs(&mut w);
+                    i += 1;
+                }
+                w.into_bytes()
+            };
+        };
+    }
 }
 
 /// Emit an `InterfaceAnchor` fragment for `(name, version)` under `cfg`. The
@@ -386,14 +499,16 @@ fn generate_interface_anchor_tokens(
     cfg: TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
+    declared_by: TokenStream,
 ) -> TokenStream {
     emit_raw_fragment_tokens_with_cfg(
         cfg,
         quote! {
-            ::sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(
-                ::sdk::__contract_spec::SpecInterfaceAnchorView {
+            ::thruput_sdk::__contract_spec::SpecFragmentView::InterfaceAnchor(
+                ::thruput_sdk::__contract_spec::SpecInterfaceAnchorView {
                     interface_name: #interface_name,
                     interface_version: #interface_version,
+                    declared_by: #declared_by,
                 }
             )
         },
@@ -408,8 +523,8 @@ fn generate_config_event_fragments_tokens(
 ) -> TokenStream {
     let fragments = config.emits_list().into_iter().map(|path| {
         emit_raw_fragment_tokens_with_cfg(cfg.clone(), quote! {
-            ::sdk::__contract_spec::SpecFragmentView::Event(
-                <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
+            ::thruput_sdk::__contract_spec::SpecFragmentView::Event(
+                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
             )
         })
     });
@@ -424,7 +539,21 @@ fn config_event_anchor_tokens(config: &Config) -> Vec<TokenStream> {
         .into_iter()
         .map(|path| {
             quote! {
-                <#path as ::sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            }
+        })
+        .collect()
+}
+
+/// Event-name reference tokens for the `emits` field of an interface
+/// fragment, from the `emits(...)` config list, in declaration order.
+fn config_emits_name_tokens(config: &Config) -> Vec<TokenStream> {
+    config
+        .emits_list()
+        .into_iter()
+        .map(|path| {
+            quote! {
+                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
             }
         })
         .collect()
@@ -434,16 +563,20 @@ fn generate_interface_fragment_tokens(
     cfg: &TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
+    declared_by: TokenStream,
     throws: TokenStream,
+    emits: TokenStream,
 ) -> TokenStream {
     emit_raw_fragment_tokens_with_cfg(
         cfg.clone(),
         quote! {
-            ::sdk::__contract_spec::SpecFragmentView::Interface(
-                ::sdk::__contract_spec::SpecInterfaceFragmentView {
+            ::thruput_sdk::__contract_spec::SpecFragmentView::Interface(
+                ::thruput_sdk::__contract_spec::SpecInterfaceFragmentView {
                     interface_name: #interface_name,
                     interface_version: #interface_version,
+                    declared_by: #declared_by,
                     throws: #throws,
+                    emits: #emits,
                 }
             )
         },
@@ -454,25 +587,29 @@ fn generate_method_fragment_tokens(
     cfg: &TokenStream,
     interface_name: TokenStream,
     interface_version: TokenStream,
+    declared_by: TokenStream,
     method: &impl Method,
 ) -> Result<TokenStream> {
     let method_name = method.sig().ident.to_string();
     let args = method_arg_spec_tokens(method)?;
     let return_type = method_return_spec_token(method)?;
+    let effect = super::contract::method_effect_tokens(method)?;
 
     Ok(emit_raw_fragment_tokens_with_cfg(
         cfg.clone(),
         quote! {{
-            const METHOD_ARGS: &[::sdk::__contract_spec::ContractFieldView<'static>] =
+            const METHOD_ARGS: &[::thruput_sdk::__contract_spec::ContractFieldView<'static>] =
                 &[#(#args),*];
-            ::sdk::__contract_spec::SpecFragmentView::Method(
-                ::sdk::__contract_spec::SpecMethodFragmentView {
+            ::thruput_sdk::__contract_spec::SpecFragmentView::Method(
+                ::thruput_sdk::__contract_spec::SpecMethodFragmentView {
                     interface_name: #interface_name,
                     interface_version: #interface_version,
-                    method: ::sdk::__contract_spec::ContractSpecMethodView {
+                    declared_by: #declared_by,
+                    method: ::thruput_sdk::__contract_spec::ContractSpecMethodView {
                         name: #method_name,
                         args: METHOD_ARGS,
                         return_type: #return_type,
+                        effect: #effect,
                     },
                 }
             )
@@ -485,29 +622,27 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     fragment: TokenStream,
 ) -> TokenStream {
     // `link_section` requires a string literal. Keep this in sync with
-    // `groundhog_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
+    // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
     // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[cfg(#cfg_guard)]
         const _: () = {
-            const FRAGMENT: ::sdk::__contract_spec::SpecFragmentView<'static> =
+            const FRAGMENT: ::thruput_sdk::__contract_spec::SpecFragmentView<'static> =
                 #fragment;
             const RAW_LEN: usize = FRAGMENT.const_txs_size();
             const RAW_FRAGMENT: [u8; RAW_LEN] = {
-                let mut w = ::sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
+                let mut w = ::thruput_sdk::__xdrs::txs::ConstWriter::<RAW_LEN>::new();
                 FRAGMENT.const_write_txs(&mut w);
                 w.into_bytes()
             };
 
             #[cfg_attr(
-                any(target_family = "wasm", target_arch = "riscv32"),
-                unsafe(link_section = "groundhogspecrawv0")
+                target_arch = "riscv32",
+                unsafe(link_section = "groundhogspecrawv4")
             )]
-            // RV32 only: `#[used]` keeps the section live through ELF linking for
-            // CLI extraction. On wasm the custom section is retained without it,
-            // and `#[used]` there would force the fragment bytes into linear
-            // memory (tripping the spec-tool leak guard).
+            // `#[used]` keeps the section live through ELF linking so the CLI
+            // can extract it.
             #[cfg_attr(target_arch = "riscv32", used)]
             pub static RAW_SPEC_FRAGMENT: [u8; RAW_LEN] = RAW_FRAGMENT;
         };
@@ -568,7 +703,7 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("groundhogspecrawv4"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
         assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
@@ -578,12 +713,13 @@ mod tests {
         assert!(tokens.contains("__GROUNDHOG_IFACE_THROWS"));
         assert!(tokens.contains("const_txs_size"));
         assert!(tokens.contains("ConstWriter"));
+        assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
     }
 
     #[test]
     fn free_function_fragments_include_method_record() {
         let item: syn::ItemFn = syn::parse_quote! {
-            fn transfer(to: &sdk::ContractAddress, amount: u32) -> u32 { amount }
+            fn transfer(to: &thruput_sdk::ContractAddress, amount: u32) -> u32 { amount }
         };
         let config = parse_config(r#"interface = "ERC20", version = "0.1.0""#);
 
@@ -591,7 +727,7 @@ mod tests {
             .unwrap()
             .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv0"));
+        assert!(tokens.contains("groundhogspecrawv4"));
         assert!(tokens.contains("target_arch = \"riscv32\""));
         assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
@@ -729,10 +865,10 @@ mod tests {
     }
 
     #[test]
-    fn trait_fragments_include_interface_and_method_records() {
+    fn trait_fragments_carry_the_interface_but_not_its_methods() {
         let item: syn::ItemTrait = syn::parse_quote! {
             pub trait ERC20 {
-                fn transfer(&mut self, receiver: &sdk::ContractAddress, amount: u128);
+                fn transfer(&mut self, receiver: &thruput_sdk::ContractAddress, amount: u128);
                 fn total_supply(&self) -> u128;
             }
         };
@@ -743,17 +879,58 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
         assert!(
             tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"),
             "{tokens}"
         );
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
+
+        // Methods come from the anchoring site, never from the definition:
+        // an unimplemented trait must contribute no methods to the spec of
+        // an artifact that merely links it. Two traits sharing an interface
+        // key would otherwise merge into one bucket and publish each other's
+        // methods as phantoms.
+        assert!(!tokens.contains("SpecMethodFragmentView"), "{tokens}");
+        assert!(!tokens.contains("\"total_supply\""), "{tokens}");
+        assert!(!tokens.contains("\"transfer\""), "{tokens}");
+        assert!(!tokens.contains("\"receiver\""), "{tokens}");
+
+        // The signature types stay link-GC roots so a carrier anchoring this
+        // interface still finds their type defs in the artifact.
+        assert!(tokens.contains("ROOT_SPEC_ANCHORS"), "{tokens}");
+    }
+
+    /// The carrier is the one site that publishes an interface nobody
+    /// implements, so it must emit the method fragments the trait definition
+    /// no longer does — keyed off the same anchor const it anchors with.
+    #[test]
+    fn carrier_anchor_emits_the_traits_methods() {
+        let path: syn::Path = syn::parse_quote!(thruput_erc20_if::ERC20);
+        let tokens = generate_interface_anchor_for_trait(&path).to_string();
+
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_ANCHOR_ERC20"),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_METHODS_ERC20"),
+            "{tokens}"
+        );
         assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
-        assert!(tokens.contains("\"total_supply\""), "{tokens}");
-        assert!(tokens.contains("\"transfer\""), "{tokens}");
-        assert!(tokens.contains("\"receiver\""), "{tokens}");
+        assert!(
+            tokens.contains(
+                "used)] pub static RAW_SPEC_CARRIER_METHOD_FRAGMENTS"
+            ),
+            "{tokens}"
+        );
+        // Name and version are read back off the anchor const, so a carrier
+        // cannot key its methods to a different interface than it anchors.
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_ANCHOR_ERC20 . interface_name"),
+            "{tokens}"
+        );
     }
 
     #[test]
@@ -770,8 +947,12 @@ mod tests {
 
         assert!(tokens.contains("ContractExceptionTypeView"), "{tokens}");
         assert!(
-            tokens.contains("events :: TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"),
+            tokens.contains("events :: TransferEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"),
             "{tokens}"
+        );
+        assert!(
+            tokens.contains("EVENT_DEF . name"),
+            "interface fragment must carry emits names: {tokens}"
         );
     }
 
@@ -839,7 +1020,7 @@ mod emits_tests {
             "{tokens}"
         );
         assert!(tokens.contains("RAW_SPEC_EVENT_FRAGMENTS"), "{tokens}");
-        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
     }
 
     #[test]
@@ -858,7 +1039,7 @@ mod emits_tests {
         assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
         assert!(
             tokens.contains(
-                "events :: TouchEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
+                "events :: TouchEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
             ),
             "{tokens}"
         );
@@ -884,7 +1065,7 @@ mod emits_tests {
         assert!(tokens.contains("SpecFragmentView :: Event"), "{tokens}");
         assert!(
             tokens.contains(
-                "PingEvent as :: sdk :: __contract_spec :: ContractEventSpec"
+                "PingEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec"
             ),
             "{tokens}"
         );

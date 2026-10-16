@@ -1,14 +1,25 @@
 [build]
 rustflags = [ "--deny", "warnings" ]
 
-[target.'cfg(all(target_os = "macos", not(target_family = "wasm")))']
+[target.'cfg(target_os = "macos")']
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-lSystem", "-C", "link-arg=-Wl,-rpath,@loader_path" ]
 
-[target.'cfg(all(target_os = "linux", not(target_family = "wasm")))']
+[target.'cfg(target_os = "linux")']
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-Wl,-rpath,$ORIGIN" ]
 
 [registries]
-groundhog = { index = "sparse+https://groundhog.dev/crates/api/v1/crates/" }
+thruput = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }
 
 [source]
-groundhog = { registry = "sparse+https://groundhog.dev/crates/api/v1/crates/" }
+thruput = { registry = "sparse+https://crates.thruput.network/api/v1/crates/" }
+
+# Keep dev/test builds lean: full debug info in ~150 test binaries (and
+# trybuild's nested build, which reads this file but not the workspace
+# manifest's profiles) is most of target/'s size. Workspace crates keep line
+# tables so backtraces still show file:line. Repo config only; crates built as
+# someone else's dependency use that consumer's profile.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

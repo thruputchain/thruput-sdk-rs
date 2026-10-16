@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Per-contract lowered rv32 artifact metrics: the true on-chain numbers,
-# read from the `groundhog build --target rv32` metadata sidecars
-# (<name>.rv32.json in target/groundhog/). sdk_codesizes_rv32 keeps the
+# read from the `thruput build` metadata sidecars
+# (<name>.rv32.json in target/thruput/). sdk_codesizes_rv32 keeps the
 # per-section detail of the unstripped ELF; this metric records what the
 # lowerer actually emits.
 #
@@ -17,14 +17,14 @@ set -euo pipefail
 #   artifact       = full .rv32a artifact size        (artifact_bytes)
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <groundhog artifact dir> [example contracts dir] [itc contracts dir]" >&2
+  echo "Usage: $0 <Thruput artifact dir> [example contracts dir] [itc contracts dir]" >&2
   exit 1
 fi
 
 ARTIFACT_DIR=$1
 # The metric input set is derived from the source tree (example-contracts
 # *-rv32 wrapper packages + auto-discovered integration_test contracts), NOT
-# from globbing the artifact dir: target/groundhog/ is shared across both
+# from globbing the artifact dir: target/thruput/ is shared across both
 # contract workspaces and can hold stale artifacts from renamed or removed
 # contracts — none of those may emit a row into the append-only history,
 # and a missing sidecar for a current contract must fail loudly.
@@ -33,7 +33,7 @@ ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
 
 json_int() {
     # Integer field $2 from sidecar $1. The sidecar is generated with
-    # sorted keys and 2-space pretty-printing by the pinned groundhog CLI,
+    # sorted keys and 2-space pretty-printing by the pinned Thruput CLI,
     # so line-based extraction is stable; fail loudly rather than emit a
     # missing/empty value into append-only history.
     local val
@@ -63,22 +63,29 @@ emit_row() {
     echo "$name code=$code initial_memory=$initial_memory memory=$memory artifact=$artifact"
 }
 
+# example-contracts rv32 discovery, mirroring dev.sh ls_rv32_packages (keep
+# the rules in sync): contract dirs minus the `disabled` marker, narrowed to
+# packages declaring a [[bin]]. Bin name = underscored package name.
 names=""
-for pkg_dir in "$CONTRACTS_DIR"/*-rv32; do
-    [ -d "$pkg_dir" ] && [ -f "$pkg_dir/Cargo.toml" ] || continue
+for pkg_dir in "$CONTRACTS_DIR"/*/; do
+    pkg_dir=${pkg_dir%/}
+    [ -f "$pkg_dir/Cargo.toml" ] || continue
+    [ -f "$pkg_dir/disabled" ] && continue
+    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
     name=$(basename "$pkg_dir")
     names="$names ${name//-/_}"
 done
 # integration_test rv32 discovery, mirroring dev.sh ls_itc_rv32_packages
 # (keep the rules in sync): contract dirs minus the `disabled` marker,
 # narrowed to packages declaring a [[bin]] (the rv32 wrapper bin is the
-# enablement signal; raw wasm-ABI contracts have no bin and are excluded
+# enablement signal; raw contracts with hand-written entrypoints have no bin
+# and are excluded
 # by construction).
 for pkg_dir in "$ITC_CONTRACTS_DIR"/*/; do
     pkg_dir=${pkg_dir%/}
     [ -f "$pkg_dir/Cargo.toml" ] || continue
     [ -f "$pkg_dir/disabled" ] && continue
-    grep -q '^\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
+    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
     name=$(basename "$pkg_dir")
     [ "$name" != "target" ] || continue
     names="$names ${name//-/_}"
@@ -89,7 +96,7 @@ if [ -z "$names" ]; then
     exit 1
 fi
 
-# target/groundhog/ is one flat namespace shared by both workspaces: a
+# target/thruput/ is one flat namespace shared by both workspaces: a
 # duplicate snake name would silently attribute one contract's numbers to
 # the other, so fail loudly instead.
 seen=" "

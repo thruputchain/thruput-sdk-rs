@@ -1,0 +1,30 @@
+[package]
+name = "bigint-bench-if"
+version.workspace = true
+edition.workspace = true
+# Benchmark-harness interface; nothing outside this repo consumes it, so it has
+# no reason to take up a version line on the registry.
+publish = false
+authors.workspace = true
+license.workspace = true
+description = "Interface for the big-integer benchmark contract"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+thruput-sdk = { workspace = true }
+
+# The host runner (crates/bigint-bench) links this crate to get the client, and
+# needs `thruput-sdk/std` for it. Guest targets must not: rv32 builds stay
+# no_std. Mirrors thruput-erc20-if's split.
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+thruput-sdk = { workspace = true, features = ["std"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+
+[features]
+dev = ["thruput-sdk/dev"]

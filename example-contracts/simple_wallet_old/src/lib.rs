@@ -1,8 +1,8 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use groundhog_erc20_if::{Amount, ERC20Client};
-use sdk::storage::Value;
-use sdk::*;
+use thruput_erc20_if::{Amount, ERC20Client};
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 #[storage]
 struct Wallet {
@@ -48,7 +48,7 @@ impl Wallet {
         let self_addr = get_current_address();
 
         let input = (&self_addr, to_addr, amount);
-        let buf = sdk::__xdrs::txs::encode(&input).unwrap();
+        let buf = thruput_sdk::__xdrs::txs::encode(&input).unwrap();
 
         let bytes: [u8; 80] = buf.try_into().unwrap();
 
@@ -64,7 +64,7 @@ impl Wallet {
         // TODO some kind of replay mechanism
         let auth_message = self.compute_auth_message(to_addr, amount);
 
-        sdk::crypto::verify_signature_ed25519(
+        thruput_sdk::crypto::verify_signature_ed25519(
             &self.pk.get(),
             signature,
             &auth_message,

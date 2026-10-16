@@ -1,13 +1,11 @@
-use groundhog_contract_spec::{
-    ContractType, ContractTypeDef, ContractUnionCaseType,
-};
-use groundhog_spec_tool::describe::{
-    DescribeOutput, REGISTRY, build_describe,
-};
 use std::{collections::BTreeSet, process::Command};
 use tempfile::tempdir;
+use thruput_contract_spec::{
+    ContractSpecId, ContractType, ContractTypeDef, ContractUnionCaseType,
+};
+use thruput_spec_tool::describe::{DescribeOutput, REGISTRY, build_describe};
 
-fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
+fn walk_type(ty: &ContractType, refs: &mut BTreeSet<ContractSpecId>) {
     match ty {
         ContractType::Option { option_inner } => walk_type(option_inner, refs),
         ContractType::Vector { vector } => walk_type(&vector.element, refs),
@@ -18,13 +16,13 @@ fn walk_type(ty: &ContractType, refs: &mut BTreeSet<String>) {
             }
         }
         ContractType::Named { named } => {
-            refs.insert(std::str::from_utf8(named).unwrap().to_string());
+            refs.insert(named.clone());
         }
         _ => {}
     }
 }
 
-fn collect_named_refs(output: &DescribeOutput) -> BTreeSet<String> {
+fn collect_named_refs(output: &DescribeOutput) -> BTreeSet<ContractSpecId> {
     let mut refs = BTreeSet::new();
     walk_type(&output.exception.ty, &mut refs);
     for type_def in &output.type_defs {
@@ -60,7 +58,7 @@ fn collect_named_refs(output: &DescribeOutput) -> BTreeSet<String> {
     refs
 }
 
-fn defined_names(output: &DescribeOutput) -> BTreeSet<String> {
+fn defined_names(output: &DescribeOutput) -> BTreeSet<ContractSpecId> {
     output
         .type_defs
         .iter()
@@ -73,7 +71,7 @@ fn defined_names(output: &DescribeOutput) -> BTreeSet<String> {
                 ContractTypeDef::TypeDefUnion { union_def } => &union_def.name,
                 _ => panic!("unknown ContractTypeDef variant"),
             };
-            std::str::from_utf8(name).unwrap().to_string()
+            name.clone()
         })
         .collect()
 }
@@ -97,7 +95,7 @@ fn every_registered_type_has_complete_closure() {
 #[test]
 fn library_exn_has_nonzero_selector() {
     let output = build_describe(
-        groundhog_spec_tool::describe::lookup("LibraryExn")
+        thruput_spec_tool::describe::lookup("LibraryExn")
             .expect("LibraryExn registered"),
     );
     assert_ne!(output.exception.selector, 0);
@@ -114,7 +112,7 @@ fn describe_list_rejects_output_flags() {
     ];
 
     for args in cases {
-        let output = Command::new(env!("CARGO_BIN_EXE_groundhog-spec-tool"))
+        let output = Command::new(env!("CARGO_BIN_EXE_thruput-spec-tool"))
             .args(&args)
             .output()
             .unwrap();

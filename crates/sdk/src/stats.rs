@@ -1,6 +1,11 @@
+use crate::re_throw::OrSyscallThrow;
+use crate::sys::SyscallNo;
 use crate::transaction::TransactionStatistic;
 use crate::{GasAmount, sys};
 
+/// The gas remaining in the current transaction.
+///
+/// Throws a syscall exception (aborting the frame) if the host call fails.
 pub fn gas_remaining() -> GasAmount {
     let mut n: u64 = 0;
 
@@ -8,7 +13,7 @@ pub fn gas_remaining() -> GasAmount {
         TransactionStatistic::GasRemaining,
         &mut n,
     )
-    .unwrap_or_else(|e| panic!("GetTransactionStatistics failed: {:?}", e));
+    .or_syscall_throw(SyscallNo::kGetTransactionStatistics);
 
     n
 }

@@ -1,5 +1,5 @@
 use hex_literal::hex;
-use sdk::{hash_to_array, sha256_static, static_key};
+use thruput_sdk::{hash_to_array, sha256_static, static_key};
 
 // Pin the key derivation: sha256 of the string's value (no quotes).
 // echo -n 'method_called' | shasum -a 256

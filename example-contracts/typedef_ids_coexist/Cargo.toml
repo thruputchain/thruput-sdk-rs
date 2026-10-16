@@ -1,0 +1,36 @@
+[package]
+name = "typedef_ids_coexist"
+description = "Spec fixture: implements MarketV1 while linking if_v2, so two crates same-named SharedConfig types are both in the pool and ids keep them apart"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "typedef_shaking_if_v1/dev", "typedef_shaking_if_v2/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. Built by the normal rv32 loop: this fixture is expected
+# to build and to produce a spec, which is the whole point of it.
+[[bin]]
+name = "typedef_ids_coexist"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+typedef_shaking_if_v1 = { path = "../typedef_shaking_if_v1" }
+typedef_shaking_if_v2 = { path = "../typedef_shaking_if_v2" }
+
+[dev-dependencies]
+typedef_ids_coexist = { path = ".", features = ["dev"] }

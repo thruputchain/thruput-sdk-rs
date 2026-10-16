@@ -1,0 +1,32 @@
+# Catch advisories filed since we last pushed.
+name: Rust dependency audit
+
+on:
+  schedule:
+    - cron: '30 8 * * *' # Daily at 08:30 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Check dependency policy
+    permissions:
+      contents: read
+    uses: thruputchain/actions/.github/workflows/rust-dependency-policy.yml@6693fac8133585728ad3a4ca14e3441073b6def8
+    with:
+      runs-on: namespace-profile-hogd-linux-2604
+      checks: advisories
+      registry-name: thruput
+    secrets:
+      registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+  notify:
+    name: Report dependency problem
+    needs: scan
+    if: failure()
+    permissions:
+      contents: read
+      issues: write
+    uses: thruputchain/actions/.github/workflows/rust-advisory-issue.yml@6693fac8133585728ad3a4ca14e3441073b6def8

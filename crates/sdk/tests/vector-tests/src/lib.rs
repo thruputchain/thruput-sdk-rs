@@ -1,9 +1,9 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-use sdk::storage::{Deletable, Map, NNInt, Value, Vector};
-use sdk::*;
+use thruput_sdk::storage::{Deletable, Map, NNInt, Value, Vector};
+use thruput_sdk::*;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct VectorTestContract {
     values: Vector<Value<u64>>,
     nnints: Vector<NNInt>,
@@ -70,6 +70,43 @@ impl VectorTestContract {
 
     pub fn delete_values(&mut self) {
         self.values.delete();
+    }
+
+    /// Delete a single element's storage through its borrowed slot.
+    ///
+    /// This does not shrink `len`: the index stays in bounds and reads back
+    /// as missing. See the sparse-vector tests.
+    pub fn delete_value(&mut self, index: u32) {
+        self.values.at_mut(index).delete();
+    }
+
+    /// Delete a single NNInt element's storage through its borrowed slot.
+    pub fn delete_nnint(&mut self, index: u32) {
+        self.nnints.at_mut(index).delete();
+    }
+
+    /// Delete a whole nested vector through its map entry slot.
+    pub fn nested_delete(&mut self, key: u32) {
+        self.nested.delete_at(&key);
+    }
+
+    /// Sum only the elements that still have backing storage, skipping any
+    /// holes left by `delete_value`. The hole-tolerant counterpart to
+    /// `sum_values`, which would abort on a hole.
+    pub fn sum_values_sparse(&self) -> u64 {
+        self.values
+            .iter()
+            .filter_map(|v| v.try_get().none_if_missing())
+            .sum()
+    }
+
+    /// Count the elements that still have backing storage. May be less than
+    /// `values_len`.
+    pub fn count_live_values(&self) -> u32 {
+        self.values
+            .iter()
+            .filter(|v| v.try_get().none_if_missing().is_some())
+            .count() as u32
     }
 
     /// Sum all values using iter() (read-only).

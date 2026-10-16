@@ -23,16 +23,17 @@
 //! available, or else loads the snapshot value from the database. This aborts
 //! if the location does not contain a non-negative-int.
 
-use groundhog_xdr::storage_item::StorageDeltaFlags;
-
-use crate::exn::{LibraryExn, syscall_exn, syscall_throw};
-use crate::re_throw::OrReThrow;
+use crate::exn::{LibraryExn, syscall_exn};
+use crate::re_throw::{OrReThrow, OrSyscallThrow};
 use crate::sys::{self, SysResult, SyscallNo};
 use crate::*;
 
-/// Replace the "set" and "add" values.
+/// Replace the "set" and "add" values. With `exclusive`, then request an
+/// exclusive lock on the key.
 ///
-/// This discards any values previously present.
+/// This discards any values previously present. A shared write leaves the
+/// key's storage flags as they are; see
+/// [`sys_result::flags`](crate::sys_result::flags).
 ///
 /// This aborts if `set_value.is_some_and(|s| s + a < 0)`.
 ///
@@ -40,23 +41,26 @@ pub fn set_add(
     key: &StorageKey,
     set_value: Option<i128>,
     add_value: i128,
-    flags: StorageDeltaFlags,
+    exclusive: bool,
 ) {
-    try_set_add(key, set_value, add_value, flags).or_re_throw()
+    try_set_add(key, set_value, add_value, exclusive).or_re_throw()
 }
 
-/// Like [`set_add`], but report a syscall failure as `Err` instead of
-/// aborting. Callers that pre-check the negativity constraint (so the
-/// remaining error paths are invalid flags or host faults) use this to keep
-/// the `try_` law.
+/// Like [`set_add`], but report a failed write as `Err` instead of aborting.
+/// Callers that pre-check the negativity constraint (so the remaining error
+/// paths are host faults) use this to keep the `try_` law. A failed write
+/// requests no lock.
+#[inline]
 pub(crate) fn try_set_add(
     key: &StorageKey,
     set_value: Option<i128>,
     add_value: i128,
-    flags: StorageDeltaFlags,
+    exclusive: bool,
 ) -> Result<(), LibraryExn> {
-    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value, flags.0)
-        .map_err(|e| syscall_exn(SyscallNo::kNonnegativeIntSetAdd, e))
+    sys::raw_NonnegativeIntSetAdd(key, set_value.as_ref(), &add_value)
+        .or_syscall_exn(SyscallNo::kNonnegativeIntSetAdd)?;
+    crate::sys_exn::flags::lock_after_write(key, exclusive);
+    Ok(())
 }
 
 /// Get the pending "set" and "add" values.
@@ -66,8 +70,18 @@ pub(crate) fn try_set_add(
 /// type).
 ///
 pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
-    _get_values(key, false)
-        .unwrap_or_else(|e| syscall_throw(SyscallNo::kNonnegativeIntGet, e))
+    try_get_values(key).or_re_throw()
+}
+
+/// Like [`get_values`], but report a syscall failure as `Err` instead of
+/// aborting. Callers that pre-check the negativity constraint (so the
+/// remaining error paths are invalid flags or host faults) use this to keep
+/// the `try_` law.
+#[inline]
+pub(crate) fn try_get_values(
+    key: &StorageKey,
+) -> Result<(Option<i128>, i128), LibraryExn> {
+    _get_values(key, false).or_syscall_exn(SyscallNo::kNonnegativeIntGet)
 }
 
 /// Get the pending "set" and "add" values, loading if necessary.
@@ -78,16 +92,7 @@ pub fn get_values(key: &StorageKey) -> (Option<i128>, i128) {
 /// This aborts if the location does not contain a nnint.
 ///
 pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
-    match _get_values(key, true) {
-        Ok((s_opt, a)) => {
-            // The "set" value is guaranteed to be present now because we
-            // specified "force"
-            let s = s_opt.unwrap();
-
-            (s, a)
-        }
-        Err(e) => syscall_throw(SyscallNo::kNonnegativeIntGet, e),
-    }
+    try_get_values_force(key).or_re_throw()
 }
 
 /// Get the pending "set" and "add" values, loading if necessary, and
@@ -102,6 +107,7 @@ pub fn get_values_force(key: &StorageKey) -> (i128, i128) {
 /// or any other syscall error — is returned as the `LibraryExn::Syscall`
 /// value the non-`try_` form would have thrown.
 ///
+#[inline]
 pub fn try_get_values_force(
     key: &StorageKey,
 ) -> Result<(i128, i128), LibraryExn> {

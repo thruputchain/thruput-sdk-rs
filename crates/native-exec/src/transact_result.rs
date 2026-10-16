@@ -1,8 +1,9 @@
 use crate::frame_result::FrameResult;
-use groundhog_event::{EmittedEvent, Event, TypedEvent};
-use groundhog_xdr::event::TxEmittedEvent;
-use groundhog_xdr::exec_result::ExecResult;
-use groundhog_xdr::types::ContractAddress;
+use thruput_event::{EmittedEvent, Event, TypedEvent};
+use thruput_exn::Exn;
+use thruput_xdr::event::TxEmittedEvent;
+use thruput_xdr::exec_result::ExecResult;
+use thruput_xdr::types::ContractAddress;
 
 /// Result of a full transaction: root frame result + commit outcome.
 /// Events are accessed via the root frame's per-frame events.
@@ -13,10 +14,24 @@ pub struct TransactResult {
 }
 
 impl TransactResult {
+    /// Combine a root-frame result with the transaction's commit outcome.
     pub fn new(frame: FrameResult, exec_result: ExecResult) -> Self {
         Self { frame, exec_result }
     }
 
+    /// The panic that faulted the root frame's body, if it faulted with one.
+    /// See [`FrameResult::fault_panic`] for what `None` covers — notably, a
+    /// fault caused by a called contract rather than by this frame's own body.
+    pub fn fault_panic(&self) -> Option<&crate::invoke_error::PanicRecord> {
+        self.frame.fault_panic()
+    }
+
+    /// Just the message from [`fault_panic`](Self::fault_panic).
+    pub fn fault_message(&self) -> Option<&str> {
+        self.frame.fault_message()
+    }
+
+    /// True if the root frame returned successfully AND the commit was OK.
     pub fn is_success(&self) -> bool {
         self.frame.is_success() && self.exec_result == ExecResult::ExecResultOK
     }
@@ -33,11 +48,14 @@ impl TransactResult {
         );
     }
 
+    /// Assert the root frame aborted. Frame-only check; the commit outcome
+    /// is not consulted.
     #[track_caller]
     pub fn assert_abort(&self) {
         self.frame.assert_abort();
     }
 
+    /// Assert the root frame faulted. Frame-only check.
     #[track_caller]
     pub fn assert_fault(&self) {
         self.frame.assert_fault();
@@ -57,14 +75,6 @@ impl TransactResult {
         self.frame.assert_return_with(check);
     }
 
-    #[track_caller]
-    pub fn assert_abort_with<E>(&self, check: impl FnOnce(&E))
-    where
-        E: xdrs::ReadXDROwned,
-    {
-        self.frame.assert_abort_with(check);
-    }
-
     /// Assert the root frame returned successfully and decode its return
     /// buffer, returning the decoded value. Frame-only check, like
     /// `assert_return_with`.
@@ -76,13 +86,13 @@ impl TransactResult {
         self.frame.assert_return_as()
     }
 
-    /// Assert the root frame aborted and decode its abort buffer, returning
-    /// the decoded error. Frame-only check (commit status not checked), like
-    /// `assert_abort_with`.
+    /// Assert the root frame aborted with a thrown `E` and return it; see
+    /// [`FrameResult::assert_abort_as`]. Frame-only check (commit status not
+    /// checked).
     #[track_caller]
     pub fn assert_abort_as<E>(&self) -> E
     where
-        E: xdrs::ReadXDROwned,
+        E: Exn + xdrs::ReadXDROwned,
     {
         self.frame.assert_abort_as()
     }
@@ -98,6 +108,8 @@ impl TransactResult {
         );
     }
 
+    /// Assert the root frame succeeded but the commit failed with
+    /// `ExecResultTxNonDeterministicError` (a storage conflict).
     #[track_caller]
     pub fn assert_commit_failed_nondeterministically(&self) {
         self.frame.assert_success();
@@ -108,30 +120,36 @@ impl TransactResult {
         );
     }
 
+    /// The transaction's commit outcome.
     pub fn exec_result(&self) -> &ExecResult {
         &self.exec_result
     }
 
+    /// The root frame's result.
     pub fn frame(&self) -> &FrameResult {
         &self.frame
     }
 
     // -- Events (delegated to root frame) --
 
+    /// The events the root frame emitted; see [`FrameResult::events`].
     pub fn events(&self) -> &[TxEmittedEvent] {
         self.frame.events()
     }
 
+    /// Assert exactly `expected` events were emitted by the root frame.
     #[track_caller]
     pub fn assert_event_count(&self, expected: usize) {
         self.frame.assert_event_count(expected);
     }
 
+    /// Assert the root frame emitted no events.
     #[track_caller]
     pub fn assert_no_events(&self) {
         self.frame.assert_no_events();
     }
 
+    /// All raw events emitted at the given address by the root frame.
     pub fn events_from(
         &self,
         address: &ContractAddress,
@@ -150,6 +168,8 @@ impl TransactResult {
         self.frame.filter_events(address)
     }
 
+    /// Inspect a raw emitted event by index; see
+    /// [`FrameResult::assert_raw_event`].
     #[track_caller]
     pub fn assert_raw_event(
         &self,
@@ -159,6 +179,8 @@ impl TransactResult {
         self.frame.assert_raw_event(index, check);
     }
 
+    /// Decode an event as a typed event and pass it to `check`; see
+    /// [`FrameResult::assert_event`].
     #[track_caller]
     pub fn assert_event<E>(
         &self,

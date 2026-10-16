@@ -5,8 +5,8 @@
 //! same key(s) collide at commit; the loser's commit fails nondeterministically
 //! and carries a decoded [`DbConflictResult`] listing the conflicting slots.
 
-use sdk::sys_exn::bytestring::*;
-use sdk::*;
+use thruput_sdk::sys_exn::bytestring::*;
+use thruput_sdk::*;
 
 const ADDR: ContractAddress = ContractAddress::new([1u8; 32]);
 const KEY_A: StorageKey = StorageKey::new([0xAA; 32]);
@@ -46,7 +46,7 @@ fn bytestring_single_conflict_decodes() {
 
     let conflicts = conflicts_of(result);
     assert_eq!(conflicts.len(), 1, "expected exactly one conflicting slot");
-    assert_eq!(conflicts[0].code, DbConflictCode::kDbConflictValueMismatch);
+    assert_eq!(conflicts[0].code, DbConflictCode::ValueMismatch);
     assert_eq!(conflicts[0].addrkey.address, ADDR);
 }
 
@@ -82,7 +82,7 @@ fn bytestring_two_conflicts_returns_all() {
     assert!(
         conflicts
             .iter()
-            .all(|c| c.code == DbConflictCode::kDbConflictValueMismatch),
+            .all(|c| c.code == DbConflictCode::ValueMismatch),
         "all conflicts should be value mismatches: {conflicts:?}"
     );
     assert!(

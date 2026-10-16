@@ -2,7 +2,7 @@ use super::common;
 use common::client;
 use common::config::Config;
 use common::contract;
-use common::contract::{ConfiguredContract, ContractSrc};
+use common::contract::{ConfiguredContract, ContractSrc, Method};
 use common::exports;
 use common::spec_reg;
 use common::strip::*;
@@ -36,33 +36,103 @@ fn apply_with_config(
     item: &syn::Item,
     config: &Config,
 ) -> Result<TokenStream2> {
+    let mut out = expand_contract(item, config)?;
+    out.extend(throws_host_use_tokens(config));
+    Ok(out)
+}
+
+/// Reference every `throws(...)` type from ungated code.
+///
+/// The spec fragments that carry the throws list are `riscv32`-gated, and
+/// there is no longer a generated client error enum holding a variant per
+/// declared type, so on a host build nothing else would name these types:
+/// a `throws` type the crate does not itself construct would read as dead
+/// code. Naming the selector is a genuine use, costs nothing at runtime,
+/// and makes the `Exn` bound a host-build error rather than one that only
+/// surfaces when compiling for the guest.
+fn throws_host_use_tokens(config: &Config) -> TokenStream2 {
+    let uses = config.throws_list().into_iter().map(|thrown| {
+        let ty = thrown.ty();
+        quote::quote! {
+            const _: u64 = <#ty as ::thruput_sdk::exn::Exn>::SELECTOR;
+        }
+    });
+    quote::quote! { #(#uses)* }
+}
+
+fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
     match item {
         syn::Item::Trait(item) => {
+            validate_no_generics(&item.generics, false, "#[contract] traits")?;
+            for trait_item in &item.items {
+                // The spec advertises every trait method, but entrypoints
+                // are only generated for methods present in the #[contract]
+                // impl block — a defaulted method would be advertised yet
+                // uncallable.
+                if let syn::TraitItem::Fn(method) = trait_item
+                    && method.default.is_some()
+                {
+                    return Err(syn::Error::new_spanned(
+                        &method.sig,
+                        "contract trait methods cannot have default bodies: \
+                         a defaulted method would appear in the contract \
+                         spec without a callable entrypoint; implement it \
+                         in the #[contract] impl block instead",
+                    ));
+                }
+                // An associated type would be spliced as `Self::Asset` into
+                // non-generic spec consts and the generated client, where
+                // it cannot resolve.
+                if let syn::TraitItem::Type(assoc) = trait_item {
+                    return Err(syn::Error::new_spanned(
+                        assoc,
+                        "associated types are not supported in #[contract] \
+                         traits",
+                    ));
+                }
+                // `#[contract]` defines this const itself (below); a
+                // user-written one would collide with it.
+                if let syn::TraitItem::Const(assoc) = trait_item
+                    && assoc.ident == "INTERFACE_ID"
+                {
+                    return Err(syn::Error::new_spanned(
+                        &assoc.ident,
+                        "`INTERFACE_ID` is reserved: #[contract] derives it \
+                         from the interface name and major version",
+                    ));
+                }
+            }
             let contract = ConfiguredContract::new(config.clone(), item);
+            exports::check_entrypoint_collisions(
+                contract.interface_name().as_deref(),
+                &contract.defaulted_interface_vers(),
+                &contract.methods_sorted().into_iter().collect::<Vec<_>>(),
+            )?;
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
+            contract::validate_method_generics(contract.methods_sorted())?;
             let throws_tokens = contract::throws_spec_tokens(&contract)?;
             let throw_anchor_tokens =
                 contract::throws_anchor_tokens(&contract)?;
             let throw_anchor_stmts = throw_anchor_tokens.iter().map(|anchor| {
                 quote::quote! {
-                    acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+                    acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
                 }
             });
 
             let emits = config.emits_list();
             let event_def_tokens = emits.iter().map(|path| {
                 quote::quote! {
-                    <#path as ::sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
+                    <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF
                 }
             });
             let event_anchor_stmts = emits.iter().map(|path| {
                 quote::quote! {
-                    acc = ::sdk::__contract_spec::mix_anchor_fn(
+                    acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(
                         acc,
-                        <#path as ::sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+                        <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
                     );
                 }
             });
@@ -75,28 +145,56 @@ fn apply_with_config(
             let iface_vers = config
                 .version_string()
                 .unwrap_or_else(contract::interface_vers_default);
-            let iface_major =
-                groundhog_contract_util::semver::major_version_from_string(
-                    &iface_vers,
-                );
-
-            // Add the version consts on the trait (one `parse_quote!` per item — syn parses a
-            // single `TraitItem`; two `const`s in one block panics with "unexpected token").
+            // Add the interface metadata as separate trait items.
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 const __GROUNDHOG_IFACE_NAME: &'static str = #iface_name;
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_MAJOR_VERSION: &'static str = #iface_major;
-            });
-            stripped.items.push(parse_quote! {
-                #[doc(hidden)]
                 const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
             });
+            for method in contract.methods_sorted() {
+                let sig = method.sig();
+                let ident =
+                    common::entrypoint::trait_entrypoint_ident(&sig.ident);
+                let id = common::entrypoint::method_id_tokens(&contract, sig);
+                stripped.items.push(parse_quote! {
+                    #[doc(hidden)]
+                    #[allow(non_upper_case_globals)]
+                    const #ident: u64 = #id;
+                });
+            }
+            // The trait's own spec id, pinned to the interface version like an
+            // exception's is pinned to its declared one. The interface key
+            // (name, version) is all the wire carries and two unrelated traits
+            // can share it; this is what tells them apart in the spec. See
+            // `SpecInterfaceAnchor::declared_by`.
+            let declared_by = common::spec_id::spec_id_tokens(
+                &contract::sdk_crate_path(),
+                &item.ident.to_string(),
+                Some(&iface_vers),
+            );
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_THROWS: &'static [::sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
+                const __GROUNDHOG_IFACE_DECLARED_BY: ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> = #declared_by;
+            });
+            let interface_id_lit = common::entrypoint::interface_id_literal(
+                Some(&iface_name),
+                &iface_vers,
+            );
+            stripped.items.push(parse_quote! {
+                /// The identity of this interface at its major version, as
+                /// derived by `thruput_contract_util::interface_id` from the
+                /// same (name, MAJOR) pair that namespaces its entrypoint IDs.
+                /// Every implementor inherits it, and every `#[contract]` impl
+                /// of this trait records it in the contract's interface table
+                /// (`thruput_sdk::interface_table`).
+                const INTERFACE_ID: ::thruput_sdk::InterfaceId = #interface_id_lit;
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_THROWS: &'static [::thruput_sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -113,7 +211,16 @@ fn apply_with_config(
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_EVENTS: &'static [::sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
+                const __GROUNDHOG_IFACE_EVENTS: &'static [::thruput_sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
+            });
+            let emits_name_tokens = emits.iter().map(|path| {
+                quote::quote! {
+                    <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::EVENT_DEF.name
+                }
+            });
+            stripped.items.push(parse_quote! {
+                #[doc(hidden)]
+                const __GROUNDHOG_IFACE_EMITS: &'static [::thruput_sdk::__contract_spec::ContractSpecIdView<'static>] = &[#(#emits_name_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -140,6 +247,7 @@ fn apply_with_config(
                 .into_iter()
                 .map(|m| contract::method_spec_view_tokens(&m))
                 .collect::<Result<Vec<_>>>()?;
+            let method_views2 = method_views.clone();
             let method_anchor_lists = contract
                 .methods_sorted()
                 .into_iter()
@@ -148,12 +256,12 @@ fn apply_with_config(
             let method_anchor_stmts =
                 method_anchor_lists.into_iter().flatten().map(|anchor| {
                     quote::quote! {
-                        acc = ::sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
+                        acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(acc, #anchor);
                     }
                 });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_METHODS: &'static [::sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
+                const __GROUNDHOG_IFACE_METHODS: &'static [::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
@@ -172,13 +280,15 @@ fn apply_with_config(
             if cfg!(feature = "mock") {
                 stripped.items.push(parse_quote! {
                     #[doc(hidden)]
-                    fn __mock(contract: &mut ::sdk::MockContract) {
+                    fn __mock(contract: &mut ::thruput_sdk::MockContract) {
                         panic!("__mock not available \u{2014} use #[contract] on the impl");
                     }
                 });
             }
 
             let mut out = stripped.into_token_stream();
+
+            out.extend(exports::generate_trait_guard_macro(item, config));
 
             // A module-level anchor const (the trait isn't dyn-compatible, so
             // its associated `__GROUNDHOG_IFACE_*` consts aren't reachable as
@@ -188,15 +298,31 @@ fn apply_with_config(
                 "__GROUNDHOG_IFACE_ANCHOR_{}",
                 item.ident
             );
+            // Module-level twin of the associated `__GROUNDHOG_IFACE_METHODS`,
+            // reachable for the same reason as the anchor const. A carrier
+            // must emit the method fragments itself: they are no longer
+            // emitted from the trait definition (see
+            // `generate_trait_raw_spec_fragments`).
+            let methods_const_ident = quote::format_ident!(
+                "__GROUNDHOG_IFACE_METHODS_{}",
+                item.ident
+            );
             out.extend(quote::quote! {
                 #[doc(hidden)]
                 #[allow(non_upper_case_globals)]
                 pub const #anchor_const_ident:
-                    ::sdk::__contract_spec::SpecInterfaceAnchorView<'static> =
-                    ::sdk::__contract_spec::SpecInterfaceAnchorView {
+                    ::thruput_sdk::__contract_spec::SpecInterfaceAnchorView<'static> =
+                    ::thruput_sdk::__contract_spec::SpecInterfaceAnchorView {
                         interface_name: #iface_name,
                         interface_version: #iface_vers,
+                        declared_by: #declared_by,
                     };
+
+                #[doc(hidden)]
+                #[allow(non_upper_case_globals)]
+                pub const #methods_const_ident:
+                    &'static [::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] =
+                    &[#(#method_views2),*];
             });
 
             // Generate client interface
@@ -209,12 +335,54 @@ fn apply_with_config(
             Ok(out)
         }
         syn::Item::Impl(item) => {
+            if item.trait_.is_some() {
+                if let Some(version) = &config.version {
+                    return Err(syn::Error::new(
+                        version.span(),
+                        "`version` on a trait impl is not allowed; remove it to inherit the trait's version",
+                    ));
+                }
+                for impl_item in &item.items {
+                    if let syn::ImplItem::Fn(method) = impl_item {
+                        for attr in &method.attrs {
+                            if attr.path().is_ident("contract") {
+                                return Err(syn::Error::new_spanned(
+                                    attr,
+                                    "method effects are defined by the interface trait; declare the effect on the trait method instead",
+                                ));
+                            }
+                        }
+                    }
+                    let ident = match impl_item {
+                        syn::ImplItem::Const(item) => &item.ident,
+                        syn::ImplItem::Fn(item) => &item.sig.ident,
+                        syn::ImplItem::Type(item) => &item.ident,
+                        _ => continue,
+                    };
+                    let name = ident.to_string();
+                    let name = name.strip_prefix("r#").unwrap_or(&name);
+                    if name.starts_with("__GROUNDHOG_")
+                        || matches!(name, "INTERFACE_ID" | "__mock")
+                    {
+                        return Err(syn::Error::new_spanned(
+                            ident,
+                            "contract interface metadata is defined by the trait and cannot be overridden",
+                        ));
+                    }
+                }
+            }
+            validate_no_generics(
+                &item.generics,
+                false,
+                "#[contract] impl blocks",
+            )?;
             let contract = ConfiguredContract::new(config.clone(), item);
             contract::validate_bare_impl_method_visibility(item)?;
             contract::validate_reserved_client_method_names(
                 contract.methods_sorted(),
             )?;
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
+            contract::validate_method_generics(contract.methods_sorted())?;
             let mut stripped = item.strip_our_attributes();
 
             // For trait impls, inject __mock into the impl block
@@ -283,6 +451,11 @@ fn apply_with_config(
                 contract.methods_sorted(),
             )?;
             contract::validate_method_arg_patterns(contract.methods_sorted())?;
+            validate_no_generics(
+                &item.sig.generics,
+                false,
+                "#[contract] free functions",
+            )?;
 
             // Start with the item itself, stripped of proprietary attributes
             let mut out = item.strip_our_attributes().into_token_stream();
@@ -304,7 +477,8 @@ fn apply_with_config(
         }
         _ => Err(error(
             item,
-            format!("Can't apply attribute to item {:?}", item),
+            "the #[contract] attribute applies to a trait, an impl block, \
+             or a free function",
         )),
     }
 }
@@ -323,21 +497,233 @@ mod tests {
     }
 
     #[test]
+    fn contract_rejects_wrong_item_kind_with_short_message() {
+        // Historically this dumped the entire syn debug AST of the item.
+        let item: syn::Item = syn::parse_quote! {
+            struct NotAContract;
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("applies to a trait, an impl block, or a free"),
+            "{msg}"
+        );
+        assert!(msg.len() < 200, "error must not dump the AST: {msg}");
+    }
+
+    #[test]
+    fn trait_declarations_check_entrypoint_collisions() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Duplicate {
+                fn ping();
+                fn ping();
+            }
+        };
+        let err = apply_with_config(&item, &parse_config("")).unwrap_err();
+        assert!(err.to_string().contains("Entrypoint ID collision"));
+    }
+
+    #[test]
+    fn trait_impl_rejects_reserved_functions_and_types() {
+        for reserved in [
+            syn::parse_quote!(
+                fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    0
+                }
+            ),
+            syn::parse_quote!(
+                fn __mock() {}
+            ),
+            syn::parse_quote!(
+                fn r#__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                    0
+                }
+            ),
+            syn::parse_quote!(
+                type __GROUNDHOG_IFACE_NAME = u32;
+            ),
+        ] {
+            let mut item: syn::ItemImpl = syn::parse_quote! {
+                impl Interface for Contract {}
+            };
+            item.items.push(reserved);
+            let err =
+                apply_with_config(&syn::Item::Impl(item), &parse_config(""))
+                    .unwrap_err();
+            assert_eq!(
+                err.to_string(),
+                "contract interface metadata is defined by the trait and cannot be overridden"
+            );
+        }
+    }
+
+    #[test]
+    fn contract_rejects_generic_traits() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault<T> {
+                fn deposit(&mut self, asset: T);
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
+    }
+
+    #[test]
+    fn method_effects_reject_invalid_duplicate_and_impl_declarations() {
+        for (item, expected) in [
+            (
+                syn::parse_quote! {
+                    pub trait Example { #[contract(effect = "view")] fn read(&self); }
+                },
+                "expected `pure`",
+            ),
+            (
+                syn::parse_quote! {
+                    pub trait Example {
+                        #[contract(effect = "pure", effect = "readOnly")]
+                        fn read(&self);
+                    }
+                },
+                "duplicate method effect",
+            ),
+            (
+                syn::parse_quote! {
+                    impl Example for Contract {
+                        #[contract(effect = "pure")]
+                        fn read(&self) {}
+                    }
+                },
+                "defined by the interface trait",
+            ),
+        ] {
+            let error =
+                apply_with_config(&item, &parse_config("")).unwrap_err();
+            assert!(error.to_string().contains(expected), "{error}");
+        }
+    }
+
+    #[test]
+    fn bare_impl_effect_reaches_spec_and_annotation_is_stripped() {
+        let declared: syn::Item = syn::parse_quote! {
+            impl Example {
+                #[contract(effect = "readOnly")]
+                pub fn read(&self) -> u32 { 0 }
+            }
+        };
+        let output = apply_with_config(&declared, &parse_config(""))
+            .unwrap()
+            .to_string();
+        assert!(
+            output.contains("ContractMethodEffectView :: ReadOnly"),
+            "{output}"
+        );
+        assert!(!output.contains("contract (effect"), "{output}");
+    }
+
+    #[test]
+    fn contract_rejects_generic_impls() {
+        let item: syn::Item = syn::parse_quote! {
+            impl<T> Vault<T> {
+                pub fn ping(&self) -> u32 {
+                    1
+                }
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
+    }
+
+    #[test]
+    fn contract_rejects_trait_associated_types() {
+        // `type Asset;` would be spliced as `Self::Asset` into non-generic
+        // spec consts and the generated client — reject clearly instead.
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault {
+                type Asset;
+                fn ping(&self) -> u32;
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("associated types"), "{err}");
+    }
+
+    #[test]
+    fn contract_free_fn_generics_error_names_free_functions() {
+        let item: syn::Item = syn::parse_quote! {
+            pub fn hash_it<T>(value: T) -> u32 {
+                0
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("free functions"), "{err}");
+    }
+
+    #[test]
+    fn contract_rejects_generic_methods() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault {
+                fn deposit<T>(&mut self, asset: T);
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("generic"), "{err}");
+    }
+
+    #[test]
+    fn trait_contract_rejects_default_method_bodies() {
+        // A defaulted trait method would be advertised in the spec (methods
+        // come from the trait) with no entrypoint emitted (codegen walks the
+        // impl block) — a spec method callers cannot invoke. Reject at
+        // expansion time.
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Vault {
+                fn deposit(&mut self, amount: u128);
+                fn version(&self) -> u32 {
+                    1
+                }
+            }
+        };
+        let err = apply_with_config(&item, &parse_config(""))
+            .map(|t| t.to_string())
+            .unwrap_err();
+        assert!(err.to_string().contains("default bod"), "{err}");
+    }
+
+    #[test]
     fn trait_contract_emits_raw_spec_fragments() {
         let item: syn::Item = syn::parse_quote! {
             pub trait ERC20 {
-                fn transfer(&mut self, receiver: &sdk::ContractAddress, amount: u128);
+                fn transfer(&mut self, receiver: &thruput_sdk::ContractAddress, amount: u128);
                 fn total_supply(&self) -> u128;
             }
         };
         let tokens = apply_with_config(&item, &parse_config(""))
             .unwrap()
             .to_string();
-        assert!(tokens.contains("groundhogspecrawv0"), "{tokens}");
+        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
-        assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
         assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");
+        // No method fragments: those come from whatever anchors the
+        // interface (a `#[contract] impl`, or `export_interface_spec!` via
+        // the module-level methods const emitted below).
+        assert!(!tokens.contains("SpecMethodFragmentView"), "{tokens}");
+        assert!(
+            tokens.contains("__GROUNDHOG_IFACE_METHODS_ERC20"),
+            "{tokens}"
+        );
     }
 
     #[test]
@@ -346,7 +732,7 @@ mod tests {
         // pull the *trait's* names/types (not the impl's) into their spec.
         let item: syn::Item = syn::parse_quote! {
             pub trait Pair {
-                fn initialize(&mut self, factory: &sdk::ContractAddress);
+                fn initialize(&mut self, factory: &thruput_sdk::ContractAddress);
             }
         };
         let tokens = apply_with_config(&item, &parse_config(""))
@@ -377,7 +763,7 @@ mod tests {
             "{tokens}"
         );
         assert!(
-            tokens.contains("ImportedError as :: sdk :: __contract_spec :: ContractTypeRefSpec"),
+            tokens.contains("ImportedError as :: thruput_sdk :: __contract_spec :: ContractTypeRefSpec"),
             "{tokens}"
         );
     }
@@ -415,13 +801,13 @@ mod emits_tests {
         );
         assert!(
             tokens.contains(
-                "TransferEvent as :: sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
+                "TransferEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF"
             ),
             "{tokens}"
         );
         assert!(
             tokens.contains(
-                "events :: ApprovalEvent as :: sdk :: __contract_spec :: ContractEventSpec"
+                "events :: ApprovalEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec"
             ),
             "{tokens}"
         );
@@ -442,6 +828,33 @@ mod emits_tests {
         assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
         assert!(
             tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            "{tokens}"
+        );
+    }
+
+    #[test]
+    fn trait_gets_emits_names_const() {
+        let item: syn::Item = syn::parse_quote! {
+            pub trait Token {
+                fn transfer(&mut self);
+            }
+        };
+
+        let config =
+            parse_config(r#"emits(TransferEvent, events::ApprovalEvent)"#);
+        let tokens = apply_with_config(&item, &config).unwrap().to_string();
+
+        assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
+        assert!(
+            tokens.contains(
+                "< TransferEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
+            ),
+            "{tokens}"
+        );
+        assert!(
+            tokens.contains(
+                "< events :: ApprovalEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
+            ),
             "{tokens}"
         );
     }

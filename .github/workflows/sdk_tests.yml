@@ -10,16 +10,18 @@ on:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+
+permissions:
+  contents: read
 
 jobs:
   sdk-tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: namespace-profile-hogd-linux
+    runs-on: namespace-profile-hogd-linux-2604
     env:
-      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
-      # Share one FFI download cache across every groundhog-sys build instance
+      # Share one FFI download cache across every thruput-sys build instance
       # (and across runs, via the Namespace cache below). Without this the cache
       # defaults to each instance's OUT_DIR, so every workspace/feature variant
       # re-downloads the prebuilt FFI tarball.
@@ -27,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
 
       # NB: deliberately NOT caching ./target (no `cache: rust`). The Namespace
       # cross-invocation cache is a network/overlay-backed mount; cargo's
@@ -35,7 +37,7 @@ jobs:
       # *sources* (read-mostly, few large files) plus the one-shot FFI download.
       # Mirrors ci.yml.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry
@@ -45,11 +47,9 @@ jobs:
       - name: Run SDK tests
         env:
           SKIP_DOCS: "1"
-          SKIP_SPEC_TESTS: "1"
           SKIP_EXAMPLES: "1"
           SKIP_INTEGRATION: "1"
           SKIP_LOGGING: "1"
           SKIP_LINT: "1"
           SKIP_FMT: "1"
-          SKIP_WASM_STRINGS: "1"
         run: ./scripts/dev.sh ci

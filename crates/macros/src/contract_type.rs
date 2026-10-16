@@ -1,15 +1,23 @@
 use darling::FromMeta;
+use darling::util::SpannedValue;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::Item;
 
 #[derive(Debug, Default, FromMeta)]
 pub struct ContractTypeArgs {
-    pub name: Option<String>,
+    pub name: Option<SpannedValue<String>>,
     pub export: Option<bool>,
 }
 
 pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
+    if let Some(name) = &args.name
+        && let Err(err) =
+            crate::common::util::validate_spec_name(name.span(), name)
+    {
+        return err.into_compile_error();
+    }
+
     match item {
         Item::Enum(item) => {
             if !item.generics.params.is_empty() {
@@ -39,8 +47,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                     Err(err) => return err.into_compile_error(),
                 };
             quote! {
-                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR, ::sdk::ContractTypeSpec)]
-                #[xdrs(crate = "::sdk::__xdrs")]
+                #[derive(::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR, ::thruput_sdk::ContractTypeSpec)]
+                #[xdrs(crate = "::thruput_sdk::__xdrs")]
                 #[repr(i32)]
                 #export_attr
                 #item
@@ -52,6 +60,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 #collect_auth
 
                 #receive_auth
+
+                impl ::thruput_sdk::call::OwnedRefArg for #ident {}
 
                 #mintable_enum
             }
@@ -112,8 +122,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
             };
 
             quote! {
-                #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
-                #[xdrs(crate = "::sdk::__xdrs")]
+                #[derive(::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR)]
+                #[xdrs(crate = "::thruput_sdk::__xdrs")]
                 #original_struct
 
                 #preimage_mod
@@ -125,6 +135,8 @@ pub fn expand(args: ContractTypeArgs, item: Item) -> TokenStream {
                 #collect_auth
 
                 #receive_auth
+
+                impl ::thruput_sdk::call::OwnedRefArg for #ident {}
 
                 #mintable
             }
@@ -165,7 +177,13 @@ fn expand_contract_type_name(
     ident: &syn::Ident,
     args: &ContractTypeArgs,
 ) -> TokenStream {
-    crate::contract_type_name_impl(ident, args.name.as_deref())
+    crate::contract_type_name_impl(
+        &crate::common::contract::sdk_crate_path(),
+        ident,
+        args.name.as_ref().map(|name| name.as_str()),
+        // `#[contract_type]` declares no version of its own; the crate's it is.
+        None,
+    )
 }
 
 /// Which auth-handle walker trait to generate. Collect and Receive
@@ -193,22 +211,22 @@ impl AuthWalk {
     fn impl_block(self, ident: &syn::Ident, body: TokenStream) -> TokenStream {
         match self {
             AuthWalk::Collect => quote! {
-                impl ::sdk::CollectAuthHandles for #ident {
+                impl ::thruput_sdk::CollectAuthHandles for #ident {
                     fn collect_auth_handles(
                         &self,
-                        out: &mut ::sdk::collect_auth_handles::AuthHandleBuf,
-                    ) -> Result<(), ::sdk::FaultString> {
+                        out: &mut ::thruput_sdk::collect_auth_handles::AuthHandleBuf,
+                    ) -> Result<(), ::thruput_sdk::FaultString> {
                         #body
                         Ok(())
                     }
                 }
             },
             AuthWalk::Receive => quote! {
-                impl ::sdk::ReceiveAuthHandles for #ident {
+                impl ::thruput_sdk::ReceiveAuthHandles for #ident {
                     fn receive_auth_handles(
                         &mut self,
                         handles: &mut impl ::core::iter::Iterator<Item = u32>,
-                    ) -> Result<(), ::sdk::AuthTokenError> {
+                    ) -> Result<(), ::thruput_sdk::AuthTokenError> {
                         #body
                         Ok(())
                     }
@@ -318,7 +336,7 @@ fn expand_auth_handles_enum(
 /// struct, plus `MintableType` and `Mintable` impls for the original struct.
 ///
 /// Each field `T` in the Preimage becomes
-/// `<T as ::sdk::mintable::MintableType>::Preimage`.
+/// `<T as ::thruput_sdk::mintable::MintableType>::Preimage`.
 ///
 /// Returns `(preimage_mod_tokens, mintable_impl_tokens)`.
 fn generate_preimage_and_mintable(
@@ -338,7 +356,7 @@ fn generate_preimage_and_mintable(
                     let name = &f.ident;
                     let ty = &f.ty;
                     quote! {
-                        #field_vis #name: <#ty as ::sdk::mintable::MintableType>::Preimage
+                        #field_vis #name: <#ty as ::thruput_sdk::mintable::MintableType>::Preimage
                     }
                 })
                 .collect();
@@ -349,8 +367,8 @@ fn generate_preimage_and_mintable(
                 #vis mod #mod_name {
                     use super::*;
 
-                    #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
-                    #[xdrs(crate = "::sdk::__xdrs")]
+                    #[derive(::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR)]
+                    #[xdrs(crate = "::thruput_sdk::__xdrs")]
                     pub struct Preimage {
                         #(#preimage_fields,)*
                     }
@@ -364,7 +382,7 @@ fn generate_preimage_and_mintable(
                     let name = &f.ident;
                     let ty = &f.ty;
                     quote! {
-                        #name: <#ty as ::sdk::Mintable>::mint_into_parent(
+                        #name: <#ty as ::thruput_sdk::Mintable>::mint_into_parent(
                             preimage.#name, children,
                         )
                     }
@@ -372,14 +390,14 @@ fn generate_preimage_and_mintable(
                 .collect();
 
             let mintable_impl: TokenStream = quote! {
-                impl ::sdk::mintable::MintableType for #ident {
+                impl ::thruput_sdk::mintable::MintableType for #ident {
                     type Preimage = #mod_name::Preimage;
                 }
 
-                impl ::sdk::Mintable for #ident {
+                impl ::thruput_sdk::Mintable for #ident {
                     fn mint_into_parent(
                         preimage: Self::Preimage,
-                        children: &mut ::sdk::mintable::ChildNodeBuf,
+                        children: &mut ::thruput_sdk::mintable::ChildNodeBuf,
                     ) -> Self {
                         Self {
                             #(#mint_fields,)*
@@ -398,7 +416,7 @@ fn generate_preimage_and_mintable(
                     let field_vis = &f.vis;
                     let ty = &f.ty;
                     quote! {
-                        #field_vis <#ty as ::sdk::mintable::MintableType>::Preimage
+                        #field_vis <#ty as ::thruput_sdk::mintable::MintableType>::Preimage
                     }
                 })
                 .collect();
@@ -409,8 +427,8 @@ fn generate_preimage_and_mintable(
                 #vis mod #mod_name {
                     use super::*;
 
-                    #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
-                    #[xdrs(crate = "::sdk::__xdrs")]
+                    #[derive(::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR)]
+                    #[xdrs(crate = "::thruput_sdk::__xdrs")]
                     pub struct Preimage(
                         #(#preimage_fields,)*
                     );
@@ -425,7 +443,7 @@ fn generate_preimage_and_mintable(
                     let idx = syn::Index::from(i);
                     let ty = &f.ty;
                     quote! {
-                        <#ty as ::sdk::Mintable>::mint_into_parent(
+                        <#ty as ::thruput_sdk::Mintable>::mint_into_parent(
                             preimage.#idx, children,
                         )
                     }
@@ -433,14 +451,14 @@ fn generate_preimage_and_mintable(
                 .collect();
 
             let mintable_impl = quote! {
-                impl ::sdk::mintable::MintableType for #ident {
+                impl ::thruput_sdk::mintable::MintableType for #ident {
                     type Preimage = #mod_name::Preimage;
                 }
 
-                impl ::sdk::Mintable for #ident {
+                impl ::thruput_sdk::Mintable for #ident {
                     fn mint_into_parent(
                         preimage: Self::Preimage,
-                        children: &mut ::sdk::mintable::ChildNodeBuf,
+                        children: &mut ::thruput_sdk::mintable::ChildNodeBuf,
                     ) -> Self {
                         Self(
                             #(#mint_fields,)*
@@ -456,21 +474,21 @@ fn generate_preimage_and_mintable(
                 #[doc(hidden)]
                 #[allow(non_snake_case)]
                 #vis mod #mod_name {
-                    #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
-                    #[xdrs(crate = "::sdk::__xdrs")]
+                    #[derive(::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR)]
+                    #[xdrs(crate = "::thruput_sdk::__xdrs")]
                     pub struct Preimage;
                 }
             };
 
             let mintable_impl = quote! {
-                impl ::sdk::mintable::MintableType for #ident {
+                impl ::thruput_sdk::mintable::MintableType for #ident {
                     type Preimage = #mod_name::Preimage;
                 }
 
-                impl ::sdk::Mintable for #ident {
+                impl ::thruput_sdk::Mintable for #ident {
                     fn mint_into_parent(
                         _preimage: Self::Preimage,
-                        _children: &mut ::sdk::mintable::ChildNodeBuf,
+                        _children: &mut ::thruput_sdk::mintable::ChildNodeBuf,
                     ) -> Self {
                         Self
                     }
@@ -516,7 +534,7 @@ fn generate_preimage_and_mintable_enum(
                         let name = &f.ident;
                         let ty = &f.ty;
                         quote! {
-                            #name: <#ty as ::sdk::mintable::MintableType>::Preimage
+                            #name: <#ty as ::thruput_sdk::mintable::MintableType>::Preimage
                         }
                     })
                     .collect();
@@ -551,7 +569,7 @@ fn generate_preimage_and_mintable_enum(
                         let name = &f.ident;
                         let ty = &f.ty;
                         quote! {
-                            #name: <#ty as ::sdk::Mintable>::mint_into_parent(
+                            #name: <#ty as ::thruput_sdk::Mintable>::mint_into_parent(
                                 #b, children,
                             )
                         }
@@ -569,7 +587,7 @@ fn generate_preimage_and_mintable_enum(
                     .map(|f| {
                         let ty = &f.ty;
                         quote! {
-                            <#ty as ::sdk::mintable::MintableType>::Preimage
+                            <#ty as ::thruput_sdk::mintable::MintableType>::Preimage
                         }
                     })
                     .collect();
@@ -587,7 +605,7 @@ fn generate_preimage_and_mintable_enum(
                     .map(|(f, b)| {
                         let ty = &f.ty;
                         quote! {
-                            <#ty as ::sdk::Mintable>::mint_into_parent(
+                            <#ty as ::thruput_sdk::Mintable>::mint_into_parent(
                                 #b, children,
                             )
                         }
@@ -613,8 +631,8 @@ fn generate_preimage_and_mintable_enum(
         #vis mod #mod_name {
             use super::*;
 
-            #[derive(::sdk::ReadXDR, ::sdk::WriteXDR)]
-            #[xdrs(crate = "::sdk::__xdrs")]
+            #[derive(::thruput_sdk::ReadXDR, ::thruput_sdk::WriteXDR)]
+            #[xdrs(crate = "::thruput_sdk::__xdrs")]
             #[repr(i32)]
             pub enum Preimage {
                 #(#preimage_variants,)*
@@ -623,14 +641,14 @@ fn generate_preimage_and_mintable_enum(
     };
 
     let mintable_impl = quote! {
-        impl ::sdk::mintable::MintableType for #ident {
+        impl ::thruput_sdk::mintable::MintableType for #ident {
             type Preimage = #mod_name::Preimage;
         }
 
-        impl ::sdk::Mintable for #ident {
+        impl ::thruput_sdk::Mintable for #ident {
             fn mint_into_parent(
                 preimage: Self::Preimage,
-                children: &mut ::sdk::mintable::ChildNodeBuf,
+                children: &mut ::thruput_sdk::mintable::ChildNodeBuf,
             ) -> Self {
                 match preimage {
                     #(#mint_arms,)*

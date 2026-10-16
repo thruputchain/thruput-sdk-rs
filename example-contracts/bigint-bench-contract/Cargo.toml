@@ -1,0 +1,82 @@
+[package]
+name = "bigint-bench-contract"
+description = "Benchmark contract: one 256-bit operation per build, for rv32 codesize and gas measurement"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+
+# The rv32 artifact. `thruput build -p bigint-bench-contract` derives
+# `--bin bigint_bench_contract` from the package name, so the name here must
+# stay the underscored package name.
+[[bin]]
+name = "bigint_bench_contract"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+bigint-bench-if = { workspace = true }
+# The comparison backend. Optional so a `u256` build does not compile it at all
+# -- the codesize numbers are only meaningful if the artifact under measurement
+# links one implementation, not two.
+uint = { version = "0.10.0", default-features = false, optional = true }
+
+[dev-dependencies]
+# The differential test links both backends at once. See `backend-uint`.
+bigint-bench-contract = { path = ".", features = ["backend-uint"] }
+
+[features]
+entrypoints = []
+
+# `op-none` by default so a plain `cargo build`/`cargo test`/`cargo doc` of this
+# package satisfies the exactly-one-op assertion in kernel.rs. `thruput build`
+# passes `--no-default-features`, so a measured build gets only the op the driver
+# names and never this one on top of it.
+default = ["op-none"]
+
+# --- backend selection -------------------------------------------------------
+#
+# `backend-uint` swaps the kernel onto Parity's `uint`; with it off the kernel
+# measures `thruput_sdk::U256`. Enabling it does not *remove* the
+# `thruput_sdk::U256` backend -- both impls exist whenever their dependencies
+# do, which is what lets the host differential test link them side by side.
+# Only the guest kernel's choice changes, so scripts/bigint-bench.sh passes
+# exactly one backend per build.
+backend-uint = ["dep:uint"]
+
+# --- operation selection -----------------------------------------------------
+#
+# Exactly one must be enabled; a const assertion in `kernel.rs` enforces it.
+# Keep this list in sync with the `kernels!` table in src/kernel.rs and the
+# `OPS` list in scripts/bigint-bench.sh.
+op-none = []
+op-add = []
+op-sub = []
+op-mul = []
+op-mul-small = []
+op-widening-mul = []
+op-div = []
+op-div-small = []
+op-rem = []
+op-mul-div-u128 = []
+op-mul-div = []
+op-mul-div-and-div = []
+op-signed-mul = []
+op-signed-div = []
+op-shl = []
+op-shr = []
+op-bitwise = []
+op-cmp = []
+op-sqrt = []
+op-bytes = []
+op-bit-len = []

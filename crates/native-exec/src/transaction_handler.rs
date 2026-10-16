@@ -1,16 +1,18 @@
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
-use groundhog_trace::InvocationFrameTrace;
-use groundhog_xdr::event::TxEmittedEvent;
-use groundhog_xdr::transaction::InvocationFrameOutput;
-use groundhog_xdr::transaction::SignedTransaction;
 use std::rc::Rc;
+use thruput_trace::InvocationFrameTrace;
+use thruput_xdr::event::TxEmittedEvent;
+use thruput_xdr::transaction::InvocationFrameOutput;
+use thruput_xdr::transaction::SignedTransaction;
 use xdrs::txs;
 
-use groundhog_sys::FFIErrorCode;
+use thruput_sys::FFIErrorCode;
 
-// Can run one, and only one, transaction,
-// and then get the results
+/// Executes one, and only one, full [`SignedTransaction`] against the
+/// environment: [`root_invoke`](Self::root_invoke), then
+/// [`try_commit_transaction`](Self::try_commit_transaction) or
+/// [`abort_transaction`](Self::abort_transaction).
 pub struct TransactionHandler {
     handler: *mut c_void,
     _env: Rc<TestEnvironment>,
@@ -25,22 +27,28 @@ pub struct TransactionHandler {
     aborted: bool,
 }
 
+/// Result of a transaction's root invocation ([`TransactionHandler::root_invoke`]).
 pub struct RootInvokeResult {
+    /// The root frame's outcome.
     pub output: InvocationFrameOutput,
+    /// Gas consumed by the invocation.
     pub gas_consumed: u64,
+    /// The execution trace, when tracing was enabled.
     pub trace: Option<InvocationFrameTrace>,
+    /// Events emitted by the transaction.
     pub events: Vec<TxEmittedEvent>,
 }
 
 impl TransactionHandler {
+    /// Open a handler for executing `stx` against `env`.
     pub fn new(env: Rc<TestEnvironment>, stx: &SignedTransaction) -> Self {
         let tx_bytes = txs::encode(stx).unwrap();
 
         let handler_res = unsafe {
-            groundhog_sys::open_syscall_handler(
+            thruput_sys::open_syscall_handler(
                 env.inner.borrow().db.db,
                 env.inner.borrow().contract_context.context,
-                groundhog_sys::FFISerializedSignedTransaction {
+                thruput_sys::FFISerializedSignedTransaction {
                     data: tx_bytes.as_ptr() as *mut u8,
                     len: tx_bytes.len().try_into().unwrap(),
                 },
@@ -81,11 +89,14 @@ impl TransactionHandler {
         self.invoked = true;
         assert!(!self.committed && !self.aborted);
 
-        crate::invoke_error::activate_panic_hook();
-        let foreign_result: groundhog_sys::ForeignTracedInvokeResult = unsafe {
-            groundhog_sys::root_invoke(self.handler, /*tracing*/ 1)
+        // No panic-hook activation here: contract bodies activate it on entry
+        // (see `PanicHookGuard`), and nothing else under this call is contract
+        // code -- rv32 contracts run in the interpreter, and the rest is this
+        // crate's own marshalling, where a panic is a harness bug that should
+        // stay unrecoverable and print in full.
+        let foreign_result: thruput_sys::ForeignTracedInvokeResult = unsafe {
+            thruput_sys::root_invoke(self.handler, /*tracing*/ 1)
         };
-        crate::invoke_error::deactivate_panic_hook();
 
         let err: FFIErrorCode = foreign_result.ffi_error_code.into();
         if err != FFIErrorCode::None {
@@ -126,6 +137,7 @@ impl TransactionHandler {
         }
     }
 
+    /// The signed transaction this handler executes.
     pub fn get_signed_transaction(&self) -> &SignedTransaction {
         &self.stx
     }
@@ -158,8 +170,7 @@ impl TransactionHandler {
             );
         }
         self.committed = true;
-        let res =
-            unsafe { groundhog_sys::try_commit_transaction(self.handler) };
+        let res = unsafe { thruput_sys::try_commit_transaction(self.handler) };
         let err: FFIErrorCode = res.ffi_error_code.into();
         if err != FFIErrorCode::None {
             panic!("failed to try to commit transaction: {err}");
@@ -184,7 +195,7 @@ impl TransactionHandler {
         }
         self.aborted = true;
 
-        let res = unsafe { groundhog_sys::abort_transaction(self.handler) };
+        let res = unsafe { thruput_sys::abort_transaction(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             panic!("failed to abort transaction: {:?}", err);
@@ -200,8 +211,7 @@ impl Drop for TransactionHandler {
             // unwinding from a test failure, and a panic in `drop` would
             // double-panic into a SIGABRT that hides the original message.
             self.aborted = true;
-            let res =
-                unsafe { groundhog_sys::abort_transaction(self.handler) };
+            let res = unsafe { thruput_sys::abort_transaction(self.handler) };
             let err: FFIErrorCode = res.into();
             if err != FFIErrorCode::None {
                 crate::drop_failure(format_args!(
@@ -211,8 +221,7 @@ impl Drop for TransactionHandler {
             }
         }
 
-        let res =
-            unsafe { groundhog_sys::close_syscall_handler(self.handler) };
+        let res = unsafe { thruput_sys::close_syscall_handler(self.handler) };
         let err: FFIErrorCode = res.into();
         if err != FFIErrorCode::None {
             crate::drop_failure(format_args!(

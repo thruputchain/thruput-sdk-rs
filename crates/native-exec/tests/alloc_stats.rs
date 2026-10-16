@@ -1,267 +1,216 @@
-//! End-to-end tests for per-frame allocation stats.
-//!
-//! Assertions use `>=` / `<` bounds rather than exact counts: the
-//! measured windows legitimately include small harness allocations, and
-//! exact numbers would be brittle across std/compiler versions.
+//! Native allocation estimates exclude callees and host bookkeeping.
 
-groundhog_native_exec::install_counting_allocator!();
+thruput_native_exec::install_counting_allocator!();
 
-use groundhog_native_exec::frame_builder::FrameAction;
-use groundhog_native_exec::test_environment::TestEnvironment;
-use groundhog_xdr::contract::ContractEntrypointID;
-use groundhog_xdr::transaction::InvocationFrameStatusCode;
-use groundhog_xdr::types::ContractAddress;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::alloc::{Layout, alloc, dealloc};
+use thruput_native_exec::alloc_stats::AllocStats;
+use thruput_native_exec::frame_builder::FrameAction;
+use thruput_native_exec::test_environment::TestEnvironment;
+use thruput_xdr::contract::ContractEntrypointID;
+use thruput_xdr::invoke_args::{CopyableInvokeInputs, CopyableInvokeOutputs};
+use thruput_xdr::transaction::InvocationFrameStatusCode;
+use thruput_xdr::types::ContractAddress;
 
-const PARENT_ADDR: ContractAddress = ContractAddress::new([0x11; 32]);
-const CHILD_ADDR: ContractAddress = ContractAddress::new([0x22; 32]);
+const ROOT: ContractAddress = ContractAddress::new([0x11; 32]);
+const CHILD: ContractAddress = ContractAddress::new([0x22; 32]);
+const LEAF: ContractAddress = ContractAddress::new([0x33; 32]);
 
-/// Cross-call the contract at `addr` the way `client.foo()` does: via the
-/// `Invoke` syscall, which routes through hogd and back into the
-/// registered mock method.
-fn invoke_mock(addr: &ContractAddress, entrypoint: ContractEntrypointID) {
-    use groundhog_xdr::invoke_args::{
-        CopyableInvokeInputs, CopyableInvokeOutputs,
-    };
-    use groundhog_xdr::syscalls as sys;
+fn invoke(addr: &ContractAddress, method: u64) -> InvocationFrameStatusCode {
     let inputs = CopyableInvokeInputs {
-        entrypoint_id: u64::from_be_bytes(entrypoint.into_inner()),
+        entrypoint_id: method,
         gas_limit: u64::MAX,
         flags: 0,
+        reserved: 0,
     };
     let mut outputs = CopyableInvokeOutputs {
         return_buffer_len: 0,
-        returned_auth_token_len: 0,
+        returned_auth_token_count: 0,
         frame_status: InvocationFrameStatusCode::Fault,
     };
-    sys::raw_Invoke(addr, &[], &[], &inputs, &mut outputs)
+    thruput_xdr::syscalls::raw_Invoke(addr, &[], &[], &inputs, &mut outputs)
         .expect("Invoke syscall failed");
-    assert_eq!(outputs.frame_status, InvocationFrameStatusCode::Return);
+    outputs.frame_status
+}
+
+fn allocate(size: usize, align: usize) {
+    let layout = Layout::from_size_align(size, align).unwrap();
+    // Explicit allocation avoids Vec growth and return-value encoding in
+    // the continuation-padding regression.
+    unsafe {
+        let ptr = alloc(layout);
+        assert!(!ptr.is_null());
+        std::hint::black_box(ptr);
+        dealloc(ptr, layout);
+    }
 }
 
 #[test]
-fn root_frame_reports_contract_allocations() {
+fn continuation_preserves_padding_and_excludes_child_and_harness() {
     let env = TestEnvironment::no_cost();
     let result = env.transact(|tx| {
-        tx.call(&PARENT_ADDR).run(|| {
-            let v: Vec<u8> = Vec::with_capacity(4096);
-            std::hint::black_box(&v);
-        })
-    });
-    result.assert_success();
-
-    let stats = result.frame().alloc_stats();
-    assert!(
-        stats.bytes_total >= 4096,
-        "the 4 KiB Vec must be counted, got {stats:?}"
-    );
-    assert!(stats.allocs >= 1, "got {stats:?}");
-    assert!(
-        stats.heap_used >= stats.bytes_total,
-        "bump-cursor consumption includes padding, got {stats:?}"
-    );
-}
-
-#[test]
-fn child_frame_allocations_are_charged_to_the_child_not_the_parent() {
-    const CHILD_ALLOC: usize = 64 * 1024;
-    static CHILD_BYTES: AtomicU64 = AtomicU64::new(0);
-
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&PARENT_ADDR)
-            .run_continuable(|frame| {
-                let child_result = frame.child_call(&CHILD_ADDR).run(|| {
-                    let v = vec![0u8; CHILD_ALLOC];
-                    std::hint::black_box(&v);
-                });
-                child_result.assert_success();
-                CHILD_BYTES.store(
-                    child_result.alloc_stats().bytes_total,
-                    Ordering::Relaxed,
-                );
-
-                let v = vec![0u8; 512];
-                std::hint::black_box(&v);
-                FrameAction::Close
-            })
-            .finish()
-    });
-    result.assert_success();
-
-    let child_bytes = CHILD_BYTES.load(Ordering::Relaxed);
-    assert!(
-        child_bytes >= CHILD_ALLOC as u64,
-        "child frame must be charged its 64 KiB Vec, got {child_bytes}"
-    );
-
-    let parent = result.frame().alloc_stats();
-    assert!(
-        parent.bytes_total >= 512,
-        "parent frame must see its own Vec, got {parent:?}"
-    );
-    assert!(
-        parent.bytes_total < CHILD_ALLOC as u64 / 2,
-        "parent frame must NOT be charged the child's 64 KiB \
-         (each frame is its own guest heap), got {parent:?}"
-    );
-}
-
-#[test]
-fn cross_call_frames_produce_labeled_alloc_records() {
-    const MOCK_ALLOC: usize = 32 * 1024;
-    let entrypoint = ContractEntrypointID::from_u64(0xAABB_CCDD_EEFF_0011);
-
-    let env = TestEnvironment::no_cost();
-    let mock = env.register_mock(|c| {
-        c.register_method(entrypoint, || {
-            let v = vec![0u8; MOCK_ALLOC];
-            std::hint::black_box(&v);
-        });
-    });
-    mock.deploy_contract_to(&CHILD_ADDR);
-
-    let result = env.transact(|tx| {
-        tx.call(&PARENT_ADDR).run(|| {
-            invoke_mock(&CHILD_ADDR, entrypoint);
-        })
-    });
-    result.assert_success();
-
-    let records = result.frame().cross_call_alloc_records();
-    assert_eq!(
-        records.len(),
-        1,
-        "one cross-call frame must produce one record, got {records:?}"
-    );
-    assert_eq!(records[0].entrypoint, entrypoint);
-    assert_eq!(
-        *records[0].contract(),
-        mock.as_contract(),
-        "the record identifies the invoked mock via its Contract"
-    );
-    assert!(
-        records[0].stats.bytes_total >= MOCK_ALLOC as u64,
-        "callee frame must be charged its 32 KiB Vec, got {:?}",
-        records[0].stats
-    );
-
-    let caller = result.frame().alloc_stats();
-    assert!(
-        caller.bytes_total < MOCK_ALLOC as u64 / 2,
-        "caller frame must NOT be charged the callee's allocation, \
-         got {caller:?}"
-    );
-}
-
-#[test]
-fn cross_call_records_land_on_the_enclosing_frame() {
-    // A cross-call made inside an explicit child frame must be recorded
-    // on the child frame's result, not the parent's.
-    const MOCK_ADDR: ContractAddress = ContractAddress::new([0x33; 32]);
-    let entrypoint = ContractEntrypointID::from_u64(0x5555_6666_7777_8888);
-    static CHILD_RECORDS: AtomicU64 = AtomicU64::new(0);
-
-    let env = TestEnvironment::no_cost();
-    let mock = env.register_mock(|c| {
-        c.register_method(entrypoint, || {
-            let v = vec![0u8; 1024];
-            std::hint::black_box(&v);
-        });
-    });
-    mock.deploy_contract_to(&MOCK_ADDR);
-
-    let result = env.transact(|tx| {
-        tx.call(&PARENT_ADDR)
-            .run_continuable(|frame| {
-                let child_result = frame.child_call(&CHILD_ADDR).run(|| {
-                    invoke_mock(&MOCK_ADDR, entrypoint);
-                });
-                child_result.assert_success();
-                CHILD_RECORDS.store(
-                    child_result.cross_call_alloc_records().len() as u64,
-                    Ordering::Relaxed,
-                );
-                FrameAction::Close
-            })
-            .finish()
-    });
-    result.assert_success();
-
-    assert_eq!(
-        CHILD_RECORDS.load(Ordering::Relaxed),
-        1,
-        "the cross-call happened inside the child frame's window"
-    );
-    assert!(
-        result.frame().cross_call_alloc_records().is_empty(),
-        "the parent frame made no cross-calls of its own, got {:?}",
-        result.frame().cross_call_alloc_records()
-    );
-}
-
-#[test]
-fn harness_bookkeeping_is_never_charged_to_frames() {
-    // Contract code that allocates nothing must report exactly zero,
-    // even though the harness itself allocates plenty around it: frame
-    // open (Box + invocation encode), cross-call record bookkeeping,
-    // syscall implementations, frame close (output/trace/event decode),
-    // and FrameResult construction all happen inside the enclosing
-    // frame's measurement window.
-    const MOCK_ADDR: ContractAddress = ContractAddress::new([0x44; 32]);
-    let entrypoint = ContractEntrypointID::from_u64(0x9999_AAAA_BBBB_CCCC);
-
-    let env = TestEnvironment::no_cost();
-    let mock = env.register_mock(|c| {
-        c.register_method(entrypoint, || {});
-    });
-    mock.deploy_contract_to(&MOCK_ADDR);
-
-    let result = env.transact(|tx| {
-        tx.call(&PARENT_ADDR)
-            .run_continuable(|frame| {
-                frame
-                    .child_call(&CHILD_ADDR)
-                    .run(|| {
-                        invoke_mock(&MOCK_ADDR, entrypoint);
-                    })
-                    .assert_success();
-                FrameAction::Close
-            })
-            .finish()
-    });
-    result.assert_success();
-
-    let stats = result.frame().alloc_stats();
-    assert_eq!(
-        stats,
-        groundhog_native_exec::alloc_stats::AllocStats::ZERO,
-        "no contract code allocated, so the frame must report zero"
-    );
-}
-
-#[test]
-fn stats_accumulate_across_continue_steps() {
-    let env = TestEnvironment::no_cost();
-    let result = env.transact(|tx| {
-        tx.call(&PARENT_ADDR)
+        tx.call(&ROOT)
             .run_continuable(|_| {
-                let v = vec![0u8; 2048];
-                std::hint::black_box(&v);
+                allocate(1, 1);
                 FrameAction::Continue
             })
-            .run_continuable(|_| {
-                let v = vec![0u8; 4096];
-                std::hint::black_box(&v);
+            .run_continuable(|frame| {
+                let child = frame
+                    .child_call(&CHILD)
+                    .run_continuable(|_| {
+                        allocate(4096, 1);
+                        FrameAction::Close
+                    })
+                    .finish();
+                child.assert_success();
+                assert_eq!(child.alloc_stats().unwrap().bytes_total, 4096);
+                allocate(8, 8);
                 FrameAction::Close
             })
             .finish()
     });
     result.assert_success();
-
-    let stats = result.frame().alloc_stats();
-    assert!(
-        stats.bytes_total >= 2048 + 4096,
-        "both execute steps of the frame must accumulate, got {stats:?}"
+    assert_eq!(
+        result.frame().alloc_stats(),
+        Some(AllocStats {
+            allocs: 2,
+            bytes_total: 9,
+            estimated_heap_bytes: 16,
+        })
     );
+}
+
+#[test]
+fn nested_and_sibling_cross_calls_keep_exclusive_labeled_records() {
+    let env = TestEnvironment::no_cost();
+    let leaf = env.register_mock(|c| {
+        c.register_method(ContractEntrypointID::from_u64(2), || {
+            allocate(32768, 1)
+        });
+    });
+    leaf.deploy_contract_to(&LEAF);
+    let child = env.register_mock(|c| {
+        c.register_method(ContractEntrypointID::from_u64(1), || {
+            allocate(512, 1);
+            assert_eq!(invoke(&LEAF, 2), InvocationFrameStatusCode::Return);
+        });
+    });
+    child.deploy_contract_to(&CHILD);
+    let result = env.transact(|tx| {
+        tx.call(&ROOT).run(|| {
+            assert_eq!(invoke(&CHILD, 1), InvocationFrameStatusCode::Return);
+            assert_eq!(invoke(&LEAF, 2), InvocationFrameStatusCode::Return);
+        })
+    });
+    result.assert_success();
+    let records = result.frame().cross_call_alloc_records();
+    assert_eq!(records.len(), 3);
+    assert_eq!(records[0].contract, leaf.as_contract());
+    assert_eq!(records[0].entrypoint, ContractEntrypointID::from_u64(2));
+    assert_eq!(records[0].stats.bytes_total, 32768);
+    assert_eq!(records[1].contract, child.as_contract());
+    assert_eq!(records[1].entrypoint, ContractEntrypointID::from_u64(1));
+    assert_eq!(records[1].stats.bytes_total, 512);
+    assert_eq!(records[2], records[0]);
+    assert!(result.frame().alloc_stats().unwrap().bytes_total < 512);
+}
+
+#[test]
+fn cross_calls_belong_to_the_explicit_child_window() {
+    let env = TestEnvironment::no_cost();
+    let leaf = env.register_mock(|c| {
+        c.register_method(ContractEntrypointID::from_u64(1), || {});
+    });
+    leaf.deploy_contract_to(&LEAF);
+    let result = env.transact(|tx| {
+        tx.call(&ROOT)
+            .run_continuable(|frame| {
+                let child = frame.child_call(&CHILD).run(|| {
+                    assert_eq!(
+                        invoke(&LEAF, 1),
+                        InvocationFrameStatusCode::Return
+                    );
+                });
+                child.assert_success();
+                assert_eq!(child.cross_call_alloc_records().len(), 1);
+                assert_eq!(
+                    child.cross_call_alloc_records()[0].stats,
+                    AllocStats::default()
+                );
+                FrameAction::Close
+            })
+            .finish()
+    });
+    result.assert_success();
+    assert_eq!(result.frame().alloc_stats(), Some(AllocStats::default()));
+    assert!(result.frame().cross_call_alloc_records().is_empty());
+}
+
+#[test]
+fn failed_cross_call_is_reported_without_leaking_to_the_next_transaction() {
+    let env = TestEnvironment::no_cost();
+    let child = env.register_mock(|c| {
+        c.register_method(ContractEntrypointID::from_u64(1), || {
+            allocate(1024, 1);
+            panic!("intentional contract failure");
+        });
+    });
+    child.deploy_contract_to(&CHILD);
+    let result = env.transact(|tx| {
+        tx.call(&ROOT).run(|| {
+            assert_eq!(invoke(&CHILD, 1), InvocationFrameStatusCode::Fault);
+        })
+    });
+    result.assert_success();
+    let records = result.frame().cross_call_alloc_records();
+    assert_eq!(records.len(), 1);
+    assert!(records[0].stats.bytes_total >= 1024);
+    let next = env.transact(|tx| {
+        tx.call(&ROOT)
+            .run_continuable(|_| FrameAction::Close)
+            .finish()
+    });
+    next.assert_success();
+    assert_eq!(next.frame().alloc_stats(), Some(AllocStats::default()));
+    assert!(next.frame().cross_call_alloc_records().is_empty());
+}
+
+#[test]
+fn independent_environments_do_not_steal_records_between_continuations() {
+    let outer = TestEnvironment::no_cost();
+    let inner = TestEnvironment::no_cost();
+    for env in [&outer, &inner] {
+        env.register_mock(|c| {
+            c.register_method(ContractEntrypointID::from_u64(1), || {
+                allocate(64, 1)
+            });
+        })
+        .deploy_contract_to(&CHILD);
+    }
+    let result = outer.transact(|tx| {
+        let mut pending = tx.call(&ROOT).run_continuable(|_| {
+            assert_eq!(invoke(&CHILD, 1), InvocationFrameStatusCode::Return);
+            FrameAction::Continue
+        });
+        let other = inner.transact(|tx| {
+            tx.call(&ROOT).run(|| {
+                assert_eq!(
+                    invoke(&CHILD, 1),
+                    InvocationFrameStatusCode::Return
+                );
+            })
+        });
+        other.assert_success();
+        assert_eq!(other.frame().cross_call_alloc_records().len(), 1);
+        pending
+            .run_continuable(|_| {
+                assert_eq!(
+                    invoke(&CHILD, 1),
+                    InvocationFrameStatusCode::Return
+                );
+                FrameAction::Close
+            })
+            .finish()
+    });
+    result.assert_success();
+    assert_eq!(result.frame().cross_call_alloc_records().len(), 2);
 }

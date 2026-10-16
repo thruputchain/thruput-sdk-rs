@@ -1,9 +1,9 @@
 use crate::exn::*;
+use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SyscallNo};
 use crate::sys_result::bytestring as result;
 use crate::types::{RuntimeMemoryLength, StorageKey};
 use core::mem::MaybeUninit;
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Returns the length of the bytestring stored at the given key.
 ///
@@ -13,9 +13,8 @@ use groundhog_xdr::storage_item::StorageDeltaFlags;
 pub fn bytestring_get_len(key: &StorageKey) -> u32 {
     let mut out: RuntimeMemoryLength = 0;
 
-    sys::raw_BytestringGetLen(key, &mut out).unwrap_or_else(|errno| {
-        syscall_throw(SyscallNo::kBytestringGetLen, errno);
-    });
+    sys::raw_BytestringGetLen(key, &mut out)
+        .or_syscall_throw(SyscallNo::kBytestringGetLen);
 
     out
 }
@@ -28,9 +27,8 @@ pub fn bytestring_get_len(key: &StorageKey) -> u32 {
 /// code [`sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`].
 ///
 pub fn bytestring_exists(key: &StorageKey) -> bool {
-    result::bytestring_exists(key).unwrap_or_else(|errno| {
-        syscall_throw(SyscallNo::kBytestringGetLen, errno);
-    })
+    result::bytestring_exists(key)
+        .or_syscall_throw(SyscallNo::kBytestringGetLen)
 }
 
 /// Sets the value at the given key to the given bytestring.
@@ -40,17 +38,24 @@ pub fn bytestring_exists(key: &StorageKey) -> bool {
 /// If concurrent contract invocations set the location to the same bytestring,
 /// this will not cause any such invocations to abort.
 ///
+/// This leaves the key's storage flags as they are: a lock requested by an
+/// earlier exclusive write stays (see [`flags`](super::flags)).
+///
 pub fn bytestring_set(key: &StorageKey, slice: &[u8]) {
-    sys::raw_BytestringSet(key, slice, StorageDeltaFlags::None.0)
-        .unwrap_or_else(|errno| {
-            syscall_throw(SyscallNo::kBytestringSet, errno);
-        });
+    sys::raw_BytestringSet(key, slice)
+        .or_syscall_throw(SyscallNo::kBytestringSet);
 }
 
+/// Sets the value at the given key to the given bytestring, then requests
+/// [`ExclusiveLock`](crate::StorageDeltaFlags::ExclusiveLock) for the key.
+///
+/// If concurrent contract invocations set the bytestring exclusively, only one
+/// such invocation can succeed without reverting. Later writes to the key in
+/// this transaction keep the lock.
+///
 pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) {
-    result::bytestring_set_exclusive(key, slice).unwrap_or_else(|errno| {
-        syscall_throw(SyscallNo::kBytestringSet, errno);
-    });
+    result::bytestring_set_exclusive(key, slice)
+        .or_syscall_throw(SyscallNo::kBytestringSet);
 }
 
 /// Returns the bytestring contents in a statically-sized array.
@@ -64,9 +69,8 @@ pub fn bytestring_set_exclusive(key: &StorageKey, slice: &[u8]) {
 pub fn bytestring_get_sized<const N: usize>(key: &StorageKey) -> [u8; N] {
     let mut bytes_mu = [MaybeUninit::<u8>::uninit(); N];
     let mut len = MaybeUninit::uninit();
-    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len).unwrap_or_else(
-        |errno| syscall_throw(SyscallNo::kBytestringGet, errno),
-    );
+    sys::uninit_BytestringGet(key, &mut bytes_mu, &mut len)
+        .or_syscall_throw(SyscallNo::kBytestringGet);
 
     // Safety: The syscall returned with success, so the out-args are
     // initialized
@@ -105,8 +109,7 @@ mod bytestring_get_alloc {
     pub fn bytestring_try_get(
         key: &StorageKey,
     ) -> Result<Box<[u8]>, LibraryExn> {
-        result::bytestring_get(key)
-            .map_err(|errno| syscall_exn(SyscallNo::kBytestringGet, errno))
+        result::bytestring_get(key).or_syscall_exn(SyscallNo::kBytestringGet)
     }
 }
 #[cfg(feature = "alloc")]

@@ -1,7 +1,7 @@
 #![allow(unexpected_cfgs)]
-use sdk::*;
+use thruput_sdk::*;
 
-#[sdk::storage]
+#[thruput_sdk::storage]
 pub struct LegacyPathContract;
 
 #[contract]

@@ -14,10 +14,10 @@ pub use mu_buf::*;
 pub use serialize::*;
 pub use terminal_return::*;
 
-#[cfg(feature = "call_tracking")]
+#[cfg(not(target_arch = "riscv32"))]
 mod call_tracking_contexts;
 
-#[cfg(feature = "call_tracking")]
+#[cfg(not(target_arch = "riscv32"))]
 pub use call_tracking_contexts::*;
 
 /// Constant-time string equality check for use in `const` assertions.
@@ -93,82 +93,6 @@ pub const fn const_str_concat<
         out[i] = bb[i - N];
         i += 1;
     }
-    out
-}
-
-/// Build the full version-mismatch diagnostic bytes: `prefix` + `'major', from 'full'` + `suffix`.
-///
-/// `OUT` must equal `P + 11 + M + F + S` (the middle segment is always 11 + major + full bytes).
-/// For use from generated `#[contract]` code only.
-#[doc(hidden)]
-#[inline]
-pub const fn const_iface_version_mismatch_diagnostic_bytes<
-    const P: usize,
-    const M: usize,
-    const F: usize,
-    const S: usize,
-    const OUT: usize,
->(
-    prefix: &str,
-    trait_major: &str,
-    trait_full: &str,
-    suffix: &[u8; S],
-) -> [u8; OUT] {
-    assert!(
-        prefix.len() == P && trait_major.len() == M && trait_full.len() == F
-    );
-    assert!(OUT == P + 11 + M + F + S);
-    let pb = prefix.as_bytes();
-    let ab = trait_major.as_bytes();
-    let fb = trait_full.as_bytes();
-    let mut out = [0u8; OUT];
-    let mut i = 0usize;
-
-    let mut j = 0usize;
-    while j < P {
-        out[i] = pb[j];
-        i += 1;
-        j += 1;
-    }
-
-    out[i] = b'\'';
-    i += 1;
-    j = 0;
-    while j < M {
-        out[i] = ab[j];
-        i += 1;
-        j += 1;
-    }
-    out[i] = b'\'';
-    i += 1;
-
-    let mid = b", from ";
-    j = 0;
-    while j < 7 {
-        out[i] = mid[j];
-        i += 1;
-        j += 1;
-    }
-
-    out[i] = b'\'';
-    i += 1;
-    j = 0;
-    while j < F {
-        out[i] = fb[j];
-        i += 1;
-        j += 1;
-    }
-    out[i] = b'\'';
-    i += 1;
-
-    j = 0;
-    while j < S {
-        out[i] = suffix[j];
-        i += 1;
-        j += 1;
-    }
-
-    assert!(i == OUT);
     out
 }
 
@@ -250,27 +174,8 @@ pub const fn const_iface_name_mismatch_diagnostic_bytes<
 }
 
 #[cfg(test)]
-mod iface_version_mismatch_diagnostic_tests {
-    use super::{
-        const_iface_name_mismatch_diagnostic_bytes,
-        const_iface_version_mismatch_diagnostic_bytes,
-    };
-
-    #[test]
-    fn const_iface_version_mismatch_diagnostic_bytes_matches_expected_text() {
-        const PREFIX: &str = "a: ";
-        const MAJ: &str = "0";
-        const FULL: &str = "0.0";
-        const SUFFIX: &[u8; 2] = b" x";
-        const OUT: [u8; 20] =
-            const_iface_version_mismatch_diagnostic_bytes::<3, 1, 3, 2, 20>(
-                PREFIX, MAJ, FULL, SUFFIX,
-            );
-        assert_eq!(
-            core::str::from_utf8(&OUT).unwrap(),
-            "a: '0', from '0.0' x"
-        );
-    }
+mod iface_name_mismatch_diagnostic_tests {
+    use super::const_iface_name_mismatch_diagnostic_bytes;
 
     #[test]
     fn const_iface_name_mismatch_diagnostic_bytes_matches_expected_text() {

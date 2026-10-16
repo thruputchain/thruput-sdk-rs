@@ -1,3 +1,4 @@
+use super::deletable::Deletable;
 use super::keypath::Keypath;
 use super::node::StorageType;
 use super::slot::{SlotMut, SlotRef};
@@ -67,6 +68,12 @@ impl<K, V> Map<K, V> {
         SlotMut::new(self, slot)
     }
 
+    /// Like [`at_mut`](Self::at_mut), but every successful write through the
+    /// returned handle is followed by a request for an exclusive lock on the
+    /// entry, so concurrent writers to it conflict. The lock lasts for the
+    /// rest of the transaction: later writes through ordinary handles keep
+    /// it, and only `clear_flags` removes it. Building, reading or dropping
+    /// the handle requests nothing.
     pub fn at_mut_exclusive(&mut self, entry_key: &K) -> SlotMut<'_, Self, V>
     where
         K: WriteXDR,
@@ -76,6 +83,15 @@ impl<K, V> Map<K, V> {
         keypath.set_exclusive();
         let slot = V::from(keypath);
         SlotMut::new(self, slot)
+    }
+
+    #[inline(always)]
+    pub fn delete_at(&mut self, entry_key: &K)
+    where
+        K: WriteXDR,
+        V: StorageType + Deletable,
+    {
+        self.at_mut(entry_key).delete();
     }
 
     /// Mutably borrow N elements at once. Panics if any keys are equal.

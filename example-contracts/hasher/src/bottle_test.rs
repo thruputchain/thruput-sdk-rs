@@ -1,7 +1,7 @@
 use crate::HasherClient;
 pub use bottle_test_if::*;
-use sdk::storage::Value;
-use sdk::*;
+use thruput_sdk::storage::Value;
+use thruput_sdk::*;
 
 #[derive(Debug)]
 #[storage]
@@ -9,7 +9,7 @@ pub struct BT {
     target_addr: Value<Option<ContractAddress>>,
 }
 
-#[contract(exports = "bottle_exports", version = "0.1.0")]
+#[contract(exports = "bottle_exports")]
 impl BottleTest for BT {
     fn setup(&mut self, target_contract_hash: &SHA256Hash) {
         let nonce: SHA256Hash = [7; 32].into();

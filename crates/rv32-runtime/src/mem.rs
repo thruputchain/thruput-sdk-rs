@@ -25,6 +25,8 @@
 //! symbols absent); recursion itself was ruled out by disassembly when
 //! this landed and no_builtins keeps it that way.
 
+use core::mem::MaybeUninit;
+
 // ---------------------------------------------------------------------------
 // Pure copy/fill cores — target-independent so the overlap/seam logic can be
 // unit-tested on the host (cf. dispatch.rs). `#[inline(always)]` so each rv32
@@ -39,14 +41,20 @@
 /// syscall with unspecified overlap semantics) must first stop `move_any`
 /// from delegating overlaps here.
 #[inline(always)]
-unsafe fn copy_forward(dst: *mut u8, src: *const u8, n: usize) {
+unsafe fn copy_forward(
+    dst: *mut MaybeUninit<u8>,
+    src: *const MaybeUninit<u8>,
+    n: usize,
+) {
     unsafe {
+        // Copies must preserve uninitialized bytes, including struct padding.
         let mut d = dst;
         let mut s = src;
-        let word_end = dst.add(n & !3);
+        let word_end = d.add(n & !3);
         while d < word_end {
-            d.cast::<u32>()
-                .write_unaligned(s.cast::<u32>().read_unaligned());
+            d.cast::<MaybeUninit<u32>>().write_unaligned(
+                s.cast::<MaybeUninit<u32>>().read_unaligned(),
+            );
             d = d.add(4);
             s = s.add(4);
         }
@@ -64,7 +72,11 @@ unsafe fn copy_forward(dst: *mut u8, src: *const u8, n: usize) {
 /// form costs a 6-insn word loop — LLVM recomputes dst+i and src+i every
 /// iteration instead of decrementing the pointers.
 #[inline(always)]
-unsafe fn copy_backward(dst: *mut u8, src: *const u8, n: usize) {
+unsafe fn copy_backward(
+    dst: *mut MaybeUninit<u8>,
+    src: *const MaybeUninit<u8>,
+    n: usize,
+) {
     unsafe {
         let mut d = dst.add(n);
         let mut s = src.add(n);
@@ -72,8 +84,9 @@ unsafe fn copy_backward(dst: *mut u8, src: *const u8, n: usize) {
         while d > word_stop {
             d = d.sub(4);
             s = s.sub(4);
-            d.cast::<u32>()
-                .write_unaligned(s.cast::<u32>().read_unaligned());
+            d.cast::<MaybeUninit<u32>>().write_unaligned(
+                s.cast::<MaybeUninit<u32>>().read_unaligned(),
+            );
         }
         while d > dst {
             d = d.sub(1);
@@ -85,7 +98,11 @@ unsafe fn copy_backward(dst: *mut u8, src: *const u8, n: usize) {
 
 /// Overlap-safe copy: direction dispatch shared by `memmove` and the tests.
 #[inline(always)]
-unsafe fn move_any(dst: *mut u8, src: *const u8, n: usize) {
+unsafe fn move_any(
+    dst: *mut MaybeUninit<u8>,
+    src: *const MaybeUninit<u8>,
+    n: usize,
+) {
     unsafe {
         if (dst as usize) <= (src as usize) {
             // Covers dst == src and every forward-safe overlap (ascending
@@ -121,17 +138,21 @@ unsafe fn fill(dst: *mut u8, byte: u8, n: usize) {
 // The exported strong symbols (rv32 contracts only).
 // ---------------------------------------------------------------------------
 
+// The signatures use `c_void` exactly as libc declares them: rustc (since
+// nightly-2026-07) cross-checks definitions of the runtime mem symbols the
+// standard library relies on and rejects mismatched pointer types.
+
 /// Forward copy, word-granular, any alignment. Hot loop: lw/sw/addi/addi/bltu.
 /// C contract: overlapping ranges are the caller's UB; see `copy_forward` for
 /// the internal ascending-order invariant `memmove` relies on.
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn memcpy(
-    dst: *mut u8,
-    src: *const u8,
+    dst: *mut core::ffi::c_void,
+    src: *const core::ffi::c_void,
     n: usize,
-) -> *mut u8 {
-    unsafe { copy_forward(dst, src, n) };
+) -> *mut core::ffi::c_void {
+    unsafe { copy_forward(dst.cast(), src.cast(), n) };
     dst
 }
 
@@ -140,19 +161,23 @@ unsafe extern "C" fn memcpy(
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn memmove(
-    dst: *mut u8,
-    src: *const u8,
+    dst: *mut core::ffi::c_void,
+    src: *const core::ffi::c_void,
     n: usize,
-) -> *mut u8 {
-    unsafe { move_any(dst, src, n) };
+) -> *mut core::ffi::c_void {
+    unsafe { move_any(dst.cast(), src.cast(), n) };
     dst
 }
 
 /// Word-granular fill, any alignment. C semantics: fill value is `c as u8`.
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
-unsafe extern "C" fn memset(dst: *mut u8, c: i32, n: usize) -> *mut u8 {
-    unsafe { fill(dst, c as u8, n) };
+unsafe extern "C" fn memset(
+    dst: *mut core::ffi::c_void,
+    c: i32,
+    n: usize,
+) -> *mut core::ffi::c_void {
+    unsafe { fill(dst.cast::<u8>(), c as u8, n) };
     dst
 }
 
@@ -164,12 +189,64 @@ mod tests {
     /// byte-only, exact word, word+tail, multi-word).
     const LENS: core::ops::RangeInclusive<usize> = 0..=9;
 
+    // Run under Miri: ordinary execution cannot detect uninitialized reads.
+    #[test]
+    fn copy_partially_initialized_disjoint() {
+        for copy in [copy_forward, copy_backward] {
+            for n in LENS {
+                let mut src = [MaybeUninit::<u8>::uninit(); 9];
+                for i in (1..n).step_by(2) {
+                    src[i].write(i as u8);
+                }
+                let mut dst = [MaybeUninit::new(0xCCu8); 11];
+                unsafe {
+                    copy(dst.as_mut_ptr().add(1), src.as_ptr(), n);
+                    for i in (1..n).step_by(2) {
+                        assert_eq!(dst[i + 1].assume_init(), i as u8);
+                    }
+                    assert_eq!(dst[0].assume_init(), 0xCC);
+                    for byte in &dst[n + 1..] {
+                        assert_eq!(byte.assume_init(), 0xCC);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn move_partially_initialized_overlaps() {
+        for src in 0..=4 {
+            for dst in 0..=4 {
+                for n in LENS {
+                    let mut buf = [MaybeUninit::<u8>::uninit(); 13];
+                    for i in (1..buf.len()).step_by(2) {
+                        buf[i].write(i as u8);
+                    }
+                    let ptr = buf.as_mut_ptr();
+                    unsafe {
+                        move_any(ptr.add(dst), ptr.add(src), n);
+                        for i in 0..n {
+                            if (src + i) % 2 == 1 {
+                                assert_eq!(
+                                    buf[dst + i].assume_init(),
+                                    (src + i) as u8
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn copy_forward_disjoint() {
         for n in LENS {
             let src: Vec<u8> = (10..19).collect();
             let mut dst = vec![0u8; 9];
-            unsafe { copy_forward(dst.as_mut_ptr(), src.as_ptr(), n) };
+            unsafe {
+                copy_forward(dst.as_mut_ptr().cast(), src.as_ptr().cast(), n)
+            };
             assert_eq!(&dst[..n], &src[..n], "n={n}");
             assert!(dst[n..].iter().all(|&b| b == 0), "n={n} wrote past end");
         }
@@ -180,7 +257,9 @@ mod tests {
         for n in LENS {
             let src: Vec<u8> = (10..19).collect();
             let mut dst = vec![0u8; 9];
-            unsafe { copy_backward(dst.as_mut_ptr(), src.as_ptr(), n) };
+            unsafe {
+                copy_backward(dst.as_mut_ptr().cast(), src.as_ptr().cast(), n)
+            };
             assert_eq!(&dst[..n], &src[..n], "n={n}");
             assert!(dst[n..].iter().all(|&b| b == 0), "n={n} wrote past end");
         }
@@ -193,7 +272,7 @@ mod tests {
             for n in LENS {
                 let mut buf: Vec<u8> = (0..(n + k) as u8).collect();
                 let want: Vec<u8> = buf[k..k + n].to_vec();
-                let ptr = buf.as_mut_ptr();
+                let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
                 unsafe { move_any(ptr, ptr.add(k), n) };
                 assert_eq!(&buf[..n], &want[..], "k={k} n={n}");
             }
@@ -207,7 +286,7 @@ mod tests {
             for n in LENS {
                 let mut buf: Vec<u8> = (0..(n + k) as u8).collect();
                 let want: Vec<u8> = buf[..n].to_vec();
-                let ptr = buf.as_mut_ptr();
+                let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
                 unsafe { move_any(ptr.add(k), ptr, n) };
                 assert_eq!(&buf[k..k + n], &want[..], "k={k} n={n}");
             }
@@ -219,7 +298,7 @@ mod tests {
         for n in LENS {
             let mut buf: Vec<u8> = (0..9).collect();
             let want = buf.clone();
-            let ptr = buf.as_mut_ptr();
+            let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
             unsafe { move_any(ptr, ptr, n) };
             assert_eq!(buf, want, "n={n}");
         }

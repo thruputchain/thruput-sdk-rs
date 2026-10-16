@@ -46,7 +46,7 @@ impl<'r, T: ReadXDR<'r>> ReadXDR<'r> for AuthTokenPreimage<T> {
 }
 
 const AUTH_TOKEN_MAX_CHILDREN: usize =
-    groundhog_xdr::auth_token::kAuthTokenMaxChildNodes as usize;
+    thruput_xdr::auth_token::kAuthTokenMaxChildNodes as usize;
 
 pub type ChildNodeBuf = heapless::Vec<AuthTokenNode, AUTH_TOKEN_MAX_CHILDREN>;
 
@@ -86,7 +86,7 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
             crate::exn::FaultString::from_display(e),
         ))
     });
-    let bytes: xdrs::BytesM<{ groundhog_xdr::auth_token::kAuthTokenMaxLen }> =
+    let bytes: xdrs::BytesM<{ thruput_xdr::auth_token::kAuthTokenMaxLen }> =
         buf.as_slice().try_into().unwrap_or_else(|_| {
             crate::exn::library_throw(
                 crate::AuthTokenError::MintEncodeFailure(
@@ -104,13 +104,13 @@ fn children_to_vecm(
     children: ChildNodeBuf,
 ) -> xdrs::VecM<
     AuthTokenNode,
-    { groundhog_xdr::auth_token::kAuthTokenMaxChildNodes },
+    { thruput_xdr::auth_token::kAuthTokenMaxChildNodes },
 > {
     children.as_slice().try_into().unwrap_or_else(|_| {
         crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
             crate::exn::FaultString::from_display(format_args!(
                 "too many auth token children (max {})",
-                groundhog_xdr::auth_token::kAuthTokenMaxChildNodes
+                thruput_xdr::auth_token::kAuthTokenMaxChildNodes
             )),
         ))
     })
@@ -153,6 +153,9 @@ impl_mintable_type_leaf!(
     crate::types::Ed25519PublicKey,
     crate::types::Ed25519Signature,
     crate::types::BlockHeight,
+    thruput_u256::U256,
+    thruput_u256::I256,
+    crate::types::ContractEntrypointID,
 );
 
 impl<const MAX: u32> MintableType for BytesM<MAX> {
@@ -172,6 +175,10 @@ impl<T: MintableType> MintableType for Option<T> {
 }
 
 impl<const MAX: usize> MintableType for heapless::String<MAX> {
+    type Preimage = Self;
+}
+
+impl<const N: usize> MintableType for heapless::Vec<u8, N> {
     type Preimage = Self;
 }
 
@@ -225,6 +232,9 @@ impl_mintable_leaf!(
     crate::types::Ed25519PublicKey,
     crate::types::Ed25519Signature,
     crate::types::BlockHeight,
+    thruput_u256::U256,
+    thruput_u256::I256,
+    crate::types::ContractEntrypointID,
 );
 
 impl<const MAX: u32> Mintable for BytesM<MAX> {
@@ -247,6 +257,12 @@ impl<const MAX: u32> Mintable for StringM<MAX> {
 }
 
 impl<const MAX: usize> Mintable for heapless::String<MAX> {
+    fn mint_into_parent(preimage: Self, _children: &mut ChildNodeBuf) -> Self {
+        preimage
+    }
+}
+
+impl<const N: usize> Mintable for heapless::Vec<u8, N> {
     fn mint_into_parent(preimage: Self, _children: &mut ChildNodeBuf) -> Self {
         preimage
     }

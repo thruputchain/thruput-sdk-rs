@@ -1,4 +1,4 @@
-use groundhog_xdr::{
+use thruput_xdr::{
     SyscallNo,
     contract::ContractEntrypointID,
     syserr::SysErr,

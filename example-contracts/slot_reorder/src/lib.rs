@@ -1,9 +1,9 @@
 #![cfg_attr(not(feature = "dev"), no_std)]
 
-sdk::declare_mock_contract!();
+thruput_sdk::declare_mock_contract!();
 
-pub use sdk::storage::*;
-pub use sdk::*;
+pub use thruput_sdk::storage::*;
+pub use thruput_sdk::*;
 
 /// Regression fixture: slot pins override declaration order.
 ///

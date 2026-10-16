@@ -10,29 +10,91 @@ on:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
+permissions:
+  contents: read
+
 jobs:
+  dependency-policy:
+    permissions:
+      contents: read
+    uses: thruputchain/actions/.github/workflows/rust-dependency-policy.yml@6693fac8133585728ad3a4ca14e3441073b6def8
+    with:
+      runs-on: namespace-profile-hogd-linux-2604
+      registry-name: thruput
+    secrets:
+      registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+  workflow-lint:
+    permissions:
+      contents: read
+    uses: thruputchain/actions/.github/workflows/workflow-lint.yml@f1b1a2cb8c69bab5f24f5f9976d50b6a9ab548fc
+    with:
+      lint-app-id: ${{ vars.PROTOCOL_SYNCHRONIZER_APP_ID }}
+      runs-on: ubuntu-24.04
+    secrets:
+      lint-app-private-key: ${{ secrets.PROTOCOL_SYNCHRONIZER_SECRET_KEY }}
+
   build:
+    needs: dependency-policy # check deps before building anything
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    runs-on: namespace-profile-hogd-linux
+    name: build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # rv32 example builds + spec-artifact checks + embedded-string
+          # scan + native example tests.
+          - name: examples-test
+            submodules: false
+            skips: >-
+              SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_BOTTLE_EXAMPLES=1
+              SKIP_DOMAIN_COLLISION=1 SKIP_DUP_ENTRYPOINT=1
+              SKIP_REGISTRY_STRIPPED=1
+              SKIP_INTEGRATION=1 SKIP_LOGGING=1
+              SKIP_QUALITY=1 SKIP_MACROS_GUEST=1 SKIP_SDK_RV32=1
+          # Bottle tests + domain-collision + registry-stripped. The bottle
+          # tests build their own rv32 artifact pair per contract, so this
+          # job needs no example build of its own.
+          - name: examples-bottle
+            submodules: false
+            skips: >-
+              SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_RV32_EXAMPLES=1
+              SKIP_TEST_EXAMPLES=1 SKIP_INTEGRATION=1 SKIP_LOGGING=1
+              SKIP_QUALITY=1 SKIP_MACROS_GUEST=1 SKIP_SDK_RV32=1
+          # Guest build of thruput-sdk + docs + full integration block + logging
+          # build + lint/fmt/xxx. Carries the rv32 thruput-sdk build for the matrix:
+          # the examples jobs compile thruput-sdk for rv32 through their contract
+          # sweeps anyway, so running it there too would just repeat the work.
+          # Only entry needing the integration_test/contracts submodule
+          # (hence the SSH keys).
+          - name: checks
+            submodules: true
+            skips: >-
+              SKIP_SDK_TESTS=1 SKIP_EXAMPLES=1
+    runs-on: namespace-profile-hogd-linux-2604
     env:
-      HOGD_FFI_PASSWORD: ${{ secrets.HOGD_FFI_PASSWORD }}
-      # SDK unit tests run in the separate `sdk-tests` job (sdk_tests.yml).
-      SKIP_SDK_TESTS: "1"
-      # Share one FFI download cache across every groundhog-sys build instance
+      # Every matrix entry sets SKIP_SDK_TESTS=1: SDK unit tests run in the
+      # separate `sdk-tests` job (sdk_tests.yml).
+      # Share one FFI download cache across every thruput-sys build instance
       # (and across runs, via the Namespace cache below). Without this the cache
       # defaults to each instance's OUT_DIR, so every workspace/feature variant
       # re-downloads the prebuilt FFI tarball.
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
+      # Namespace-cached CLI install root: ci.sh installs the pinned Thruput
+      # CLI here once per version bump instead of recompiling it every run.
+      THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
 
     steps:
       # Loaded before checkout so the recursive submodule fetch (which uses
-      # SSH remotes) can authenticate.
-      - uses: webfactory/ssh-agent@v0.10.0
+      # SSH remotes) can authenticate. Only this entry needs submodule keys.
+      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        if: matrix.submodules
         with:
           ssh-private-key: |
+            ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
             ${{ secrets.HOGD_ACCESS_KEY }}
             ${{ secrets.SDK_TO_PROTOCOL_RS }}
             ${{ secrets.SDK_TO_BCS_KEY }}
@@ -53,9 +115,16 @@ jobs:
             ${{ secrets.SDK_TO_SCP_KEY }}
 
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@v8
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Authenticate pinned CLI source
+        if: ${{ !matrix.submodules }}
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
 
       - name: Initialize submodules
+        if: matrix.submodules
         run: git submodule update --init --recursive
 
       # NB: deliberately NOT caching ./target. The Namespace cross-invocation
@@ -64,32 +133,118 @@ jobs:
       # I/O-wait, not compute). Building target/ on the runner's local disk and
       # eating a cold compile is faster than an I/O-starved "incremental" build.
       # We still cache the dependency *sources* (read-mostly, few large files)
-      # so we don't re-fetch every crate from groundhog.dev, plus the one-shot
-      # FFI download.
+      # so we don't re-fetch every crate from the registry, plus the one-shot
+      # FFI download and the compiled Thruput CLI.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/thruput-cli-source
             ${{ github.workspace }}/.hogd-ffi-cache
+            ${{ github.workspace }}/.thruput-cli
 
       # dev.sh hard-requires ripgrep (spec checks + lint use ripgrep-specific
       # features like --ignore-file); the runner image doesn't ship it.
       - name: Install ripgrep
         run: |
           if ! command -v rg >/dev/null; then
-            sudo apt-get update && sudo apt-get install -y ripgrep
+            # Ubuntu mirrors can be unavailable from ephemeral runners.
+            # Install the pinned upstream crate with the existing Rust toolchain.
+            cargo install ripgrep --version '=15.1.0' --locked
           fi
           rg --version
 
       - name: Run CI
-        run: ./scripts/ci.sh
+        run: env ${{ matrix.skips }} ./scripts/ci.sh
+
+      - name: Test issuer token through RV32
+        if: matrix.name == 'examples-test'
+        working-directory: example-contracts
+        env:
+          ERC20_PERMIT_RV32_ARTIFACT: ${{ github.workspace }}/target/thruput/erc20_issuer.rv32a
+          ISSUER_TOKEN_RV32_ARTIFACT: ${{ github.workspace }}/target/thruput/erc20_issuer.rv32a
+        run: cargo test -p erc20_issuer --locked
+
+  # Main pushes only, off the PR critical path. Self-contained: rebuilds the
+  # rv32 example artifacts and the full integration block (metrics.sh's
+  # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize
+  # metrics read the rv32 release ELFs and target/thruput).
+  metrics:
+    needs: dependency-policy # check deps before building anything
+    if: github.ref == 'refs/heads/main'
+    runs-on: namespace-profile-hogd-linux-2604
+    env:
+      HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
+      THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
+
+    steps:
+      # Needed both for the submodule fetch and for metrics.sh's push to
+      # metrics_history (SDK_TO_METRICS_HISTORY).
+      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
+            ${{ secrets.HOGD_ACCESS_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_RS }}
+            ${{ secrets.SDK_TO_BCS_KEY }}
+            ${{ secrets.SDK_TO_ITC }}
+            ${{ secrets.SDK_TO_PROTOCOL_KEY }}
+            ${{ secrets.SDK_TO_BCS_CPP_KEY }}
+            ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
+            ${{ secrets.SDK_TO_XDRS_KEY }}
+            ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
+            ${{ secrets.SDK_TO_CHUCKD_KEY }}
+            ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
+            ${{ secrets.SDK_TO_METRICS_HISTORY }}
+            ${{ secrets.SDK_TO_GROUNDHOG_GO}}
+            ${{ secrets.SDK_TO_LIBGO }}
+            ${{ secrets.SDK_TO_SELF }}
+            ${{ secrets.SDK_TO_ABORT_RS }}
+            ${{ secrets.SDK_TO_HOGX_KEY }}
+            ${{ secrets.SDK_TO_SCP_KEY }}
+
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/thruput-cli-source
+            ${{ github.workspace }}/.hogd-ffi-cache
+            ${{ github.workspace }}/.thruput-cli
+
+      - name: Install ripgrep
+        run: |
+          if ! command -v rg >/dev/null; then
+            # Ubuntu mirrors can be unavailable from ephemeral runners.
+            # Install the pinned upstream crate with the existing Rust toolchain.
+            cargo install ripgrep --version '=15.1.0' --locked
+          fi
+          rg --version
+
+      - name: Build metrics inputs
+        run: >-
+          env SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_TEST_EXAMPLES=1
+          SKIP_BOTTLE_EXAMPLES=1 SKIP_DOMAIN_COLLISION=1
+          SKIP_DUP_ENTRYPOINT=1
+          SKIP_REGISTRY_STRIPPED=1 SKIP_LOGGING=1
+          SKIP_QUALITY=1 ./scripts/ci.sh
 
       - name: Log metrics
-        if: github.ref == 'refs/heads/main'
         env:
           # Detached HEAD on CI checkout would make metrics.sh derive "HEAD";
           # pass the real branch (matches the old hog `git_branch`).
           GIT_BRANCH: ${{ github.ref_name }}
-        run: ./scripts/metrics.sh
+        run: |
+          # ci.sh's PATH export doesn't survive into this step; re-expose the
+          # cached CLI in case bottle re-runs ever shell out to it.
+          export PATH="${THRUPUT_CLI_ROOT}/bin:${PATH}"
+          ./scripts/metrics.sh

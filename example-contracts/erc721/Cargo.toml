@@ -1,0 +1,41 @@
+[package]
+name = "erc721"
+description = "Example ERC721 non-fungible token contract for the Thruput blockchain"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "thruput-erc721-if/dev", "thruput-erc165-if/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p erc721` derives `--bin erc721` from
+# the package name, so the name here must stay the underscored package name.
+# `required-features` keeps it out of host builds.
+[[bin]]
+name = "erc721"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+thruput-erc721-if = { workspace = true }
+thruput-erc165-if = { workspace = true }
+
+[dev-dependencies]
+erc721 = { path = ".", features = ["dev"] }
+# Destinations for the safe-transfer cases: a contract with the receiver
+# hook, and one without.
+erc721_receiver = { path = "../erc721_receiver", features = ["dev"] }
+counter = { path = "../counter", features = ["dev"] }

@@ -1,0 +1,5 @@
+error: the #[contract] attribute applies to a trait, an impl block, or a free function
+ --> tests/compile-fail/contract_on_struct.rs:6:1
+  |
+6 | pub struct NotAContract;
+  | ^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: generic parameters (including lifetimes) are not supported on contract methods
+  --> tests/compile-fail/contract_method_lifetime.rs:10:19
+   |
+10 |     pub fn lookup<'a>(&self, key: &'a [u8]) -> u32 {
+   |                   ^^

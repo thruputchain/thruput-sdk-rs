@@ -13,15 +13,24 @@ edition.workspace = true
 
 [features]
 entrypoints = []
-dev = ["sdk/dev"]
+dev = ["thruput-sdk/dev"]
+
+# rv32 spec carrier: without a bin to anchor the entrypoint records, this
+# contract's spec cannot be extracted at all. `required-features` keeps a
+# plain `cargo build`/`test` from building this rv32-only, entry-point-less
+# binary, matching every other example contract here.
+[[bin]]
+name = "recursive_type"
+path = "src/main.rs"
+required-features = ["entrypoints"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true, features = ["alloc"] }
+thruput-sdk = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 recursive_type = { path = ".", features = ["dev"] }

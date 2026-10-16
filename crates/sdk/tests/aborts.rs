@@ -1,5 +1,5 @@
-use sdk::call::RawCallError;
-use sdk::*;
+use thruput_sdk::call::RawCallError;
+use thruput_sdk::*;
 
 fn run_at_test_addr(
     f: impl FnOnce() + std::panic::UnwindSafe,
@@ -35,7 +35,7 @@ fn test_unparseable_return() {
     // The contract "returns successfully" but with garbage bytes that
     // can't be XDR-decoded as the expected return type.
     let result = run_at_test_addr(|| {
-        sdk::internal::contract_return(&[0xFF], &[]);
+        thruput_sdk::internal::contract_return(&[0xFF], &[]);
     });
     let res: Result<u64, RawCallError> = into_root_call_result(&result);
     assert!(

@@ -1,6 +1,6 @@
 //! Host-only registry of contract-state root domains, used to detect two
 //! roots that share a domain when linked into one artifact. Compiled only on
-//! host targets — never present in a guest (wasm/rv32) build.
+//! host targets — never present in a guest (rv32) build.
 
 use crate::__linkme::distributed_slice;
 use crate::storage::FramedDomain;

@@ -1,0 +1,48 @@
+[package]
+name = "erc20_issuer"
+description = "ERC20 reference token with optional issuer controls"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "thruput-erc20-controls-if/dev", "thruput-erc20-if/dev", "thruput-erc20-permit-if/dev", "thruput-erc165-if/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[[bin]]
+name = "erc20_issuer"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk.workspace = true
+thruput-erc20-controls-if.workspace = true
+thruput-erc20-if.workspace = true
+thruput-erc20-metadata-if.workspace = true
+thruput-erc20-permit-if.workspace = true
+thruput-erc165-if.workspace = true
+
+[dev-dependencies]
+thruput-erc20-if = { workspace = true, features = ["dev"] }
+erc20_issuer = { path = ".", features = ["dev"] }
+thruput-sep41 = { workspace = true, features = ["dev"] }
+# Only for SEP41View::is_supported: a contract with ERC-165 but no ERC20, and
+# one without ERC-165.
+erc721 = { path = "../erc721", features = ["dev"] }
+counter = { path = "../counter", features = ["dev"] }
+
+permit_wallet = { path = "../permit_wallet", features = ["dev"] }
+thruput-signed-op-if = { workspace = true, features = ["dev"] }
+thruput-domain-separator = { workspace = true, features = ["std"] }
+ed25519-dalek.workspace = true

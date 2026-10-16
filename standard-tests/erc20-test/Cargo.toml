@@ -1,19 +1,27 @@
 [package]
 name = "erc20-test"
-edition.workspace = true
 version.workspace = true
+edition.workspace = true
+publish.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Shared ERC20 conformance test suite for Thruput contracts"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [lib]
 doctest = false
 test = false
 
 [dependencies]
-sdk = { workspace = true }
-groundhog-erc20-if = { workspace = true }
-groundhog-erc20-metadata-if = { workspace = true, optional = true}
+thruput-sdk = { workspace = true }
+thruput-erc20-if = { workspace = true }
+thruput-erc20-metadata-if = { workspace = true, optional = true}
 thiserror = { workspace = true }
 
 [features]
-metadata = ["dep:groundhog-erc20-metadata-if"]
+metadata = ["dep:thruput-erc20-metadata-if"]
 # don't check operations expected to cause erc20 abort
 no_check_aborts = []

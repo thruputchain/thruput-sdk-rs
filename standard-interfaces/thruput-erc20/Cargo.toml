@@ -1,0 +1,44 @@
+[package]
+name = "thruput-erc20-if"
+version = "0.1.58"
+edition.workspace = true
+publish.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "ERC20 standard interface for Thruput smart contracts"
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+# Selects the rv32 spec-carrier bin target (below). The trait's spec is
+# target-gated and needs no feature; this only gates the carrier bin, built
+# with `-F entrypoints` like every other contract's spec build. A plain
+# `cargo build`/`test` skips the entry-point-less bin without it.
+entrypoints = []
+dev = ["thruput-sdk/dev", "dep:thiserror"]
+
+[dependencies]
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.3" }
+thiserror = { workspace = true, optional = true }
+thruput-xdr = { workspace = true }
+
+[dev-dependencies]
+thruput-erc20-if = { path = ".", features = ["dev"] }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.51.3", features = ["std"] }
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# rv32 spec carrier: builds the ERC20 interface on its own for spec extraction.
+# `required-features` keeps a plain `cargo build`/`test` from building this
+# rv32-only, entry-point-less binary.
+[[bin]]
+name = "thruput-erc20-if"
+path = "src/main.rs"
+required-features = ["entrypoints"]

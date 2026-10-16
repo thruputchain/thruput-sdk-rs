@@ -1,12 +1,31 @@
 use super::keypath::Keypath;
 use super::sealed::Sealed;
 use core::ops::{Deref, DerefMut};
-use groundhog_xdr::storage_item::StorageDeltaFlags;
 
 /// Marker trait for types that can appear as elements in Map and Vector.
 /// Sealed — only SDK storage types implement this.
 #[allow(private_bounds)]
+// No list of element types here: the trait is sealed with explicit impls, so
+// rustc enumerates them itself. This adds only the part it cannot infer --
+// that the fix is to wrap the value rather than find a different type.
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` cannot be stored in a `Map` or `Vector`",
+    note = "element types must be storage handles: wrap plain data in `Value<{Self}>`; a nested `#[storage]` struct goes in `Node<_>`"
+)]
 pub trait StorageType: Sealed + From<Keypath> {}
+
+/// Build a storage field handle from its keypath.
+///
+/// The `#[storage]` derive calls this rather than `.into()` so that a field
+/// whose type is not a storage handle fails here, at the field. Stated as a
+/// where-clause bound on a concrete type it is *trivially* unsatisfiable,
+/// which rustc reports at the derive's span suggesting
+/// `#![feature(trivial_bounds)]` — never the fix, and it does not say which
+/// field is wrong.
+#[doc(hidden)]
+pub fn __field_from_keypath<T: From<Keypath>>(keypath: Keypath) -> T {
+    T::from(keypath)
+}
 
 /// Wrapper marking a compound storage field group.
 ///
@@ -14,6 +33,7 @@ pub trait StorageType: Sealed + From<Keypath> {}
 /// each field handle constructed by `T::from` already carries the path it
 /// needs, so keeping the parent path would add an unused buffer and require an
 /// otherwise-unnecessary clone during construction.
+#[derive(Debug)]
 pub struct Node<T> {
     fields: T,
 }
@@ -43,8 +63,8 @@ impl<T> Sealed for Node<T> {}
 impl<T: From<Keypath>> StorageType for Node<T> {}
 
 impl<T: super::deletable::Deletable> super::deletable::Deletable for Node<T> {
-    fn delete_internal(&mut self, flags: StorageDeltaFlags) {
-        self.fields.delete_internal(flags);
+    fn delete_internal(&mut self, exclusive: bool) {
+        self.fields.delete_internal(exclusive);
     }
 }
 
@@ -86,7 +106,7 @@ pub trait StorageDomain {
 // Still measurably worth keeping out of line even after `StaticKeyBuf`
 // dropped its zero-fill: the body is small enough that LLVM inlines it into
 // every entrypoint, duplicating the CXS-framing/copy work at each call site.
-// Measured on erc20 (10 entrypoints, wasm-opt -O3, Code section size):
+// Measured on erc20 (10 entrypoints, optimized release build, code size):
 // inline(never) = 14583 bytes, inlined = 16118 bytes (+1535 bytes). Keep out
 // of line.
 #[doc(hidden)]
@@ -102,22 +122,20 @@ mod tests {
     #[derive(crate::Storage)]
     struct UnitState;
 
-    #[test]
-    fn unit_struct_contract_state_root_constructs() {
+    crate::contract_test!(unit_struct_contract_state_root_constructs {
         let _node: Node<UnitState> = contract_state_root::<UnitState>();
-    }
+    });
 
     #[derive(crate::Storage)]
     struct LeafState {
         value: crate::storage::Value<u64>,
     }
 
-    #[test]
-    fn contract_state_root_seeds_domain() {
+    crate::contract_test!(contract_state_root_seeds_domain {
         let node: Node<LeafState> = contract_state_root::<LeafState>();
         // Observe the domain through a real field path: the Node itself does
         // not retain a redundant copy of the parent path.
         let expected = Keypath::default().child("LeafState").child(&0u32);
-        assert!(node.value.keypath().addresses_same_slot(&expected));
-    }
+        assert_eq!(*node.value.key(), expected.generate_key());
+    });
 }

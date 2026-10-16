@@ -1,0 +1,22 @@
+[package]
+name = "macros-crate-override-guest"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+repository.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# Deliberately no `thruput-sdk`: this package stands in for a crate that sits
+# BELOW `thruput-sdk` in the dependency graph, which is the whole point of
+# `#[contract_type_spec(crate = "...")]`. Same dependency set as
+# `crates/macros/tests/crate_override.rs`, which covers the host side.
+[dependencies]
+thruput-macros = { workspace = true }
+thruput-contract-spec = { workspace = true }
+xdrs = { workspace = true }

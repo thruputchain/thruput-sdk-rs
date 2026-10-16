@@ -1,10 +1,10 @@
 use crate::model::Model;
-use groundhog_erc20_if::*;
-use sdk::*;
+use thruput_erc20_if::*;
+use thruput_sdk::*;
 
 #[cfg(feature = "metadata")]
 mod metadata {
-    pub use groundhog_erc20_metadata_if::*;
+    pub use thruput_erc20_metadata_if::*;
 
     pub const TOKEN_NAME: &str = "Test Token";
     pub const TOKEN_SYMBOL: &str = "TEST-TOK";
@@ -57,22 +57,6 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     client.mint(&owner, amt);
     m.mint(&owner, amt);
 
-    // Burn
-    let amt = 50;
-    client.burn(&owner, amt);
-    m.burn(&owner, amt);
-
-    #[cfg(not(feature = "no_check_aborts"))]
-    {
-        // Burn too much
-        let amt = 60;
-        assert!(m.balances[&owner] < amt);
-        assert!(matches!(
-            client.try_burn(&owner, amt),
-            Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-        ));
-    }
-
     // Transfer
     let amt = 25;
     client.transfer(other, amt);
@@ -82,33 +66,60 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
     {
         // Transfer too much
         assert!(m.balances[&owner] < 1000);
-        assert!(matches!(
-            client.try_transfer(other, 1000),
-            Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-        ));
+        assert_eq!(
+            client.try_transfer(other, 1000).unwrap_err().try_as(),
+            Some(ERC20Error::TooLarge),
+        );
+        // Negative amounts
+        assert_eq!(
+            client.try_transfer(other, -1).unwrap_err().try_as(),
+            Some(ERC20Error::NegativeAmount),
+        );
+        assert_eq!(
+            client
+                .try_transfer_from(&owner, other, -1)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::NegativeAmount),
+        );
+        assert_eq!(
+            client.try_mint(&owner, -1).unwrap_err().try_as(),
+            Some(ERC20Error::NegativeAmount),
+        );
     }
 
-    // Burn from other address
-    let amt = 5;
-    client.burn(other, amt);
-    m.burn(other, amt);
-
-    // Approve spending by "other"
-    let amt = 17;
-    client.adjust_allowance(other, amt);
-    m.adjust_allowance(other, amt);
-
+    // Exercise positive, negative, and zero changes at the amount boundary.
+    for difference in [i128::MAX, -(i128::MAX - 7), 10, -4, 0] {
+        client.adjust_allowance(other, difference);
+        m.adjust_allowance(other, difference);
+        m.check_allowances(&client);
+    }
     #[cfg(not(feature = "no_check_aborts"))]
-    // Withdraw too much approval
-    assert!(matches!(
-        client.try_adjust_allowance(other, -20),
-        Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-    ));
-
-    // Withdraw some approval
-    let amt = 10;
-    client.adjust_allowance(other, -amt);
-    m.adjust_allowance(other, -amt);
+    {
+        assert_eq!(
+            client
+                .try_adjust_allowance(other, -14)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::TooLarge),
+        );
+        assert_eq!(
+            client
+                .try_adjust_allowance(other, i128::MAX)
+                .unwrap_err()
+                .try_as(),
+            Some(ERC20Error::TooLarge),
+        );
+        assert_eq!(
+            client.try_delete_balance().unwrap_err().try_as(),
+            Some(ERC20Error::BalanceNotZero),
+        );
+    }
+    for _ in 0..2 {
+        client.delete_allowance(other);
+        m.delete_allowance(other);
+        m.check_allowances(&client);
+    }
 
     // Check client state against the model
     m.check(&client);
@@ -117,7 +128,7 @@ pub fn erc20_test(deployed_addr: &ContractAddress) -> Model {
 }
 
 /// Test the transfer/allowance subset of the ERC20 logic, for a contract
-/// that is already initialized and cannot mint or burn (such as the native
+/// that is already initialized and cannot mint (such as the native
 /// token precompile).
 ///
 /// The caller must already hold exactly `balance` tokens (at least 25, as
@@ -144,22 +155,10 @@ pub fn erc20_funded_test(
     client.transfer(other, amt);
     m.transfer(other, amt);
 
-    // Approve spending by "other"
-    let amt = 17;
-    client.adjust_allowance(other, amt);
-    m.adjust_allowance(other, amt);
-
-    #[cfg(not(feature = "no_check_aborts"))]
-    // Withdraw too much approval
-    assert!(matches!(
-        client.try_adjust_allowance(other, -20),
-        Err(ERC20ClientError::ERC20Error(ERC20Error::TooLarge))
-    ));
-
-    // Withdraw some approval
-    let amt = 10;
-    client.adjust_allowance(other, -amt);
-    m.adjust_allowance(other, -amt);
+    client.adjust_allowance(other, 17);
+    m.adjust_allowance(other, 17);
+    client.adjust_allowance(other, -10);
+    m.adjust_allowance(other, -10);
 
     // Check client state against the model
     m.check(&client);
