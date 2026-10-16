@@ -85,7 +85,8 @@ impl TestKey {
                         k.verifying_key().encode().as_slice(),
                     )
                     .unwrap(),
-                ),
+                )
+                .into(),
             },
         }
     }
@@ -122,7 +123,8 @@ impl TestKey {
                     mldsa65: MlDsa65Signature::from(
                         <[u8; 3309]>::try_from(sig.encode().as_slice())
                             .unwrap(),
-                    ),
+                    )
+                    .into(),
                 }
             }
         }
@@ -327,7 +329,7 @@ pub fn cases() -> Vec<SigningCase> {
 fn signature_bytes(sig: &Signature) -> &[u8] {
     match sig {
         Signature::Ed25519 { ed25519 } => ed25519.as_ref(),
-        Signature::MlDsa65 { mldsa65 } => mldsa65.as_ref(),
+        Signature::MlDsa65 { mldsa65 } => mldsa65.as_ref().as_ref(),
         _ => unreachable!("no vectors for this scheme"),
     }
 }
@@ -335,7 +337,7 @@ fn signature_bytes(sig: &Signature) -> &[u8] {
 fn key_bytes(key: &PublicKey) -> &[u8] {
     match key {
         PublicKey::Ed25519 { ed25519 } => ed25519.as_ref(),
-        PublicKey::MlDsa65 { mldsa65 } => mldsa65.as_ref(),
+        PublicKey::MlDsa65 { mldsa65 } => mldsa65.as_ref().as_ref(),
         _ => unreachable!("no vectors for this scheme"),
     }
 }

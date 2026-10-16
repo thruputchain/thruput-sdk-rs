@@ -54,7 +54,7 @@ impl HasherImpl {
         }
 
         let mldsa65 = PublicKey::MlDsa65 {
-            mldsa65: MlDsa65PublicKey::from([0xffu8; 1952]),
+            mldsa65: MlDsa65PublicKey::from([0xffu8; 1952]).into(),
         };
         let preimage = PubkeyAccountPreimage {
             pubkey_hash: public_key_hash(&mldsa65),
