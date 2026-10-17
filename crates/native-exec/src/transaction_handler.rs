@@ -38,10 +38,23 @@ pub struct RootInvokeResult {
     pub trace: Option<InvocationFrameTrace>,
     /// Events emitted by the transaction.
     pub events: Vec<TxEmittedEvent>,
-    /// The stack record of the most recent rv32 invocation the transaction
-    /// ran (the root invocation itself when it targets an rv32 contract);
-    /// `None` if it ran none. See [`Rv32StackUsage`].
-    pub rv32_stack_usage: Option<Rv32StackUsage>,
+    /// The stack records of the rv32 invocations the transaction ran, in
+    /// the order they finished: a callee's before its caller's. When the
+    /// root invocation targets an rv32 contract its own record is the last;
+    /// when it targets a mock contract, every record is a call made under
+    /// it. Empty if it ran none. See [`Rv32StackUsage`].
+    pub rv32_stack_usage_records: Vec<Rv32StackUsage>,
+}
+
+impl RootInvokeResult {
+    /// The most recent of
+    /// [`rv32_stack_usage_records`](Self::rv32_stack_usage_records): the
+    /// root invocation's own stack record when it targets an rv32 contract,
+    /// else the last rv32 call made under it. `None` if the transaction ran
+    /// none.
+    pub fn rv32_stack_usage(&self) -> Option<Rv32StackUsage> {
+        self.rv32_stack_usage_records.last().copied()
+    }
 }
 
 impl TransactionHandler {
@@ -139,15 +152,13 @@ impl TransactionHandler {
             gas_consumed: foreign_result.gas_consumed,
             trace,
             events,
-            rv32_stack_usage: self.last_rv32_stack_usage(),
+            // Every record on the handler is this transaction's: the
+            // handler is opened for the one transaction, and the root
+            // invocation is the only thing that runs on it.
+            rv32_stack_usage_records: crate::rv32_stack_usage::records(
+                self.handler,
+            ),
         }
-    }
-
-    /// The stack record of the most recent rv32 invocation this transaction
-    /// has run, or `None` if it has run none yet. Also carried by
-    /// [`RootInvokeResult::rv32_stack_usage`].
-    pub fn last_rv32_stack_usage(&self) -> Option<Rv32StackUsage> {
-        crate::rv32_stack_usage::last_rv32_stack_usage(self.handler)
     }
 
     /// The signed transaction this handler executes.

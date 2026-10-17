@@ -150,10 +150,15 @@ asserts on aborts/faults, or decodes typed results via
 
 When the body calls an rv32 artifact (loaded with
 `thruput_sdk::load_rv32_contract`), the result also reports the guest's stack
-usage for the most recent rv32 call it made: `rv32_stack_usage()` carries the
-stack top the guest established (`sp_initial`), the deepest point it reached
-(`sp_min`), and `bytes_used()` as their difference. The prebuilt test_ffi
-library always records this; it is `None` when no rv32 contract ran.
+usage for the most recent rv32 call made under the frame: `rv32_stack_usage()`
+carries the stack top the guest established (`sp_initial`), the deepest point
+it reached (`sp_min`), and `bytes_used()` as their difference;
+`rv32_stack_usage_records()` lists every rv32 call made under the frame in the
+order they finished, to pick one by contract address. The records are the
+frame's own: a child frame opened with `child_call` reports the calls made
+under it and its parent does not, and no frame reports a call that finished
+before it opened. The prebuilt test_ffi library always records this; a frame
+under which no rv32 contract ran reports `None`.
 
 ```rust,ignore
 let result = env.transact(|tx| {

@@ -152,7 +152,7 @@ pub use contract_test_guest::*;
 #[derive(Copy, Clone, Debug)]
 pub struct Stats {
     pub gas_consumed: u64,
-    /// The stack record of the most recent rv32 invocation the test made;
+    /// The stack record of the most recent rv32 call the test body made;
     /// `None` if it made none. See [`Rv32StackUsage`].
     pub rv32_stack_usage: Option<Rv32StackUsage>,
 }
@@ -242,7 +242,7 @@ where
 
     Stats {
         gas_consumed,
-        rv32_stack_usage: res.rv32_stack_usage,
+        rv32_stack_usage: res.rv32_stack_usage(),
     }
 }
 

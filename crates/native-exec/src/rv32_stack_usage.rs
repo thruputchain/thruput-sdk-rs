@@ -1,6 +1,7 @@
 //! The rv32 guest stack-usage diagnostic the test FFI records per invocation.
 
 use core::ffi::c_void;
+use core::ops::Range;
 use thruput_sys::FFIErrorCode;
 use thruput_xdr::types::ContractAddress;
 
@@ -80,21 +81,45 @@ fn decode_records(bytes: &[u8]) -> Vec<Rv32StackUsage> {
         .collect()
 }
 
-/// The record of the most recent rv32 invocation that finished on
-/// `handler`, or `None` if none has (or the library was built without the
-/// diagnostic).
-pub(crate) fn last_rv32_stack_usage(
-    handler: *mut c_void,
-) -> Option<Rv32StackUsage> {
+/// Every record on `handler`, in the order the invocations finished: a
+/// callee's precedes its caller's. Empty if no rv32 invocation has finished
+/// on the handler, or if the library was built without the diagnostic.
+///
+/// The handler appends to this list for the life of its transaction and
+/// never removes from it, so the length a frame saw when it opened is where
+/// the records of the calls made under it begin; see [`frame_records`].
+pub(crate) fn records(handler: *mut c_void) -> Vec<Rv32StackUsage> {
     // `records` frees itself on drop (see thruput_sys::FFIDataBuffer).
     let res = unsafe { thruput_sys::get_rv32_stack_usage(handler) };
     let err: FFIErrorCode = res.ffi_error_code.into();
     if err != FFIErrorCode::None {
         panic!("failed to read rv32 stack usage: {err}");
     }
-    res.records
-        .as_slice()
-        .and_then(|bytes| decode_records(bytes).pop())
+    res.records.as_slice().map_or_else(Vec::new, decode_records)
+}
+
+/// The records a frame owns, out of the handler's `records`: those at the
+/// indices in `window` (appended while the frame was open) less those in any
+/// of `child_windows` (appended while one of its child frames was open; each
+/// lies inside `window`). Order is kept, so the last is the frame's most
+/// recent call.
+pub(crate) fn frame_records(
+    records: &[Rv32StackUsage],
+    window: Range<usize>,
+    child_windows: &[Range<usize>],
+) -> Vec<Rv32StackUsage> {
+    let start = window.start;
+    records
+        .get(window)
+        .unwrap_or(&[])
+        .iter()
+        .enumerate()
+        .filter(|(offset, _)| {
+            let index = start + offset;
+            !child_windows.iter().any(|child| child.contains(&index))
+        })
+        .map(|(_, record)| *record)
+        .collect()
 }
 
 #[cfg(test)]
@@ -158,5 +183,50 @@ mod tests {
         let records = [ffi_record(0, 0, 0, 0)];
         let bytes = as_bytes(&records);
         let _ = decode_records(&bytes[..bytes.len() - 1]);
+    }
+
+    /// A transaction's records numbered by finish order, so a frame's
+    /// selection reads as a list of indices.
+    fn numbered(count: u64) -> Vec<Rv32StackUsage> {
+        (0..count)
+            .map(|n| Rv32StackUsage {
+                contract_address: [n as u8; 32].into(),
+                method_id: n,
+                sp_initial: 0x1000,
+                sp_min: 0x0f00,
+            })
+            .collect()
+    }
+
+    fn method_ids(records: &[Rv32StackUsage]) -> Vec<u64> {
+        records.iter().map(|record| record.method_id).collect()
+    }
+
+    #[test]
+    fn frame_records_are_the_window_less_the_children() {
+        // 0 and 1 finished before the frame opened; 2 is its own; 3 and 4
+        // ran under its first child; 5 is its own; 6 ran under its second
+        // child; 7 finished after it closed.
+        let records = numbered(8);
+        let own = frame_records(&records, 2..7, &[3..5, 6..7]);
+        assert_eq!(method_ids(&own), [2, 5]);
+        assert_eq!(own.last().map(|record| record.method_id), Some(5));
+    }
+
+    #[test]
+    fn frame_records_without_children_is_the_whole_window() {
+        let records = numbered(4);
+        assert_eq!(method_ids(&frame_records(&records, 1..3, &[])), [1, 2]);
+    }
+
+    #[test]
+    fn frame_that_ran_no_rv32_code_has_no_records() {
+        let records = numbered(3);
+        // Opened after every record was appended.
+        assert!(frame_records(&records, 3..3, &[]).is_empty());
+        // Every record in its window was its child's.
+        assert!(frame_records(&records, 1..3, &[1..3]).is_empty());
+        // Nothing ran at all.
+        assert!(frame_records(&[], 0..0, &[]).is_empty());
     }
 }
