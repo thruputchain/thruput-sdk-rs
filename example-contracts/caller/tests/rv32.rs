@@ -142,3 +142,129 @@ fn rv32_stack_usage_is_per_frame() {
         caller_addr
     );
 }
+
+static NATIVE_ERC20_NONCE: SHA256Hash =
+    thruput_sdk::sha256_static!("ERC20_NATIVE_FRAME_NONCE");
+static NATIVE_CALLER_NONCE: SHA256Hash =
+    thruput_sdk::sha256_static!("CALLER_NATIVE_FRAME_NONCE");
+static NATIVE_MOCK_CALLER_NONCE: SHA256Hash =
+    thruput_sdk::sha256_static!("MOCK_CALLER_NATIVE_FRAME_NONCE");
+
+/// Invoking a native contract (a mock registered in this process, which
+/// hogd's native runtime runs) records nothing, so a frame that invokes
+/// one after an rv32 call elsewhere in the transaction, or in a later
+/// transaction, reports `None`: it never inherits the rv32 call's record.
+/// A frame whose own body made an rv32 call keeps reporting it after a
+/// native call, and a native contract that itself calls an rv32 contract
+/// reports that call.
+#[test]
+fn native_contract_frames_report_no_rv32_record() {
+    let erc20_contract = thruput_sdk::load_rv32_contract(ERC20_PATH);
+    let caller_contract = thruput_sdk::load_rv32_contract(CALLER_PATH);
+
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let erc20_hash = env.setup_create_contract(&erc20_contract);
+    let caller_hash = env.setup_create_contract(&caller_contract);
+    // The caller contract again, running natively as a mock.
+    let mock_caller_hash = *caller::register_mock_contract(&env).as_hash();
+
+    // (erc20, rv32 caller, native caller) addresses, for the later
+    // transaction and the assertions after the body.
+    let deployed: Arc<
+        Mutex<Option<(ContractAddress, ContractAddress, ContractAddress)>>,
+    > = Arc::new(Mutex::new(None));
+    let deployed_slot = Arc::clone(&deployed);
+
+    let result = env.transact(|tx| {
+        tx.call(&ContractAddress::named("test"))
+            .run_continuable(move |frame: &mut FrameHandle| {
+                // The body's rv32 calls: initialize both, then check_balance.
+                let erc20_addr =
+                    deploy_contract(&NATIVE_ERC20_NONCE, &erc20_hash);
+                ERC20Client::new(&erc20_addr)
+                    .initialize(&get_current_address());
+                let caller_addr =
+                    deploy_contract(&NATIVE_CALLER_NONCE, &caller_hash);
+                let caller = CallerClient::new(&caller_addr);
+                caller.initialize(&erc20_addr);
+                assert_eq!(0, caller.check_balance(&ContractAddress::zero()));
+
+                // Then a native call from the same body: `initialize` on the
+                // mock caller runs natively and calls no contract.
+                let mock_caller_addr = deploy_contract(
+                    &NATIVE_MOCK_CALLER_NONCE,
+                    &mock_caller_hash,
+                );
+                let mock_caller = CallerClient::new(&mock_caller_addr);
+                mock_caller.initialize(&erc20_addr);
+                *deployed_slot.lock().unwrap() =
+                    Some((erc20_addr, caller_addr, mock_caller_addr));
+
+                // A child frame that only invokes the native contract: no
+                // record, although the transaction holds four by now.
+                let native = frame
+                    .child_call(&ContractAddress::named("native"))
+                    .run(move || {
+                        CallerClient::new(&mock_caller_addr)
+                            .initialize(&erc20_addr);
+                    });
+                native.assert_success();
+                assert_eq!(native.rv32_stack_usage(), None);
+                assert!(native.rv32_stack_usage_records().is_empty());
+
+                // A child frame whose native call reaches an rv32 contract
+                // (the mock caller's check_balance calls the rv32 erc20)
+                // reports that rv32 call, and only it.
+                let through_native = frame
+                    .child_call(&ContractAddress::named("through_native"))
+                    .run(move || {
+                        assert_eq!(
+                            0,
+                            CallerClient::new(&mock_caller_addr)
+                                .check_balance(&ContractAddress::zero())
+                        );
+                    });
+                through_native.assert_success();
+                let addresses: Vec<ContractAddress> = through_native
+                    .rv32_stack_usage_records()
+                    .iter()
+                    .map(|record| record.contract_address)
+                    .collect();
+                assert_eq!(addresses, [erc20_addr]);
+
+                FrameAction::Close
+            })
+            .finish()
+    });
+    result.assert_success();
+
+    // The root's own records are its four rv32 calls, in finish order; the
+    // native call after them added none, and the children's are excluded.
+    // Its most recent is still the rv32 caller's check_balance.
+    let (erc20_addr, caller_addr, mock_caller_addr) =
+        deployed.lock().unwrap().unwrap();
+    let addresses: Vec<ContractAddress> = result
+        .rv32_stack_usage_records()
+        .iter()
+        .map(|record| record.contract_address)
+        .collect();
+    assert_eq!(
+        addresses,
+        [erc20_addr, caller_addr, erc20_addr, caller_addr]
+    );
+    assert_eq!(
+        result.rv32_stack_usage().unwrap().contract_address,
+        caller_addr
+    );
+
+    // A later transaction that only invokes the native contract: the
+    // earlier transaction's records are not its.
+    let later = env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            CallerClient::new(&mock_caller_addr).initialize(&erc20_addr);
+        })
+    });
+    later.assert_success();
+    assert_eq!(later.rv32_stack_usage(), None);
+    assert!(later.rv32_stack_usage_records().is_empty());
+}
