@@ -39,6 +39,8 @@ pub mod mock_contract;
 pub mod mock_transaction_handler;
 /// The chain's execution parameters, and a builder for non-default ones.
 pub mod network_config;
+/// The rv32 stack-usage record the test FFI keeps per rv32 invocation.
+pub mod rv32_stack_usage;
 /// The in-process thruput test environment.
 pub mod test_environment;
 /// Optional builder for a test environment with non-default settings.

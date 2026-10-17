@@ -1,6 +1,7 @@
 use crate::frame_builder::FrameBuilder;
 use crate::frame_result::FrameResult;
 use crate::invoke_error::InvokeError;
+use crate::rv32_stack_usage::Rv32StackUsage;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use std::cell::Cell;
@@ -138,6 +139,9 @@ pub struct MockInvocationFrame {
     /// here; and a `raw_Invoke`ed callee is caught by `invoke_wrapper`,
     /// which has no frame to record against at all (see `fault_panic`).
     fault_panic: Option<crate::invoke_error::PanicRecord>,
+    /// The most recent rv32 invocation's stack record when this frame
+    /// closed; see [`FrameResult::rv32_stack_usage`].
+    rv32_stack_usage: Option<Rv32StackUsage>,
 }
 
 /// Name the rule that refused a frame, rather than leaving a caller with a
@@ -213,6 +217,7 @@ impl MockInvocationFrame {
             context_pushcount,
             root_frame_closed,
             fault_panic: None,
+            rv32_stack_usage: None,
         }
     }
 
@@ -320,6 +325,11 @@ impl MockInvocationFrame {
             Vec::new()
         };
         self.state = MockInvocationFrameState::Closed(output, trace, events);
+        // Read now, while the frame's calls are the handler's most recent
+        // ones: a sibling or parent frame run before `result()` would
+        // otherwise be the one reported.
+        self.rv32_stack_usage =
+            crate::rv32_stack_usage::last_rv32_stack_usage(self.root_handler);
         if let Some(flag) = &self.root_frame_closed {
             flag.set(true);
         }
@@ -420,6 +430,7 @@ impl MockInvocationFrame {
             MockInvocationFrameState::Closed(output, trace, events) => {
                 FrameResult::new(output.clone(), trace.clone(), events.clone())
                     .with_fault_panic(self.fault_panic.clone())
+                    .with_rv32_stack_usage(self.rv32_stack_usage)
             }
             _ => {
                 eprintln!(
@@ -678,6 +689,15 @@ impl MockTransactionHandler {
         )
     }
 
+    /// The stack record of the most recent rv32 invocation this
+    /// transaction has run, or `None` if it has run none yet. The records
+    /// accumulate across frames, so read this right after the call of
+    /// interest; a closed frame's [`FrameResult::rv32_stack_usage`] is the
+    /// same value taken as that frame closed.
+    pub fn last_rv32_stack_usage(&self) -> Option<Rv32StackUsage> {
+        crate::rv32_stack_usage::last_rv32_stack_usage(self.handler)
+    }
+
     /// Convenience: open a root frame targeting the given contract address.
     /// Returns a FrameBuilder for configuring and executing the frame.
     ///
@@ -820,6 +840,25 @@ mod tests {
             "misuse inside a nested execute closure must propagate as a \
              panic, not close the parent frame as a contract fault",
         ));
+    }
+
+    #[test]
+    fn mock_only_transaction_reports_no_rv32_stack_usage() {
+        // Mock contracts run natively, so nothing records a stack: the query
+        // answers None rather than failing, before and after a frame, and
+        // the closed frame carries the same None.
+        let env = TestEnvironment::new(None);
+        let mut handler = MockTransactionHandler::new(env);
+        assert_eq!(handler.last_rv32_stack_usage(), None);
+
+        let result = handler
+            .open_root_frame(root_addr())
+            .with_invoke_flags(0)
+            .build()
+            .execute(|_| FrameAction::Close)
+            .result();
+        assert_eq!(result.rv32_stack_usage(), None);
+        assert_eq!(handler.last_rv32_stack_usage(), None);
     }
 
     #[test]

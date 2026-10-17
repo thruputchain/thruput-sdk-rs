@@ -50,6 +50,8 @@ pub use bindings::{
     GetSnapshotStorageItemResult,
     VerifyContractResult,
     FFISerializedAddressAndKey,
+    FFIRv32StackUsage,
+    GetRv32StackUsageResult,
 };
 
 // Functions
@@ -82,6 +84,7 @@ pub use bindings::{
     verify_signed_transaction_auth,
     verify_signed_transaction_auth_from_db,
     do_verify_contract,
+    get_rv32_stack_usage,
 };
 
 mod impls;

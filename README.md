@@ -148,6 +148,24 @@ Use the full `env.transact` form when a test needs multiple transactions,
 asserts on aborts/faults, or decodes typed results via
 `thruput_sdk::into_root_call_result`.
 
+When the body calls an rv32 artifact (loaded with
+`thruput_sdk::load_rv32_contract`), the result also reports the guest's stack
+usage for the most recent rv32 call it made: `rv32_stack_usage()` carries the
+stack top the guest established (`sp_initial`), the deepest point it reached
+(`sp_min`), and `bytes_used()` as their difference. The prebuilt test_ffi
+library always records this; it is `None` when no rv32 contract ran.
+
+```rust,ignore
+let result = env.transact(|tx| {
+    tx.call(&ContractAddress::named("test")).run(move || {
+        // ... exercise an rv32 contract through its client ...
+    })
+});
+result.assert_success();
+let usage = result.rv32_stack_usage().expect("the body called an rv32 contract");
+println!("stack used: {} bytes", usage.bytes_used().unwrap());
+```
+
 Generated clients default to `FooClient` for `#[contract] trait Foo` and for
 `#[contract] impl Foo { ... }`. Use `client = CustomClient` only when you want
 to override that default.

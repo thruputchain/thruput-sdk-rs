@@ -1,4 +1,5 @@
 use crate::invoke_error::PanicRecord;
+use crate::rv32_stack_usage::Rv32StackUsage;
 use thruput_event::{EmittedEvent, Event, TypedEvent};
 use thruput_exn::{Exn, RawExceptionRef};
 use thruput_trace::InvocationFrameTrace;
@@ -42,6 +43,7 @@ pub struct FrameResult {
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
     fault_panic: Option<PanicRecord>,
+    rv32_stack_usage: Option<Rv32StackUsage>,
 }
 
 impl FrameResult {
@@ -56,7 +58,31 @@ impl FrameResult {
             trace,
             events,
             fault_panic: None,
+            rv32_stack_usage: None,
         }
+    }
+
+    /// Attach the stack record read as this frame closed.
+    ///
+    /// Crate-internal, like `with_fault_panic`: only the frame executor
+    /// knows the moment the record is this frame's.
+    pub(crate) fn with_rv32_stack_usage(
+        mut self,
+        usage: Option<Rv32StackUsage>,
+    ) -> Self {
+        self.rv32_stack_usage = usage;
+        self
+    }
+
+    /// The stack record of the most recent rv32 invocation that had
+    /// finished when this frame closed: for a mock frame whose body calls
+    /// an rv32 contract, the last such call it made.
+    ///
+    /// `None` if no rv32 invocation ran on the transaction before this frame
+    /// closed, or if the test FFI library was built without the diagnostic
+    /// (the prebuilt one has it). See [`Rv32StackUsage`] for the fields.
+    pub fn rv32_stack_usage(&self) -> Option<Rv32StackUsage> {
+        self.rv32_stack_usage
     }
 
     /// Attach the panic that faulted this frame.

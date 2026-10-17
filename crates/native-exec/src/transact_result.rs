@@ -31,6 +31,14 @@ impl TransactResult {
         self.frame.fault_message()
     }
 
+    /// The root frame's [`FrameResult::rv32_stack_usage`]: the stack record
+    /// of the most recent rv32 invocation the transaction ran.
+    pub fn rv32_stack_usage(
+        &self,
+    ) -> Option<crate::rv32_stack_usage::Rv32StackUsage> {
+        self.frame.rv32_stack_usage()
+    }
+
     /// True if the root frame returned successfully AND the commit was OK.
     pub fn is_success(&self) -> bool {
         self.frame.is_success() && self.exec_result == ExecResult::ExecResultOK
