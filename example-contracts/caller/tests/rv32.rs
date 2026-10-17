@@ -258,7 +258,9 @@ fn native_contract_frames_report_no_rv32_record() {
     );
 
     // A later transaction that only invokes the native contract: the
-    // earlier transaction's records are not its.
+    // earlier transaction's records are not its. (A deployment becomes
+    // visible to later transactions once the block advances.)
+    env.advance_block();
     let later = env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
             CallerClient::new(&mock_caller_addr).initialize(&erc20_addr);
