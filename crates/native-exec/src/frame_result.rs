@@ -1,4 +1,5 @@
 use crate::invoke_error::PanicRecord;
+use crate::rv32_stack_usage::Rv32StackUsage;
 use thruput_event::{EmittedEvent, Event, TypedEvent};
 use thruput_exn::{Exn, RawExceptionRef};
 use thruput_trace::InvocationFrameTrace;
@@ -42,6 +43,7 @@ pub struct FrameResult {
     trace: Option<InvocationFrameTrace>,
     events: Vec<TxEmittedEvent>,
     fault_panic: Option<PanicRecord>,
+    rv32_stack_usage: Vec<Rv32StackUsage>,
 }
 
 impl FrameResult {
@@ -56,7 +58,46 @@ impl FrameResult {
             trace,
             events,
             fault_panic: None,
+            rv32_stack_usage: Vec::new(),
         }
+    }
+
+    /// Attach the rv32 stack records read as this frame closed.
+    ///
+    /// Crate-internal, like `with_fault_panic`: only the frame executor
+    /// knows which of the transaction's records are this frame's.
+    pub(crate) fn with_rv32_stack_usage(
+        mut self,
+        records: Vec<Rv32StackUsage>,
+    ) -> Self {
+        self.rv32_stack_usage = records;
+        self
+    }
+
+    /// The stack record of the most recent rv32 call made under this frame:
+    /// the last of [`rv32_stack_usage_records`](Self::rv32_stack_usage_records).
+    /// For a mock frame whose body calls an rv32 contract through its
+    /// client, that is the last such call.
+    ///
+    /// `None` if no rv32 invocation ran under this frame, or if the test
+    /// FFI library was built without the diagnostic (the prebuilt one has
+    /// it). See [`Rv32StackUsage`] for the fields.
+    pub fn rv32_stack_usage(&self) -> Option<Rv32StackUsage> {
+        self.rv32_stack_usage.last().copied()
+    }
+
+    /// The stack records of the rv32 invocations that ran under this frame,
+    /// in the order they finished: a callee's before its caller's.
+    ///
+    /// "Under this frame" is what its body ran while the frame was open:
+    /// the rv32 contracts it called directly, and those called by a mock
+    /// contract it invoked. It is never a call that finished before this
+    /// frame opened, whichever frame of the transaction made it, and never
+    /// a call made under a child frame opened with `child_call`: those are
+    /// the child's own result's. Pick a call by its `contract_address` when
+    /// the body made several.
+    pub fn rv32_stack_usage_records(&self) -> &[Rv32StackUsage] {
+        &self.rv32_stack_usage
     }
 
     /// Attach the panic that faulted this frame.

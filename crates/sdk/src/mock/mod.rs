@@ -24,6 +24,7 @@ mod mock_public {
         // constructors stay the ordinary way in.
         network_config,
         network_config::NetworkConfigBuilder,
+        rv32_stack_usage::{Rv32StackUsage, SP_UNWRITTEN},
         test_environment::{
             TestEnvironment, TestEnvironmentHandle, test_network_hash,
         },

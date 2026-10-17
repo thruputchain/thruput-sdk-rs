@@ -15,6 +15,7 @@ use crate::exn::FaultInfo;
 use crate::exn::RawException;
 use crate::types::transaction::InvocationFrameOutput::*;
 use crate::*;
+use native_exec::rv32_stack_usage::Rv32StackUsage;
 use native_exec::transaction_handler::TransactionHandler;
 use std::panic::UnwindSafe;
 use std::vec::Vec;
@@ -151,6 +152,9 @@ pub use contract_test_guest::*;
 #[derive(Copy, Clone, Debug)]
 pub struct Stats {
     pub gas_consumed: u64,
+    /// The stack record of the most recent rv32 call the test body made;
+    /// `None` if it made none. See [`Rv32StackUsage`].
+    pub rv32_stack_usage: Option<Rv32StackUsage>,
 }
 
 /// Build a one-shot TransactionHandler that runs `test` as a mock contract
@@ -236,7 +240,10 @@ where
         r => panic!("Transaction failed: {:?}", r),
     }
 
-    Stats { gas_consumed }
+    Stats {
+        gas_consumed,
+        rv32_stack_usage: res.rv32_stack_usage(),
+    }
 }
 
 pub fn load_rv32_contract<P>(path: P) -> Contract

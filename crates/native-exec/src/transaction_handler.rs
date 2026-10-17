@@ -1,3 +1,4 @@
+use crate::rv32_stack_usage::Rv32StackUsage;
 use crate::test_environment::TestEnvironment;
 use core::ffi::c_void;
 use std::rc::Rc;
@@ -37,6 +38,23 @@ pub struct RootInvokeResult {
     pub trace: Option<InvocationFrameTrace>,
     /// Events emitted by the transaction.
     pub events: Vec<TxEmittedEvent>,
+    /// The stack records of the rv32 invocations the transaction ran, in
+    /// the order they finished: a callee's before its caller's. When the
+    /// root invocation targets an rv32 contract its own record is the last;
+    /// when it targets a mock contract, every record is a call made under
+    /// it. Empty if it ran none. See [`Rv32StackUsage`].
+    pub rv32_stack_usage_records: Vec<Rv32StackUsage>,
+}
+
+impl RootInvokeResult {
+    /// The most recent of
+    /// [`rv32_stack_usage_records`](Self::rv32_stack_usage_records): the
+    /// root invocation's own stack record when it targets an rv32 contract,
+    /// else the last rv32 call made under it. `None` if the transaction ran
+    /// none.
+    pub fn rv32_stack_usage(&self) -> Option<Rv32StackUsage> {
+        self.rv32_stack_usage_records.last().copied()
+    }
 }
 
 impl TransactionHandler {
@@ -134,6 +152,12 @@ impl TransactionHandler {
             gas_consumed: foreign_result.gas_consumed,
             trace,
             events,
+            // Every record on the handler is this transaction's: the
+            // handler is opened for the one transaction, and the root
+            // invocation is the only thing that runs on it.
+            rv32_stack_usage_records: crate::rv32_stack_usage::records(
+                self.handler,
+            ),
         }
     }
 
