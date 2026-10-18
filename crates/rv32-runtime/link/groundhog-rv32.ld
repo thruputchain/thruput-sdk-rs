@@ -215,6 +215,20 @@ SECTIONS
   __heap_base = .;
   __heap_end = __memory_size;
 
+  /* Raw contract-spec fragments. The macros emit them with #[link_section],
+   * which makes them read-only ALLOC sections; left as orphans, lld places
+   * them in DATA beside .rodata, where every spec byte pushes .bss and
+   * __heap_base up and a large spec trips the heap ASSERT below even though
+   * the lowerer drops these bytes before the artifact is packed. (INFO)
+   * keeps the contents in the ELF for `thruput build` to extract but makes
+   * the section non-alloc, so it takes no guest address space. The name
+   * carries the raw spec format version: keep it in sync with
+   * thruput_contract_spec::RAW_SECTION_NAME (pinned by a test there). */
+  groundhogspecrawv4 0 (INFO) :
+  {
+    KEEP(*(groundhogspecrawv4))
+  }
+
   /DISCARD/ :
   {
     /* Spec anchors are needed while the linker resolves archive members, but
