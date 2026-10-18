@@ -120,16 +120,20 @@ mod tests {
     fn rv32_linker_script_keeps_raw_spec_out_of_guest_memory() {
         // Without its own non-alloc output section the raw spec is an orphan
         // ALLOC section that lld places in DATA, where it counts against the
-        // guest memory size the heap ASSERT checks. Matched without
-        // allocating so the test builds without the `alloc` feature.
+        // guest memory size the heap ASSERT checks. Whole trimmed lines are
+        // compared, so a typo on either side of the name fails, and nothing
+        // allocates, so the test builds without the `alloc` feature.
         let script = include_str!("../../rv32-runtime/link/groundhog-rv32.ld");
-        let followed_by = |suffix: &str| {
-            script.match_indices(RAW_SECTION_NAME).any(|(at, name)| {
-                script[at + name.len()..].starts_with(suffix)
+        let has_line = |prefix: &str, suffix: &str| {
+            script.lines().any(|line| {
+                line.trim()
+                    .strip_prefix(prefix)
+                    .and_then(|rest| rest.strip_suffix(suffix))
+                    == Some(RAW_SECTION_NAME)
             })
         };
         assert!(
-            followed_by(" 0 (INFO) :") && followed_by("))"),
+            has_line("", " 0 (INFO) :") && has_line("KEEP(*(", "))"),
             "groundhog-rv32.ld must place {RAW_SECTION_NAME} in an (INFO) \
              output section; update it alongside RAW_SPEC_FORMAT",
         );
