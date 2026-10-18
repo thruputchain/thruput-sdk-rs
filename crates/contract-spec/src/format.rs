@@ -18,7 +18,7 @@
 //! # Bumping
 //!
 //! Any change to the encoding of `SpecFragment` or of a type reachable from
-//! it is a format change and must bump [`RAW_SPEC_FORMAT`]. Three mirrors
+//! it is a format change and must bump [`RAW_SPEC_FORMAT`]. Four mirrors
 //! must move together, and each is pinned by a test so a missed one fails CI
 //! rather than shipping:
 //!
@@ -26,7 +26,9 @@
 //! - `[package.metadata.groundhog] raw_spec_format` in this crate's
 //!   `Cargo.toml`, which is how the `thruput` CLI reads the format version
 //!   out of a contract's dependency graph before compiling it,
-//! - the `link_section` literals in `thruput-macros`.
+//! - the `link_section` literals in `thruput-macros`,
+//! - the `(INFO)` output section in `thruput-rv32-runtime`'s
+//!   `groundhog-rv32.ld`, which keeps the section out of guest memory.
 //!
 //! Format 0 (`groundhogspecrawv0`) is deliberately unsupported: two
 //! incompatible encodings shipped under that name, so the bytes cannot be
@@ -111,6 +113,23 @@ mod tests {
             SpecSection::Raw(RAW_SPEC_FORMAT),
             "RAW_SECTION_NAME must be RAW_SECTION_PREFIX + 'v' + \
              RAW_SPEC_FORMAT, or producers and consumers disagree",
+        );
+    }
+
+    #[test]
+    fn rv32_linker_script_keeps_raw_spec_out_of_guest_memory() {
+        use alloc::format;
+
+        // Without its own non-alloc output section the raw spec is an orphan
+        // ALLOC section that lld places in DATA, where it counts against the
+        // guest memory size the heap ASSERT checks.
+        let script = include_str!("../../rv32-runtime/link/groundhog-rv32.ld");
+        let rule = format!("{RAW_SECTION_NAME} 0 (INFO) :");
+        let input = format!("KEEP(*({RAW_SECTION_NAME}))");
+        assert!(
+            script.contains(&rule) && script.contains(&input),
+            "groundhog-rv32.ld must place {RAW_SECTION_NAME} in an (INFO) \
+             output section; update it alongside RAW_SPEC_FORMAT",
         );
     }
 
