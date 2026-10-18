@@ -1,6 +1,6 @@
 [package]
 name = "thruput-erc20-pausable-if"
-version = "0.1.59"
+version = "0.1.60"
 edition.workspace = true
 publish.workspace = true
 authors.workspace = true
@@ -15,11 +15,11 @@ categories.workspace = true
 dev = ["thruput-sdk/dev", "dep:thiserror"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.52.0" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.52.1" }
 thiserror = { workspace = true, optional = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.52.0", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.52.1", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

@@ -49,19 +49,19 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.52.0" }
-thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.52.0", default-features = false }
+thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.52.1" }
+thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.52.1", default-features = false }
 
-thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.59" }
+thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.60" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.52.0" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.52.0" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.52.0" }
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "thruput", version = "=0.52.0" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.52.1" }
+erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.52.1" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.52.1" }
+bottle-test-if = { path = "../crates/bottle-test-if", registry = "thruput", version = "=0.52.1" }
 
 # External groundhog dependencies
-thruput-xdr = { registry = "thruput", version = "=0.56.1", features = ["xdrs", "syscalls"] }
-thruput-syscall = { registry = "thruput", version = "=0.56.1" }
+thruput-xdr = { registry = "thruput", version = "=0.56.2", features = ["xdrs", "syscalls"] }
+thruput-syscall = { registry = "thruput", version = "=0.56.2" }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }
