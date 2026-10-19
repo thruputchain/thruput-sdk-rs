@@ -201,6 +201,9 @@ pub use rt::*;
 pub use serialize::*;
 pub use signer::*;
 pub use throw::*;
+/// Allocation-free base58 conversion for public identifiers.
+pub use thruput_xdr::base58;
+pub use thruput_xdr::base58::{Base58, base58_encode};
 pub use types::*;
 pub use util::*;
 // XDR serialization vocabulary that is part of the SDK's public API (macro

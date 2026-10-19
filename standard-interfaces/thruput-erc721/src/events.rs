@@ -17,7 +17,7 @@
 use crate::TokenId;
 use core::fmt;
 use thruput_sdk::{
-    ContractAddress, EmittedEvent, Event, hex_encode, log_event,
+    ContractAddress, EmittedEvent, Event, base58_encode, log_event,
 };
 
 fn token_id_payload(
@@ -91,9 +91,9 @@ impl<'a> fmt::Display for TransferEvent<'a> {
         write!(
             f,
             "TRANSFER({}, {}, token:{})",
-            hex_encode(self.from),
-            hex_encode(self.to),
-            hex_encode(&self.token_id),
+            base58_encode(self.from),
+            base58_encode(self.to),
+            base58_encode(&self.token_id),
         )
     }
 }
@@ -142,8 +142,8 @@ impl<'a> fmt::Display for MintEvent<'a> {
         write!(
             f,
             "MINT_TO({}, token:{})",
-            hex_encode(self.to),
-            hex_encode(&self.token_id)
+            base58_encode(self.to),
+            base58_encode(&self.token_id)
         )
     }
 }
@@ -192,8 +192,8 @@ impl<'a> fmt::Display for BurnEvent<'a> {
         write!(
             f,
             "BURN_FROM({}, token:{})",
-            hex_encode(self.from),
-            hex_encode(&self.token_id)
+            base58_encode(self.from),
+            base58_encode(&self.token_id)
         )
     }
 }
@@ -259,9 +259,9 @@ impl<'a> fmt::Display for ApprovalEvent<'a> {
         write!(
             f,
             "APPROVE({}, {}, token:{})",
-            hex_encode(self.owner),
-            hex_encode(self.approved),
-            hex_encode(&self.token_id),
+            base58_encode(self.owner),
+            base58_encode(self.approved),
+            base58_encode(&self.token_id),
         )
     }
 }
@@ -331,8 +331,8 @@ impl<'a> fmt::Display for ApprovalForAllEvent<'a> {
         write!(
             f,
             "APPROVE_FOR_ALL({}, {}, {})",
-            hex_encode(self.owner),
-            hex_encode(self.operator),
+            base58_encode(self.owner),
+            base58_encode(self.operator),
             self.approved,
         )
     }

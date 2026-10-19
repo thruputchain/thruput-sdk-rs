@@ -9,7 +9,7 @@
 use core::fmt;
 use thruput_sdk::{
     BlockHeight, ContractAddress, EmittedEvent, Event, ReadXDR, WriteXDR,
-    hex_encode, log_event,
+    base58_encode, log_event,
 };
 use thruput_xdr::standard_asset_events as stdevt;
 
@@ -84,8 +84,8 @@ impl<'a> fmt::Display for TransferEvent<'a> {
         write!(
             f,
             "TRANSFER({}, {}, amount:{:?})",
-            hex_encode(self.from),
-            hex_encode(self.to),
+            base58_encode(self.from),
+            base58_encode(self.to),
             self.amount,
         )
     }
@@ -167,8 +167,8 @@ impl<'a> fmt::Display for AllowanceChangeEvent<'a> {
         write!(
             f,
             "ALLOWANCE_CHANGE({}, {}, difference:{:?})",
-            hex_encode(self.owner),
-            hex_encode(self.spender),
+            base58_encode(self.owner),
+            base58_encode(self.spender),
             self.difference
         )
     }
@@ -258,8 +258,8 @@ impl<'a> fmt::Display for AllowanceDeleteEvent<'a> {
         write!(
             f,
             "ALLOWANCE_DELETE({}, {}, removed:{:?})",
-            hex_encode(self.owner),
-            hex_encode(self.spender),
+            base58_encode(self.owner),
+            base58_encode(self.spender),
             self.removed
         )
     }
@@ -360,8 +360,8 @@ impl<'a> fmt::Display for AllowanceResetEvent<'a> {
         write!(
             f,
             "ALLOWANCE_RESET({}, {}, removed:{:?}, until:{:?})",
-            hex_encode(self.owner),
-            hex_encode(self.spender),
+            base58_encode(self.owner),
+            base58_encode(self.spender),
             self.removed,
             *self.until
         )
@@ -420,7 +420,7 @@ impl<'a> fmt::Display for MintEvent<'a> {
         write!(
             f,
             "MINT_TO({}, amount:{:?})",
-            hex_encode(self.to),
+            base58_encode(self.to),
             self.amount
         )
     }
@@ -478,7 +478,7 @@ impl<'a> fmt::Display for BurnEvent<'a> {
         write!(
             f,
             "BURN_FROM({}, amount:{:?})",
-            hex_encode(self.from),
+            base58_encode(self.from),
             self.amount
         )
     }

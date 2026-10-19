@@ -1,5 +1,18 @@
 This SDK facilitates writing contracts in Rust.
 
+## Identifier text
+
+Addresses and typed hashes use case-sensitive, unprefixed Bitcoin/Solana
+base58 in diagnostic output and standard-interface event displays. This
+includes ERC721 token IDs and access-control role IDs, both typed hashes.
+Use `thruput_sdk::base58_encode(&address)` to format an identifier without
+allocation, or `thruput_sdk::base58::decode_fixed` to parse its bytes.
+These helpers are re-exported from `thruput-xdr`.
+
+Opaque payloads use `hex_encode`. XDR, event topics and payloads, contract
+specs, storage keys, and raw protocol Serde remain unchanged.
+The XDR test vectors retain hex byte inputs and expected encoded bytes.
+
 ## Contract Author Quickstart
 
 The canonical way to start a contract is the CLI scaffold. It writes the

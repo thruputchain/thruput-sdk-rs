@@ -1,3 +1,7 @@
+//! Lowercase hex formatting for opaque payload bytes.
+//!
+//! Use [`crate::base58_encode`] for addresses and typed hashes.
+
 use core::fmt;
 
 pub struct Hex<'a>(&'a [u8]);
