@@ -14,4 +14,4 @@ edition = "2024"
 # One pin for the whole fixture: an SDK bump touches this line only, not
 # each member manifest.
 [workspace.dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.52.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.52.2" }

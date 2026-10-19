@@ -24,7 +24,7 @@ crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.52.1" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.52.2" }
 
 [dev-dependencies]
 multi_root_collision = { path = ".", features = ["dev"] }
