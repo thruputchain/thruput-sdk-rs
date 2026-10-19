@@ -1018,7 +1018,7 @@ bigint_bench_test() {
 
 build_docs() {
     RUSTDOCFLAGS="--deny warnings --cfg docsrs" \
-        cargo doc --features=dev "$@"
+        cargo doc --no-deps --features=dev "$@"
 }
 
 # Build the SDK itself for the guest target.
