@@ -10,7 +10,7 @@
 
 use core::fmt;
 use thruput_sdk::{
-    ContractAddress, EmittedEvent, Event, hex_encode, log_event,
+    ContractAddress, EmittedEvent, Event, base58_encode, log_event,
 };
 
 /// Log that `account` paused the token.
@@ -56,7 +56,7 @@ impl<'a> TryFrom<EmittedEvent<'a>> for PausedEvent {
 
 impl fmt::Display for PausedEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "PAUSED({})", hex_encode(&self.account))
+        write!(f, "PAUSED({})", base58_encode(&self.account))
     }
 }
 
@@ -105,6 +105,6 @@ impl<'a> TryFrom<EmittedEvent<'a>> for UnpausedEvent {
 
 impl fmt::Display for UnpausedEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "UNPAUSED({})", hex_encode(&self.account))
+        write!(f, "UNPAUSED({})", base58_encode(&self.account))
     }
 }

@@ -14,7 +14,7 @@
 use crate::Role;
 use core::fmt;
 use thruput_sdk::{
-    ContractAddress, EmittedEvent, Event, hex_encode, log_event,
+    ContractAddress, EmittedEvent, Event, base58_encode, log_event,
 };
 
 /// Log that `sender` granted `role` to `account`.
@@ -83,9 +83,9 @@ impl<'a> fmt::Display for RoleGrantedEvent<'a> {
         write!(
             f,
             "ROLE_GRANTED(role:{}, {}, by:{})",
-            hex_encode(self.role),
-            hex_encode(self.account),
-            hex_encode(&self.sender),
+            base58_encode(self.role),
+            base58_encode(self.account),
+            base58_encode(&self.sender),
         )
     }
 }
@@ -159,9 +159,9 @@ impl<'a> fmt::Display for RoleRevokedEvent<'a> {
         write!(
             f,
             "ROLE_REVOKED(role:{}, {}, by:{})",
-            hex_encode(self.role),
-            hex_encode(self.account),
-            hex_encode(&self.sender),
+            base58_encode(self.role),
+            base58_encode(self.account),
+            base58_encode(&self.sender),
         )
     }
 }
@@ -247,9 +247,9 @@ impl<'a> fmt::Display for RoleAdminChangedEvent<'a> {
         write!(
             f,
             "ROLE_ADMIN_CHANGED(role:{}, {} -> {})",
-            hex_encode(self.role),
-            hex_encode(self.previous_admin_role),
-            hex_encode(&self.new_admin_role),
+            base58_encode(self.role),
+            base58_encode(self.previous_admin_role),
+            base58_encode(&self.new_admin_role),
         )
     }
 }
