@@ -233,7 +233,7 @@ pub fn generate(
 
                 fn map_exceptions<X, F>(&self, on_exn: F) -> Self::Mapped<F>
                 where
-                    F: for<'s> FnOnce(::thruput_sdk::exn::RawExceptionRef<'s>) -> X,
+                    F: for<'s> ::core::ops::FnOnce(::thruput_sdk::exn::RawExceptionRef<'s>) -> X,
                 {
                     #mapped_client_ident {
                         address: self.address.clone(),
@@ -383,7 +383,7 @@ fn generate_client_fn(
         pub fn #try_ident<#exception_ident>(self, #(#sent_params),*)
             -> ::core::result::Result<#return_type, ::thruput_sdk::call::RawCallError<#exception_ident>>
         where
-            #handler_ident: for<'s> FnOnce(::thruput_sdk::exn::RawExceptionRef<'s>) -> #exception_ident,
+            #handler_ident: for<'s> ::core::ops::FnOnce(::thruput_sdk::exn::RawExceptionRef<'s>) -> #exception_ident,
         {
             #mapped_body
         }

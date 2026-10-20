@@ -17,7 +17,7 @@ use crate::xdr::ReadXDROwned;
 /// What [`match_exn!`](crate::match_exn) can match on.
 ///
 /// Implemented for [`CallError`](crate::call::CallError) (the error type of
-/// every generated `try_*` method), for an owned [`RawException`], and for
+/// ordinary generated `try_*` methods), for an owned [`RawException`], and for
 /// a borrowed [`RawExceptionRef`] — the last of which lets a caller match
 /// inside [`try_call_raw_with`](crate::call::try_call_raw_with)'s `on_exn`
 /// closure without first copying the wire bytes into an owned exception.
