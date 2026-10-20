@@ -21,7 +21,7 @@ license = "Apache-2.0"
 edition = "2024"
 
 [workspace.dependencies]
-thruput-sdk = { path = "../crates/sdk", version = "=0.52.2", features = ["logging"] }
+thruput-sdk = { path = "../crates/sdk", version = "=0.52.3", features = ["logging"] }
 
 [profile.release]
 trim-paths = "all" # unstable
