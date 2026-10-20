@@ -20,9 +20,10 @@
 //! memcpy that fills it only runs when an undecodable exception is actually
 //! caught.
 //!
-//! Zero-copy operations — [`RawExceptionRef::try_as`], [`RawExceptionRef::payload`],
-//! [`RawExceptionRef::re_throw`] — never allocate or copy; only
-//! [`to_owned`](RawExceptionRef::to_owned) does, and at most once.
+//! Borrowing avoids an additional owned exception buffer in guest memory.
+//! The host still copies returned or abort bytes into guest scratch, and
+//! rethrowing copies the wire bytes back to the host. Decoding an exception
+//! with owned fields can also copy or allocate.
 //!
 //! [`SCRATCH_MAX`]: crate::internal::SCRATCH_MAX
 
@@ -33,7 +34,8 @@ use crate::xdr::*;
 use thruput_exn::RawExceptionRef;
 
 /// Re-throw to our caller: abort with the original wire bytes, verbatim.
-/// Zero-copy; this is what plain (non-`try_`) generated methods do.
+/// No additional guest buffer; the return syscall still copies bytes to the
+/// host. This is what plain (non-`try_`) generated methods do.
 impl crate::re_throw::ReThrow for RawExceptionRef<'_> {
     #[inline]
     #[cfg_attr(not(target_arch = "riscv32"), track_caller)]
@@ -77,6 +79,8 @@ fn fmt_exn(
 /// Without `alloc` that storage is a fixed `SCRATCH_MAX`-capacity inline
 /// buffer, so the value (and any error enum holding it) is roughly 4 KiB;
 /// under `alloc` it is an exact-size heap allocation.
+/// Use [`MapExceptions`](crate::MapExceptions) when a compact classification
+/// is enough and the original wire bytes do not need to outlive the call.
 ///
 /// Deliberately not encodable: there is no `WriteXDR` impl.
 /// [`re_throw`](Self::re_throw) aborts with the verbatim wire bytes;

@@ -1,0 +1,8 @@
+error: lifetime may not live long enough
+  --> tests/compile-fail/mapped_exception_borrow_escape.rs:11:41
+   |
+11 |     let _ = client.map_exceptions(|exn| exn.payload()).try_call();
+   |                                    ---- ^^^^^^^^^^^^^ returning this value requires that `'1` must outlive `'2`
+   |                                    |  |
+   |                                    |  return type of closure is &'2 [u8]
+   |                                    has type `RawExceptionRef<'1>`

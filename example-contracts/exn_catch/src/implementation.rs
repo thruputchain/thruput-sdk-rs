@@ -39,6 +39,8 @@ impl ExnCatch for Contract {
             2 => client.try_throw_alpha_overflow(),
             3 => client.try_throw_beta_denied(),
             4 => client.try_throw_undeclared(),
+            6 => client.try_fault(),
+            7 => client.try_malformed_abort(),
             _ => client.try_throw_library(),
         };
 
@@ -56,5 +58,58 @@ impl ExnCatch for Contract {
                 _ => 7,
             }),
         }
+    }
+
+    fn classify_mapped(target: ContractAddress, which: u32) -> u32 {
+        let client = ExnCatchClient::new(&target).map_exceptions(|exn| {
+            match_exn!(exn, {
+                AlphaError::NotFound => 2,
+                AlphaError::Overflow => 3,
+                BetaError::Denied => 4,
+                // Undeclared by this interface; still a peer here.
+                Undeclared => 5,
+                LibraryExn::NonNegativeIntUnderflow => 6,
+                _ => 7,
+            })
+        });
+        let outcome = match which {
+            0 => client.try_succeed().map(|_| ()),
+            1 => client.try_throw_alpha_not_found(),
+            2 => client.try_throw_alpha_overflow(),
+            3 => client.try_throw_beta_denied(),
+            4 => client.try_throw_undeclared(),
+            6 => client.try_fault(),
+            7 => client.try_malformed_abort(),
+            _ => client.try_throw_library(),
+        };
+        match outcome {
+            Ok(()) => 0,
+            Err(RawCallError::Fault(_)) => 1,
+            Err(RawCallError::Exception(code)) => code,
+            Err(_) => 7,
+        }
+    }
+
+    fn classify_then_throw(target: ContractAddress, which: u32) {
+        // The mapped call ends its scratch checkout before encoding this rejection.
+        if Self::classify_mapped(target, which) != 0 {
+            throw(AlphaError::Overflow);
+        }
+    }
+
+    fn rethrow(target: ContractAddress) {
+        let result: Result<(), RawCallError<core::convert::Infallible>> =
+            ExnCatchClient::new(&target)
+                .map_exceptions(|exn| exn.re_throw())
+                .try_throw_undeclared();
+        result.or_re_throw();
+    }
+
+    fn fault() {
+        panic!("test fault");
+    }
+
+    fn malformed_abort() {
+        contract_abort(&[0xff]);
     }
 }

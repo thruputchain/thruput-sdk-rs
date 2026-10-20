@@ -131,7 +131,7 @@ pub(crate) fn classify_invoke_rejection<X>(syserr: SysErr) -> RawCallError<X> {
     }
 }
 
-/// The error type of every generated `try_*` client method: a call failure
+/// The error type of ordinary generated `try_*` client methods: a call failure
 /// that may carry a caught exception, kept untyped.
 ///
 /// Exceptions stay as [`RawException`] rather than being pre-decoded into a

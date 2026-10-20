@@ -4,8 +4,9 @@ use super::config::Config;
 use super::contract::{ConfiguredContract, ContractSrc, Method};
 use super::entrypoint::*;
 use super::util::*;
-use proc_macro2::TokenStream;
-use quote::{format_ident, quote, quote_spanned};
+use proc_macro2::{TokenStream, TokenTree};
+use quote::{ToTokens, format_ident, quote, quote_spanned};
+use std::collections::HashSet;
 use syn::parse::Result;
 use syn::spanned::Spanned;
 
@@ -66,6 +67,28 @@ fn try_client_method_ident(method_ident: &syn::Ident) -> syn::Ident {
     format_ident!("{}{}", CLIENT_TRY_METHOD_PREFIX, method_ident)
 }
 
+// Proc-macro item/type identifiers are not hygienic. In particular an adapter's
+// generic must not shadow a contract's argument or return type.
+fn collect_idents(tokens: TokenStream, used: &mut HashSet<String>) {
+    for token in tokens {
+        match token {
+            TokenTree::Ident(ident) => {
+                used.insert(ident.to_string().trim_start_matches("r#").into());
+            }
+            TokenTree::Group(group) => collect_idents(group.stream(), used),
+            _ => {}
+        }
+    }
+}
+
+fn fresh_ident(base: &str, used: &mut HashSet<String>) -> syn::Ident {
+    let mut candidate = base.to_owned();
+    while !used.insert(candidate.clone()) {
+        candidate.push('_');
+    }
+    format_ident!("{}", candidate)
+}
+
 pub fn generate(
     contract: &(impl ContractSrc + Spanned),
     config: &Config,
@@ -81,11 +104,31 @@ pub fn generate(
         )
     })?;
 
-    let method_stubs = contract
+    let mut used = HashSet::from([client_ident
+        .to_string()
+        .trim_start_matches("r#")
+        .into()]);
+    for method in contract.methods() {
+        collect_idents(method.sig().to_token_stream(), &mut used);
+    }
+    let mapped_client_ident = fresh_ident("__ThruputMappedClient", &mut used);
+    let handler_ident = fresh_ident("__ThruputExceptionHandler", &mut used);
+    let exception_ident = fresh_ident("__ThruputException", &mut used);
+
+    let (method_stubs, mapped_method_stubs): (Vec<_>, Vec<_>) = contract
         .methods_sorted()
         .into_iter()
-        .map(|method| generate_client_fn(&method, &contract))
-        .collect::<Result<Vec<TokenStream>>>()?;
+        .map(|method| {
+            generate_client_fn(
+                &method,
+                &contract,
+                &handler_ident,
+                &exception_ident,
+            )
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .unzip();
 
     let iface_vers = contract.defaulted_interface_vers();
     let interface_id_lit = interface_id_literal(
@@ -175,6 +218,35 @@ pub fn generate(
                     #client_ident::#constructor_ident(address)
                 }
             }
+
+            // Scoped to this client expansion: no new module-level type or
+            // contract method names are reserved by the adapter.
+            #[must_use = "the exception mapper is used by a generated try_* call"]
+            pub struct #mapped_client_ident<#handler_ident> {
+                address: ::thruput_sdk::ContractAddress,
+                config: ::thruput_sdk::invoke_config::InvokeConfig,
+                on_exn: #handler_ident,
+            }
+
+            impl ::thruput_sdk::MapExceptions for #client_ident {
+                type Mapped<F> = #mapped_client_ident<F>;
+
+                fn map_exceptions<X, F>(&self, on_exn: F) -> Self::Mapped<F>
+                where
+                    F: for<'s> ::core::ops::FnOnce(::thruput_sdk::exn::RawExceptionRef<'s>) -> X,
+                {
+                    #mapped_client_ident {
+                        address: self.address.clone(),
+                        config: self.config,
+                        on_exn,
+                    }
+                }
+            }
+
+            #[allow(dead_code)] // Consumers need not use every generated call style.
+            impl<#handler_ident> #mapped_client_ident<#handler_ident> {
+                #(#mapped_method_stubs)*
+            }
         };
     };
 
@@ -184,7 +256,9 @@ pub fn generate(
 fn generate_client_fn(
     method: &impl Method,
     contract: &impl ContractSrc,
-) -> Result<TokenStream> {
+    handler_ident: &syn::Ident,
+    exception_ident: &syn::Ident,
+) -> Result<(TokenStream, TokenStream)> {
     let iface_name = contract.interface_name();
     let iface_name = iface_name.as_deref();
     let iface_vers = contract.defaulted_interface_vers();
@@ -250,29 +324,44 @@ fn generate_client_fn(
         quote! { () }
     };
 
-    Ok(quote_spanned! {method.sig().span()=>
-
-        // This method-wrapper re-throws if the called contract throws.
-        #[cfg_attr(test, track_caller)]
-        pub fn #ident(&self, #(#sent_params),* ) #sig_output
-        {
+    let call_body = |exception_type: TokenStream,
+                     on_exn: TokenStream,
+                     result_suffix: TokenStream| {
+        quote_spanned! {method.sig().span()=>
             let __gh_entrypoint = #entrypoint_lit;
             let __gh_args = #args_tuple;
-
             #log_call
-
             with_call_tracking!(#call_info, {
-                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, ::core::convert::Infallible>(
-                    &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| ::thruput_sdk::ReThrow::re_throw(exn),
+                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, #exception_type>(
+                    &self.address, __gh_entrypoint, self.config.gas_limit,
+                    &__gh_args, self.config.flags, #on_exn,
                 )
-                .or_re_throw()
+                #result_suffix
             })
         }
+    };
+    let throwing_body = call_body(
+        quote_spanned! {method.sig().span()=> ::core::convert::Infallible },
+        quote_spanned! {method.sig().span()=> |exn| ::thruput_sdk::ReThrow::re_throw(exn) },
+        quote_spanned! {method.sig().span()=> .or_re_throw() },
+    );
+    let owned_body = call_body(
+        quote_spanned! {method.sig().span()=> ::thruput_sdk::exn::RawException },
+        quote_spanned! {method.sig().span()=> |exn| exn.to_owned() },
+        quote_spanned! {method.sig().span()=>},
+    );
+    let mapped_body = call_body(
+        quote_spanned! {method.sig().span()=> #exception_ident },
+        quote_spanned! {method.sig().span()=> self.on_exn },
+        quote_spanned! {method.sig().span()=>},
+    );
 
-        // This method-wrapper returns a Result so that exceptions may be
-        // inspected.
-        ///
+    let ordinary = quote_spanned! {method.sig().span()=>
+        #[cfg_attr(test, track_caller)]
+        pub fn #ident(&self, #(#sent_params),* ) #sig_output {
+            #throwing_body
+        }
+
         /// An `Err` may hold a caught exception, kept untyped as an owned
         /// [`RawException`](::thruput_sdk::exn::RawException) — see that
         /// type's docs for size/ownership, and
@@ -281,22 +370,23 @@ fn generate_client_fn(
         /// declares it `throws`.
         #[allow(clippy::result_large_err)]
         #[cfg_attr(test, track_caller)]
-        pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, ::thruput_sdk::call::CallError>
-        {
-            let __gh_entrypoint = #entrypoint_lit;
-            let __gh_args = #args_tuple;
-
-            #log_call
-
-            with_call_tracking!(#call_info, {
-                // The exception is copied out of the call scratch verbatim
-                // and decoded on demand, rather than eagerly downcast to a
-                // type this interface happens to declare.
-                ::thruput_sdk::call::try_call_raw_with::<_, #return_type, ::thruput_sdk::exn::RawException>(
-                    &self.address, __gh_entrypoint, self.config.gas_limit, &__gh_args, self.config.flags,
-                    |exn| exn.to_owned(),
-                )
-            })
+        pub fn #try_ident(&self, #(#sent_params),* ) -> ::core::result::Result<#return_type, ::thruput_sdk::call::CallError> {
+            #owned_body
         }
-    })
+    };
+
+    let mapped = quote_spanned! {method.sig().span()=>
+        /// Call once, mapping a borrowed exception before releasing the call scratch.
+        /// See [`MapExceptions`](::thruput_sdk::MapExceptions).
+        #[allow(clippy::result_large_err)]
+        #[cfg_attr(test, track_caller)]
+        pub fn #try_ident<#exception_ident>(self, #(#sent_params),*)
+            -> ::core::result::Result<#return_type, ::thruput_sdk::call::RawCallError<#exception_ident>>
+        where
+            #handler_ident: for<'s> ::core::ops::FnOnce(::thruput_sdk::exn::RawExceptionRef<'s>) -> #exception_ident,
+        {
+            #mapped_body
+        }
+    };
+    Ok((ordinary, mapped))
 }

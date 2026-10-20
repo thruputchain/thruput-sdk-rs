@@ -114,6 +114,38 @@ Two things that look like features are keyed on the target instead:
 
 # Allocation
 
+### Stack and heap budgets
+
+Each RV32 invocation shares a fixed memory budget between stack, static data
+and heap. Increasing the stack reserve reduces heap capacity; enabling `alloc`
+does not increase memory. See the runtime
+[stack and memory configuration](https://github.com/thruputchain/thruput-sdk-rs/blob/main/crates/rv32-runtime/src/lib.rs)
+for defaults and overrides.
+
+Without `alloc`, SDK call scratch and entrypoint calldata use fixed buffers
+of about 4 KiB. An owned [`exn::RawException`] also holds an inline buffer of
+about 4 KiB. Result temporaries and nested calls can keep several buffers on
+the stack, even when the exception payload itself is small. Inlining can keep
+those slots in a caller's frame after their values are no longer live, so
+source scopes alone do not establish peak stack use.
+
+| Need | Choice |
+| --- | --- |
+| Bounded, short-lived values and scratch | Stack storage is appropriate; budget the whole call chain. |
+| Classify a caught exception immediately | [`MapExceptions`] returns a compact value without retaining its wire buffer. |
+| Keep the full exception for later | Ordinary `try_*` retains an owned error; account for its storage. |
+| Dynamic collections or larger working buffers | Enable `alloc` and bound cumulative allocation per invocation. |
+
+The guest allocator does not reclaim dropped values during an invocation.
+SDK call scratch is pooled under `alloc`, but other allocations, including
+owned exceptions and collection growth, can accumulate. Construct large
+buffers directly in heap storage: `Box::new(large_value)` can still create a
+large stack temporary.
+
+Native tests enable `dev`, which enables `alloc`, and do not establish guest
+stack headroom. Test release RV32 artifacts with maximum inputs, nested calls
+and error paths.
+
 ### Static
 
 Static allocations are facilitated in contracts by [`ContractCell`] and
@@ -199,7 +231,7 @@ Client naming defaults:
 # Calling And Errors
 
 [`ContractClient`] is the low-level call surface. Most code goes through a
-generated client, which exposes two calling styles:
+generated client, which exposes these calling styles:
 
 - `client.method(...)`: success-oriented path. Typed exceptions are re-thrown to
   the caller, and faults stay faults.
@@ -207,6 +239,10 @@ generated client, which exposes two calling styles:
   `Result<ReturnType, CallError>`. A caught exception stays undecoded: match
   it with [`match_exn!`], or decode it as a named type with `try_as` /
   `try_decode`.
+- `client.map_exceptions(classify).try_method(...)`: returns
+  `Result<ReturnType, RawCallError<X>>`, where the mapper produces `X`
+  from a borrowed [`exn::RawExceptionRef`]. See [`MapExceptions`] for the
+  callback contract.
 
 ```rust,ignore
 match token.try_transfer(&to, amount) {
@@ -218,6 +254,31 @@ match token.try_transfer(&to, amount) {
         _ => e.re_throw(),
     }),
 }
+```
+
+When only a classification is needed, avoid retaining the full exception:
+
+```rust,no_run
+# #![allow(unexpected_cfgs)]
+# use thruput_sdk::*;
+# #[contract_exception]
+# pub enum ERC20Error { TooLarge = 1 }
+# #[contract]
+# pub trait Token { fn transfer(to: &ContractAddress, amount: u64); }
+# fn example(token: TokenClient, to: ContractAddress, amount: u64) {
+let outcome = token.map_exceptions(|exn| {
+    match_exn!(exn, {
+        ERC20Error::TooLarge => true,
+        _ => exn.re_throw(),
+    })
+}).try_transfer(&to, amount);
+
+match outcome {
+    Ok(()) => { /* ... */ }
+    Err(RawCallError::Exception(true)) => { /* handle TooLarge */ }
+    Err(other) => { /* handle call faults and other failures */ }
+}
+# }
 ```
 
 Everything structural — `Ok`, `Fault`, `Invalid` — stays an ordinary Rust

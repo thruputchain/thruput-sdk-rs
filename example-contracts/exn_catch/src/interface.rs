@@ -35,7 +35,18 @@ pub trait ExnCatch {
     /// 0 success, 1 fault, 2/3 `AlphaError`, 4 `BetaError`, 5
     /// `Undeclared`, 6 `LibraryExn`, 7 anything else.
     ///
-    /// This is the method the artifact exists for: the whole dispatch
-    /// happens here, in guest code.
+    /// Exercises owned exception dispatch in guest code.
     fn classify(target: ContractAddress, which: u32) -> u32;
+
+    /// The same classification using a borrowed exception mapper.
+    fn classify_mapped(target: ContractAddress, which: u32) -> u32;
+
+    /// Classify with the mapper, then encode a new typed rejection.
+    fn classify_then_throw(target: ContractAddress, which: u32);
+
+    /// Forward an undeclared exception through the borrowed mapper unchanged.
+    fn rethrow(target: ContractAddress);
+
+    fn fault();
+    fn malformed_abort();
 }

@@ -10,13 +10,16 @@
 //! The contract macro also constructs "client" stub-objects which
 //! can be used to call other contracts with the provided trait interface.
 //!
-//! Generated clients expose two call styles:
+//! Generated clients expose three call styles:
 //! - `client.method(...)`: success-oriented path; typed exceptions are
 //!   re-thrown and faults stay faults
 //! - `client.try_method(...)`: inspection path;
 //!   `Result<ReturnType, CallError>`, where a caught exception stays an
 //!   untyped [`RawException`](crate::exn::RawException) to be matched with
 //!   [`match_exn!`](crate::match_exn)
+//!
+//! `client.map_exceptions(classify).try_method(...)` maps a borrowed exception
+//! to a caller-chosen value, avoiding the owned buffer. See [`MapExceptions`].
 //!
 //! The procedure for a call is:
 //!
