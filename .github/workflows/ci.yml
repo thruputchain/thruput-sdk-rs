@@ -46,23 +46,13 @@ jobs:
       matrix:
         include:
           # rv32 example builds + spec-artifact checks + embedded-string
-          # scan + native example tests.
+          # scan + native example tests + domain-collision, duplicate-
+          # entrypoint, and registry-stripped checks.
           - name: examples-test
             submodules: false
             skips: >-
-              SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_BOTTLE_EXAMPLES=1
-              SKIP_DOMAIN_COLLISION=1 SKIP_DUP_ENTRYPOINT=1
-              SKIP_REGISTRY_STRIPPED=1
+              SKIP_SDK_TESTS=1 SKIP_DOCS=1
               SKIP_INTEGRATION=1 SKIP_LOGGING=1
-              SKIP_QUALITY=1 SKIP_MACROS_GUEST=1 SKIP_SDK_RV32=1
-          # Bottle tests + domain-collision + registry-stripped. The bottle
-          # tests build their own rv32 artifact pair per contract, so this
-          # job needs no example build of its own.
-          - name: examples-bottle
-            submodules: false
-            skips: >-
-              SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_RV32_EXAMPLES=1
-              SKIP_TEST_EXAMPLES=1 SKIP_INTEGRATION=1 SKIP_LOGGING=1
               SKIP_QUALITY=1 SKIP_MACROS_GUEST=1 SKIP_SDK_RV32=1
           # Guest build of thruput-sdk + docs + full integration block + logging
           # build + lint/fmt/xxx. Carries the rv32 thruput-sdk build for the matrix:
@@ -175,8 +165,7 @@ jobs:
 
   # Main pushes only, off the PR critical path. Self-contained: rebuilds the
   # rv32 example artifacts and the full integration block (metrics.sh's
-  # sdk_perf_gas re-runs example AND integration bottle tests, and the codesize
-  # metrics read the rv32 release ELFs and target/thruput).
+  # codesize metrics read the rv32 release ELFs and target/thruput).
   metrics:
     needs: dependency-policy # check deps before building anything
     if: github.ref == 'refs/heads/main'
@@ -239,7 +228,7 @@ jobs:
       - name: Build metrics inputs
         run: >-
           env SKIP_SDK_TESTS=1 SKIP_DOCS=1 SKIP_TEST_EXAMPLES=1
-          SKIP_BOTTLE_EXAMPLES=1 SKIP_DOMAIN_COLLISION=1
+          SKIP_DOMAIN_COLLISION=1
           SKIP_DUP_ENTRYPOINT=1
           SKIP_REGISTRY_STRIPPED=1 SKIP_LOGGING=1
           SKIP_QUALITY=1 ./scripts/ci.sh
@@ -250,7 +239,5 @@ jobs:
           # pass the real branch (matches the old hog `git_branch`).
           GIT_BRANCH: ${{ github.ref_name }}
         run: |
-          # ci.sh's PATH export doesn't survive into this step; re-expose the
-          # cached CLI in case bottle re-runs ever shell out to it.
           export PATH="${THRUPUT_CLI_ROOT}/bin:${PATH}"
           ./scripts/metrics.sh

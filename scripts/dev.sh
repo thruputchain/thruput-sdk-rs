@@ -108,7 +108,7 @@ build_rv32() {
         # The CLI itself passes --no-default-features and the package's
         # entrypoints (or rv32-entrypoints) feature — see the build_flags it
         # records in the .rv32.json sidecar. Callers may pass extra trailing
-        # cargo args (e.g. `-F bottle-test`), which are additive on top.
+        # cargo args, which are additive on top.
         #
         # build-std passes through as trailing cargo args, exactly like
         # hogd's build_risc.sh: the rv32 rustflags use panic=immediate-abort
@@ -894,52 +894,6 @@ itc_test_all() {
     )
 }
 
-### BOTTLE TEST ###
-
-BOTTLE_TEST="${TARGET_DIR}/bottle-test"
-
-# Builds the contract twice for rv32 and runs the pair through the harness:
-#
-#   <stem>.target.rv32a   the contract under measurement (entrypoints only)
-#   <stem>.tester.rv32a   the same contract plus the BottleTest entrypoints
-#                         that drive it (the package's `bottle-test` feature)
-#
-# `thruput build` writes both to the same target/thruput/<stem>.rv32a, so
-# each is copied aside before the next build overwrites it — the same staging
-# scripts/bigint-bench.sh does for its per-variant artifacts.
-#
-# `package` is the contract package (e.g. erc20); its `[[bin]]` name is the
-# underscored package name, which is the artifact stem.
-bottle_test_contract() {
-    local workspace_dir package
-    workspace_dir="$1"; shift
-    package="$1"; shift
-
-    info "BOTTLE-TEST $package"
-
-    require_thruput_cli || return 1
-
-    local stem="${package//-/_}"
-
-    mkdir -p "$BOTTLE_TEST" &&
-
-    build_rv32 "$workspace_dir" "$package" "$@" &&
-    cp "${LOWERED}/${stem}.rv32a" "${BOTTLE_TEST}/${stem}.target.rv32a" &&
-
-    build_rv32 "$workspace_dir" "$package" -F bottle-test "$@" &&
-    cp "${LOWERED}/${stem}.rv32a" "${BOTTLE_TEST}/${stem}.tester.rv32a" &&
-
-    cargo run -p bottle-test --profile dev "$stem"
-}
-
-has_bottle_test() {
-    local contract cargo_toml
-    contract="$1"; shift
-    cargo_toml="$contract/Cargo.toml"
-
-    grep -s "^bottle-test = " "$cargo_toml" >/dev/null
-}
-
 ls_contract_packages() {
     local contracts_dir
     contracts_dir="$1"; shift
@@ -956,34 +910,6 @@ ls_contract_packages() {
         [ "$c" != "target" ] || continue;
 
         echo "$c"
-    done
-}
-
-# The bottle-tested example contracts are the rv32 wrapper packages that
-# declare a `bottle-test` feature (which forwards to the library's).
-eg_bottle_test_all() {
-    local package
-    for package in $(ls_rv32_packages "${SDK_DIR}/example-contracts"); do
-        has_bottle_test "example-contracts/$package" || continue
-        [ ! -f "example-contracts/$package/disabled-bottle" ] || continue
-
-        bottle_test_contract "${SDK_DIR}/example-contracts" "$package" ||
-            return 1
-    done
-}
-
-# integration_test contracts host their own rv32 bin (see
-# ls_itc_rv32_packages), so the bottle-test feature lives on the contract
-# package itself rather than on a sibling wrapper.
-itc_bottle_test_all() {
-    local package
-    for package in $(ls_itc_rv32_packages); do
-        has_bottle_test "integration_test/contracts/$package" || continue
-        [ ! -f "integration_test/contracts/$package/disabled-bottle" ] ||
-            continue
-
-        bottle_test_contract "${SDK_DIR}/integration_test" "$package" ||
-            return 1
     done
 }
 
@@ -1046,7 +972,6 @@ check_all() {
     { skip EXAMPLES || {
         { skip RV32_EXAMPLES || eg_build_rv32_all; } &&
         { skip TEST_EXAMPLES || eg_test_all; } &&
-        { skip BOTTLE_EXAMPLES || eg_bottle_test_all; } &&
         { skip DOMAIN_COLLISION || bash "${SDK_DIR}/scripts/check-domain-collision-detected.sh"; } &&
         { skip DUP_ENTRYPOINT || bash "${SDK_DIR}/scripts/check-duplicate-entrypoint-detected.sh"; } &&
         { skip REGISTRY_STRIPPED || bash "${SDK_DIR}/scripts/check-storage-registry-stripped.sh"; }
@@ -1054,8 +979,7 @@ check_all() {
 
     { skip INTEGRATION || {
         { skip RV32_INTEGRATION || itc_build_rv32_all; } &&
-        itc_test_all &&
-        itc_bottle_test_all
+        itc_test_all
     }; } &&
 
     { skip LOGGING || logging_test_build; } &&
@@ -1266,18 +1190,11 @@ if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
                 test_package
             fi
             ;;
-        bottle-test)
-            bottle_test_contract "$@"
-            ;;
         test-examples)
             eg_test_all
             ;;
         test-itc)
             itc_test_all "$@"
-            ;;
-        run-bottle-tests)
-            eg_bottle_test_all &&
-                itc_bottle_test_all
             ;;
         bigint-bench)
             bigint_bench "$@"

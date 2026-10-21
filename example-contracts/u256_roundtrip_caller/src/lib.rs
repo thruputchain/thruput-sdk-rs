@@ -1,32 +1,28 @@
 //! Guest-to-guest coverage for the 256-bit ABI.
 //!
-//! Every other `U256`/`I256` test in this repo drives the contract from the
-//! host, so the generated client's *encode* side runs as native x86 code and
-//! only the callee half is ever compiled for rv32. Here the caller is itself
-//! a contract: `U256RoundtripClient` is built for the guest, so the argument
-//! encoding, the cross-contract call, and the return decode all run on the
-//! target a deployed contract runs on. Eight 32-bit limbs, big-endian, on a
-//! 32-bit machine -- the half nothing else exercises.
+//! Every `U256`/`I256` test that drives `u256_roundtrip` from the host runs
+//! the generated client's *encode* side as native code, so only the callee
+//! half is ever compiled for rv32. Here the caller is itself a contract:
+//! `U256RoundtripClient` is built for the guest, so the argument encoding,
+//! the cross-contract call, and the return decode all run on the target a
+//! deployed contract runs on. Eight 32-bit limbs, big-endian, on a 32-bit
+//! machine -- the half nothing else exercises.
 //!
-//! `erc20`'s bottle test does not cover this: its amounts are `u128`/`i128`.
-//!
-//! One thing to know when this fails: contracts build with
+//! One thing to know when `tests/rv32.rs` fails: contracts build with
 //! `panic=immediate-abort`, so a tripped assertion traps rather than
-//! reporting itself, and the harness surfaces only `child frame faulted`.
-//! It tells you the guest-to-guest path broke, not which line. Bisect by
-//! commenting legs out, or reach for the host-driven `tests/rv32.rs` first,
-//! which names the values it compared.
+//! reporting itself, and the test surfaces only `child frame faulted`. It
+//! tells you the guest-to-guest path broke, not which line. `tests/native.rs`
+//! runs the same checks with both contracts as host mocks; if it passes,
+//! the fault is in the guest path. Bisect by commenting legs out, or reach
+//! for `u256_roundtrip`'s host-driven `tests/rv32.rs`, which names the
+//! values it compared.
 
-use crate::U256RoundtripClient;
-pub use bottle_test_if::*;
-use thruput_sdk::storage::Value;
+#![cfg_attr(not(feature = "dev"), no_std)]
+
+thruput_sdk::declare_mock_contract!();
+
 use thruput_sdk::*;
-
-#[derive(Debug)]
-#[storage]
-pub struct BT {
-    target_addr: Value<Option<ContractAddress>>,
-}
+use u256_roundtrip::U256RoundtripClient;
 
 /// A negative value that is *not* its own negation, so the signed leg pins
 /// the sign surviving the call rather than only the bit pattern.
@@ -37,20 +33,14 @@ const ASYMMETRIC: i128 = -0x0DEA_DBEE_F001_1223_3445_5667_7889_9AAB;
 /// truncation in the guest-side encode shows up rather than cancelling.
 const UNSIGNED: u128 = 0xDEAD_BEEF_0011_2233_4455_6677_8899_AABB;
 
-#[contract(exports = "bottle_exports")]
-impl BottleTest for BT {
-    fn setup(&mut self, target_contract_hash: &SHA256Hash) {
-        let nonce: SHA256Hash = [7; 32].into();
-        let target_addr = deploy_contract(&nonce, target_contract_hash);
+pub struct U256RoundtripCaller;
 
-        self.target_addr.set(&Some(target_addr));
-    }
-
-    fn run(&mut self) {
-        let target_addr = self.target_addr.get().unwrap_or_else(||
-            panic!("bottle-test: target_addr unset; please run setup() before run()"));
-
-        let client = U256RoundtripClient::new(&target_addr);
+#[contract(client = U256RoundtripCallerClient)]
+impl U256RoundtripCaller {
+    /// Round-trip unsigned and signed 256-bit values through the
+    /// `u256_roundtrip` contract at `target`, trapping on any mismatch.
+    pub fn run(target: &ContractAddress) {
+        let client = U256RoundtripClient::new(target);
 
         // `assert!(a == b)` rather than `assert_eq!`: contracts build with
         // `panic=immediate-abort`, so the message is discarded either way,

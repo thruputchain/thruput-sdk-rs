@@ -8,6 +8,3 @@ pub use implementation::HasherClient;
 pub use implementation::HasherImplEntrypoints;
 
 pub use implementation::HasherImpl;
-
-#[cfg(feature = "bottle-test")]
-mod bottle_test;

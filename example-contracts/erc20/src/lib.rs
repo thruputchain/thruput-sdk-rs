@@ -26,6 +26,3 @@ pub use implementation::TokenContract;
 
 // Re-export the ERC20 trait so tests can write `dyn erc20::ERC20`
 pub use interface::ERC20;
-
-#[cfg(feature = "bottle-test")]
-pub use erc20_bottle_test::*;

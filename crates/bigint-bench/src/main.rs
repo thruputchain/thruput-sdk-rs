@@ -11,8 +11,7 @@
 //!
 //! Artifacts are discovered as `<backend>.<op>.rv32a` in `--dir`. Each is
 //! deployed into its own [`TestEnvironment`] and invoked once; gas is read from
-//! `stats::gas_remaining()` either side of the call, exactly as
-//! `crates/bottle-test` does for the example contracts.
+//! `stats::gas_remaining()` either side of the call.
 //!
 //! Two rows per backend matter. `<backend>.none` is the calibration build: the
 //! same loop with an identity operation, so it carries the entrypoint dispatch,

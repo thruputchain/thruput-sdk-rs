@@ -24,8 +24,7 @@ set -euo pipefail
 #
 # Run from the SDK's top-level directory. Requires the pinned Thruput CLI
 # (scripts/ci.sh installs it), llvm-readelf or readelf on PATH, and whatever
-# `thruput-sdk`'s `dev` feature needs to stand up the mock node -- the same
-# set the bottle tests already require.
+# `thruput-sdk`'s `dev` feature needs to stand up the mock node.
 
 SDK_DIR="$(realpath ".")"
 TARGET_DIR="$(realpath "target")"

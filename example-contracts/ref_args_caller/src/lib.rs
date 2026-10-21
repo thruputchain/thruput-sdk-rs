@@ -1,40 +1,35 @@
-//! RV32 end-to-end check of the by-reference methods: the tester deploys
-//! the plain build and calls each one, so the guest decodes every kind of
-//! `&T` parameter from real calldata, and checks that the borrowed ones
+//! RV32 end-to-end check of `ref_args`'s by-reference methods: this contract
+//! calls each one on a deployed `ref_args`, so the guest decodes every kind
+//! of `&T` parameter from real calldata, and checks that the borrowed ones
 //! point into it.
+//!
+//! A failed check traps (contracts build with `panic=immediate-abort`), so
+//! `tests/rv32.rs` reports only that the call faulted. `tests/native.rs`
+//! runs the same checks with both contracts as host mocks, and
+//! `ref_args`'s own tests name the values they compare.
 
-use crate::{Bytes, Label, Point, RefArgsClient, Words, expected};
-pub use bottle_test_if::*;
-use thruput_sdk::storage::Value;
+#![cfg_attr(not(feature = "dev"), no_std)]
+
+extern crate alloc;
+
+thruput_sdk::declare_mock_contract!();
+
+use ref_args::{Bytes, Label, Point, RefArgsClient, Words, expected};
 use thruput_sdk::xdr::{BytesM, VecM};
 use thruput_sdk::*;
 
-#[derive(Debug)]
-#[storage]
-pub struct BT {
-    target_addr: Value<Option<ContractAddress>>,
-}
+pub struct RefArgsCaller;
 
-#[contract(exports = "bottle_exports")]
-impl BottleTest for BT {
-    fn setup(&mut self, target_contract_hash: &SHA256Hash) {
-        let nonce: SHA256Hash = [7; 32].into();
-        let target_addr = deploy_contract(&nonce, target_contract_hash);
-
-        self.target_addr.set(&Some(target_addr));
-    }
-
-    fn run(&mut self) {
-        let target_addr = self.target_addr.get().unwrap_or_else(|| {
-            panic!(
-                "bottle-test: target_addr unset; please run setup() before run()"
-            )
-        });
-        let client = RefArgsClient::new(&target_addr);
+#[contract(client = RefArgsCallerClient)]
+impl RefArgsCaller {
+    /// Call every by-reference method of the `ref_args` contract at
+    /// `target`, trapping on any wrong result.
+    pub fn run(target: &ContractAddress) {
+        let client = RefArgsClient::new(target);
 
         // Bounded vectors, alone and mixed with owned and borrowed params.
         let bytes = Bytes::from_slice(&[1, 2, 3, 250])
-            .unwrap_or_else(|_| panic!("bottle-test: bytes over capacity"));
+            .unwrap_or_else(|_| panic!("bytes over capacity"));
         let words: Words = VecM(alloc::vec![10, 20, 30]);
         assert_eq!(client.sum_bytes(&bytes), 256);
         assert_eq!(client.sum_words(&words), 60);
@@ -77,10 +72,10 @@ impl BottleTest for BT {
         );
         let label: Label = "hello"
             .try_into()
-            .unwrap_or_else(|_| panic!("bottle-test: label over capacity"));
+            .unwrap_or_else(|_| panic!("label over capacity"));
         let blob: BytesM<16> = alloc::vec![1u8, 2, 3]
             .try_into()
-            .unwrap_or_else(|_| panic!("bottle-test: blob over capacity"));
+            .unwrap_or_else(|_| panic!("blob over capacity"));
         assert_eq!(client.text_lengths(&label, &blob), 8);
         let more = [Point { x: 3, y: 4 }, Point { x: 5, y: 6 }];
         assert_eq!(client.points(&Point { x: 1, y: 2 }, &more), 21);
@@ -97,13 +92,13 @@ impl BottleTest for BT {
         let more_list: VecM<&[u8], 4> = VecM(alloc::vec![&second[..]]);
         let (total, gap) = client.byte_string_lists(list.clone(), &more_list);
         assert_eq!(total, 11);
-        let encoded = thruput_sdk::encode_xdr(&list)
-            .unwrap_or_else(|_| panic!("bottle-test: list encodes"));
+        let encoded =
+            encode_xdr(&list).unwrap_or_else(|_| panic!("list encodes"));
         let at = |needle: &[u8]| {
             encoded
                 .windows(needle.len())
                 .position(|w| w == needle)
-                .unwrap_or_else(|| panic!("bottle-test: marker missing"))
+                .unwrap_or_else(|| panic!("marker missing"))
         };
         assert_eq!(gap as usize, at(&second) - at(&first));
     }

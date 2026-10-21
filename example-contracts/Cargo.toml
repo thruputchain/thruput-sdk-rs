@@ -24,6 +24,7 @@ members = [
     "test_bytestring",
     "trait_sourced_method_spec",
     "u256_roundtrip",
+    "u256_roundtrip_caller",
     "stateless",
     "split_module_iface",
     "codegen_trait_noclient",
@@ -42,11 +43,13 @@ members = [
     "free_fn_unnamed",
     "spec_named_types",
     "ref_args",
+    "ref_args_caller",
     "recursive_type",
     "versioned_callee",
     "versioned_caller",
     "versioned_interface",
     "versioned_impl",
+    "versioned_impl_caller",
     "imported_error_type",
     "imported_error_callee",
     "imported_error_caller",
@@ -88,7 +91,8 @@ members = [
 
 exclude = [
     # Cargo workspaces cannot contain two packages with the same name.
-    # This second release is a path dependency of versioned_impl instead.
+    # This second release is a path dependency of versioned_impl and
+    # versioned_impl_caller instead.
     "versioned_interface_v2",
     "multi_root_collision",
     "cross_crate_collision",
@@ -130,9 +134,7 @@ thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit"
 thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.63" }
 
 erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.52.4" }
-erc20-bottle-test = { path = "../standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.52.4" }
 erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.52.4" }
-bottle-test-if = { path = "../crates/bottle-test-if", registry = "thruput", version = "=0.52.4" }
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # External groundhog dependencies

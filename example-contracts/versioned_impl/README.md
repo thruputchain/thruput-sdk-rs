@@ -33,10 +33,13 @@ From the repository root, run the native test:
 cargo test --manifest-path example-contracts/Cargo.toml -p versioned_impl --locked
 ```
 
-To exercise the same calls between two deployed RV32 contracts:
+To exercise the same calls between two deployed RV32 contracts, build the
+RV32 examples and run `versioned_impl_caller`'s tests. That contract calls
+both interface versions from inside the guest:
 
 ```sh
-./scripts/dev.sh bottle-test "$(pwd)/example-contracts" versioned_impl
+./scripts/dev.sh build-examples-rv32
+cargo test --manifest-path example-contracts/Cargo.toml -p versioned_impl_caller --locked
 ```
 
 The regular example CI runs both tests.

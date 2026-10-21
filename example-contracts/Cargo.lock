@@ -76,13 +76,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bottle-test-if"
-version = "0.52.4"
-dependencies = [
- "thruput-sdk",
-]
-
-[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -344,21 +337,10 @@ name = "erc20"
 version = "0.4.0"
 dependencies = [
  "erc20",
- "erc20-bottle-test",
  "erc20-native-test",
  "sha2",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
- "thruput-sdk",
-]
-
-[[package]]
-name = "erc20-bottle-test"
-version = "0.52.4"
-dependencies = [
- "bottle-test-if",
- "erc20-test",
- "thruput-erc20-if",
  "thruput-sdk",
 ]
 
@@ -407,7 +389,6 @@ dependencies = [
 name = "erc20_low_level"
 version = "0.4.0"
 dependencies = [
- "erc20-bottle-test",
  "erc20-native-test",
  "erc20_low_level",
  "thruput-erc20-if",
@@ -448,7 +429,6 @@ dependencies = [
 name = "erc20_raw_storage"
 version = "0.4.0"
 dependencies = [
- "erc20-bottle-test",
  "erc20-native-test",
  "erc20_raw_storage",
  "thruput-erc20-if",
@@ -569,7 +549,6 @@ dependencies = [
 name = "hasher"
 version = "0.4.0"
 dependencies = [
- "bottle-test-if",
  "hasher",
  "hex-literal",
  "thruput-domain-separator",
@@ -904,9 +883,17 @@ dependencies = [
 name = "ref_args"
 version = "0.4.0"
 dependencies = [
- "bottle-test-if",
  "heapless",
  "ref_args",
+ "thruput-sdk",
+]
+
+[[package]]
+name = "ref_args_caller"
+version = "0.4.0"
+dependencies = [
+ "ref_args",
+ "ref_args_caller",
  "thruput-sdk",
 ]
 
@@ -1605,9 +1592,17 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 name = "u256_roundtrip"
 version = "0.4.0"
 dependencies = [
- "bottle-test-if",
  "thruput-sdk",
  "u256_roundtrip",
+]
+
+[[package]]
+name = "u256_roundtrip_caller"
+version = "0.4.0"
+dependencies = [
+ "thruput-sdk",
+ "u256_roundtrip",
+ "u256_roundtrip_caller",
 ]
 
 [[package]]
@@ -1673,9 +1668,19 @@ dependencies = [
 name = "versioned_impl"
 version = "0.2.0"
 dependencies = [
- "bottle-test-if",
  "thruput-sdk",
  "versioned_impl",
+ "versioned_interface 0.1.0",
+ "versioned_interface 0.2.0",
+]
+
+[[package]]
+name = "versioned_impl_caller"
+version = "0.4.0"
+dependencies = [
+ "thruput-sdk",
+ "versioned_impl",
+ "versioned_impl_caller",
  "versioned_interface 0.1.0",
  "versioned_interface 0.2.0",
 ]

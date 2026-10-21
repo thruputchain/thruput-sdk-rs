@@ -138,10 +138,8 @@ The current set:
   `thruput-erc721-if`,
   `thruput-signed-op-if`, `thruput-erc20-permit-if`) and the
   `thruput-access-control`, `thruput-signed-op` and `thruput-sep41`
-  components, plus
-  `bottle-test-if` and
-  `version-mismatch-helper`, declare their own versions instead of inheriting
-  the workspace version.
+  components, plus `version-mismatch-helper`, declare their own versions
+  instead of inheriting the workspace version.
 - `thruput-rv32-runtime` is absent from `default-members`, because a
   top-level `compile_error!` rejects the host target.
 - `hex-literal` and `thiserror` pin sites under `integration_test/contracts/`
@@ -224,8 +222,8 @@ There is no hardcoded file list. The two crate families are told apart by how
 each package declares its own version: `VersionSpec::Inherited` is the
 workspace family, a literal version under `standard-interfaces/` is the
 independent interface line. That predicate must be path-scoped rather than "has
-a literal version" — `bottle-test-if` (0.1.0) and `version-mismatch-helper`
-(1.0.0) also carry literal versions and must never move.
+a literal version" — `version-mismatch-helper` (1.0.0) also carries literal
+versions and must never move.
 
 Requirements keep their operator: only the version part is rewritten, so `=`
 stays `=` and a caret stays a caret. Multi-part requirements (`>=1, <2`) are

@@ -64,7 +64,6 @@ env:
     thruput-test-vectors
     thruput-rv32-runtime
     thruput-sdk
-    bottle-test-if
   # Standard-interface crates and their implementation components: versioned
   # independently of the workspace, each published under its own
   # `<crate>-v<version>` tag. In dependency order: each implementation
@@ -88,7 +87,6 @@ env:
     thruput-spec-tool
     erc20-test
     erc20-native-test
-    erc20-bottle-test
 
 permissions:
   contents: read
@@ -183,7 +181,6 @@ jobs:
             thruput-u256
             thruput-rv32-runtime
             thruput-sdk
-            bottle-test-if
             thruput-erc20-if
             thruput-erc20-metadata-if
             thruput-erc20-pausable-if

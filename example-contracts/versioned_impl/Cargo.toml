@@ -9,7 +9,6 @@ publish = false
 [features]
 entrypoints = []
 dev = ["thruput-sdk/dev", "adder_v1/dev", "adder_v2/dev"]
-bottle-test = ["dep:bottle-test-if"]
 
 [lib]
 doctest = false
@@ -24,7 +23,6 @@ required-features = ["entrypoints"]
 thruput-sdk = { workspace = true }
 adder_v1 = { package = "versioned_interface", version = "=0.1.0", path = "../versioned_interface" }
 adder_v2 = { package = "versioned_interface", version = "=0.2.0", path = "../versioned_interface_v2" }
-bottle-test-if = { workspace = true, optional = true }
 
 [dev-dependencies]
 versioned_impl = { path = ".", features = ["dev"] }
