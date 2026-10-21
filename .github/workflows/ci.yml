@@ -46,13 +46,12 @@ jobs:
       matrix:
         include:
           # rv32 example builds + spec-artifact checks + embedded-string
-          # scan + native example tests.
+          # scan + native example tests + domain-collision, duplicate-
+          # entrypoint, and registry-stripped checks.
           - name: examples-test
             submodules: false
             skips: >-
               SKIP_SDK_TESTS=1 SKIP_DOCS=1
-              SKIP_DOMAIN_COLLISION=1 SKIP_DUP_ENTRYPOINT=1
-              SKIP_REGISTRY_STRIPPED=1
               SKIP_INTEGRATION=1 SKIP_LOGGING=1
               SKIP_QUALITY=1 SKIP_MACROS_GUEST=1 SKIP_SDK_RV32=1
           # Guest build of thruput-sdk + docs + full integration block + logging
