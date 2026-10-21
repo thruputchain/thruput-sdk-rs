@@ -67,9 +67,6 @@ produce_metric sdk_codesizes_rv32 "target/riscv32im-unknown-none-elf/release"
 # METRIC: sdk_codesizes_rv32_lowered
 produce_metric sdk_codesizes_rv32_lowered "target/thruput"
 
-# METRIC: sdk_perf_gas
-produce_metric sdk_perf_gas
-
 # Push metrics_history/ to groundhogchain/metrics_history.git
 cd metrics_history/
 

@@ -62,11 +62,9 @@ env:
     thruput-test-vectors
     thruput-rv32-runtime
     thruput-sdk
-    bottle-test-if
     thruput-spec-tool
     erc20-test
     erc20-native-test
-    erc20-bottle-test
 
 jobs:
   yank:

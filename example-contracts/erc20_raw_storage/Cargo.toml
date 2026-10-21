@@ -27,14 +27,10 @@ required-features = ["entrypoints"]
 [features]
 entrypoints = []
 dev = ["thruput-sdk/dev", "thruput-erc20-if/dev"]
-bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "thruput-sdk/alloc"]
 
 [dependencies]
 thruput-sdk = { workspace = true }
 thruput-erc20-if = { workspace = true }
-
-# Optional testing dependencies
-erc20-bottle-test = { workspace = true, optional = true }
 
 [dev-dependencies]
 erc20_raw_storage = { path = ".", features = ["dev"] }

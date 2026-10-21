@@ -1,7 +1,7 @@
 //! Contract methods that take their arguments by reference.
 //!
 //! Every kind of `&T` parameter the SDK accepts, so host tests, the rv32
-//! build, and the bottle test cover each decode path:
+//! build, and the guest caller in `ref_args_caller` cover each decode path:
 //! - borrowed from the calldata buffer: `&[u8]`, `&str`, `&[u8; N]`, and the
 //!   fixed-size protocol types; `borrowed_offsets` reports where each one
 //!   points so the tests can check nothing was copied;
@@ -155,13 +155,10 @@ impl RefArgsContract {
     }
 }
 
-#[cfg(feature = "bottle-test")]
-mod bottle_test;
-
 /// Where `borrowed_offsets` must find each argument's bytes if it borrowed
 /// them from calldata: their positions in the encoded arguments. Each
 /// argument carries marker bytes that appear nowhere else in the encoding.
-#[cfg(any(feature = "dev", feature = "bottle-test"))]
+/// Shared with `ref_args_caller`, which checks the offsets from a guest.
 pub mod expected {
     use super::*;
 

@@ -18,8 +18,6 @@ members = [
 default-members = [
     "crates/bigint-bench",
     "crates/bigint-bench-if",
-    "crates/bottle-test",
-    "crates/bottle-test-if",
     "crates/contract-spec",
     "crates/contract-util",
     "crates/domain-separator",
@@ -104,9 +102,7 @@ thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thr
 thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.63" }
 # Test-support crates
 erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.52.4" }
-erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.52.4" }
 erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "thruput", version = "=0.52.4" }
-bottle-test-if = { path = "crates/bottle-test-if", registry = "thruput", version = "=0.52.4" }
 # Unpublished test crates
 bigint-bench-if = { path = "crates/bigint-bench-if" }
 

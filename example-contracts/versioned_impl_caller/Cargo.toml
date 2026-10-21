@@ -1,0 +1,34 @@
+[package]
+name = "versioned_impl_caller"
+description = "A contract calling both interface versions of versioned_impl from the guest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "adder_v1/dev", "adder_v2/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p versioned_impl_caller` derives
+# `--bin versioned_impl_caller` from the package name, so the name here must
+# stay the underscored package name. `required-features` keeps it out of
+# host builds.
+[[bin]]
+name = "versioned_impl_caller"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+adder_v1 = { package = "versioned_interface", version = "=0.1.0", path = "../versioned_interface" }
+adder_v2 = { package = "versioned_interface", version = "=0.2.0", path = "../versioned_interface_v2" }
+
+[dev-dependencies]
+versioned_impl = { path = "../versioned_impl", features = ["dev"] }
+versioned_impl_caller = { path = ".", features = ["dev"] }

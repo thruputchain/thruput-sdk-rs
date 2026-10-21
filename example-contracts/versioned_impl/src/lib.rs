@@ -23,6 +23,3 @@ impl AdderV2 for Contract {
         value + 1
     }
 }
-
-#[cfg(feature = "bottle-test")]
-mod bottle_test;

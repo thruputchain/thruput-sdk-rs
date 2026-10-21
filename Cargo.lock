@@ -95,22 +95,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bottle-test"
-version = "0.52.4"
-dependencies = [
- "bottle-test-if",
- "thruput-erc20-if",
- "thruput-sdk",
-]
-
-[[package]]
-name = "bottle-test-if"
-version = "0.52.4"
-dependencies = [
- "thruput-sdk",
-]
-
-[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -356,16 +340,6 @@ name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
-
-[[package]]
-name = "erc20-bottle-test"
-version = "0.52.4"
-dependencies = [
- "bottle-test-if",
- "erc20-test",
- "thruput-erc20-if",
- "thruput-sdk",
-]
 
 [[package]]
 name = "erc20-native-test"

@@ -1,9 +1,8 @@
 Not part of the standard contract build/test loop.
 
 `scripts/dev.sh` skips packages carrying this marker (ls_contract_packages),
-which is what keeps this package out of the bottle-test sweep and
-`eg_test_all`. It is built only by scripts/bigint-bench.sh, once per
-(backend, operation) pair, and only for rv32:
+which is what keeps this package out of `eg_test_all`. It is built only by
+scripts/bigint-bench.sh, once per (backend, operation) pair, and only for rv32:
 
     scripts/dev.sh bigint-bench          # full rv32 codesize + gas sweep
     scripts/dev.sh bigint-bench-test     # host differential test only

@@ -49,13 +49,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bottle-test-if"
-version = "0.52.4"
-dependencies = [
- "thruput-sdk",
-]
-
-[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -79,7 +72,6 @@ dependencies = [
 name = "calldata_wrapper"
 version = "0.2.0"
 dependencies = [
- "bottle-test-if",
  "calldata_wrapper",
  "thruput-sdk",
 ]
@@ -332,7 +324,6 @@ checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
 name = "fibonacci"
 version = "0.2.0"
 dependencies = [
- "bottle-test-if",
  "fibonacci",
  "thruput-sdk",
 ]
@@ -585,7 +576,6 @@ checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 name = "read_only_test"
 version = "0.2.0"
 dependencies = [
- "bottle-test-if",
  "read_only_test",
  "thruput-erc20-if",
  "thruput-sdk",
@@ -771,7 +761,6 @@ dependencies = [
 name = "sha256_wrapper"
 version = "0.2.0"
 dependencies = [
- "bottle-test-if",
  "sha2",
  "sha256_wrapper",
  "thruput-sdk",

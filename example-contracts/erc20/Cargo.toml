@@ -20,7 +20,6 @@ dev = [
     "thruput-erc20-metadata-if/dev",
     "erc20-native-test/metadata"
     ]
-bottle-test = ["dep:erc20-bottle-test", "erc20-bottle-test/entrypoints", "thruput-sdk/alloc"]
 metadata = ["dep:thruput-erc20-metadata-if"]
 
 [lib]
@@ -40,9 +39,6 @@ required-features = ["entrypoints"]
 thruput-sdk = { workspace = true }
 thruput-erc20-if = { workspace = true }
 thruput-erc20-metadata-if = { workspace = true, optional = true }
-
-# Optional testing dependencies
-erc20-bottle-test = { workspace = true, optional = true }
 
 [dev-dependencies]
 erc20 = { path = ".", features = ["dev", "metadata"] }

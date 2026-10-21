@@ -1,0 +1,37 @@
+[package]
+name = "u256_roundtrip_caller"
+description = "A contract calling u256_roundtrip, so the 256-bit client encode and decode run in the guest"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "u256_roundtrip/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p u256_roundtrip_caller` derives
+# `--bin u256_roundtrip_caller` from the package name, so the name here must
+# stay the underscored package name. `required-features` keeps it out of
+# host builds.
+[[bin]]
+name = "u256_roundtrip_caller"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+u256_roundtrip = { path = "../u256_roundtrip" }
+
+[dev-dependencies]
+u256_roundtrip_caller = { path = ".", features = ["dev"] }

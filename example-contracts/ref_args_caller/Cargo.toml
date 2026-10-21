@@ -1,0 +1,37 @@
+[package]
+name = "ref_args_caller"
+description = "A contract calling ref_args, so the by-reference decode paths run on real guest-to-guest calldata"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "ref_args/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p ref_args_caller` derives
+# `--bin ref_args_caller` from the package name, so the name here must stay
+# the underscored package name. `required-features` keeps it out of host
+# builds.
+[[bin]]
+name = "ref_args_caller"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true, features = ["alloc"] }
+ref_args = { path = "../ref_args" }
+
+[dev-dependencies]
+ref_args_caller = { path = ".", features = ["dev"] }
