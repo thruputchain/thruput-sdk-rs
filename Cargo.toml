@@ -44,7 +44,7 @@ default-members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.52.3"
+version = "0.52.4"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["thruput"]
@@ -54,7 +54,7 @@ keywords = ["thruput"]
 categories = ["blockchain"]
 
 [workspace.dependencies]
-thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.62" }
+thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.63" }
 # Thruput crates from local repository
 #
 # These version numbers need to match the overall workspace package
@@ -75,49 +75,49 @@ thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls
 # previously-published versions will be incompatible with the new
 # SDK.)
 #
-thruput-sdk = { path = "crates/sdk", registry = "thruput", version = "=0.52.3" }
-thruput-macros = { path = "crates/macros", registry = "thruput", version = "=0.52.3" }
-thruput-contract-util = { path = "crates/contract-util" , registry = "thruput", version = "=0.52.3" }
-thruput-contract-spec = { path = "crates/contract-spec", registry = "thruput", version = "=0.52.3", default-features = false }
-thruput-native-exec = { path = "crates/native-exec" , registry = "thruput", version = "=0.52.3" }
-thruput-sys = { path = "crates/hogd-sys" , registry = "thruput", version = "=0.52.3" }
-thruput-storage-cost = { path = "crates/storage-cost" , registry = "thruput", version = "=0.52.3" }
-thruput-event = { path = "crates/event", registry = "thruput", version = "=0.52.3" }
-thruput-exn = { path = "crates/exn", registry = "thruput", version = "=0.52.3" }
-thruput-rv32-runtime = { path = "crates/rv32-runtime", registry = "thruput", version = "=0.52.3" }
-thruput-spec-tool = { path = "crates/spec-tool", registry = "thruput", version = "=0.52.3" }
-thruput-domain-separator = { path = "crates/domain-separator", registry = "thruput", version = "=0.52.3" }
-thruput-test-vectors = { path = "crates/test-vectors", registry = "thruput", version = "=0.52.3" }
-thruput-u256 = { path = "crates/u256", registry = "thruput", version = "=0.52.3", default-features = false }
+thruput-sdk = { path = "crates/sdk", registry = "thruput", version = "=0.52.4" }
+thruput-macros = { path = "crates/macros", registry = "thruput", version = "=0.52.4" }
+thruput-contract-util = { path = "crates/contract-util" , registry = "thruput", version = "=0.52.4" }
+thruput-contract-spec = { path = "crates/contract-spec", registry = "thruput", version = "=0.52.4", default-features = false }
+thruput-native-exec = { path = "crates/native-exec" , registry = "thruput", version = "=0.52.4" }
+thruput-sys = { path = "crates/hogd-sys" , registry = "thruput", version = "=0.52.4" }
+thruput-storage-cost = { path = "crates/storage-cost" , registry = "thruput", version = "=0.52.4" }
+thruput-event = { path = "crates/event", registry = "thruput", version = "=0.52.4" }
+thruput-exn = { path = "crates/exn", registry = "thruput", version = "=0.52.4" }
+thruput-rv32-runtime = { path = "crates/rv32-runtime", registry = "thruput", version = "=0.52.4" }
+thruput-spec-tool = { path = "crates/spec-tool", registry = "thruput", version = "=0.52.4" }
+thruput-domain-separator = { path = "crates/domain-separator", registry = "thruput", version = "=0.52.4" }
+thruput-test-vectors = { path = "crates/test-vectors", registry = "thruput", version = "=0.52.4" }
+thruput-u256 = { path = "crates/u256", registry = "thruput", version = "=0.52.4", default-features = false }
 # Standard interfaces (also this repository)
-thruput-erc165-if = { path = "standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.62" }
-thruput-erc20-if = { path = "standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.62" }
-thruput-erc20-metadata-if = { path = "standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.62" }
-thruput-erc20-pausable-if = { path = "standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.62" }
-thruput-access-control-if = { path = "standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.62" }
-thruput-signed-op-if = { path = "standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.62" }
-thruput-erc20-permit-if = { path = "standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.62" }
-thruput-erc721-if = { path = "standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.62" }
+thruput-erc165-if = { path = "standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.63" }
+thruput-erc20-if = { path = "standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.63" }
+thruput-erc20-metadata-if = { path = "standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.63" }
+thruput-erc20-pausable-if = { path = "standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.63" }
+thruput-access-control-if = { path = "standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.63" }
+thruput-signed-op-if = { path = "standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.63" }
+thruput-erc20-permit-if = { path = "standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.63" }
+thruput-erc721-if = { path = "standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.63" }
 # Standard-interface implementation components (also this repository)
-thruput-access-control = { path = "standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.62" }
-thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.62" }
-thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.62" }
+thruput-access-control = { path = "standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.63" }
+thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.63" }
+thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.63" }
 # Test-support crates
-erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.52.3" }
-erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.52.3" }
-erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "thruput", version = "=0.52.3" }
-bottle-test-if = { path = "crates/bottle-test-if", registry = "thruput", version = "=0.52.3" }
+erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.52.4" }
+erc20-bottle-test = { path = "standard-tests/erc20-bottle-test", registry = "thruput", version = "=0.52.4" }
+erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "thruput", version = "=0.52.4" }
+bottle-test-if = { path = "crates/bottle-test-if", registry = "thruput", version = "=0.52.4" }
 # Unpublished test crates
 bigint-bench-if = { path = "crates/bigint-bench-if" }
 
 # Public XDR types must use one qualified dependency family.
 # Keep these exact so fresh consumers cannot mix incompatible XDR traits.
 # Deps from protocol-rs repo:
-thruput-spec = { registry = "thruput", version = "=0.56.4", default-features = false }
-thruput-trace = { registry = "thruput", version = "=0.56.4" }
-thruput-xdr = { registry = "thruput", version = "=0.56.4", features = ["xdrs"] }
-thruput-syscall = { registry = "thruput", version = "=0.56.4" }
-hogexec-internal = { registry = "thruput", version = "=0.56.4" }
+thruput-spec = { registry = "thruput", version = "=0.56.5", default-features = false }
+thruput-trace = { registry = "thruput", version = "=0.56.5" }
+thruput-xdr = { registry = "thruput", version = "=0.56.5", features = ["xdrs"] }
+thruput-syscall = { registry = "thruput", version = "=0.56.5" }
+hogexec-internal = { registry = "thruput", version = "=0.56.5" }
 
 # Deps from xdrs repo.  Caret rather than exact so an xdrs patch release
 # reaches consumers without an SDK release.
