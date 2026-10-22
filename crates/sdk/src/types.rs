@@ -12,6 +12,7 @@ pub use thruput_xdr::contract::ContractEntrypointID;
 pub use thruput_xdr::event;
 pub use thruput_xdr::exec_result::*;
 pub use thruput_xdr::genesis;
+pub use thruput_xdr::genesis_addresses;
 pub use thruput_xdr::retrocausal_queue::kQueueEntryMaxLen;
 pub use thruput_xdr::storage_cost::*;
 pub use thruput_xdr::storage_item::StorageDeltaFlags;

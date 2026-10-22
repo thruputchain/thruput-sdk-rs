@@ -71,7 +71,7 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// shows up as a regression.
 pub fn test_native_token_precompile(env: TestEnvironmentHandle) {
     use thruput_erc20_if::*;
-    use thruput_sdk::precompiles::{
+    use thruput_xdr::genesis_addresses::{
         ADDRESS_GENESIS_ROOT, ADDRESS_NATIVE_TOKEN,
     };
 
