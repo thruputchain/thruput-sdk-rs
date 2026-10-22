@@ -1,6 +1,6 @@
 [package]
 name = "thruput-erc165-if"
-version = "0.1.63"
+version = "0.1.64"
 edition.workspace = true
 publish.workspace = true
 authors.workspace = true
@@ -15,11 +15,11 @@ categories.workspace = true
 dev = ["thruput-sdk/dev"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.52.4" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.53.0" }
 heapless = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.52.4", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.53.0", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
