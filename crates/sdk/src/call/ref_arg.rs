@@ -94,8 +94,15 @@ borrowed_sized_ref_arg!(
     crate::types::ContractEntrypointID,
     crate::types::Ed25519PublicKey,
     crate::types::Ed25519Signature,
+    crate::types::MlDsa65PublicKey,
+    crate::types::MlDsa65Signature,
     crate::types::SHA256Hash,
 );
+
+// The scheme-tagged unions box their ML-DSA case, so they cannot be borrowed
+// from calldata; they decode by value like a `#[contract_type]`.
+impl OwnedRefArg for crate::types::PublicKey {}
+impl OwnedRefArg for crate::types::Signature {}
 
 impl<'r, const N: usize> RefArg<'r> for [u8; N] {
     type Decoded = &'r [u8; N];

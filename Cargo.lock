@@ -1209,10 +1209,12 @@ version = "0.53.0"
 name = "thruput-sdk"
 version = "0.53.0"
 dependencies = [
+ "ed25519-dalek",
  "heapless",
  "hex-literal",
  "hogexec-internal",
  "linkme",
+ "ml-dsa",
  "sha2",
  "thiserror",
  "thruput-contract-spec",

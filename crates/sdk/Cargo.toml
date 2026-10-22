@@ -52,7 +52,9 @@ linkme = { workspace = true, optional = true }
 # When running tests, enable recommended development features
 thruput-sdk = { path = ".", features = ["dev"] }
 
+ed25519-dalek = "3"
 hex-literal = { workspace = true }
+ml-dsa = { version = "0.1.1", default-features = false, features = ["alloc"] }
 thruput-contract-util = { workspace = true }
 trybuild = "1"
 version-mismatch-helper = { path = "tests/version-mismatch-helper" }

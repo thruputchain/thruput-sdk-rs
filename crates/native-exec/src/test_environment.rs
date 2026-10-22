@@ -217,11 +217,34 @@ impl DBWrapper {
         addr: &ContractAddress,
         key: &StorageKeyContractData,
     ) -> Option<WireStorageItem> {
-        let addrkey = AddressAndKey {
-            address: *addr,
-            key: StorageKey::ContractData {
+        self.get_snapshot_item(
+            addr,
+            StorageKey::ContractData {
                 contract_data_key: *key,
             },
+        )
+    }
+
+    pub fn get_snapshot_auth_data(
+        &self,
+        addr: &ContractAddress,
+    ) -> Option<AddressAuthData> {
+        match self.get_snapshot_item(addr, StorageKey::AuthData)? {
+            WireStorageItem::kItemTypeAuthData { auth_data } => {
+                Some(auth_data)
+            }
+            other => panic!("auth data key holds a non-auth item: {other:?}"),
+        }
+    }
+
+    fn get_snapshot_item(
+        &self,
+        addr: &ContractAddress,
+        key: StorageKey,
+    ) -> Option<WireStorageItem> {
+        let addrkey = AddressAndKey {
+            address: *addr,
+            key,
         };
         let serialized_addrkey = txs::encode(&addrkey).unwrap();
         let ffi_addrkey = thruput_sys::FFISerializedAddressAndKey {
@@ -723,6 +746,16 @@ impl TestEnvironment {
         key: &StorageKeyContractData,
     ) -> Option<WireStorageItem> {
         self.inner.borrow().db.get_snapshot_storage_item(addr, key)
+    }
+
+    /// Read an address's committed [`AddressAuthData`] (its registered keys
+    /// and required weight) from the current block snapshot (`None` if the
+    /// address has none).
+    pub fn get_snapshot_auth_data(
+        self: &TestEnvironmentHandle,
+        addr: &ContractAddress,
+    ) -> Option<AddressAuthData> {
+        self.inner.borrow().db.get_snapshot_auth_data(addr)
     }
 
     /// Internal: create an empty mock contract. Use `register_mock` (or the

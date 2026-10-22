@@ -108,11 +108,15 @@ pub fn set_address_required_weight(required_weight: Weight) -> SysResult<()> {
     sys::uninit_WriteAddressRequiredWeight(required_weight)
 }
 
-/// Registered keys are Ed25519 only: registering an ML-DSA key is not yet
-/// part of the protocol, so any other scheme is rejected here.
+/// The raw key bytes `ChangePublicKeyRegistration` takes for each scheme.
+///
+/// ML-DSA-65 keys (1952 bytes) are accepted by runtimes that include hogd
+/// #4539; an older runtime rejects them with `InvalidSyscallInput`, the same
+/// error this returns for a scheme the SDK does not know.
 fn key_bytes(public_key: &PublicKey) -> SysResult<&[u8]> {
     match public_key {
         PublicKey::Ed25519 { ed25519 } => Ok(ed25519.as_ref()),
+        PublicKey::MlDsa65 { mldsa65 } => Ok(mldsa65.as_slice()),
         _ => {
             Err(SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into())
         }
