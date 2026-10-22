@@ -168,7 +168,6 @@ pub mod hex;
 pub mod interface_table;
 pub mod invoke_config;
 pub mod log;
-pub mod precompiles;
 pub mod receive_auth_handles;
 pub mod rt;
 pub mod serialize;
