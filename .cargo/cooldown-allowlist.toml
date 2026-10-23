@@ -9,22 +9,3 @@ version = "0.4.5"
 [[allow.exact]]
 crate = "smallvec"
 version = "1.16.3"
-
-# First-party crates from thruputchain/xdrs on crates.io. `cooldown-check` has no
-# per-crate exemption like ../cooldown.toml's [[allow.package]], so list the
-# locked versions; drop each once it is 15 days old.
-[[allow.exact]]
-crate = "thruput-xdrs"
-version = "0.16.1"
-
-[[allow.exact]]
-crate = "thruput-xdr-common"
-version = "0.16.1"
-
-[[allow.exact]]
-crate = "thruput-xdr-derive"
-version = "0.16.1"
-
-[[allow.exact]]
-crate = "thruput-xdr-repr"
-version = "0.16.1"
