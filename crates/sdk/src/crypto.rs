@@ -5,8 +5,8 @@ pub use crate::types::SHA256Hash;
 use crate::re_throw::OrSyscallThrow;
 use crate::sys::{self, SyscallNo};
 use crate::types::{
-    CryptographicScheme, Ed25519PublicKey, Ed25519Signature, MlDsa65PublicKey,
-    MlDsa65Signature, PublicKey, Signature,
+    CryptographicScheme, Ed25519PublicKey, Ed25519Signature, PublicKey,
+    Signature,
 };
 
 pub fn sha256(input: &[u8]) -> SHA256Hash {
@@ -32,45 +32,41 @@ pub fn verify_signature_ed25519(
     .is_ok()
 }
 
-/// Verify a pure ML-DSA-65 (FIPS 204) signature with an empty context over
-/// `message`, the same check transaction authentication performs.
+/// Verify `signature` over `message` under `pk`, in `pk`'s scheme.
 ///
-/// Priced separately from Ed25519: 46,592 gas plus 160 per 136-byte SHAKE256
-/// block of the hashed input (a 66-byte prefix plus `message`), charged
-/// whether or not the signature verifies. Needs a runtime that includes hogd
-/// #4541; an older runtime refuses the scheme and this returns `false`.
-pub fn verify_signature_mldsa65(
-    pk: &MlDsa65PublicKey,
-    signature: &MlDsa65Signature,
-    message: &[u8],
-) -> bool {
-    sys::uninit_VerifySignature(
-        CryptographicScheme::MlDsa65.0,
-        signature.as_slice(),
-        pk.as_slice(),
-        message,
-    )
-    .is_ok()
-}
-
-/// Verify `signature` over `message` under `pk`, whatever its scheme.
-///
-/// Returns `false` without a syscall when the key and signature are of
-/// different schemes, or of a scheme the SDK does not know.
+/// The syscall checks the key and signature lengths against that scheme, so
+/// a signature of another scheme fails without being verified. ML-DSA-65 is
+/// pure ML-DSA with an empty context, priced at 46,592 gas plus 160 per
+/// 136-byte SHAKE256 block of a 66-byte prefix plus `message`, and needs a
+/// runtime that includes hogd #4541.
 pub fn verify_signature(
     pk: &PublicKey,
     signature: &Signature,
     message: &[u8],
 ) -> bool {
-    match (pk, signature) {
-        (
-            PublicKey::Ed25519 { ed25519: pk },
-            Signature::Ed25519 { ed25519: signature },
-        ) => verify_signature_ed25519(pk, signature, message),
-        (
-            PublicKey::MlDsa65 { mldsa65: pk },
-            Signature::MlDsa65 { mldsa65: signature },
-        ) => verify_signature_mldsa65(pk, signature, message),
-        _ => false,
+    sys::uninit_VerifySignature(
+        pk.scheme().0,
+        signature_bytes(signature),
+        public_key_bytes(pk),
+        message,
+    )
+    .is_ok()
+}
+
+/// The raw bytes of a key; empty for a scheme the SDK does not know, which
+/// the runtime rejects.
+pub(crate) fn public_key_bytes(pk: &PublicKey) -> &[u8] {
+    match pk {
+        PublicKey::Ed25519 { ed25519 } => ed25519.as_ref(),
+        PublicKey::MlDsa65 { mldsa65 } => mldsa65.as_slice(),
+        _ => &[],
+    }
+}
+
+fn signature_bytes(signature: &Signature) -> &[u8] {
+    match signature {
+        Signature::Ed25519 { ed25519 } => ed25519.as_ref(),
+        Signature::MlDsa65 { mldsa65 } => mldsa65.as_slice(),
+        _ => &[],
     }
 }

@@ -2,9 +2,7 @@
 //! and verifying signatures through the `VerifySignature` syscall.
 
 use ml_dsa::{B32, Keypair, MlDsa65};
-use thruput_sdk::crypto::{
-    verify_signature, verify_signature_ed25519, verify_signature_mldsa65,
-};
+use thruput_sdk::crypto::{verify_signature, verify_signature_ed25519};
 use thruput_sdk::*;
 use thruput_xdr::address_auth::PublicKeyConfig;
 
@@ -124,31 +122,32 @@ fn registers_and_removes_mldsa65_and_ed25519_keys() {
 fn verifies_mldsa65_signatures() {
     let env = TestEnvironment::no_cost();
     let key = mldsa65_key(3);
-    let pk = mldsa65_public(&key);
-    let sig = mldsa65_sign(&key, MSG);
-    let other_pk = mldsa65_public(&mldsa65_key(4));
-    let mut tampered = sig.into_inner();
+    let pk = mldsa65_public_key(&key);
+    let raw = mldsa65_sign(&key, MSG);
+    let other_pk = mldsa65_public_key(&mldsa65_key(4));
+    let mut tampered = raw.into_inner();
     tampered[10] ^= 1;
-    let tampered = MlDsa65Signature::from(tampered);
+    let sig = Signature::MlDsa65 {
+        mldsa65: raw.into(),
+    };
+    let tampered = Signature::MlDsa65 {
+        mldsa65: MlDsa65Signature::from(tampered).into(),
+    };
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("mldsa65_verify"))
             .run(move || {
-                assert!(verify_signature_mldsa65(&pk, &sig, MSG));
-                assert!(!verify_signature_mldsa65(&pk, &tampered, MSG));
-                assert!(!verify_signature_mldsa65(
-                    &pk,
-                    &sig,
-                    b"another message"
-                ));
-                assert!(!verify_signature_mldsa65(&other_pk, &sig, MSG));
+                assert!(verify_signature(&pk, &sig, MSG));
+                assert!(!verify_signature(&pk, &tampered, MSG));
+                assert!(!verify_signature(&pk, &sig, b"another message"));
+                assert!(!verify_signature(&other_pk, &sig, MSG));
             })
     })
     .assert_success();
 }
 
 #[test]
-fn verify_signature_dispatches_on_scheme() {
+fn verify_signature_uses_the_key_scheme() {
     let env = TestEnvironment::no_cost();
     let ed_key = ed25519_key(5);
     let pq_key = mldsa65_key(6);

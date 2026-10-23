@@ -11,7 +11,6 @@ use thruput_xdr::auth_claim::AuthClaim;
 
 pub use thruput_xdr::auth_claim::BitMap;
 pub use thruput_xdr::auth_claim::Weight;
-use thruput_xdr::syscall_error::SyscallErrorCode;
 use thruput_xdr::types::PublicKey;
 
 /// The `GetAuthClaim` syscall writes the claim into guest memory in the
@@ -108,21 +107,9 @@ pub fn set_address_required_weight(required_weight: Weight) -> SysResult<()> {
     sys::uninit_WriteAddressRequiredWeight(required_weight)
 }
 
-/// The raw key bytes `ChangePublicKeyRegistration` takes for each scheme.
-///
-/// ML-DSA-65 keys (1952 bytes) are accepted by runtimes that include hogd
-/// #4539; an older runtime rejects them with `InvalidSyscallInput`, the same
-/// error this returns for a scheme the SDK does not know.
-fn key_bytes(public_key: &PublicKey) -> SysResult<&[u8]> {
-    match public_key {
-        PublicKey::Ed25519 { ed25519 } => Ok(ed25519.as_ref()),
-        PublicKey::MlDsa65 { mldsa65 } => Ok(mldsa65.as_slice()),
-        _ => {
-            Err(SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput.into())
-        }
-    }
-}
-
+/// Register `public_key` at `pk_index`. ML-DSA-65 keys need a runtime that
+/// includes hogd #4539; an older runtime, like any runtime given a scheme it
+/// does not know, rejects the key with `InvalidSyscallInput`.
 pub fn add_address_public_key(
     pk_index: u32,
     public_key: PublicKey,
@@ -132,7 +119,7 @@ pub fn add_address_public_key(
     sys::uninit_ChangePublicKeyRegistration(
         pk_index,
         Some(&scheme.0),
-        key_bytes(&public_key)?,
+        crate::crypto::public_key_bytes(&public_key),
         Some(&key_weight),
     )
 }
