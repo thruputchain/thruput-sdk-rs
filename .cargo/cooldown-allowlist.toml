@@ -1,0 +1,11 @@
+# Keep in sync with the [[allow.exact]] entries in ../cooldown.toml.
+
+# Security fix for ctutils 0.4.3 and earlier (fixed in 0.4.4).
+[[allow.exact]]
+crate = "ctutils"
+version = "0.4.5"
+
+# Grandfathered version (remove this after 2026 Nov 9)
+[[allow.exact]]
+crate = "smallvec"
+version = "1.16.3"
