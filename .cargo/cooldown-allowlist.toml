@@ -24,3 +24,7 @@ version = "0.16.1"
 [[allow.exact]]
 crate = "thruput-xdr-derive"
 version = "0.16.1"
+
+[[allow.exact]]
+crate = "thruput-xdr-repr"
+version = "0.16.1"
