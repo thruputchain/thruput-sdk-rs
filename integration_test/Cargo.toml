@@ -49,13 +49,13 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.53.0" }
-thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.53.0", default-features = false }
+thruput-sdk = { path = "../crates/sdk" , registry = "thruput", version = "=0.53.1" }
+thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.53.1", default-features = false }
 
 thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.64" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.53.0" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.53.0" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.53.1" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.53.1" }
 
 # External groundhog dependencies
 thruput-xdr = { registry = "thruput", version = "=0.56.6", features = ["xdrs", "syscalls"] }
