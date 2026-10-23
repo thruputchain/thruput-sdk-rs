@@ -548,7 +548,7 @@ check_rv32_contract_spec_artifacts() {
     local iface_conflict_impl_json
     local free_fn_json imported_json multi_json spec_named_json genesis_json
     local erc20_json signer_callee_json signed_op_wallet_json coexist_json
-    local name_reuse_json
+    local name_reuse_json scheme_keys_json
     local phantom_method_json prerelease_json trait_sourced_json
     rv32_event_shaking_json="${thruput_dir}/event_shaking_subset.spec.json"
     rv32_typedef_shaking_json="${thruput_dir}/typedef_shaking_caller.spec.json"
@@ -567,6 +567,7 @@ check_rv32_contract_spec_artifacts() {
     trait_sourced_json="${thruput_dir}/trait_sourced_method_spec.spec.json"
     coexist_json="${thruput_dir}/typedef_ids_coexist.spec.json"
     name_reuse_json="${thruput_dir}/spec_name_reuse.spec.json"
+    scheme_keys_json="${thruput_dir}/scheme_keys.spec.json"
 
     assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
@@ -598,6 +599,20 @@ check_rv32_contract_spec_artifacts() {
     assert_file_contains_id "$spec_named_json" AuditEvent &&
     assert_file_lacks_id "$spec_named_json" GhostEvent &&
     assert_file_lacks "$spec_named_json" '"name":"UnimplementedInterface"' &&
+    # The scheme-tagged unions are declared by thruput-contract-spec, which
+    # every contract links: they must still be shaken where unused.
+    assert_file_lacks_id "$spec_named_json" PublicKey &&
+    assert_file_lacks_id "$spec_named_json" Signature &&
+
+    # Scheme-tagged keys and signatures as contract arguments: both unions
+    # are published with one byte-array case per scheme.
+    assert_file_contains "$scheme_keys_json" '"name":"SchemeKeys"' &&
+    assert_file_matches "$scheme_keys_json" '"kind":"union","name":\{[^}]*"declared":"PublicKey"\}' &&
+    assert_file_matches "$scheme_keys_json" '"kind":"union","name":\{[^}]*"declared":"Signature"\}' &&
+    assert_file_contains "$scheme_keys_json" '"name":"ed25519","type":{"kind":"array","len":32,"element":{"kind":"u8"}}' &&
+    assert_file_contains "$scheme_keys_json" '"name":"mldsa65","type":{"kind":"array","len":1952,"element":{"kind":"u8"}}' &&
+    assert_file_contains "$scheme_keys_json" '"name":"mldsa65","type":{"kind":"array","len":3309,"element":{"kind":"u8"}}' &&
+    assert_file_contains_id "$scheme_keys_json" KeyStored &&
 
     # Phantom-method shaking: phantom_method_impl implements A's Ledger
     # (method ping) while linking B's colliding Ledger (method steal, payload

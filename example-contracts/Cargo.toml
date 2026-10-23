@@ -6,6 +6,7 @@ members = [
     "caller",
     "complex-storage",
     "counter",
+    "scheme_keys",
     "erc20",
     "erc20_issuer",
     "erc20_permit",

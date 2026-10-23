@@ -781,6 +781,8 @@ mod tests {
         for ty in [
             syn::parse_quote!(thruput_sdk::Ed25519Signature),
             syn::parse_quote!(thruput_sdk::Ed25519PublicKey),
+            syn::parse_quote!(thruput_sdk::MlDsa65Signature),
+            syn::parse_quote!(thruput_sdk::MlDsa65PublicKey),
             syn::parse_quote!(thruput_sdk::ContractEntrypointID),
         ] {
             let tokens = contract_type_view_tokens(&ty).unwrap().to_string();
