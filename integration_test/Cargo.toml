@@ -6,6 +6,7 @@ members = [
     "contracts/authclaim_test",
     "contracts/calldata_raw",
     "contracts/calldata_wrapper",
+    "contracts/commit-lock-conflict",
     # "contracts/cxs_roundtrip",
     "contracts/default_wallet",
     "contracts/dev_wallet",
