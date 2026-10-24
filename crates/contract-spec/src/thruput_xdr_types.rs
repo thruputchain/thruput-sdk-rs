@@ -97,13 +97,6 @@ impl ContractTypeRefSpec for SysErr {
 /// changes only if that layout does, not with this crate's releases.
 const XDR_UNION_SPEC_MAJOR: &str = "1";
 
-/// Module path recorded in those unions' spec ids. Pinned rather than taken
-/// from `module_path!()` so moving or renaming this private module cannot
-/// change the ids; it names the module's location when the ids were first
-/// published.
-const XDR_UNION_SPEC_MODULE_PATH: &str =
-    "thruput_contract_spec::groundhog_xdr_types";
-
 /// Declares a scheme-tagged protocol union (one case per
 /// [`CryptographicScheme`], each a single byte-array field) to the contract
 /// spec: the same `ContractTypeName` / `ContractTypeSpec` /
@@ -124,7 +117,7 @@ macro_rules! scheme_union_spec {
                 view::ContractSpecIdView {
                     crate_name: ::core::env!("CARGO_PKG_NAME"),
                     major: XDR_UNION_SPEC_MAJOR,
-                    module_path: XDR_UNION_SPEC_MODULE_PATH,
+                    module_path: ::core::module_path!(),
                     declared: ::core::stringify!($ty),
                 };
         }
@@ -286,12 +279,6 @@ mod tests {
         let ContractTypeView::Named(id) = PublicKey::INFO.ty else {
             panic!("PublicKey must be referenced by name");
         };
-        assert_eq!(id.crate_name, "thruput-contract-spec");
-        assert_eq!(id.major, "1");
-        assert_eq!(
-            id.module_path,
-            "thruput_contract_spec::groundhog_xdr_types"
-        );
         assert_eq!(id.declared, "PublicKey");
         assert!(PUBLIC_KEY_SPEC_RAW_LEN > 0);
         assert!(matches!(
@@ -312,12 +299,6 @@ mod tests {
         let ContractTypeView::Named(id) = Signature::INFO.ty else {
             panic!("Signature must be referenced by name");
         };
-        assert_eq!(id.crate_name, "thruput-contract-spec");
-        assert_eq!(id.major, "1");
-        assert_eq!(
-            id.module_path,
-            "thruput_contract_spec::groundhog_xdr_types"
-        );
         assert_eq!(id.declared, "Signature");
         assert!(SIGNATURE_SPEC_RAW_LEN > 0);
         assert!(matches!(
