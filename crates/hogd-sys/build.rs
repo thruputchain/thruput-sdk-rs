@@ -269,6 +269,11 @@ fn install_lib_in_deps(
     fs::create_dir_all(&deps_dir).map_err(|e| {
         format!("failed to create {}: {e}", deps_dir.display())
     })?;
+    // A HOGD_FFI_LIB_DIR entry can be a link to the library already in deps.
+    // Copying a file onto itself truncates it, so there is nothing to do.
+    if is_same_file(&src, &dst) {
+        return Ok(deps_dir);
+    }
     let installed = match how {
         // A rename replaces dst atomically, so a test still running against
         // the old library keeps its mapping. Fall back to copying if OUT_DIR
@@ -287,6 +292,22 @@ fn install_lib_in_deps(
     })?;
 
     Ok(deps_dir)
+}
+
+/// Whether both paths name one file, through symlinks or hard links.
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        match (fs::metadata(a), fs::metadata(b)) {
+            (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+            _ => false,
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        matches!((a.canonicalize(), b.canonicalize()), (Ok(a), Ok(b)) if a == b)
+    }
 }
 
 /// Which build strategy the build script should use.
