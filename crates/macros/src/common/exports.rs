@@ -558,7 +558,7 @@ pub fn generate_method(
         // rv32 guest dispatch: place this method's Entrypoint record in the
         // dispatch-table input section. Naming is owned by the SDK end-to-end:
         // this macro emits the section, the rv32-runtime linker script
-        // (link/groundhog-rv32.ld) KEEPs and brackets it, and
+        // (link/thruput-rv32.ld) KEEPs and brackets it, and
         // rv32-runtime/src/start.rs walks it. `#[used]` keeps the static
         // through codegen/LTO; KEEP() covers --gc-sections.
         #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]

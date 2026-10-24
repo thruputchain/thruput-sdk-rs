@@ -15,7 +15,7 @@ rustflags = [
 [target.riscv32im-unknown-none-elf]
 rustflags = [
     "-C", "target-feature=+unaligned-scalar-mem,+relax",
-    "-C", "link-arg=-Tgroundhog-rv32.ld",
+    "-C", "link-arg=-Tthruput-rv32.ld",
     "-C", "link-arg=-static",
     "-C", "link-arg=--no-dynamic-linker",
     "-C", "link-arg=--gc-sections",

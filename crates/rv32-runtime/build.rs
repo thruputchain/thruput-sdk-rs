@@ -1,12 +1,12 @@
 // Publishes the linker script search path so downstream bin crates can
-// reference `groundhog-rv32.ld` by name without copying it. Following
+// reference `thruput-rv32.ld` by name without copying it. Following
 // the cortex-m-rt pattern: the library exposes the script file; the
 // downstream bin crate's own build.rs (or .cargo/config.toml) is
 // responsible for the `-T` flag and the bare-metal link flags. The
 // example-contracts workspace config shows the expected Cargo flags.
 
 fn main() {
-    println!("cargo:rerun-if-changed=link/groundhog-rv32.ld");
+    println!("cargo:rerun-if-changed=link/thruput-rv32.ld");
     println!("cargo:rerun-if-changed=build.rs");
 
     let target = std::env::var("TARGET").unwrap_or_default();

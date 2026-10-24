@@ -16,7 +16,7 @@ description = "Canonical contract spec model for Thruput contracts"
 # rather than as a fragment parse failure afterwards. Must match
 # `format::RAW_SPEC_FORMAT`; `manifest_metadata_matches_raw_spec_format` pins
 # the two together.
-[package.metadata.groundhog]
+[package.metadata.thruput]
 raw_spec_format = 5
 
 [lib]

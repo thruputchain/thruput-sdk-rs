@@ -12,7 +12,7 @@ use crate::dispatch::{Entrypoint, lookup};
 use core::arch::naked_asm;
 
 // Dispatch-table bracket symbols. The linker script
-// (link/groundhog-rv32.ld) defines both around the KEEP'd
+// (link/thruput-rv32.ld) defines both around the KEEP'd
 // `thruput_rv32_entrypoints` input section. Declared as `Entrypoint` so
 // `&raw const` yields correctly-typed table pointers; the "values" are never
 // read directly, only their addresses.
@@ -93,7 +93,7 @@ pub extern "C" fn _start() -> ! {
     // the heap) and ASSERTs __stack_top is 16-byte aligned (the RISC-V ABI
     // sp alignment), so no rounding here.
     // gp is loaded first so every subsequent static access is eligible for
-    // the linker's gp relaxation (see link/groundhog-rv32.ld).
+    // the linker's gp relaxation (see link/thruput-rv32.ld).
     // `naked` guarantees no prologue clobbers a0/a1.
     naked_asm!(
         // Load gp with the linker-script relaxation anchor BEFORE anything

@@ -23,12 +23,12 @@
 //! rather than shipping:
 //!
 //! - this constant,
-//! - `[package.metadata.groundhog] raw_spec_format` in this crate's
+//! - `[package.metadata.thruput] raw_spec_format` in this crate's
 //!   `Cargo.toml`, which is how the `thruput` CLI reads the format version
 //!   out of a contract's dependency graph before compiling it,
 //! - the `link_section` literals in `thruput-macros`,
 //! - the `(INFO)` output section in `thruput-rv32-runtime`'s
-//!   `groundhog-rv32.ld`, which keeps the section out of guest memory.
+//!   `thruput-rv32.ld`, which keeps the section out of guest memory.
 //!
 //! Format 0 (`groundhogspecrawv0`) is deliberately unsupported: two
 //! incompatible encodings shipped under that name, so the bytes cannot be
@@ -77,11 +77,12 @@ pub const RAW_SECTION_NAME: &str = "thruputspecrawv5";
 /// matches this name exactly, so a `v0` section reads as
 /// [`SpecSection::Other`] and the artifact reports as having no spec rather
 /// than as a version skew. That is the wrong diagnosis, but it is a safe one
-/// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. A
+/// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. The
+/// pre-rename `groundhogspecv2` likewise reads as [`SpecSection::Other`]. A
 /// finalized section only ever reaches a reader in an unlowered build
 /// artifact: `thruput-rv32-lower` drops both spec sections, so nothing
 /// deployed carries one.
-pub const FINAL_SECTION_NAME: &str = "groundhogspecv2";
+pub const FINAL_SECTION_NAME: &str = "thruputspecv2";
 
 /// What an ELF section name means to the spec pipeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,7 +139,7 @@ mod tests {
         // guest memory size the heap ASSERT checks. Whole trimmed lines are
         // compared, so a typo on either side of the name fails, and nothing
         // allocates, so the test builds without the `alloc` feature.
-        let script = include_str!("../../rv32-runtime/link/groundhog-rv32.ld");
+        let script = include_str!("../../rv32-runtime/link/thruput-rv32.ld");
         let has_line = |prefix: &str, suffix: &str| {
             script.lines().any(|line| {
                 line.trim()
@@ -149,7 +150,7 @@ mod tests {
         };
         assert!(
             has_line("", " 0 (INFO) :") && has_line("KEEP(*(", "))"),
-            "groundhog-rv32.ld must place {RAW_SECTION_NAME} in an (INFO) \
+            "thruput-rv32.ld must place {RAW_SECTION_NAME} in an (INFO) \
              output section; update it alongside RAW_SPEC_FORMAT",
         );
     }
@@ -166,7 +167,7 @@ mod tests {
             .and_then(|rest| rest.trim().strip_prefix('='))
             .and_then(|rest| rest.trim().parse::<u32>().ok())
             .expect(
-                "Cargo.toml must carry `[package.metadata.groundhog] \
+                "Cargo.toml must carry `[package.metadata.thruput] \
                  raw_spec_format = <n>` so `cargo metadata` reports the \
                  format version this crate emits",
             );

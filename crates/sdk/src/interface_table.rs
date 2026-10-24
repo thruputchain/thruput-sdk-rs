@@ -11,11 +11,11 @@
 //! # Layout and cost
 //!
 //! On the guest the records use the entrypoint table's shape: `#[used]`
-//! statics in the `groundhog_rv32_interfaces` input section, which the
+//! statics in the `thruput_rv32_interfaces` input section, which the
 //! runtime linker script `KEEP`s and brackets as its own output section.
 //! Whether that section reaches the deployed image is the lowerer's call,
 //! made the way it already drops the raw spec section: the reader below
-//! touches a one-word anchor in `groundhog_rv32_interfaces_anchor`, an
+//! touches a one-word anchor in `thruput_rv32_interfaces_anchor`, an
 //! ordinary GC-able section that survives the link only if the table reader
 //! behind [`implements!`](crate::implements) was instantiated. The lowerer copies the table into VM memory only when
 //! the anchor section is present. A contract with no ERC-165 impl therefore
@@ -118,13 +118,13 @@ macro_rules! implements {
 
 #[cfg(target_arch = "riscv32")]
 mod rv32 {
-    // Bracket symbols for the `groundhog_rv32_interfaces` output section,
-    // defined by link/groundhog-rv32.ld in the rv32-runtime crate. Declared
+    // Bracket symbols for the `thruput_rv32_interfaces` output section,
+    // defined by link/thruput-rv32.ld in the rv32-runtime crate. Declared
     // as records so `&raw const` yields correctly-typed pointers; only their
     // addresses are read.
     unsafe extern "C" {
-        static __groundhog_rv32_interfaces_start: super::InterfaceId;
-        static __groundhog_rv32_interfaces_end: super::InterfaceId;
+        static __thruput_rv32_interfaces_start: super::InterfaceId;
+        static __thruput_rv32_interfaces_end: super::InterfaceId;
     }
 
     // The lowerer's signal that the table has a reader. Deliberately not
@@ -133,7 +133,7 @@ mod rv32 {
     // instantiated, and the lowerer keys the table's presence in the image
     // off that. Section name shared with the linker script and the
     // CLI's rv32 lowerer (`INTERFACE_TABLE_ANCHOR_SECTION`).
-    #[unsafe(link_section = "groundhog_rv32_interfaces_anchor")]
+    #[unsafe(link_section = "thruput_rv32_interfaces_anchor")]
     static ANCHOR: u32 = 1;
 
     /// Scan the table for `wanted`. Out of line and cold so LLVM keeps it
@@ -143,7 +143,7 @@ mod rv32 {
     #[inline(never)]
     pub(super) fn contains(wanted: super::InterfaceId) -> bool {
         // SAFETY: the linker script ALIGN(8)s the section start and brackets
-        // exactly the KEEP'd `groundhog_rv32_interfaces` input section, whose
+        // exactly the KEEP'd `thruput_rv32_interfaces` input section, whose
         // sole writer is `__interface_record!` (each entry a `static [u8;
         // 8]`, so the section is a well-formed array of stride 8). An empty
         // table gives start == end and no reads. The bracket symbols are
@@ -151,8 +151,8 @@ mod rv32 {
         // than through `offset_from`, which needs shared provenance.
         unsafe {
             core::ptr::read_volatile(&raw const ANCHOR);
-            let mut p = &raw const __groundhog_rv32_interfaces_start;
-            let end = &raw const __groundhog_rv32_interfaces_end;
+            let mut p = &raw const __thruput_rv32_interfaces_start;
+            let end = &raw const __thruput_rv32_interfaces_end;
             while (p as usize) < (end as usize) {
                 if core::ptr::read_volatile(p) == wanted {
                     return true;
@@ -173,7 +173,7 @@ macro_rules! __interface_record {
         const _: () = {
             #[cfg(target_arch = "riscv32")]
             #[used]
-            #[unsafe(link_section = "groundhog_rv32_interfaces")]
+            #[unsafe(link_section = "thruput_rv32_interfaces")]
             static __GH_INTERFACE_RECORD: $crate::InterfaceId = $id;
 
             #[cfg(not(target_arch = "riscv32"))]

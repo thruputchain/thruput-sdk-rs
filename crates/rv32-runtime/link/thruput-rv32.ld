@@ -1,4 +1,4 @@
-/* Groundhog RV32 contract linker script.
+/* Thruput RV32 contract linker script.
  *
  * The hogd VM is modified-Harvard: PC indexes an immutable CODE memory; loads
  * and stores address a separate DATA memory. The two are INDEPENDENT address
@@ -172,27 +172,27 @@ SECTIONS
 
   /* Interface table: one 8-byte InterfaceId record per #[contract] impl
    * block, emitted by the thruput-macros expansion via #[link_section =
-   * "groundhog_rv32_interfaces"] and read by thruput_sdk::interface_table.
+   * "thruput_rv32_interfaces"] and read by thruput_sdk::interface_table.
    * Same shape as the dispatch table above: KEEP'd (nothing references the
    * records) and bracketed by script-defined symbols. Its own output section
    * rather than a slice of .rodata because the lowerer decides whether it
    * reaches the deployed image: the section is copied into VM memory only when
-   * groundhog_rv32_interfaces_anchor is present, and that anchor is an
+   * thruput_rv32_interfaces_anchor is present, and that anchor is an
    * ordinary GC-able word that survives the link only if
    * thruput_sdk::interface_table::implements was instantiated (an ERC-165
    * impl). Both live at the top of the data image so a dropped table shortens
    * it rather than leaving a hole. Section names are shared with the SDK
    * macros and the CLI's rv32 lowerer allowlist. */
-  groundhog_rv32_interfaces : ALIGN(8)
+  thruput_rv32_interfaces : ALIGN(8)
   {
-    __groundhog_rv32_interfaces_start = .;
-    KEEP(*(groundhog_rv32_interfaces))
-    __groundhog_rv32_interfaces_end = .;
+    __thruput_rv32_interfaces_start = .;
+    KEEP(*(thruput_rv32_interfaces))
+    __thruput_rv32_interfaces_end = .;
   } > DATA
 
-  groundhog_rv32_interfaces_anchor : ALIGN(4)
+  thruput_rv32_interfaces_anchor : ALIGN(4)
   {
-    *(groundhog_rv32_interfaces_anchor)
+    *(thruput_rv32_interfaces_anchor)
   } > DATA
 
   . = ALIGN(8);
