@@ -392,7 +392,7 @@ The encoded payload is separately capped at 256 bytes
 (`kAuthTokenMaxLen`), which *is* reported — as
 `AuthTokenError::MintEncodeFailure`.
 
-[#358]: https://github.com/groundhogchain/sdk_rs/issues/358
+[#358]: https://github.com/thruputchain/thruput-sdk-rs/issues/358
 
 # Arithmetic
 
@@ -472,7 +472,7 @@ Other useful modules and types:
 `#[contract]` on a *trait* defines a reusable interface; `#[contract]` on an
 impl of that trait exports an implementation. Callers depend on the interface
 crate and get the same generated client either way. That is how the standard
-interfaces in `standard-interfaces/` (the `groundhog-*-if` crates:
+interfaces in `standard-interfaces/` (the `thruput-*-if` crates:
 `thruput-erc20-if`, `thruput-erc20-metadata-if`, `thruput-erc20-pausable-if`,
 `thruput-erc20-permit-if`, `thruput-erc721-if`, `thruput-erc165-if`,
 `thruput-access-control-if`, `thruput-signed-op-if`) are consumed.

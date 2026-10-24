@@ -19,30 +19,28 @@ pub struct DescribableType {
 }
 
 const LIBRARY_EXN_FRAGMENTS: &[SpecFragmentView<'static>] = &[
-    thruput_sdk::exn::__groundhog_spec_fragment_LibraryExn,
-    thruput_sdk::exn::__groundhog_spec_fragment_SyscallExn,
-    thruput_sdk::exn::__groundhog_spec_fragment_CallingError,
-    thruput_sdk::exn::__groundhog_spec_fragment_HandlingError,
-    thruput_sdk::exn::__groundhog_spec_fragment_AuthTokenError,
-    thruput_sdk::exn::__groundhog_spec_fragment_FaultString,
+    thruput_sdk::exn::__thruput_spec_fragment_LibraryExn,
+    thruput_sdk::exn::__thruput_spec_fragment_SyscallExn,
+    thruput_sdk::exn::__thruput_spec_fragment_CallingError,
+    thruput_sdk::exn::__thruput_spec_fragment_HandlingError,
+    thruput_sdk::exn::__thruput_spec_fragment_AuthTokenError,
+    thruput_sdk::exn::__thruput_spec_fragment_FaultString,
 ];
 
 const ERC20_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
-    &[thruput_erc20_if::__groundhog_spec_fragment_ERC20Error];
+    &[thruput_erc20_if::__thruput_spec_fragment_ERC20Error];
 
-const ERC20_PAUSABLE_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
-    thruput_erc20_pausable_if::__groundhog_spec_fragment_ERC20PausableError,
-];
+const ERC20_PAUSABLE_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[thruput_erc20_pausable_if::__thruput_spec_fragment_ERC20PausableError];
 
-const ACCESS_CONTROL_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] = &[
-    thruput_access_control_if::__groundhog_spec_fragment_AccessControlError,
-];
+const ACCESS_CONTROL_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
+    &[thruput_access_control_if::__thruput_spec_fragment_AccessControlError];
 
 const SIGNED_OP_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
-    &[thruput_signed_op_if::__groundhog_spec_fragment_SignedOpError];
+    &[thruput_signed_op_if::__thruput_spec_fragment_SignedOpError];
 
 const ERC20_PERMIT_ERROR_FRAGMENTS: &[SpecFragmentView<'static>] =
-    &[thruput_erc20_permit_if::__groundhog_spec_fragment_ERC20PermitError];
+    &[thruput_erc20_permit_if::__thruput_spec_fragment_ERC20PermitError];
 
 pub const REGISTRY: &[DescribableType] = &[
     DescribableType {

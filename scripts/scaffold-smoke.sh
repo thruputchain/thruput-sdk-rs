@@ -37,7 +37,7 @@ if [ "${SKIP_CLI_INSTALL:-0}" != 1 ]; then
 fi
 thruput --version
 
-# groundhog 0.6 refuses to run without an active config profile, even for
+# The CLI (0.6+) refuses to run without an active config profile, even for
 # offline builds. Bootstrap a throwaway one on CI; the guard keeps this a
 # no-op on a developer machine with a profile already selected.
 if ! thruput config get --json >/dev/null 2>&1; then

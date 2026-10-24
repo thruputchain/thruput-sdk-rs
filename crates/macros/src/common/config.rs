@@ -202,7 +202,7 @@ impl Config {
         }
 
         syn::Ident::new(
-            &format!("__groundhog_exports_{}", effective_interface_name),
+            &format!("__thruput_exports_{}", effective_interface_name),
             Span::call_site(),
         )
     }
@@ -268,15 +268,15 @@ mod tests {
         let config = empty_config();
         assert_eq!(
             config.internal_exports_mod_ident("Adder").to_string(),
-            "__groundhog_exports_Adder"
+            "__thruput_exports_Adder"
         );
         assert_eq!(
             config.internal_exports_mod_ident("ERC20").to_string(),
-            "__groundhog_exports_ERC20"
+            "__thruput_exports_ERC20"
         );
         assert_eq!(
             config.internal_exports_mod_ident("ISwapV2Pair").to_string(),
-            "__groundhog_exports_ISwapV2Pair"
+            "__thruput_exports_ISwapV2Pair"
         );
     }
 

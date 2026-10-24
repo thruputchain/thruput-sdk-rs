@@ -39,16 +39,16 @@ impl reexports::CounterAlias for LocalImpl {
 #[test]
 fn inherited_ids_match_clients_and_interface_table() {
     assert_eq!(
-        <ExternalImpl as Imported>::__GROUNDHOG_ENTRYPOINT_versioned_method,
+        <ExternalImpl as Imported>::__THRUPUT_ENTRYPOINT_versioned_method,
         version_mismatch_helper::VersionedTraitEntrypoints::versioned_method
             .into_u64()
     );
     assert_eq!(
-        <LocalImpl as interfaces::RustCounter>::__GROUNDHOG_ENTRYPOINT_increment,
+        <LocalImpl as interfaces::RustCounter>::__THRUPUT_ENTRYPOINT_increment,
         interfaces::WireCounterEntrypoints::increment.into_u64()
     );
     assert_eq!(
-        <LocalImpl as interfaces::RustCounter>::__GROUNDHOG_IFACE_FULL_VERSION,
+        <LocalImpl as interfaces::RustCounter>::__THRUPUT_IFACE_FULL_VERSION,
         interfaces::WireCounterClient::INTERFACE_VERSION
     );
     assert!(thruput_sdk::implements!(

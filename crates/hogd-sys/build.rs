@@ -9,7 +9,7 @@ use std::time::Duration;
 mod download;
 
 #[cfg(feature = "source-build")]
-const HOGD_REPO_URL: &str = "https://github.com/groundhogchain/hogd.git";
+const HOGD_REPO_URL: &str = "https://github.com/thruputchain/hogd.git";
 
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.

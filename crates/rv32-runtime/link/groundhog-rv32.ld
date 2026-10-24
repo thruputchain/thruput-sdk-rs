@@ -139,8 +139,8 @@ SECTIONS
   .rodata __stack_top : ALIGN(8)
   {
     /* Guest dispatch table: one `Entrypoint` record per #[contract] method,
-     * emitted by the groundhog-macros expansion via
-     * #[link_section = "groundhog_rv32_entrypoints"]. Placed inside .rodata
+     * emitted by the thruput-macros expansion via
+     * #[link_section = "thruput_rv32_entrypoints"]. Placed inside .rodata
      * with explicit bracket symbols so the table rides the lowerer's
      * existing .rodata -> initial-memory copy, instead of an orphan section
      * the PROGBITS allowlist would skip. Section and symbol names are owned
@@ -149,9 +149,9 @@ SECTIONS
      * __start_<section> auto-encapsulation convention, so this script is
      * unambiguously the single definer. */
     . = ALIGN(8);
-    __groundhog_rv32_entrypoints_start = .;
-    KEEP(*(groundhog_rv32_entrypoints))
-    __groundhog_rv32_entrypoints_end = .;
+    __thruput_rv32_entrypoints_start = .;
+    KEEP(*(thruput_rv32_entrypoints))
+    __thruput_rv32_entrypoints_end = .;
 
     *(.srodata .srodata.*)
     *(.rodata .rodata.*)
@@ -165,7 +165,7 @@ SECTIONS
   } > DATA
 
   /* Interface table: one 8-byte InterfaceId record per #[contract] impl
-   * block, emitted by the groundhog-macros expansion via #[link_section =
+   * block, emitted by the thruput-macros expansion via #[link_section =
    * "groundhog_rv32_interfaces"] and read by thruput_sdk::interface_table.
    * Same shape as the dispatch table above: KEEP'd (nothing references the
    * records) and bracketed by script-defined symbols. Its own output section
@@ -176,7 +176,7 @@ SECTIONS
    * thruput_sdk::interface_table::implements was instantiated (an ERC-165
    * impl). Both live at the top of the data image so a dropped table shortens
    * it rather than leaving a hole. Section names are shared with the SDK
-   * macros and the groundhog-rpc lowerer's allowlist. */
+   * macros and the CLI's rv32 lowerer allowlist. */
   groundhog_rv32_interfaces : ALIGN(8)
   {
     __groundhog_rv32_interfaces_start = .;
@@ -233,8 +233,8 @@ SECTIONS
      * fragments in, leaving neither data nor executable metadata for the
      * lowerer to handle. Keep these names in sync with the SDK macros.
      */
-    *(groundhogspecanchorsv0)
-    *(groundhogspecanchortextv0)
+    *(thruputspecanchorsv0)
+    *(thruputspecanchortextv0)
     *(.got .got.*)
     *(.got.plt .got.plt.*)
     *(.plt .plt.*)

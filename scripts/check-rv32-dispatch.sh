@@ -40,15 +40,15 @@ esac
 #    macro/linker-script section-name mismatch), which would route every call
 #    to the ebreak backstop with no link error.
 #
-#    Preferred check: assert __groundhog_rv32_entrypoints_end > __groundhog_rv32_entrypoints_start via the
+#    Preferred check: assert __thruput_rv32_entrypoints_end > __thruput_rv32_entrypoints_start via the
 #    symbol table. These bracket symbols are resolved to link-time constants,
 #    so a *stripped* release ELF no longer carries them — there we fall back to
 #    a .rodata presence check, and the authoritative per-method population
 #    check lives in the cross-repo smoke (it knows the contract's method_ids
 #    and verifies they appear in the initial-memory image).
 SYMS="$("$NM" "$ELF" 2>/dev/null || true)"
-START_ADDR="$(printf '%s\n' "$SYMS" | awk '$3=="__groundhog_rv32_entrypoints_start"{print $1}')"
-STOP_ADDR="$(printf '%s\n' "$SYMS" | awk '$3=="__groundhog_rv32_entrypoints_end"{print $1}')"
+START_ADDR="$(printf '%s\n' "$SYMS" | awk '$3=="__thruput_rv32_entrypoints_start"{print $1}')"
+STOP_ADDR="$(printf '%s\n' "$SYMS" | awk '$3=="__thruput_rv32_entrypoints_end"{print $1}')"
 
 if [ -n "$START_ADDR" ] && [ -n "$STOP_ADDR" ]; then
   if [ "$((16#$STOP_ADDR))" -le "$((16#$START_ADDR))" ]; then

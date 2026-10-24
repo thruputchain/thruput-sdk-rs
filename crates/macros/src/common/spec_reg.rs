@@ -16,20 +16,21 @@ pub fn generate_impl_raw_spec_fragments(
 
     // Trait impl: the trait is authoritative for the interface, its methods,
     // throws, and events. Pull every part from the trait's consts — including
-    // `__GROUNDHOG_IFACE_METHODS` — rather than the impl's own signatures, so
+    // `__THRUPUT_IFACE_METHODS` — rather than the impl's own signatures, so
     // an impl that renames a parameter (e.g. `_factory`) cannot diverge the
     // canonical spec. The trait consts are plain associated data, available
     // cross-crate without the interface crate being built with `entrypoints`,
     // so impls of an external interface still emit a complete spec.
     if let Some((trait_path, _)) = &item.trait_ {
-        let declared_by = quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_DECLARED_BY };
+        let declared_by =
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_DECLARED_BY };
         let interface_fragment = generate_interface_fragment_tokens(
             &entrypoints_cfg(),
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_NAME },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_FULL_VERSION },
             declared_by.clone(),
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROWS },
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EMITS },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_THROWS },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_EMITS },
         );
         let method_fragments =
             generate_trait_method_fragments_tokens(self_ty, trait_path);
@@ -39,14 +40,14 @@ pub fn generate_impl_raw_spec_fragments(
         // (pulled in from the interface crate) survives post-processing.
         let interface_anchor = generate_interface_anchor_tokens(
             entrypoints_cfg(),
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME },
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_NAME },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_FULL_VERSION },
             declared_by,
         );
         let anchor_roots = vec![
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT },
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT },
-            quote! { <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_THROW_ANCHOR_ROOT },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_EVENT_ANCHOR_ROOT },
+            quote! { <#self_ty as #trait_path>::__THRUPUT_IFACE_METHOD_ANCHOR_ROOT },
         ];
         let anchor_root =
             emit_root_anchor_tokens(&entrypoints_cfg(), &anchor_roots)
@@ -178,7 +179,7 @@ pub fn generate_free_function_raw_spec_fragments(
 /// (interface) definition: one Interface fragment, event fragments, plus
 /// throws/event/signature anchor roots. Method fragments come from the
 /// anchoring site instead (see the comment in the body). Name/version match
-/// the trait branch's `__GROUNDHOG_IFACE_*` consts, so a trait-derived spec is
+/// the trait branch's `__THRUPUT_IFACE_*` consts, so a trait-derived spec is
 /// byte-identical in format to the spec a concrete impl would carry.
 pub fn generate_trait_raw_spec_fragments(
     item: &syn::ItemTrait,
@@ -204,14 +205,14 @@ pub fn generate_trait_raw_spec_fragments(
     // from a trait nothing implements would surface in the artifact's spec as
     // phantom methods — advertising an entrypoint that does not exist. Only
     // an anchoring site emits methods: a `#[contract] impl` re-emits the
-    // trait's authoritative `__GROUNDHOG_IFACE_METHODS` (see
+    // trait's authoritative `__THRUPUT_IFACE_METHODS` (see
     // `generate_trait_method_fragments_tokens`), and `export_interface_spec!`
     // emits them from the module-level twin of that const.
     // The trait's id, read from the module-level anchor const the
     // `#[contract]` trait emits beside it, so this candidate and every
     // anchor of the trait agree on it by construction.
     let anchor_const =
-        quote::format_ident!("__GROUNDHOG_IFACE_ANCHOR_{}", item.ident);
+        quote::format_ident!("__THRUPUT_IFACE_ANCHOR_{}", item.ident);
     let emits_names = config_emits_name_tokens(config);
     let interface_fragment = generate_interface_fragment_tokens(
         &target_cfg(),
@@ -246,7 +247,7 @@ pub fn generate_trait_raw_spec_fragments(
 }
 
 /// Emits `SpecMethod` fragments for a trait impl from the trait's
-/// authoritative `__GROUNDHOG_IFACE_METHODS` const (possibly in another
+/// authoritative `__THRUPUT_IFACE_METHODS` const (possibly in another
 /// crate), wrapped with the trait's name/version. Mirrors
 /// `generate_trait_event_fragments_tokens`: the fragments are concatenated
 /// into a single raw byte array in const eval. Because the method specs come
@@ -263,13 +264,13 @@ fn generate_trait_method_fragments_tokens(
         #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
             const METHODS: &[::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] =
-                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_METHODS;
-            const NAME: &str = <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
+                <#self_ty as #trait_path>::__THRUPUT_IFACE_METHODS;
+            const NAME: &str = <#self_ty as #trait_path>::__THRUPUT_IFACE_NAME;
             const VERS: &str =
-                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION;
+                <#self_ty as #trait_path>::__THRUPUT_IFACE_FULL_VERSION;
             const DECLARED_BY:
                 ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> =
-                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_DECLARED_BY;
+                <#self_ty as #trait_path>::__THRUPUT_IFACE_DECLARED_BY;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
@@ -319,7 +320,7 @@ fn generate_trait_method_fragments_tokens(
 
 /// Emits `SpecEvent` fragments for the events declared on a contract trait
 /// via `emits(...)`. The declared defs live in the trait's
-/// `__GROUNDHOG_IFACE_EVENTS` const (possibly in another crate), so the
+/// `__THRUPUT_IFACE_EVENTS` const (possibly in another crate), so the
 /// fragments are concatenated into a single raw byte array in const eval.
 fn generate_trait_event_fragments_tokens(
     self_ty: &syn::Type,
@@ -331,7 +332,7 @@ fn generate_trait_event_fragments_tokens(
         #[cfg(all(target_arch = "riscv32", feature = "entrypoints"))]
         const _: () = {
             const EVENTS: &[::thruput_sdk::__contract_spec::ContractEventDefView<'static>] =
-                <#self_ty as #trait_path>::__GROUNDHOG_IFACE_EVENTS;
+                <#self_ty as #trait_path>::__THRUPUT_IFACE_EVENTS;
             const RAW_LEN: usize = {
                 let mut total = 0usize;
                 let mut i = 0;
@@ -394,8 +395,8 @@ fn entrypoints_cfg() -> TokenStream {
 /// `generate_trait_raw_spec_fragments`), and a carrier is the one place that
 /// wants an unimplemented interface published in full.
 ///
-/// Resolves the module-level `__GROUNDHOG_IFACE_ANCHOR_<Trait>` and
-/// `__GROUNDHOG_IFACE_METHODS_<Trait>` consts the `#[contract]` trait emits
+/// Resolves the module-level `__THRUPUT_IFACE_ANCHOR_<Trait>` and
+/// `__THRUPUT_IFACE_METHODS_<Trait>` consts the `#[contract]` trait emits
 /// (the trait itself isn't dyn-compatible, so its associated consts aren't
 /// reachable without an implementor).
 pub fn generate_interface_anchor_for_trait(path: &syn::Path) -> TokenStream {
@@ -407,8 +408,8 @@ pub fn generate_interface_anchor_for_trait(path: &syn::Path) -> TokenStream {
         }
         const_path
     };
-    let anchor_path = trait_const("__GROUNDHOG_IFACE_ANCHOR_");
-    let methods_path = trait_const("__GROUNDHOG_IFACE_METHODS_");
+    let anchor_path = trait_const("__THRUPUT_IFACE_ANCHOR_");
+    let methods_path = trait_const("__THRUPUT_IFACE_METHODS_");
 
     let anchor = emit_raw_fragment_tokens_with_cfg(
         target_cfg(),
@@ -539,7 +540,7 @@ fn config_event_anchor_tokens(config: &Config) -> Vec<TokenStream> {
         .into_iter()
         .map(|path| {
             quote! {
-                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+                <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__THRUPUT_SPEC_ANCHOR_ROOT
             }
         })
         .collect()
@@ -624,7 +625,7 @@ pub fn emit_raw_fragment_tokens_with_cfg(
     // `link_section` requires a string literal. Keep this in sync with
     // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
-    // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
+    // CLI's rv32 lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[cfg(#cfg_guard)]
         const _: () = {
@@ -666,7 +667,7 @@ fn emit_root_anchor_tokens(
             // the transitive raw-spec graph, then discards the table itself.
             #[cfg_attr(
                 target_arch = "riscv32",
-                unsafe(link_section = "groundhogspecanchorsv0")
+                unsafe(link_section = "thruputspecanchorsv0")
             )]
             #[used]
             static ROOT_SPEC_ANCHORS: [fn() -> usize; #count] = [
@@ -708,12 +709,12 @@ mod tests {
         assert!(tokens.contains("used)] pub static RAW_SPEC_FRAGMENT"));
         assert!(tokens.contains("SpecInterfaceFragmentView"));
         assert!(tokens.contains("SpecMethodFragmentView"));
-        assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"));
-        assert!(tokens.contains("__GROUNDHOG_IFACE_FULL_VERSION"));
-        assert!(tokens.contains("__GROUNDHOG_IFACE_THROWS"));
+        assert!(tokens.contains("__THRUPUT_IFACE_NAME"));
+        assert!(tokens.contains("__THRUPUT_IFACE_FULL_VERSION"));
+        assert!(tokens.contains("__THRUPUT_IFACE_THROWS"));
         assert!(tokens.contains("const_txs_size"));
         assert!(tokens.contains("ConstWriter"));
-        assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_EMITS"), "{tokens}");
     }
 
     #[test]
@@ -837,9 +838,9 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("__GROUNDHOG_SPEC_ANCHOR_ROOT"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_SPEC_ANCHOR_ROOT"), "{tokens}");
         assert!(tokens.contains("Option < Vec < Payload > >"), "{tokens}");
-        assert!(tokens.contains("groundhogspecanchorsv0"), "{tokens}");
+        assert!(tokens.contains("thruputspecanchorsv0"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
     }
 
@@ -859,7 +860,7 @@ mod tests {
         .to_string();
 
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT"),
+            tokens.contains("__THRUPUT_IFACE_THROW_ANCHOR_ROOT"),
             "{tokens}"
         );
     }
@@ -910,14 +911,8 @@ mod tests {
         let path: syn::Path = syn::parse_quote!(thruput_erc20_if::ERC20);
         let tokens = generate_interface_anchor_for_trait(&path).to_string();
 
-        assert!(
-            tokens.contains("__GROUNDHOG_IFACE_ANCHOR_ERC20"),
-            "{tokens}"
-        );
-        assert!(
-            tokens.contains("__GROUNDHOG_IFACE_METHODS_ERC20"),
-            "{tokens}"
-        );
+        assert!(tokens.contains("__THRUPUT_IFACE_ANCHOR_ERC20"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_METHODS_ERC20"), "{tokens}");
         assert!(tokens.contains("SpecMethodFragmentView"), "{tokens}");
         assert!(
             tokens.contains(
@@ -928,7 +923,7 @@ mod tests {
         // Name and version are read back off the anchor const, so a carrier
         // cannot key its methods to a different interface than it anchors.
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_ANCHOR_ERC20 . interface_name"),
+            tokens.contains("__THRUPUT_IFACE_ANCHOR_ERC20 . interface_name"),
             "{tokens}"
         );
     }
@@ -960,7 +955,7 @@ mod tests {
     fn trait_impl_methods_come_from_trait_const_not_impl_signatures() {
         // The impl renames the trait's `factory` param to `_factory`. Method
         // specs must be pulled from the trait's authoritative
-        // `__GROUNDHOG_IFACE_METHODS` const, so the impl's `_factory` must not
+        // `__THRUPUT_IFACE_METHODS` const, so the impl's `_factory` must not
         // leak into the emitted spec (otherwise a same-crate trait+impl would
         // emit conflicting method definitions).
         let item: syn::ItemImpl = syn::parse_quote! {
@@ -976,10 +971,10 @@ mod tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("__GROUNDHOG_IFACE_METHODS"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_METHODS"), "{tokens}");
         assert!(tokens.contains("RAW_SPEC_METHOD_FRAGMENTS"), "{tokens}");
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT"),
+            tokens.contains("__THRUPUT_IFACE_METHOD_ANCHOR_ROOT"),
             "{tokens}"
         );
         // Methods are trait-sourced, so the impl's param name never appears.
@@ -1014,9 +1009,9 @@ mod emits_tests {
         .unwrap()
         .to_string();
 
-        assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_EVENTS"), "{tokens}");
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            tokens.contains("__THRUPUT_IFACE_EVENT_ANCHOR_ROOT"),
             "{tokens}"
         );
         assert!(tokens.contains("RAW_SPEC_EVENT_FRAGMENTS"), "{tokens}");
@@ -1044,9 +1039,8 @@ mod emits_tests {
             "{tokens}"
         );
         assert!(
-            tokens.contains(
-                "ContractEventSpec > :: __GROUNDHOG_SPEC_ANCHOR_ROOT"
-            ),
+            tokens
+                .contains("ContractEventSpec > :: __THRUPUT_SPEC_ANCHOR_ROOT"),
             "{tokens}"
         );
     }

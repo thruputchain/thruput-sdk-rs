@@ -42,7 +42,7 @@ the version pin above applies to those too.
 Polished examples and tutorials are maintained outside this repository:
 the [developer docs](https://docs.thruput.network/start/getting-started/) walk
 through scaffolding a project with `thruput new`, and
-[groundhog-examples](https://github.com/groundhogchain/groundhog-examples)
+[thruput-examples](https://github.com/thruputchain/thruput-examples)
 holds worked contracts. (The `example-contracts/` directory here is an
 internal test corpus for SDK development, not a set of recommended starting
 points.)

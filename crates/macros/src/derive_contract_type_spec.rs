@@ -40,14 +40,14 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
             acc = #krate::__contract_spec::mix_anchor_fn(acc, #anchor);
         }
     });
-    let anchor_fn_ident = format_ident!("__groundhog_spec_anchor_fn_{ident}");
+    let anchor_fn_ident = format_ident!("__thruput_spec_anchor_fn_{ident}");
 
     Ok(quote! {
         #[doc(hidden)]
         #[inline(never)]
         #[cfg_attr(
             target_arch = "riscv32",
-            unsafe(link_section = "groundhogspecanchortextv0")
+            unsafe(link_section = "thruputspecanchortextv0")
         )]
         pub fn #anchor_fn_ident() -> usize {
             #[cfg(target_arch = "riscv32")]
@@ -73,9 +73,9 @@ pub fn expand(input: &syn::DeriveInput) -> syn::Result<TokenStream> {
                 ),
             };
 
-            const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = #anchor_fn_ident;
+            const __THRUPUT_SPEC_ANCHOR_ROOT: fn() -> usize = #anchor_fn_ident;
 
-            fn __groundhog_spec_anchor() -> usize {
+            fn __thruput_spec_anchor() -> usize {
                 #anchor_fn_ident()
             }
         }
@@ -142,10 +142,10 @@ fn emit_raw_typedef_fragment(
     ident: &syn::Ident,
     export: bool,
 ) -> TokenStream {
-    let fragment_ident = format_ident!("__groundhog_spec_fragment_{ident}");
-    let raw_len_ident = format_ident!("__groundhog_spec_raw_len_{ident}");
+    let fragment_ident = format_ident!("__thruput_spec_fragment_{ident}");
+    let raw_len_ident = format_ident!("__thruput_spec_raw_len_{ident}");
     let raw_fragment_ident =
-        format_ident!("__groundhog_spec_raw_typedef_fragment_{ident}");
+        format_ident!("__thruput_spec_raw_typedef_fragment_{ident}");
 
     let fragment_variant = if export {
         quote! { #krate::__contract_spec::SpecFragmentView::ExportedTypeDef(
@@ -160,7 +160,7 @@ fn emit_raw_typedef_fragment(
     // `link_section` requires a string literal. Keep this in sync with
     // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
-    // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
+    // CLI's rv32 lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[doc(hidden)]
         pub const #fragment_ident: #krate::__contract_spec::SpecFragmentView<'static> =
@@ -345,7 +345,7 @@ fn field_anchor_token(
 ) -> syn::Result<TokenStream> {
     let ty = &field.ty;
     Ok(quote! {
-        <#ty as #krate::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+        <#ty as #krate::__contract_spec::ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT
     })
 }
 
@@ -442,9 +442,9 @@ mod tests {
 
         let tokens = expand(&input).unwrap().to_string();
 
-        assert!(tokens.contains("__groundhog_spec_anchor"), "{tokens}");
+        assert!(tokens.contains("__thruput_spec_anchor"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
-        assert!(tokens.contains("groundhogspecanchortextv0"), "{tokens}");
+        assert!(tokens.contains("thruputspecanchortextv0"), "{tokens}");
         assert!(
             tokens.contains("Option < Vec < Payload > > as :: thruput_sdk :: __contract_spec :: ContractTypeRefSpec"),
             "{tokens}"
@@ -463,12 +463,12 @@ mod tests {
 
         assert!(
             tokens.contains(
-                "pub fn __groundhog_spec_anchor_fn_Envelope () -> usize"
+                "pub fn __thruput_spec_anchor_fn_Envelope () -> usize"
             ),
             "{tokens}"
         );
         assert!(
-            tokens.contains("const __GROUNDHOG_SPEC_ANCHOR_ROOT : fn () -> usize = __groundhog_spec_anchor_fn_Envelope"),
+            tokens.contains("const __THRUPUT_SPEC_ANCHOR_ROOT : fn () -> usize = __thruput_spec_anchor_fn_Envelope"),
             "{tokens}"
         );
         // The raw fragment static is rv32-gated and carries both attributes
@@ -479,7 +479,7 @@ mod tests {
             tokens.contains(
                 "# [cfg (target_arch = \"riscv32\")] # [doc (hidden)] \
                  # [unsafe (link_section = \"groundhogspecrawv4\")] # [used] \
-                 static __groundhog_spec_raw_typedef_fragment_Envelope"
+                 static __thruput_spec_raw_typedef_fragment_Envelope"
             ),
             "{tokens}"
         );

@@ -1,5 +1,5 @@
 //! RV32 binary wrapper for the same-id collision negative fixture. The ELF
-//! links, but the spec canonicalization the `groundhog` CLI runs during
+//! links, but the spec canonicalization the `thruput` CLI runs during
 //! lowering must FAIL with a typedef conflict.
 
 #![no_std]

@@ -1,7 +1,7 @@
 //! Negative fixture: a contract crate that forgot its `#[contract]` macro.
 //!
 //! Omitting the macro is not by itself an error — a raw contract can write
-//! its `groundhog_rv32_entrypoints` records by hand (see `raw_iface_dep` and
+//! its `thruput_rv32_entrypoints` records by hand (see `raw_iface_dep` and
 //! `test_bytestring`).  What is an error is registering *none*, which is
 //! what this crate does: it links an interface crate, so the raw spec
 //! section still carries `Token` candidates, but the lowered artifact has an

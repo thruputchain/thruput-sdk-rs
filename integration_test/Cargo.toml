@@ -43,8 +43,8 @@ version = "0.2.0"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["thruput"]
-repository = "https://github.com/groundhogchain/sdk_rs"
-homepage = "https://github.com/groundhogchain/sdk_rs"
+repository = "https://github.com/thruputchain/thruput-sdk-rs"
+homepage = "https://github.com/thruputchain/thruput-sdk-rs"
 keywords = ["thruput"]
 categories = ["blockchain"]
 edition = "2024"
@@ -58,7 +58,7 @@ thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "
 erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.55.0" }
 erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.55.0" }
 
-# External groundhog dependencies
+# Dependencies from protocol-rs
 thruput-xdr = { registry = "thruput", version = "=0.58.0", features = ["xdrs", "syscalls"] }
 thruput-syscall = { registry = "thruput", version = "=0.58.0" }
 

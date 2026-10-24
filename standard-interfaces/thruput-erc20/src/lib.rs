@@ -21,7 +21,7 @@ pub type Difference = i128;
 /// Nothing in this interface treats it specially any more: mints and burns
 /// are [`MintEvent`] and [`BurnEvent`], not transfers from or to it. It
 /// stays exported for consumers that render or model those events, and
-/// as the address groundhogchain/hogd#3871 proposes reserving as "nothing
+/// as the address thruputchain/hogd#3871 proposes reserving as "nothing
 /// is here".
 pub const CONTRACT_ADDR_ZERO: &ContractAddress =
     &ContractAddress::new([0; 32]);

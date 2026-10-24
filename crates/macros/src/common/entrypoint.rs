@@ -8,7 +8,7 @@ pub use thruput_contract_util::entrypoint_export_name;
 use thruput_xdr::contract::ContractEntrypointID;
 
 pub fn trait_entrypoint_ident(method: &syn::Ident) -> syn::Ident {
-    quote::format_ident!("__GROUNDHOG_ENTRYPOINT_{}", method)
+    quote::format_ident!("__THRUPUT_ENTRYPOINT_{}", method)
 }
 
 /// Emit a reference for trait impls; only interface declarations and bare

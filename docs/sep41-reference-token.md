@@ -60,6 +60,6 @@ operation and records. See the [bridge notes](https://linear.app/grndhg/document
 
 The delete methods free storage but do not yet route released collateral to
 the caller ([GH-431](https://linear.app/grndhg/issue/GH-431)). Tests disable
-resource charges. Native HOG and RPC/CLI adoption are separate follow-ups in
-[GH-414](https://linear.app/grndhg/issue/GH-414); the native-HOG conformance test
+resource charges. Native-token and RPC/CLI adoption are separate follow-ups in
+[GH-414](https://linear.app/grndhg/issue/GH-414); the native-token conformance test
 remains disabled until its entrypoints match.

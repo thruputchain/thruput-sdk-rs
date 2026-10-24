@@ -132,7 +132,7 @@ mod rv32 {
     // it, so its section exists in the ELF exactly when `implements` was
     // instantiated, and the lowerer keys the table's presence in the image
     // off that. Section name shared with the linker script and the
-    // groundhog-rpc lowerer (`INTERFACE_TABLE_ANCHOR_SECTION`).
+    // CLI's rv32 lowerer (`INTERFACE_TABLE_ANCHOR_SECTION`).
     #[unsafe(link_section = "groundhog_rv32_interfaces_anchor")]
     static ANCHOR: u32 = 1;
 

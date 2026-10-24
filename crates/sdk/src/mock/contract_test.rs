@@ -344,7 +344,7 @@ mod tests {
     fn load_rv32_contract_wraps_artifact_bytes() {
         let bytes = b"fake-rv32-artifact";
         let path = std::env::temp_dir().join(format!(
-            "groundhog-sdk-load-rv32-contract-{}.rv32a",
+            "thruput-sdk-load-rv32-contract-{}.rv32a",
             std::process::id()
         ));
         fs::write(&path, bytes).unwrap();

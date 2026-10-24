@@ -30,7 +30,7 @@ if ! echo "$out" | grep -q "already defined"; then
 fi
 # The error must come from the crate-scoped guard (the host-side defense),
 # not some other symbol clash. The scope is hex-encoded for linker safety.
-expected_guard="__groundhog_entrypoint::Ledger::0.4::clash__crate__6475705f656e747279706f696e745f6e6567__302e342e30"
+expected_guard="__thruput_entrypoint::Ledger::0.4::clash__crate__6475705f656e747279706f696e745f6e6567__302e342e30"
 if ! echo "$out" | grep -F "$expected_guard" | grep -q "already defined"; then
     echo "FAIL: duplicate-symbol error did not name a crate-scoped entrypoint guard:" >&2
     echo "$out" >&2

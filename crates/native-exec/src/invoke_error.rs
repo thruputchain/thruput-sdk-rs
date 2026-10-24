@@ -261,7 +261,7 @@ fn panic_payload_message(
 }
 
 /// Wrap a contract closure in the catch site that maps its panics to
-/// groundhog invoke error codes.
+/// Thruput invoke error codes.
 ///
 /// `Sync` is the load-bearing bound: the wrapper is stored on the contract and
 /// invoked through a shared reference from whichever thread resumed the

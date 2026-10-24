@@ -10,7 +10,7 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Bindings for the external Thruput test environment"
-links = "groundhog_test_ffi"
+links = "thruput_test_ffi"
 
 [lib]
 crate-type = ["rlib"]

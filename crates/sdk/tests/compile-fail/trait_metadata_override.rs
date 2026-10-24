@@ -9,7 +9,7 @@ pub struct Contract;
 
 #[thruput_sdk::contract]
 impl Interface for Contract {
-    const __GROUNDHOG_ENTRYPOINT_ping: u64 = 0;
+    const __THRUPUT_ENTRYPOINT_ping: u64 = 0;
     fn ping() -> u32 {
         42
     }

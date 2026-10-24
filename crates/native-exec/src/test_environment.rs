@@ -61,7 +61,7 @@ pub struct TestEnvironmentInner {
     contracts: Vec<*mut MockContractInner>, // owns these contracts
 }
 
-/// An in-process groundhog instance for testing contracts natively.
+/// An in-process Thruput instance for testing contracts natively.
 ///
 /// A `TestEnvironment` owns a fresh in-memory database and runtime context
 /// (backed by hogd via FFI). Constructors return a [`TestEnvironmentHandle`];
@@ -339,7 +339,7 @@ impl TestEnvironmentInner {
         unsafe { thruput_sys::enable_syscall_logging(level as i32) };
     }
 
-    /// Creates a new contract within groundhog.
+    /// Creates a new contract within Thruput.
     /// This new contract is not deployed at any particular address.
     ///
     /// In the test framework, the semantics of the setup_{create,deploy}_contract functions
@@ -352,7 +352,7 @@ impl TestEnvironmentInner {
     /// Returns the hash of the contract, which is used to identify the contract when deploying it.
     ///
     /// Note: Even if a mock contract is added to the test environment (via add_contract),
-    /// this function must be called to create the contract within groundhog.
+    /// this function must be called to create the contract within Thruput.
     pub fn setup_create_contract(
         &mut self,
         contract: &Contract,
@@ -396,7 +396,7 @@ impl TestEnvironmentInner {
     ///
     /// This address can be subsequently invoked.
     ///
-    /// This contract will fail if the contract hash does not exist as an existing contract within groundhog
+    /// This contract will fail if the contract hash does not exist as an existing contract within Thruput
     /// (i.e. if the contract was not created by the setup_create_contract function,
     /// or was not created by a transaction in an earlier block).
     pub fn setup_create_deployment(
@@ -836,11 +836,11 @@ impl TestEnvironment {
 
     // -- Setup-phase methods --
     //
-    // The setup_* methods seed groundhog state directly, bypassing
+    // The setup_* methods seed Thruput state directly, bypassing
     // transaction execution. Call them before running any transactions in
     // a test; their effects appear as if applied in a previous block.
 
-    /// Setup phase: create a contract in groundhog state (not deployed at
+    /// Setup phase: create a contract in Thruput state (not deployed at
     /// any address). Returns the contract hash. Run before any
     /// transactions in the test.
     pub fn setup_create_contract(

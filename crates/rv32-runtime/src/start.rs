@@ -6,19 +6,19 @@
 //! `a0`/`a1`, so the RISC-V C ABI reassembles them into the `u64` argument for
 //! free. The dispatcher scans the dispatch table populated by the
 //! `#[contract]` macro (one `Entrypoint` record per method, emitted into the
-//! `groundhog_rv32_entrypoints` section) and calls the matching wrapper.
+//! `thruput_rv32_entrypoints` section) and calls the matching wrapper.
 
 use crate::dispatch::{Entrypoint, lookup};
 use core::arch::naked_asm;
 
 // Dispatch-table bracket symbols. The linker script
 // (link/groundhog-rv32.ld) defines both around the KEEP'd
-// `groundhog_rv32_entrypoints` input section. Declared as `Entrypoint` so
+// `thruput_rv32_entrypoints` input section. Declared as `Entrypoint` so
 // `&raw const` yields correctly-typed table pointers; the "values" are never
 // read directly, only their addresses.
 unsafe extern "C" {
-    static __groundhog_rv32_entrypoints_start: Entrypoint;
-    static __groundhog_rv32_entrypoints_end: Entrypoint;
+    static __thruput_rv32_entrypoints_start: Entrypoint;
+    static __thruput_rv32_entrypoints_end: Entrypoint;
 }
 
 /// The dispatch table, reconstructed from the linker-script bracket symbols.
@@ -33,7 +33,7 @@ fn entrypoints() -> &'static [Entrypoint] {
     // guaranteed; integer math sidesteps that entirely.
     //
     // SAFETY: the linker script ALIGN(8)s the section start and brackets
-    // exactly the KEEP'd `groundhog_rv32_entrypoints` input section, whose
+    // exactly the KEEP'd `thruput_rv32_entrypoints` input section, whose
     // sole writer is the #[contract] macro (each entry a `static Entrypoint`,
     // so the section is a well-formed array: size_of::<Entrypoint>() == 16
     // includes the tail padding, matching the section stride). An empty table
@@ -43,8 +43,8 @@ fn entrypoints() -> &'static [Entrypoint] {
     // (= `ORIGIN(DATA) + __stack_size`, ASSERTed >= 16), so both bracket
     // symbols are always > 0.
     unsafe {
-        let start = &raw const __groundhog_rv32_entrypoints_start;
-        let end = &raw const __groundhog_rv32_entrypoints_end;
+        let start = &raw const __thruput_rv32_entrypoints_start;
+        let end = &raw const __thruput_rv32_entrypoints_end;
         let len = (end as usize - start as usize)
             / core::mem::size_of::<Entrypoint>();
         core::slice::from_raw_parts(start, len)
@@ -63,7 +63,7 @@ fn entrypoints() -> &'static [Entrypoint] {
 // Nothing links this crate without `thruput-sdk` (`thruput-sdk` force-links it
 // on rv32), so the definition is always there.
 unsafe extern "C" {
-    #[link_name = "__groundhog_unknown_method"]
+    #[link_name = "__thruput_unknown_method"]
     safe fn unknown_method_exn() -> !;
 }
 

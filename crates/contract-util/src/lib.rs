@@ -213,7 +213,7 @@ pub fn entrypoint_link_name(
     let (interface_name, major_version, method_sig) =
         entrypoint_id_preimage(interface_name, version_str, method);
     format!(
-        "__groundhog_entrypoint::{interface_name}::{major_version}::{method_sig}"
+        "__thruput_entrypoint::{interface_name}::{major_version}::{method_sig}"
     )
 }
 

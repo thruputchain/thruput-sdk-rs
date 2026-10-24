@@ -105,7 +105,7 @@ pub fn generate(
         let name_assertion = check_name.then(|| quote! {
             const _: () = {
                 const TRAIT_INTERFACE: &str =
-                    <#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME;
+                    <#self_ty as #trait_path>::__THRUPUT_IFACE_NAME;
                 const PREFIX: &str = #iface_name_prefix;
                 const SUFFIX: &[u8; #iface_name_suffix_len] =
                     &#iface_name_suffix_lit;
@@ -363,8 +363,8 @@ pub fn generate_method(
     {
         (
             format!("Entrypoint for trait method `{ident}`."),
-            quote!(Some(<#self_ty as #trait_path>::__GROUNDHOG_IFACE_NAME)),
-            quote!(<#self_ty as #trait_path>::__GROUNDHOG_IFACE_FULL_VERSION),
+            quote!(Some(<#self_ty as #trait_path>::__THRUPUT_IFACE_NAME)),
+            quote!(<#self_ty as #trait_path>::__THRUPUT_IFACE_FULL_VERSION),
             quote!(#trait_path!(#ident, #crate_scope);),
         )
     } else {
@@ -541,7 +541,7 @@ pub fn generate_method(
     // that don't enable the feature cannot inject entrypoints.
     //
     // RV32 self-registers each method by emitting an `Entrypoint` record into
-    // the `groundhog_rv32_entrypoints` input section, which the rv32-runtime
+    // the `thruput_rv32_entrypoints` input section, which the rv32-runtime
     // linker script brackets and `_start`'s dispatcher scans at runtime,
     // instead of exporting a per-method symbol.
     let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
@@ -563,7 +563,7 @@ pub fn generate_method(
         // through codegen/LTO; KEEP() covers --gc-sections.
         #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
         #[used]
-        #[unsafe(link_section = "groundhog_rv32_entrypoints")]
+        #[unsafe(link_section = "thruput_rv32_entrypoints")]
         #[allow(non_upper_case_globals)]
         static #rv32_entry_static: ::thruput_sdk::__rv32::Entrypoint =
             ::thruput_sdk::__rv32::Entrypoint {
@@ -600,7 +600,7 @@ fn generate_entrypoint_guards(
     let id_guard_ident = format_ident!("__GH_RV32_ENTRY_ID_GUARD_{}", ident);
     let link_guard_ident =
         format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
-    let id_guard_name = format!("__groundhog_entrypoint_id::{export_name}");
+    let id_guard_name = format!("__thruput_entrypoint_id::{export_name}");
     let scoped_link_guard_name =
         quote!(::core::concat!(#link_name, "__crate__", #crate_scope));
     let scoped_id_guard_name =
@@ -623,7 +623,7 @@ fn generate_entrypoint_guards(
         // collision (same interface/method key) is reported against it —
         // rustc aborts on the first duplicate symbol in declaration order —
         // naming the interface and method:
-        //   error: symbol `__groundhog_entrypoint::Ledger::0.4::clash`
+        //   error: symbol `__thruput_entrypoint::Ledger::0.4::clash`
         //          is already defined
         #[cfg(all(feature = "entrypoints", target_arch = "riscv32"))]
         #[used]
@@ -720,7 +720,7 @@ pub fn generate_trait_guard_macro(
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>();
     let helper =
-        format_ident!("__groundhog_entrypoint_guards_{}_{}", hash, invocation);
+        format_ident!("__thruput_entrypoint_guards_{}_{}", hash, invocation);
     let rules = contract.methods_sorted().into_iter().map(|method| {
         let sig = method.sig();
         let method_ident = &sig.ident;
@@ -783,7 +783,7 @@ pub fn free_function_exports_mod_ident(
     ident: &syn::Ident,
 ) -> syn::Ident {
     syn::Ident::new(
-        &format!("__groundhog_exports_{}_{}", effective_interface_name, ident),
+        &format!("__thruput_exports_{}_{}", effective_interface_name, ident),
         Span::call_site(),
     )
 }
@@ -824,7 +824,7 @@ mod tests {
                 &ident,
             )
             .to_string(),
-            "__groundhog_exports_Iface_ping"
+            "__thruput_exports_Iface_ping"
         );
     }
 
@@ -880,15 +880,15 @@ mod tests {
             .to_string();
 
         // rv32 now emits a #[used] static into the repo-owned
-        // groundhog_rv32_entrypoints section (no linkme, no distributed_slice).
+        // thruput_rv32_entrypoints section (no linkme, no distributed_slice).
         assert!(generated.contains("target_arch = \"riscv32\""));
-        assert!(generated.contains("groundhog_rv32_entrypoints"));
+        assert!(generated.contains("thruput_rv32_entrypoints"));
         assert!(generated.contains("link_section"));
 
         // The old rv32 dispatch symbols and linkme machinery are gone.
         assert!(!generated.contains(".text.gh_"));
         assert!(!generated.contains("distributed_slice"));
-        assert!(!generated.contains("GROUNDHOG_RV32_ENTRYPOINTS"));
+        assert!(!generated.contains("THRUPUT_RV32_ENTRYPOINTS"));
     }
 
     #[test]
@@ -934,7 +934,7 @@ mod tests {
             &contract_util::NormalizedMethodSignature::new("ping"),
         );
         assert!(
-            expected_link_name.starts_with("__groundhog_entrypoint::Iface::"),
+            expected_link_name.starts_with("__thruput_entrypoint::Iface::"),
             "{expected_link_name}"
         );
         assert!(generated.contains(&expected_link_name), "{generated}");

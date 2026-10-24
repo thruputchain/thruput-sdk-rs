@@ -1,5 +1,5 @@
 error: contract interface metadata is defined by the trait and cannot be overridden
   --> tests/compile-fail/trait_metadata_override.rs:12:11
    |
-12 |     const __GROUNDHOG_ENTRYPOINT_ping: u64 = 0;
-   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 |     const __THRUPUT_ENTRYPOINT_ping: u64 = 0;
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^

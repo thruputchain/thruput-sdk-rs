@@ -66,7 +66,7 @@ pub const RAW_SECTION_NAME: &str = "groundhogspecrawv4";
 /// than as a version skew. That is the wrong diagnosis, but it is a safe one
 /// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. A
 /// finalized section only ever reaches a reader in an unlowered build
-/// artifact: `groundhog-rv32-lower` drops both spec sections, so nothing
+/// artifact: `thruput-rv32-lower` drops both spec sections, so nothing
 /// deployed carries one.
 pub const FINAL_SECTION_NAME: &str = "groundhogspecv2";
 

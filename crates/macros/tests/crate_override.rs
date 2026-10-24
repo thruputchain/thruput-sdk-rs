@@ -73,7 +73,7 @@ const EXPECTED_FRAGMENT: spec::SpecFragmentView<'static> =
 
 #[test]
 fn derived_fragment_matches_hand_written_reference() {
-    assert_eq!(__groundhog_spec_fragment_Derived, EXPECTED_FRAGMENT);
+    assert_eq!(__thruput_spec_fragment_Derived, EXPECTED_FRAGMENT);
 }
 
 #[test]

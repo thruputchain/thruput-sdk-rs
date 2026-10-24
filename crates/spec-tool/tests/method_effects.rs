@@ -19,7 +19,7 @@ pub trait Effects {
 }
 
 fn fragments() -> Vec<thruput_contract_spec::SpecFragment> {
-    let anchor = __GROUNDHOG_IFACE_ANCHOR_Effects;
+    let anchor = __THRUPUT_IFACE_ANCHOR_Effects;
     let mut raw = Vec::new();
     let mut emit =
         |fragment| raw.extend(xdrs::txs::encode(&fragment).unwrap());
@@ -33,7 +33,7 @@ fn fragments() -> Vec<thruput_contract_spec::SpecFragment> {
     emit(SpecFragmentView::InterfaceAnchor(SpecInterfaceAnchorView {
         ..anchor
     }));
-    for method in __GROUNDHOG_IFACE_METHODS_Effects {
+    for method in __THRUPUT_IFACE_METHODS_Effects {
         emit(SpecFragmentView::Method(SpecMethodFragmentView {
             interface_name: anchor.interface_name,
             interface_version: anchor.interface_version,

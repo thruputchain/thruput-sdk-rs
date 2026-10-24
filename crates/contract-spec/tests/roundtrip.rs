@@ -907,7 +907,7 @@ fn interface_fragment_emits_roundtrips() {
 }
 
 #[test]
-fn contract_type_ref_helpers_cover_groundhog_xdr_builtins() {
+fn contract_type_ref_helpers_cover_thruput_xdr_builtins() {
     assert_eq!(
         thruput_contract_spec::type_ref::<thruput_xdr::types::ContractAddress>(
         ),

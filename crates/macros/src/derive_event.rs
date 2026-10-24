@@ -120,9 +120,9 @@ fn emit_event_spec(
         // is hashed from the crate's, so the id follows the same.
         None,
     );
-    let def_ident = format_ident!("__groundhog_spec_event_def_{ident}");
+    let def_ident = format_ident!("__thruput_spec_event_def_{ident}");
     let anchor_fn_ident =
-        format_ident!("__groundhog_spec_event_anchor_fn_{ident}");
+        format_ident!("__thruput_spec_event_anchor_fn_{ident}");
 
     let topic_views = topics
         .iter()
@@ -168,7 +168,7 @@ fn emit_event_spec(
         #[inline(never)]
         #[cfg_attr(
             target_arch = "riscv32",
-            unsafe(link_section = "groundhogspecanchortextv0")
+            unsafe(link_section = "thruputspecanchortextv0")
         )]
         pub fn #anchor_fn_ident() -> usize {
             #[cfg(target_arch = "riscv32")]
@@ -187,9 +187,9 @@ fn emit_event_spec(
             const EVENT_DEF: ::thruput_sdk::__contract_spec::ContractEventDefView<'static> =
                 #def_ident;
 
-            const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = #anchor_fn_ident;
+            const __THRUPUT_SPEC_ANCHOR_ROOT: fn() -> usize = #anchor_fn_ident;
 
-            fn __groundhog_spec_anchor() -> usize {
+            fn __thruput_spec_anchor() -> usize {
                 #anchor_fn_ident()
             }
         }
@@ -207,16 +207,15 @@ fn emit_exported_event_fragment(
     anchor_fn_ident: &syn::Ident,
 ) -> TokenStream {
     let fragment_ident =
-        format_ident!("__groundhog_spec_event_fragment_{ident}");
-    let raw_len_ident =
-        format_ident!("__groundhog_spec_event_raw_len_{ident}");
+        format_ident!("__thruput_spec_event_fragment_{ident}");
+    let raw_len_ident = format_ident!("__thruput_spec_event_raw_len_{ident}");
     let raw_fragment_ident =
-        format_ident!("__groundhog_spec_raw_event_fragment_{ident}");
+        format_ident!("__thruput_spec_raw_event_fragment_{ident}");
 
     // `link_section` requires a string literal. Keep this in sync with
     // `thruput_spec_tool::RAW_SECTION_NAME`; the spec-tool tests guard drift.
     // On RV32 this is an ALLOC data section, retained by `#[used]`, and the
-    // groundhog-rpc lowerer excludes it from VM memory before artifact packing.
+    // CLI's rv32 lowerer excludes it from VM memory before artifact packing.
     quote! {
         #[doc(hidden)]
         pub const #fragment_ident: ::thruput_sdk::__contract_spec::SpecFragmentView<'static> =
@@ -247,10 +246,10 @@ fn emit_exported_event_fragment(
             // table before producing the final ELF.
             #[cfg_attr(
                 target_arch = "riscv32",
-                unsafe(link_section = "groundhogspecanchorsv0")
+                unsafe(link_section = "thruputspecanchorsv0")
             )]
             #[used]
-            static __GROUNDHOG_EVENT_SPEC_ANCHORS: [fn() -> usize; 1] =
+            static __THRUPUT_EVENT_SPEC_ANCHORS: [fn() -> usize; 1] =
                 [#anchor_fn_ident];
         };
     }
@@ -543,7 +542,7 @@ mod tests {
         let tokens = expand(&input).unwrap().to_string();
 
         assert!(
-            tokens.contains("__groundhog_spec_event_def_TransferEvent"),
+            tokens.contains("__thruput_spec_event_def_TransferEvent"),
             "{tokens}"
         );
         assert!(tokens.contains("ContractEventDefView"), "{tokens}");
@@ -551,9 +550,9 @@ mod tests {
             tokens.contains("ContractEventSpec for TransferEvent"),
             "{tokens}"
         );
-        assert!(tokens.contains("groundhogspecanchortextv0"), "{tokens}");
+        assert!(tokens.contains("thruputspecanchortextv0"), "{tokens}");
         assert!(
-            tokens.contains("__groundhog_spec_event_anchor_fn_TransferEvent"),
+            tokens.contains("__thruput_spec_event_anchor_fn_TransferEvent"),
             "{tokens}"
         );
         // Topic fields strip the reference and lower via the type-ref trait.
@@ -584,14 +583,11 @@ mod tests {
         );
         assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
         assert!(
-            tokens.contains("__groundhog_spec_raw_event_fragment_AuditEvent"),
+            tokens.contains("__thruput_spec_raw_event_fragment_AuditEvent"),
             "{tokens}"
         );
-        assert!(
-            tokens.contains("__GROUNDHOG_EVENT_SPEC_ANCHORS"),
-            "{tokens}"
-        );
-        assert!(tokens.contains("groundhogspecanchorsv0"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_EVENT_SPEC_ANCHORS"), "{tokens}");
+        assert!(tokens.contains("thruputspecanchorsv0"), "{tokens}");
         assert!(tokens.contains("target_arch = \"riscv32\""), "{tokens}");
     }
 

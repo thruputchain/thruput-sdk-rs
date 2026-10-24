@@ -192,7 +192,7 @@ fn entrypoint_link_name_mirrors_id_preimage_equality() {
     };
     assert_eq!(name("0.4.1"), name("0.4.9"));
     assert_ne!(name("0.4.1"), name("0.5.0"));
-    assert_eq!(name("0.4.1"), "__groundhog_entrypoint::Ledger::0.4::clash");
+    assert_eq!(name("0.4.1"), "__thruput_entrypoint::Ledger::0.4::clash");
 }
 
 #[test]

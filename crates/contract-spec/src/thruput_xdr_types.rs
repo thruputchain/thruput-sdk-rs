@@ -145,7 +145,7 @@ macro_rules! scheme_union_spec {
         #[inline(never)]
         #[cfg_attr(
             target_arch = "riscv32",
-            unsafe(link_section = "groundhogspecanchortextv0")
+            unsafe(link_section = "thruputspecanchortextv0")
         )]
         pub fn $anchor() -> usize {
             0
@@ -158,9 +158,9 @@ macro_rules! scheme_union_spec {
                 ),
             };
 
-            const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = $anchor;
+            const __THRUPUT_SPEC_ANCHOR_ROOT: fn() -> usize = $anchor;
 
-            fn __groundhog_spec_anchor() -> usize {
+            fn __thruput_spec_anchor() -> usize {
                 $anchor()
             }
         }
