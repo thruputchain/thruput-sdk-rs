@@ -215,11 +215,11 @@ fn interface_id_is_deterministic_and_keyed_on_name_and_major() {
 
 #[test]
 fn interface_id_pinned() {
-    // echo -n 'groundhog-interface::ERC20::0.1' | shasum -a 256
+    // echo -n 'thruput-interface::ERC20::0.1' | shasum -a 256
     let expected = {
         use sha2::Digest;
         let mut h = sha2::Sha256::new();
-        h.update(b"groundhog-interface::ERC20::0.1");
+        h.update(b"thruput-interface::ERC20::0.1");
         h.finalize()
     };
     assert_eq!(

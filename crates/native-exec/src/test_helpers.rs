@@ -19,7 +19,7 @@ pub trait Named {
 impl Named for ContractAddress {
     fn named(name: &str) -> Self {
         let mut hasher = Sha256::new();
-        hasher.update(b"groundhog-test-address:");
+        hasher.update(b"thruput-test-address:");
         hasher.update(name.as_bytes());
         let result: [u8; 32] = hasher.finalize().into();
         result.into()

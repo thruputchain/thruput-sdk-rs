@@ -174,10 +174,10 @@ mod registry_tests {
 
     #[test]
     fn native_token_selectors_match_the_protocol_constants() {
-        assert_eq!(lookup("ERC20Error").unwrap().selector, 0xb19947acb2fa14ff);
+        assert_eq!(lookup("ERC20Error").unwrap().selector, 0xf63c8b1f5e7e2fe0);
         assert_eq!(
             lookup("ERC20PermitError").unwrap().selector,
-            0xe8abb072f5171148
+            0x1aaf2b9becb7ddc4
         );
     }
 
@@ -191,11 +191,9 @@ mod registry_tests {
     #[test]
     fn selectors_match_recorded_preimage() {
         for entry in REGISTRY {
-            // These protocol-defined selectors retain their pre-rename package
-            // labels; all other entries use their declaring package's identity.
+            // LibraryExn keeps the pre-rename `sdk` package label; every other
+            // entry uses its declaring package's identity.
             let wire_crate = match entry.name {
-                "ERC20Error" => "groundhog-erc20-if",
-                "ERC20PermitError" => "groundhog-erc20-permit-if",
                 "LibraryExn" => "sdk",
                 _ => entry.root.crate_name,
             };
