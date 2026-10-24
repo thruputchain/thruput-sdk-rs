@@ -13,7 +13,7 @@ const HOGD_REPO_URL: &str = "https://github.com/thruputchain/hogd.git";
 
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
-const TEST_FFI_VERSION: &str = "0.40.2";
+const TEST_FFI_VERSION: &str = "0.41.0";
 
 /// Must match the version expected by hogd/built_contracts' build scripts.
 /// Bump this in lockstep with `TEST_FFI_VERSION`: the hogd tag we check out
@@ -22,7 +22,7 @@ const TEST_FFI_VERSION: &str = "0.40.2";
 /// This is hogd's pin (scripts/fetch.sh), independent of the SDK's own
 /// scripts/thruput-cli-version.sh.
 #[cfg(feature = "source-build")]
-const THRUPUT_CLI_VERSION: &str = "0.30.0";
+const THRUPUT_CLI_VERSION: &str = "0.37.0";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
