@@ -503,7 +503,7 @@ assert_file_lacks_id() {
 }
 
 # Spec content must not reach the deployed .rv32a memory image. Raw fragments
-# live in the ELF's groundhogspecraw* section (where the CLI reads them); the
+# live in the ELF's thruputspecraw* section (where the CLI reads them); the
 # lowerer must not copy them into the image, and rv32 has no embedded final spec
 # (spec.json/.xdr are sidecars). Each needle is a spec-only name — the
 # runtime never embeds them (dispatch uses hashed IDs, events hashed

@@ -8,8 +8,8 @@ use crate::SpecToolError;
 /// counts as a format change. Re-exported here because consumers (the
 /// `thruput` CLI among them) reach them through this crate.
 pub use thruput_contract_spec::{
-    FINAL_SECTION_NAME, RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT,
-    SpecSection, classify_section,
+    FINAL_SECTION_NAME, LEGACY_RAW_SECTION_PREFIX, RAW_SECTION_NAME,
+    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,
 };
 
 pub const FINAL_FORMAT_TAG: &str = "gh_contract_spec_v1";

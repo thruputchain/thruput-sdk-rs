@@ -708,7 +708,7 @@ mod tests {
         let tokens = apply_with_config(&item, &parse_config(""))
             .unwrap()
             .to_string();
-        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
+        assert!(tokens.contains("thruputspecrawv5"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
         assert!(tokens.contains("__THRUPUT_IFACE_NAME"), "{tokens}");

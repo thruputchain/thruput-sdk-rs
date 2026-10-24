@@ -226,7 +226,7 @@ fn emit_exported_event_fragment(
 
         #[cfg(target_arch = "riscv32")]
         #[doc(hidden)]
-        #[unsafe(link_section = "groundhogspecrawv4")]
+        #[unsafe(link_section = "thruputspecrawv5")]
         // `#[used]` keeps the section live through ELF linking so the CLI
         // can extract it.
         #[used]
@@ -563,7 +563,7 @@ mod tests {
         // Slice payload fields lower through the unsized trait impl.
         assert!(tokens.contains("type_ref :: < [u8] >"), "{tokens}");
         // Without `#[event_spec(export)]` no raw fragment is emitted.
-        assert!(!tokens.contains("groundhogspecrawv4"), "{tokens}");
+        assert!(!tokens.contains("thruputspecrawv5"), "{tokens}");
     }
 
     #[test]
@@ -581,7 +581,7 @@ mod tests {
             tokens.contains("SpecFragmentView :: ExportedEvent"),
             "{tokens}"
         );
-        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
+        assert!(tokens.contains("thruputspecrawv5"), "{tokens}");
         assert!(
             tokens.contains("__thruput_spec_raw_event_fragment_AuditEvent"),
             "{tokens}"

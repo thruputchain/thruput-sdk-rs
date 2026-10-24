@@ -1,6 +1,6 @@
 //! Pins the raw spec wire format against an encoded sample.
 //!
-//! The `groundhogspecraw*` section is an unframed concatenation of XDR
+//! The `thruputspecraw*` section is an unframed concatenation of XDR
 //! `SpecFragment` values, so a producer and consumer that disagree about the
 //! layout do not fail cleanly — the reader stops short of a field it does not
 //! know, resumes mid-fragment, and decodes garbage from there on. That is

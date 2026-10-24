@@ -187,7 +187,7 @@ macro_rules! scheme_union_spec {
         // in sync with `thruput_spec_tool::RAW_SECTION_NAME`.
         #[cfg(target_arch = "riscv32")]
         #[doc(hidden)]
-        #[unsafe(link_section = "groundhogspecrawv4")]
+        #[unsafe(link_section = "thruputspecrawv5")]
         #[used]
         static $raw_fragment: [u8; $raw_len] = {
             let mut w = ::xdrs::txs::ConstWriter::<$raw_len>::new();

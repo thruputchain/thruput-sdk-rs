@@ -9,8 +9,8 @@ pub mod format;
 pub mod view;
 
 pub use format::{
-    FINAL_SECTION_NAME, RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT,
-    SpecSection, classify_section,
+    FINAL_SECTION_NAME, LEGACY_RAW_SECTION_PREFIX, RAW_SECTION_NAME,
+    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,
 };
 
 #[cfg(feature = "owned-model")]

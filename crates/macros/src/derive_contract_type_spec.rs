@@ -171,7 +171,7 @@ fn emit_raw_typedef_fragment(
 
         #[cfg(target_arch = "riscv32")]
         #[doc(hidden)]
-        #[unsafe(link_section = "groundhogspecrawv4")]
+        #[unsafe(link_section = "thruputspecrawv5")]
         // `#[used]` keeps the section live through ELF linking so the CLI
         // can extract it.
         #[used]
@@ -478,7 +478,7 @@ mod tests {
         assert!(
             tokens.contains(
                 "# [cfg (target_arch = \"riscv32\")] # [doc (hidden)] \
-                 # [unsafe (link_section = \"groundhogspecrawv4\")] # [used] \
+                 # [unsafe (link_section = \"thruputspecrawv5\")] # [used] \
                  static __thruput_spec_raw_typedef_fragment_Envelope"
             ),
             "{tokens}"

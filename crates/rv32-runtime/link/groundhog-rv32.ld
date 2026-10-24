@@ -226,9 +226,9 @@ SECTIONS
    * the section non-alloc, so it takes no guest address space. The name
    * carries the raw spec format version: keep it in sync with
    * thruput_contract_spec::RAW_SECTION_NAME (pinned by a test there). */
-  groundhogspecrawv4 0 (INFO) :
+  thruputspecrawv5 0 (INFO) :
   {
-    KEEP(*(groundhogspecrawv4))
+    KEEP(*(thruputspecrawv5))
   }
 
   /DISCARD/ :
