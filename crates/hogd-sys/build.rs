@@ -187,40 +187,6 @@ fn emit_link_config(lib_dir: &Path) {
     println!("cargo:metadata=lib_dir={}", lib_dir.display());
 }
 
-fn staged_lib_dir(out_dir: &Path) -> PathBuf {
-    out_dir.join(format!("hogd_lib_{TEST_FFI_VERSION}"))
-}
-
-/// Stage the selected shared library into a stable directory under OUT_DIR.
-///
-/// Executables load `libtest_ffi` from an rpath rooted in the crate build
-/// output. If we link against an arbitrary source directory, an older staged
-/// dylib can still win at runtime. Staging the chosen library into
-/// `OUT_DIR/hogd_lib_*` keeps link-time and runtime resolution aligned across
-/// download, custom-lib, and source-build flows.
-fn stage_shared_lib(
-    source_lib_dir: &Path,
-    out_dir: &Path,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let lib_name = shared_lib_name();
-    let src = source_lib_dir.join(&lib_name);
-    if !src.exists() {
-        return Err(
-            format!("Shared library not found at {}", src.display()).into()
-        );
-    }
-
-    let stage_dir = staged_lib_dir(out_dir);
-    fs::create_dir_all(&stage_dir)?;
-    let dst = stage_dir.join(&lib_name);
-
-    if src != dst {
-        fs::copy(&src, &dst)?;
-    }
-
-    Ok(stage_dir)
-}
-
 /// Find and copy prebuilt `bindings.rs` from the extracted tarball directory.
 /// Returns an error if `bindings.rs` is not found in the tarball.
 fn find_prebuilt_bindings(
@@ -247,10 +213,29 @@ fn find_prebuilt_bindings(
     Ok(())
 }
 
-/// Copy the shared library to the deps directory so that test binaries
-/// can find it at runtime via @loader_path (macOS) or $ORIGIN (Linux)
-/// rpath entries configured in .cargo/config.toml.
-fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+/// How [`install_lib_in_deps`] takes the library from its source directory.
+#[derive(Clone, Copy)]
+enum Install {
+    /// The source is a scratch copy this build script re-creates on every run
+    /// (the extracted archive), so take it instead of keeping a second
+    /// ~200 MB copy per build configuration.
+    Move,
+    /// The source is not ours to take: a `HOGD_FFI_LIB_DIR` directory, or the
+    /// cmake tree, which would relink if its output went missing.
+    Copy,
+}
+
+/// Put the shared library in `<profile>/deps` and return that directory.
+///
+/// Test binaries load it from there at runtime via the @loader_path (macOS)
+/// or $ORIGIN (Linux) rpath entries configured in .cargo/config.toml.
+/// Linking against that same file keeps link-time and runtime resolution
+/// aligned; linking against any other directory would let an older dylib
+/// already in deps win at runtime.
+fn install_lib_in_deps(
+    lib_dir: &Path,
+    how: Install,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     // OUT_DIR is <profile>/build/<pkg>-<hash>/out (cargo <= 1.98) or
     // <profile>/build/<pkg>/<hash>/out (cargo 1.99+), so a fixed number of
@@ -273,27 +258,35 @@ fn copy_lib_to_deps(lib_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let src = lib_dir.join(&lib_name);
     let dst = deps_dir.join(&lib_name);
 
-    if src.exists() {
-        // On a cold target dir the build script can run before anything has
-        // created <profile>/deps (cargo 1.99+ no longer pre-creates it).
-        fs::create_dir_all(&deps_dir).map_err(|e| {
-            format!("failed to create {}: {e}", deps_dir.display())
-        })?;
-        fs::copy(&src, &dst).map_err(|e| {
-            format!(
-                "failed to copy {} to {}: {e}",
-                src.display(),
-                dst.display()
-            )
-        })?;
-    } else {
-        println!(
-            "cargo:warning=Shared library not found at {}; rpath resolution may fail at runtime",
-            src.display()
+    if !src.exists() {
+        return Err(
+            format!("Shared library not found at {}", src.display()).into()
         );
     }
 
-    Ok(())
+    // On a cold target dir the build script can run before anything has
+    // created <profile>/deps (cargo 1.99+ no longer pre-creates it).
+    fs::create_dir_all(&deps_dir).map_err(|e| {
+        format!("failed to create {}: {e}", deps_dir.display())
+    })?;
+    let installed = match how {
+        // A rename replaces dst atomically, so a test still running against
+        // the old library keeps its mapping. Fall back to copying if OUT_DIR
+        // and deps are on different filesystems.
+        Install::Move => {
+            fs::rename(&src, &dst).or_else(|_| fs::copy(&src, &dst).map(drop))
+        }
+        Install::Copy => fs::copy(&src, &dst).map(drop),
+    };
+    installed.map_err(|e| {
+        format!(
+            "failed to install {} into {}: {e}",
+            src.display(),
+            deps_dir.display()
+        )
+    })?;
+
+    Ok(deps_dir)
 }
 
 /// Which build strategy the build script should use.
@@ -377,7 +370,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         BuildMethod::CustomLib(dir) => {
             let lib_path = PathBuf::from(&dir);
             find_prebuilt_bindings(&lib_path, &out_dir)?;
-            use_prebuilt_lib(&dir, &out_dir)?;
+            use_prebuilt_lib(&dir)?;
         }
         BuildMethod::Source => {
             #[cfg(feature = "source-build")]
@@ -649,10 +642,7 @@ fn verify_hogd_version(
 }
 
 /// Use a prebuilt library from a specified directory.
-fn use_prebuilt_lib(
-    lib_dir: &str,
-    out_dir: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn use_prebuilt_lib(lib_dir: &str) -> Result<(), Box<dyn std::error::Error>> {
     let lib_path = PathBuf::from(lib_dir);
 
     if !lib_path.exists() {
@@ -676,12 +666,11 @@ fn use_prebuilt_lib(
         .into());
     }
 
-    let staged_dir = stage_shared_lib(&lib_path, out_dir)?;
-    emit_link_config(&staged_dir);
-    copy_lib_to_deps(&staged_dir)?;
+    let deps_dir = install_lib_in_deps(&lib_path, Install::Copy)?;
+    emit_link_config(&deps_dir);
     println!(
-        "cargo:warning=Using prebuilt library from: {lib_dir} (found: {expected_lib}); staged at {}",
-        staged_dir.display(),
+        "cargo:warning=Using prebuilt library from: {lib_dir} (found: {expected_lib}); installed in {}",
+        deps_dir.display(),
     );
 
     Ok(())
@@ -887,8 +876,8 @@ fn download_and_extract(
 
     find_prebuilt_bindings(&extract_dir, out_dir)?;
 
-    emit_link_config(&extract_dir);
-    copy_lib_to_deps(&extract_dir)?;
+    let deps_dir = install_lib_in_deps(&extract_dir, Install::Move)?;
+    emit_link_config(&deps_dir);
 
     Ok(())
 }
@@ -929,13 +918,12 @@ fn build_from_cmake(
 
     // Tell Rust where to find the built library
     let lib_dir = dst.join("build/hogd/test_ffi");
-    let staged_dir = stage_shared_lib(&lib_dir, out_dir)?;
-    emit_link_config(&staged_dir);
-    copy_lib_to_deps(&staged_dir)?;
+    let deps_dir = install_lib_in_deps(&lib_dir, Install::Copy)?;
+    emit_link_config(&deps_dir);
     println!(
-        "cargo:warning=Built library from source at: {}; staged at {}",
+        "cargo:warning=Built library from source at: {}; installed in {}",
         dst.display(),
-        staged_dir.display()
+        deps_dir.display()
     );
 
     Ok(())
