@@ -239,22 +239,22 @@ impl crate::__contract_spec::ContractTypeRefSpec for FaultString {
             ),
         };
 
-    const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize =
-        Self::__groundhog_spec_anchor;
+    const __THRUPUT_SPEC_ANCHOR_ROOT: fn() -> usize =
+        Self::__thruput_spec_anchor;
 
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         0
     }
 }
 
 #[doc(hidden)]
 #[allow(non_upper_case_globals)]
-pub const __groundhog_spec_fragment_FaultString:
+pub const __thruput_spec_fragment_FaultString:
     crate::__contract_spec::SpecFragmentView<'static> =
     crate::__contract_spec::SpecFragmentView::TypeDef(
         <FaultString as crate::__contract_spec::ContractTypeSpec>::TYPE_DEF,

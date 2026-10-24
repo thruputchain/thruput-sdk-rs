@@ -1,8 +1,7 @@
 use crate::Amount;
 use thruput_sdk::ensure;
 
-// The native token precompile uses this fixed wire identity.
-#[thruput_sdk::contract_exception(wire_crate = "groundhog-erc20-if")]
+#[thruput_sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum ERC20Error {

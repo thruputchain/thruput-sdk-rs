@@ -18,7 +18,7 @@
 //! (PC 0) with the invoked method id in `a0`/`a1`; `_start` tail-calls
 //! `rv32_dispatch`, which scans the dispatch table (one `Entrypoint` record
 //! per method, emitted by the `#[contract]` macro into the
-//! `groundhog_rv32_entrypoints` section that the linker script brackets) and
+//! `thruput_rv32_entrypoints` section that the linker script brackets) and
 //! invokes the matching wrapper. No per-method export symbols are emitted on
 //! rv32.
 //!

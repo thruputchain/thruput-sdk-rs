@@ -1,8 +1,8 @@
 # Storage flags: SetStorageFlags, GetStorageFlags and ClearStorageFlags
 
-An alternative to [hogd #4156](https://github.com/groundhogchain/hogd/pull/4156).
-The protocol side is [protocol #190](https://github.com/groundhogchain/protocol/pull/190)
-and the host side [hogd #4158](https://github.com/groundhogchain/hogd/pull/4158).
+An alternative to [hogd #4156](https://github.com/thruputchain/hogd/pull/4156).
+The protocol side is [protocol #190](https://github.com/thruputchain/thruput-protocol/pull/190)
+and the host side [hogd #4158](https://github.com/thruputchain/hogd/pull/4158).
 
 ## The problem
 
@@ -10,10 +10,10 @@ An exclusive write takes a lock on its key. Before this change, a later write
 to the same key in the same transaction replaced the key's flags with its own.
 A transaction that locked a key and then wrote it again ordinarily committed a
 shared change, and a concurrent writer merged with it
-([hogd #3006](https://github.com/groundhogchain/hogd/issues/3006)).
+([hogd #3006](https://github.com/thruputchain/hogd/issues/3006)).
 
 The allowance design in
-[sdk_rs #482](https://github.com/groundhogchain/sdk_rs/pull/482) needs locks
+[sdk_rs #482](https://github.com/thruputchain/thruput-sdk-rs/pull/482) needs locks
 that outlive the write that takes them.
 `adjust_allowance(spender, difference, exclusive=true)` conflicts with other
 writers to the pair, and `clear_allowance` and `clear_balance` delete under an

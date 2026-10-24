@@ -145,7 +145,7 @@ macro_rules! scheme_union_spec {
         #[inline(never)]
         #[cfg_attr(
             target_arch = "riscv32",
-            unsafe(link_section = "groundhogspecanchortextv0")
+            unsafe(link_section = "thruputspecanchortextv0")
         )]
         pub fn $anchor() -> usize {
             0
@@ -158,9 +158,9 @@ macro_rules! scheme_union_spec {
                 ),
             };
 
-            const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize = $anchor;
+            const __THRUPUT_SPEC_ANCHOR_ROOT: fn() -> usize = $anchor;
 
-            fn __groundhog_spec_anchor() -> usize {
+            fn __thruput_spec_anchor() -> usize {
                 $anchor()
             }
         }
@@ -180,7 +180,7 @@ macro_rules! scheme_union_spec {
         // in sync with `thruput_spec_tool::RAW_SECTION_NAME`.
         #[cfg(target_arch = "riscv32")]
         #[doc(hidden)]
-        #[unsafe(link_section = "groundhogspecrawv4")]
+        #[unsafe(link_section = "thruputspecrawv5")]
         #[used]
         static $raw_fragment: [u8; $raw_len] = {
             let mut w = ::xdrs::txs::ConstWriter::<$raw_len>::new();

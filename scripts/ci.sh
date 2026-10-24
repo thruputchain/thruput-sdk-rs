@@ -8,7 +8,7 @@ set -e
 # Namespace-cached install root ci.yml sets.
 . ./scripts/install-thruput-cli.sh
 
-# groundhog 0.6 refuses to run without an active config profile, even for an
+# The CLI (0.6+) refuses to run without an active config profile, even for an
 # offline `build`. A CI runner has no global config, so bootstrap
 # a throwaway one. The guard keeps this a no-op for a developer running
 # scripts/ci.sh locally: `config get` with no argument resolves the active

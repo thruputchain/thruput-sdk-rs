@@ -1,6 +1,6 @@
 //! Raw contract: entrypoints registered by hand, with no `#[contract]` macro.
 //!
-//! rv32 dispatches guest-side off the `groundhog_rv32_entrypoints` section,
+//! rv32 dispatches guest-side off the `thruput_rv32_entrypoints` section,
 //! which the macro normally populates. Writing the records by hand registers
 //! these entrypoints outside the macro's calldata/Return glue — which is the
 //! point of this fixture: it exercises the bytestring syscalls directly.
@@ -67,7 +67,7 @@ mod rv32_entries {
             }
 
             #[used]
-            #[unsafe(link_section = "groundhog_rv32_entrypoints")]
+            #[unsafe(link_section = "thruput_rv32_entrypoints")]
             static $static_name: Entrypoint = Entrypoint {
                 method_id: $method_id,
                 wrapper: $wrapper,

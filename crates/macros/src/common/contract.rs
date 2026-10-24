@@ -525,9 +525,9 @@ pub fn method_return_spec_token(
 
 /// Build a `ContractSpecMethodView` literal (name, args, return) for a method.
 ///
-/// A `#[contract]` trait emits these into a `__GROUNDHOG_IFACE_METHODS` const
+/// A `#[contract]` trait emits these into a `__THRUPUT_IFACE_METHODS` const
 /// so that a trait impl pulls the *trait's* method signatures into its spec
-/// (mirroring how events flow through `__GROUNDHOG_IFACE_EVENTS`). This keeps
+/// (mirroring how events flow through `__THRUPUT_IFACE_EVENTS`). This keeps
 /// the trait authoritative: an impl that renames a parameter (e.g. `_factory`)
 /// cannot diverge the canonical interface spec.
 pub fn method_spec_view_tokens(
@@ -597,7 +597,7 @@ pub fn method_anchor_tokens(
 
     match &method.sig().output {
         syn::ReturnType::Default => tokens.push(quote! {
-            <() as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            <() as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT
         }),
         syn::ReturnType::Type(_, ty) => {
             tokens.push(contract_type_anchor_token(ty)?);
@@ -633,7 +633,7 @@ pub fn contract_type_anchor_token(ty: &syn::Type) -> Result<TokenStream> {
         | syn::Type::Slice(_)
         | syn::Type::Array(_)
         | syn::Type::Tuple(_) => Ok(quote! {
-            <#ty as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT
+            <#ty as ::thruput_sdk::__contract_spec::ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT
         }),
         syn::Type::ImplTrait(_)
         | syn::Type::TraitObject(_)

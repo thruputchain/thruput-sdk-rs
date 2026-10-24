@@ -1,4 +1,4 @@
-/* Groundhog RV32 contract linker script.
+/* Thruput RV32 contract linker script.
  *
  * The hogd VM is modified-Harvard: PC indexes an immutable CODE memory; loads
  * and stores address a separate DATA memory. The two are INDEPENDENT address
@@ -139,19 +139,25 @@ SECTIONS
   .rodata __stack_top : ALIGN(8)
   {
     /* Guest dispatch table: one `Entrypoint` record per #[contract] method,
-     * emitted by the groundhog-macros expansion via
-     * #[link_section = "groundhog_rv32_entrypoints"]. Placed inside .rodata
+     * emitted by the thruput-macros expansion via
+     * #[link_section = "thruput_rv32_entrypoints"]. Placed inside .rodata
      * with explicit bracket symbols so the table rides the lowerer's
      * existing .rodata -> initial-memory copy, instead of an orphan section
      * the PROGBITS allowlist would skip. Section and symbol names are owned
      * by this repo end-to-end (macro emits, this script brackets,
      * rv32-runtime/src/start.rs reads) — deliberately NOT the linker's
      * __start_<section> auto-encapsulation convention, so this script is
-     * unambiguously the single definer. */
+     * unambiguously the single definer.
+     *
+     * Hand-written contracts that register `Entrypoint` records without the
+     * macro name the section themselves; the pre-rename
+     * `groundhog_rv32_entrypoints` spelling is collected into the same table
+     * so those keep linking until they move to the new name. */
     . = ALIGN(8);
-    __groundhog_rv32_entrypoints_start = .;
+    __thruput_rv32_entrypoints_start = .;
+    KEEP(*(thruput_rv32_entrypoints))
     KEEP(*(groundhog_rv32_entrypoints))
-    __groundhog_rv32_entrypoints_end = .;
+    __thruput_rv32_entrypoints_end = .;
 
     *(.srodata .srodata.*)
     *(.rodata .rodata.*)
@@ -165,28 +171,28 @@ SECTIONS
   } > DATA
 
   /* Interface table: one 8-byte InterfaceId record per #[contract] impl
-   * block, emitted by the groundhog-macros expansion via #[link_section =
-   * "groundhog_rv32_interfaces"] and read by thruput_sdk::interface_table.
+   * block, emitted by the thruput-macros expansion via #[link_section =
+   * "thruput_rv32_interfaces"] and read by thruput_sdk::interface_table.
    * Same shape as the dispatch table above: KEEP'd (nothing references the
    * records) and bracketed by script-defined symbols. Its own output section
    * rather than a slice of .rodata because the lowerer decides whether it
    * reaches the deployed image: the section is copied into VM memory only when
-   * groundhog_rv32_interfaces_anchor is present, and that anchor is an
+   * thruput_rv32_interfaces_anchor is present, and that anchor is an
    * ordinary GC-able word that survives the link only if
    * thruput_sdk::interface_table::implements was instantiated (an ERC-165
    * impl). Both live at the top of the data image so a dropped table shortens
    * it rather than leaving a hole. Section names are shared with the SDK
-   * macros and the groundhog-rpc lowerer's allowlist. */
-  groundhog_rv32_interfaces : ALIGN(8)
+   * macros and the CLI's rv32 lowerer allowlist. */
+  thruput_rv32_interfaces : ALIGN(8)
   {
-    __groundhog_rv32_interfaces_start = .;
-    KEEP(*(groundhog_rv32_interfaces))
-    __groundhog_rv32_interfaces_end = .;
+    __thruput_rv32_interfaces_start = .;
+    KEEP(*(thruput_rv32_interfaces))
+    __thruput_rv32_interfaces_end = .;
   } > DATA
 
-  groundhog_rv32_interfaces_anchor : ALIGN(4)
+  thruput_rv32_interfaces_anchor : ALIGN(4)
   {
-    *(groundhog_rv32_interfaces_anchor)
+    *(thruput_rv32_interfaces_anchor)
   } > DATA
 
   . = ALIGN(8);
@@ -220,9 +226,9 @@ SECTIONS
    * the section non-alloc, so it takes no guest address space. The name
    * carries the raw spec format version: keep it in sync with
    * thruput_contract_spec::RAW_SECTION_NAME (pinned by a test there). */
-  groundhogspecrawv4 0 (INFO) :
+  thruputspecrawv5 0 (INFO) :
   {
-    KEEP(*(groundhogspecrawv4))
+    KEEP(*(thruputspecrawv5))
   }
 
   /DISCARD/ :
@@ -233,8 +239,8 @@ SECTIONS
      * fragments in, leaving neither data nor executable metadata for the
      * lowerer to handle. Keep these names in sync with the SDK macros.
      */
-    *(groundhogspecanchorsv0)
-    *(groundhogspecanchortextv0)
+    *(thruputspecanchorsv0)
+    *(thruputspecanchortextv0)
     *(.got .got.*)
     *(.got.plt .got.plt.*)
     *(.plt .plt.*)

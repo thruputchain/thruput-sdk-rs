@@ -9,8 +9,8 @@ pub mod format;
 pub mod view;
 
 pub use format::{
-    FINAL_SECTION_NAME, RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT,
-    SpecSection, classify_section,
+    FINAL_SECTION_NAME, LEGACY_RAW_SECTION_PREFIX, RAW_SECTION_NAME,
+    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,
 };
 
 #[cfg(feature = "owned-model")]
@@ -31,7 +31,7 @@ pub use view::*;
 #[cfg(feature = "alloc")]
 use xdrs::VecM;
 
-mod groundhog_xdr_types;
+mod thruput_xdr_types;
 
 /// Implemented by `#[contract_type]` types to provide their spec type definition.
 pub trait ContractTypeSpec {
@@ -56,17 +56,17 @@ pub trait ContractEventSpec {
     /// Hidden root symbol used to retain raw typedef fragments for the
     /// event's field types.
     #[doc(hidden)]
-    const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize =
-        Self::__groundhog_spec_anchor;
+    const __THRUPUT_SPEC_ANCHOR_ROOT: fn() -> usize =
+        Self::__thruput_spec_anchor;
 
     /// Hidden linker-anchor hook used to retain raw typedef fragments.
     #[doc(hidden)]
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         0
     }
 }
@@ -115,7 +115,7 @@ pub struct ContractTypeInfo<'a> {
 pub trait ContractTypeRefSpec {
     /// The type reference. Transitive type definitions are not carried here;
     /// they are retained via the linker-anchor mechanism
-    /// (`__GROUNDHOG_SPEC_ANCHOR_ROOT`) and resolved by spec-tool.
+    /// (`__THRUPUT_SPEC_ANCHOR_ROOT`) and resolved by spec-tool.
     const INFO: ContractTypeInfo<'static>;
 
     /// How this type appears as a signed-token preimage
@@ -127,17 +127,17 @@ pub trait ContractTypeRefSpec {
 
     /// Hidden root symbol used to retain imported raw typedef fragments.
     #[doc(hidden)]
-    const __GROUNDHOG_SPEC_ANCHOR_ROOT: fn() -> usize =
-        Self::__groundhog_spec_anchor;
+    const __THRUPUT_SPEC_ANCHOR_ROOT: fn() -> usize =
+        Self::__thruput_spec_anchor;
 
     /// Hidden linker-anchor hook used to retain raw typedef fragments.
     #[doc(hidden)]
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         0
     }
 }
@@ -230,12 +230,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         mix_anchor_fn(
             0,
-            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -283,12 +283,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         mix_anchor_fn(
             0,
-            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -307,12 +307,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         mix_anchor_fn(
             0,
-            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -339,12 +339,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         mix_anchor_fn(
             0,
-            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -364,12 +364,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         mix_anchor_fn(
             0,
-            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -385,12 +385,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         mix_anchor_fn(
             0,
-            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -405,12 +405,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         mix_anchor_fn(
             0,
-            <T as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }
@@ -429,11 +429,11 @@ macro_rules! impl_tuple_type_ref_spec {
                 #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
-                    unsafe(link_section = "groundhogspecanchortextv0")
+                    unsafe(link_section = "thruputspecanchortextv0")
                 )]
-                fn __groundhog_spec_anchor() -> usize {
+                fn __thruput_spec_anchor() -> usize {
                     let mut acc = 0usize;
-                    $(acc = mix_anchor_fn(acc, <$name as ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT);)+
+                    $(acc = mix_anchor_fn(acc, <$name as ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT);)+
                     acc
                 }
             }

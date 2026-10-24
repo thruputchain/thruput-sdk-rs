@@ -1,6 +1,6 @@
 //! Owned raw-spec fragment types.
 //!
-//! `groundhogspecraw*` fragments are internal to the SDK toolchain: the
+//! `thruputspecraw*` fragments are internal to the SDK toolchain: the
 //! `#[contract]` macros emit them (as const views) and spec-tool parses and
 //! canonicalizes them. Downstream consumers only ever see the finalized
 //! `ContractSpec`, so the fragment types live here rather than in the

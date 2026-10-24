@@ -23,16 +23,22 @@
 //! rather than shipping:
 //!
 //! - this constant,
-//! - `[package.metadata.groundhog] raw_spec_format` in this crate's
+//! - `[package.metadata.thruput] raw_spec_format` in this crate's
 //!   `Cargo.toml`, which is how the `thruput` CLI reads the format version
 //!   out of a contract's dependency graph before compiling it,
 //! - the `link_section` literals in `thruput-macros`,
 //! - the `(INFO)` output section in `thruput-rv32-runtime`'s
-//!   `groundhog-rv32.ld`, which keeps the section out of guest memory.
+//!   `thruput-rv32.ld`, which keeps the section out of guest memory.
 //!
 //! Format 0 (`groundhogspecrawv0`) is deliberately unsupported: two
 //! incompatible encodings shipped under that name, so the bytes cannot be
 //! interpreted from the section name alone.
+//!
+//! Format 5 renamed the section from `groundhogspecraw*` to
+//! `thruputspecraw*`; its encoding is format 4's. Sections under the old
+//! prefix still classify as raw (see [`LEGACY_RAW_SECTION_PREFIX`]), so an
+//! artifact from an older SDK reports as a version skew rather than as
+//! having no spec.
 
 /// Prefix shared by every version of the raw spec ELF section name.
 ///
@@ -40,10 +46,17 @@
 /// section written by a different SDK is recognized as a raw spec section of
 /// the wrong version, instead of being skipped as unrelated (which surfaces
 /// as "this contract has no spec" — the wrong diagnosis).
-pub const RAW_SECTION_PREFIX: &str = "groundhogspecraw";
+pub const RAW_SECTION_PREFIX: &str = "thruputspecraw";
+
+/// Prefix of the raw spec ELF section name through format 4.
+///
+/// Recognized by [`classify_section`] for the same reason consumers match on
+/// a prefix at all: a contract built with an older SDK should read as the
+/// wrong format version, not as a contract without a spec. Nothing emits it.
+pub const LEGACY_RAW_SECTION_PREFIX: &str = "groundhogspecraw";
 
 /// Wire-format version of the raw spec section this SDK produces and parses.
-pub const RAW_SPEC_FORMAT: u32 = 4;
+pub const RAW_SPEC_FORMAT: u32 = 5;
 
 /// Name of the raw spec ELF section this SDK emits.
 ///
@@ -51,7 +64,7 @@ pub const RAW_SPEC_FORMAT: u32 = 4;
 /// [`RAW_SPEC_FORMAT`] because `#[link_section = ...]` in `thruput-macros`
 /// needs a literal anyway; `raw_section_name_matches_its_parts` pins the
 /// three against each other.
-pub const RAW_SECTION_NAME: &str = "groundhogspecrawv4";
+pub const RAW_SECTION_NAME: &str = "thruputspecrawv5";
 
 /// Name of the finalized spec ELF section.
 ///
@@ -64,11 +77,12 @@ pub const RAW_SECTION_NAME: &str = "groundhogspecrawv4";
 /// matches this name exactly, so a `v0` section reads as
 /// [`SpecSection::Other`] and the artifact reports as having no spec rather
 /// than as a version skew. That is the wrong diagnosis, but it is a safe one
-/// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. A
+/// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. The
+/// pre-rename `groundhogspecv2` likewise reads as [`SpecSection::Other`]. A
 /// finalized section only ever reaches a reader in an unlowered build
-/// artifact: `groundhog-rv32-lower` drops both spec sections, so nothing
+/// artifact: `thruput-rv32-lower` drops both spec sections, so nothing
 /// deployed carries one.
-pub const FINAL_SECTION_NAME: &str = "groundhogspecv2";
+pub const FINAL_SECTION_NAME: &str = "thruputspecv2";
 
 /// What an ELF section name means to the spec pipeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +98,8 @@ pub enum SpecSection {
 
 /// Classify an ELF section name.
 ///
-/// A `groundhogspecraw` section whose suffix is not `v<integer>` classifies
+/// A raw section (under either [`RAW_SECTION_PREFIX`] or
+/// [`LEGACY_RAW_SECTION_PREFIX`]) whose suffix is not `v<integer>` classifies
 /// as [`SpecSection::Other`]: an unparseable suffix cannot be reported as a
 /// version skew, and treating it as a raw section would only turn it into a
 /// decode failure later.
@@ -94,6 +109,7 @@ pub fn classify_section(name: &str) -> SpecSection {
     }
     match name
         .strip_prefix(RAW_SECTION_PREFIX)
+        .or_else(|| name.strip_prefix(LEGACY_RAW_SECTION_PREFIX))
         .and_then(|suffix| suffix.strip_prefix('v'))
         .and_then(|digits| digits.parse::<u32>().ok())
     {
@@ -123,7 +139,7 @@ mod tests {
         // guest memory size the heap ASSERT checks. Whole trimmed lines are
         // compared, so a typo on either side of the name fails, and nothing
         // allocates, so the test builds without the `alloc` feature.
-        let script = include_str!("../../rv32-runtime/link/groundhog-rv32.ld");
+        let script = include_str!("../../rv32-runtime/link/thruput-rv32.ld");
         let has_line = |prefix: &str, suffix: &str| {
             script.lines().any(|line| {
                 line.trim()
@@ -134,7 +150,7 @@ mod tests {
         };
         assert!(
             has_line("", " 0 (INFO) :") && has_line("KEEP(*(", "))"),
-            "groundhog-rv32.ld must place {RAW_SECTION_NAME} in an (INFO) \
+            "thruput-rv32.ld must place {RAW_SECTION_NAME} in an (INFO) \
              output section; update it alongside RAW_SPEC_FORMAT",
         );
     }
@@ -151,7 +167,7 @@ mod tests {
             .and_then(|rest| rest.trim().strip_prefix('='))
             .and_then(|rest| rest.trim().parse::<u32>().ok())
             .expect(
-                "Cargo.toml must carry `[package.metadata.groundhog] \
+                "Cargo.toml must carry `[package.metadata.thruput] \
                  raw_spec_format = <n>` so `cargo metadata` reports the \
                  format version this crate emits",
             );
@@ -168,26 +184,34 @@ mod tests {
             SpecSection::Raw(RAW_SPEC_FORMAT),
         );
         assert_eq!(
+            classify_section("thruputspecrawv99"),
+            SpecSection::Raw(99),
+        );
+        // Pre-rename sections report their version, so an older SDK's
+        // artifact surfaces as a format skew.
+        assert_eq!(
             classify_section("groundhogspecrawv0"),
             SpecSection::Raw(0)
         );
         assert_eq!(
-            classify_section("groundhogspecrawv99"),
-            SpecSection::Raw(99),
+            classify_section("groundhogspecrawv4"),
+            SpecSection::Raw(4)
         );
         assert_eq!(classify_section(FINAL_SECTION_NAME), SpecSection::Final);
         assert_eq!(classify_section("name"), SpecSection::Other);
         // Unparseable suffixes are not raw sections: there is no version to
         // report, so a decode failure is no better than ignoring them.
-        assert_eq!(classify_section("groundhogspecraw"), SpecSection::Other);
-        assert_eq!(classify_section("groundhogspecrawvx"), SpecSection::Other);
-        assert_eq!(
-            classify_section("groundhogspecrawv1x"),
-            SpecSection::Other
-        );
-        assert_eq!(
-            classify_section("groundhogspecrawv-1"),
-            SpecSection::Other
-        );
+        for name in [
+            "thruputspecraw",
+            "thruputspecrawvx",
+            "thruputspecrawv1x",
+            "thruputspecrawv-1",
+            "groundhogspecraw",
+            "groundhogspecrawvx",
+            "groundhogspecrawv1x",
+            "groundhogspecrawv-1",
+        ] {
+            assert_eq!(classify_section(name), SpecSection::Other, "{name}");
+        }
     }
 }

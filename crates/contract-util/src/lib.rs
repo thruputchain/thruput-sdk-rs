@@ -164,9 +164,9 @@ pub fn interface_id(
     let interface_name = interface_name.unwrap_or(UNNAMED_INTERFACE);
     let major_version = semver::major_version_from_string(version_str);
 
-    // Interface ID = sha256("groundhog-interface" :: INTERFACE_NAME :: MAJOR_VERSION)[0..8]
+    // Interface ID = sha256("thruput-interface" :: INTERFACE_NAME :: MAJOR_VERSION)[0..8]
     let mut hasher = sha2::Sha256::new();
-    hasher.update(b"groundhog-interface");
+    hasher.update(b"thruput-interface");
     hasher.update(b"::");
     hasher.update(interface_name.as_bytes());
     hasher.update(b"::");
@@ -213,7 +213,7 @@ pub fn entrypoint_link_name(
     let (interface_name, major_version, method_sig) =
         entrypoint_id_preimage(interface_name, version_str, method);
     format!(
-        "__groundhog_entrypoint::{interface_name}::{major_version}::{method_sig}"
+        "__thruput_entrypoint::{interface_name}::{major_version}::{method_sig}"
     )
 }
 

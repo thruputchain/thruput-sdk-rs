@@ -5,7 +5,7 @@
 //! nothing: a raw contract must not flip to a final spec section claiming
 //! `interfaces: []` just because a dependency carried interface candidates.
 //!
-//! rv32 dispatches guest-side off the `groundhog_rv32_entrypoints` section,
+//! rv32 dispatches guest-side off the `thruput_rv32_entrypoints` section,
 //! which the `#[contract]` macro normally populates. This crate deliberately
 //! has no macro, so it writes its record by hand — a supported shape, and the
 //! one that keeps the fixture a real contract rather than a compile-only
@@ -32,7 +32,7 @@ mod rv32_entries {
     }
 
     #[used]
-    #[unsafe(link_section = "groundhog_rv32_entrypoints")]
+    #[unsafe(link_section = "thruput_rv32_entrypoints")]
     static PING_TOKEN: Entrypoint = Entrypoint {
         method_id: 0x0,
         wrapper: ping_token,

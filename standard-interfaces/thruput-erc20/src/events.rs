@@ -16,7 +16,6 @@ use thruput_xdr::standard_asset_events as stdevt;
 /// An event emitted when ERC20 tokens are transferred between addresses.
 /// Supply changes are [`MintEvent`] and [`BurnEvent`], not transfers.
 #[derive(Event, Clone, Debug, PartialEq, Eq, Hash)]
-#[event_spec(wire_crate = "groundhog-erc20-if")]
 pub struct TransferEvent<'a> {
     #[topic]
     pub from: &'a ContractAddress,
@@ -97,7 +96,6 @@ impl<'a> fmt::Display for TransferEvent<'a> {
 /// emit [`AllowanceDeleteEvent`] and [`AllowanceResetEvent`] instead. Spending
 /// emits only its token movement; query `allowance` for the remaining value.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
-#[event_spec(wire_crate = "groundhog-erc20-if")]
 pub struct AllowanceChangeEvent<'a> {
     #[topic]
     pub owner: &'a ContractAddress,
@@ -179,7 +177,6 @@ impl<'a> fmt::Display for AllowanceChangeEvent<'a> {
 /// An allowance deleted by `delete_allowance`, leaving it exactly zero with no
 /// expiry. `removed` is the stored amount deleted, even if it had expired.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
-#[event_spec(wire_crate = "groundhog-erc20-if")]
 pub struct AllowanceDeleteEvent<'a> {
     #[topic]
     pub owner: &'a ContractAddress,
@@ -271,7 +268,6 @@ impl<'a> fmt::Display for AllowanceDeleteEvent<'a> {
 /// exactly zero and spendable through block `until` once refilled. `removed`
 /// is the stored amount deleted, even if it had expired.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
-#[event_spec(wire_crate = "groundhog-erc20-if")]
 pub struct AllowanceResetEvent<'a> {
     #[topic]
     pub owner: &'a ContractAddress,
@@ -372,7 +368,6 @@ impl<'a> fmt::Display for AllowanceResetEvent<'a> {
 
 /// An event emitted when tokens are created.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
-#[event_spec(wire_crate = "groundhog-erc20-if")]
 pub struct MintEvent<'a> {
     #[topic]
     pub to: &'a ContractAddress,
@@ -430,7 +425,6 @@ impl<'a> fmt::Display for MintEvent<'a> {
 
 /// An event emitted when tokens are destroyed.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
-#[event_spec(wire_crate = "groundhog-erc20-if")]
 pub struct BurnEvent<'a> {
     #[topic]
     pub from: &'a ContractAddress,

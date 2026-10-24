@@ -1,4 +1,3 @@
-// #![doc(html_logo_url = "groundhog.png")]
 #![doc = include_str!("../doc/lib.md")]
 #![cfg_attr(doc, deny(warnings))]
 #![no_std]
@@ -93,7 +92,7 @@ extern crate alloc;
 extern crate thruput_rv32_runtime as _;
 
 // Guest-dispatch plumbing for the `#[contract]` macro on rv32. The macro
-// emits `#[link_section = "groundhog_rv32_entrypoints"]` Entrypoint statics;
+// emits `#[link_section = "thruput_rv32_entrypoints"]` Entrypoint statics;
 // this re-export gives that generated code a stable path.
 #[cfg(target_arch = "riscv32")]
 #[doc(hidden)]
@@ -112,7 +111,7 @@ pub mod __rv32 {
     /// it back buys nothing, and the unit variant keeps both the encoded
     /// payload and the emitted code minimal.
     #[unsafe(no_mangle)]
-    extern "C" fn __groundhog_unknown_method() -> ! {
+    extern "C" fn __thruput_unknown_method() -> ! {
         crate::exn::library_throw(crate::exn::LibraryExn::UnknownMethod)
     }
 }

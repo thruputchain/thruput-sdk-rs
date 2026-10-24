@@ -5,8 +5,8 @@ version = "0.4.0"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["thruput"]
-repository = "https://github.com/groundhogchain/example-contracts.git"
-homepage = "https://github.com/groundhogchain/example-contracts.git"
+repository = "https://github.com/thruputchain/thruput-sdk-rs"
+homepage = "https://github.com/thruputchain/thruput-sdk-rs"
 keywords = ["thruput"]
 categories = ["blockchain"]
 edition = "2024"
@@ -24,7 +24,7 @@ crate-type = ["rlib"]
 doctest = false
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.55.0" }
+thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "=0.56.0" }
 
 [dev-dependencies]
 multi_root_collision = { path = ".", features = ["dev"] }

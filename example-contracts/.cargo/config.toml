@@ -10,7 +10,7 @@ rustflags = [
 # NEVER add this section to the workspace-root .cargo/config.toml or any
 # other config on the same discovery chain: cargo JOINS target-rustflags
 # arrays across the chain (cwd upward), and a duplicated
-# -Tgroundhog-rv32.ld redefines the linker script's MEMORY regions
+# -Tthruput-rv32.ld redefines the linker script's MEMORY regions
 # ("region 'CODE' already defined"). Sibling leaf workspaces like
 # integration_test/ are separate chains, so their copy can never join
 # with this one.
@@ -34,11 +34,11 @@ rustflags = [
     # single `jal` (smaller code AND one fewer executed instruction per
     # relaxed call). Output stays pure RV32IM.
     "-C", "target-feature=+unaligned-scalar-mem,+relax",
-    "-C", "link-arg=-Tgroundhog-rv32.ld",
+    "-C", "link-arg=-Tthruput-rv32.ld",
     "-C", "link-arg=-static",
     "-C", "link-arg=--no-dynamic-linker",
     "-C", "link-arg=--gc-sections",
-    # The groundhog-rv32 linker script deliberately overlaps the CODE and
+    # The thruput-rv32 linker script deliberately overlaps the CODE and
     # DATA VMAs (modified-Harvard: separate VM address spaces) so DATA
     # starts near 0 and the stored image carries no code-sized zero shadow.
     # Tell lld the overlap is intentional.
@@ -47,7 +47,7 @@ rustflags = [
     # Safe here — nothing compares function pointers for identity (the
     # dispatch-table wrappers are only ever called).
     "-C", "link-arg=--icf=all",
-    # gp relaxation: with the __global_pointer$ anchor in groundhog-rv32.ld
+    # gp relaxation: with the __global_pointer$ anchor in thruput-rv32.ld
     # and the gp init in rv32-runtime _start, lld folds static-address
     # lui+addi pairs into single gp-relative accesses for statics within
     # +/-2 KiB of the anchor. lld needs this explicit opt-in (GNU ld

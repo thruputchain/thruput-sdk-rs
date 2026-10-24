@@ -21,7 +21,7 @@ fn int128_roundtrip() {
     assert_eq!(i, i2);
 }
 
-// We want the groundhog types to serialize the same as the
+// We want the Thruput XDR types to serialize the same as the
 // default encoding from xdrs ...
 
 // Do u128 and uint128_xdr serialize the same?

@@ -43,8 +43,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # The source build clones hogd (still named by its pre-move
-      # groundhogchain URL in build.rs) and its moved thruputchain submodules.
+      # The source build clones hogd and its thruputchain submodules.
       # A job-local component-reader App token covers every moved repo, legacy
       # and canonical URLs alike; deploy keys remain only for the cargo git
       # dependencies still in groundhogchain.

@@ -306,12 +306,12 @@ where
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     #[cfg_attr(
         target_arch = "riscv32",
-        unsafe(link_section = "groundhogspecanchortextv0")
+        unsafe(link_section = "thruputspecanchortextv0")
     )]
-    fn __groundhog_spec_anchor() -> usize {
+    fn __thruput_spec_anchor() -> usize {
         thruput_contract_spec::mix_anchor_fn(
             0,
-            <T as thruput_contract_spec::ContractTypeRefSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+            <T as thruput_contract_spec::ContractTypeRefSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
         )
     }
 }

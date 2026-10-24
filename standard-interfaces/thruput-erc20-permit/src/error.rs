@@ -4,8 +4,7 @@
 /// whatever minted the grant, before the token contract is involved. Nor is
 /// "wrong token": the runtime refuses to consume a grant anywhere but at its
 /// named consumer.
-// The native token precompile uses this fixed wire identity.
-#[thruput_sdk::contract_exception(wire_crate = "groundhog-erc20-permit-if")]
+#[thruput_sdk::contract_exception]
 #[non_exhaustive]
 #[cfg_attr(feature = "dev", derive(thiserror::Error))]
 pub enum ERC20PermitError {

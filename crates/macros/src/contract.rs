@@ -132,7 +132,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 quote::quote! {
                     acc = ::thruput_sdk::__contract_spec::mix_anchor_fn(
                         acc,
-                        <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__GROUNDHOG_SPEC_ANCHOR_ROOT,
+                        <#path as ::thruput_sdk::__contract_spec::ContractEventSpec>::__THRUPUT_SPEC_ANCHOR_ROOT,
                     );
                 }
             });
@@ -148,11 +148,11 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             // Add the interface metadata as separate trait items.
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_NAME: &'static str = #iface_name;
+                const __THRUPUT_IFACE_NAME: &'static str = #iface_name;
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_FULL_VERSION: &'static str = #iface_vers;
+                const __THRUPUT_IFACE_FULL_VERSION: &'static str = #iface_vers;
             });
             for method in contract.methods_sorted() {
                 let sig = method.sig();
@@ -177,7 +177,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             );
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_DECLARED_BY: ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> = #declared_by;
+                const __THRUPUT_IFACE_DECLARED_BY: ::thruput_sdk::__contract_spec::ContractSpecIdView<'static> = #declared_by;
             });
             let interface_id_lit = common::entrypoint::interface_id_literal(
                 Some(&iface_name),
@@ -194,16 +194,16 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_THROWS: &'static [::thruput_sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
+                const __THRUPUT_IFACE_THROWS: &'static [::thruput_sdk::__contract_spec::ContractExceptionTypeView<'static>] = &[#(#throws_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
-                    unsafe(link_section = "groundhogspecanchortextv0")
+                    unsafe(link_section = "thruputspecanchortextv0")
                 )]
-                fn __GROUNDHOG_IFACE_THROW_ANCHOR_ROOT() -> usize {
+                fn __THRUPUT_IFACE_THROW_ANCHOR_ROOT() -> usize {
                     let mut acc = 0usize;
                     #(#throw_anchor_stmts)*
                     acc
@@ -211,7 +211,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_EVENTS: &'static [::thruput_sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
+                const __THRUPUT_IFACE_EVENTS: &'static [::thruput_sdk::__contract_spec::ContractEventDefView<'static>] = &[#(#event_def_tokens),*];
             });
             let emits_name_tokens = emits.iter().map(|path| {
                 quote::quote! {
@@ -220,16 +220,16 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_EMITS: &'static [::thruput_sdk::__contract_spec::ContractSpecIdView<'static>] = &[#(#emits_name_tokens),*];
+                const __THRUPUT_IFACE_EMITS: &'static [::thruput_sdk::__contract_spec::ContractSpecIdView<'static>] = &[#(#emits_name_tokens),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
-                    unsafe(link_section = "groundhogspecanchortextv0")
+                    unsafe(link_section = "thruputspecanchortextv0")
                 )]
-                fn __GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT() -> usize {
+                fn __THRUPUT_IFACE_EVENT_ANCHOR_ROOT() -> usize {
                     let mut acc = 0usize;
                     #(#event_anchor_stmts)*
                     acc
@@ -238,7 +238,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
 
             // The trait is the authority for method signatures (names and
             // types). Emit them as a const that a trait impl pulls into its
-            // artifact (mirroring __GROUNDHOG_IFACE_EVENTS), so an impl that
+            // artifact (mirroring __THRUPUT_IFACE_EVENTS), so an impl that
             // renames a parameter (e.g. `_factory`) cannot diverge the
             // canonical interface spec, and so impls of an external interface
             // crate still emit a complete spec.
@@ -261,16 +261,16 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                 });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
-                const __GROUNDHOG_IFACE_METHODS: &'static [::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
+                const __THRUPUT_IFACE_METHODS: &'static [::thruput_sdk::__contract_spec::ContractSpecMethodView<'static>] = &[#(#method_views),*];
             });
             stripped.items.push(parse_quote! {
                 #[doc(hidden)]
                 #[cfg_attr(target_arch = "riscv32", inline(never))]
                 #[cfg_attr(
                     target_arch = "riscv32",
-                    unsafe(link_section = "groundhogspecanchortextv0")
+                    unsafe(link_section = "thruputspecanchortextv0")
                 )]
-                fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                fn __THRUPUT_IFACE_METHOD_ANCHOR_ROOT() -> usize {
                     let mut acc = 0usize;
                     #(#method_anchor_stmts)*
                     acc
@@ -291,22 +291,18 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
             out.extend(exports::generate_trait_guard_macro(item, config));
 
             // A module-level anchor const (the trait isn't dyn-compatible, so
-            // its associated `__GROUNDHOG_IFACE_*` consts aren't reachable as
+            // its associated `__THRUPUT_IFACE_*` consts aren't reachable as
             // `<dyn Trait>::…`). `export_interface_spec!` references this by
             // name to emit an InterfaceAnchor for a standalone interface carrier.
-            let anchor_const_ident = quote::format_ident!(
-                "__GROUNDHOG_IFACE_ANCHOR_{}",
-                item.ident
-            );
-            // Module-level twin of the associated `__GROUNDHOG_IFACE_METHODS`,
+            let anchor_const_ident =
+                quote::format_ident!("__THRUPUT_IFACE_ANCHOR_{}", item.ident);
+            // Module-level twin of the associated `__THRUPUT_IFACE_METHODS`,
             // reachable for the same reason as the anchor const. A carrier
             // must emit the method fragments itself: they are no longer
             // emitted from the trait definition (see
             // `generate_trait_raw_spec_fragments`).
-            let methods_const_ident = quote::format_ident!(
-                "__GROUNDHOG_IFACE_METHODS_{}",
-                item.ident
-            );
+            let methods_const_ident =
+                quote::format_ident!("__THRUPUT_IFACE_METHODS_{}", item.ident);
             out.extend(quote::quote! {
                 #[doc(hidden)]
                 #[allow(non_upper_case_globals)]
@@ -361,7 +357,7 @@ fn expand_contract(item: &syn::Item, config: &Config) -> Result<TokenStream2> {
                     };
                     let name = ident.to_string();
                     let name = name.strip_prefix("r#").unwrap_or(&name);
-                    if name.starts_with("__GROUNDHOG_")
+                    if name.starts_with("__THRUPUT_")
                         || matches!(name, "INTERFACE_ID" | "__mock")
                     {
                         return Err(syn::Error::new_spanned(
@@ -529,7 +525,7 @@ mod tests {
     fn trait_impl_rejects_reserved_functions_and_types() {
         for reserved in [
             syn::parse_quote!(
-                fn __GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                fn __THRUPUT_IFACE_METHOD_ANCHOR_ROOT() -> usize {
                     0
                 }
             ),
@@ -537,12 +533,12 @@ mod tests {
                 fn __mock() {}
             ),
             syn::parse_quote!(
-                fn r#__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT() -> usize {
+                fn r#__THRUPUT_IFACE_METHOD_ANCHOR_ROOT() -> usize {
                     0
                 }
             ),
             syn::parse_quote!(
-                type __GROUNDHOG_IFACE_NAME = u32;
+                type __THRUPUT_IFACE_NAME = u32;
             ),
         ] {
             let mut item: syn::ItemImpl = syn::parse_quote! {
@@ -712,18 +708,15 @@ mod tests {
         let tokens = apply_with_config(&item, &parse_config(""))
             .unwrap()
             .to_string();
-        assert!(tokens.contains("groundhogspecrawv4"), "{tokens}");
+        assert!(tokens.contains("thruputspecrawv5"), "{tokens}");
         assert!(tokens.contains("pub static RAW_SPEC_FRAGMENT"), "{tokens}");
         assert!(tokens.contains("SpecInterfaceFragmentView"), "{tokens}");
-        assert!(tokens.contains("__GROUNDHOG_IFACE_NAME"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_NAME"), "{tokens}");
         // No method fragments: those come from whatever anchors the
         // interface (a `#[contract] impl`, or `export_interface_spec!` via
         // the module-level methods const emitted below).
         assert!(!tokens.contains("SpecMethodFragmentView"), "{tokens}");
-        assert!(
-            tokens.contains("__GROUNDHOG_IFACE_METHODS_ERC20"),
-            "{tokens}"
-        );
+        assert!(tokens.contains("__THRUPUT_IFACE_METHODS_ERC20"), "{tokens}");
     }
 
     #[test]
@@ -738,9 +731,9 @@ mod tests {
         let tokens = apply_with_config(&item, &parse_config(""))
             .unwrap()
             .to_string();
-        assert!(tokens.contains("__GROUNDHOG_IFACE_METHODS"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_METHODS"), "{tokens}");
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_METHOD_ANCHOR_ROOT"),
+            tokens.contains("__THRUPUT_IFACE_METHOD_ANCHOR_ROOT"),
             "{tokens}"
         );
         assert!(tokens.contains("\"factory\""), "{tokens}");
@@ -759,7 +752,7 @@ mod tests {
         let tokens = apply_with_config(&item, &config).unwrap().to_string();
 
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_THROW_ANCHOR_ROOT"),
+            tokens.contains("__THRUPUT_IFACE_THROW_ANCHOR_ROOT"),
             "{tokens}"
         );
         assert!(
@@ -794,9 +787,9 @@ mod emits_tests {
             parse_config(r#"emits(TransferEvent, events::ApprovalEvent)"#);
         let tokens = apply_with_config(&item, &config).unwrap().to_string();
 
-        assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_EVENTS"), "{tokens}");
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            tokens.contains("__THRUPUT_IFACE_EVENT_ANCHOR_ROOT"),
             "{tokens}"
         );
         assert!(
@@ -825,9 +818,9 @@ mod emits_tests {
             .unwrap()
             .to_string();
 
-        assert!(tokens.contains("__GROUNDHOG_IFACE_EVENTS"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_EVENTS"), "{tokens}");
         assert!(
-            tokens.contains("__GROUNDHOG_IFACE_EVENT_ANCHOR_ROOT"),
+            tokens.contains("__THRUPUT_IFACE_EVENT_ANCHOR_ROOT"),
             "{tokens}"
         );
     }
@@ -844,7 +837,7 @@ mod emits_tests {
             parse_config(r#"emits(TransferEvent, events::ApprovalEvent)"#);
         let tokens = apply_with_config(&item, &config).unwrap().to_string();
 
-        assert!(tokens.contains("__GROUNDHOG_IFACE_EMITS"), "{tokens}");
+        assert!(tokens.contains("__THRUPUT_IFACE_EMITS"), "{tokens}");
         assert!(
             tokens.contains(
                 "< TransferEvent as :: thruput_sdk :: __contract_spec :: ContractEventSpec > :: EVENT_DEF . name"
