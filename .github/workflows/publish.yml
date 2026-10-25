@@ -105,20 +105,11 @@ jobs:
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:
-      # Loaded before checkout so the recursive private source submodules
-      # can authenticate through their deploy keys.
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.SDK_TO_ITC }}
-            ${{ secrets.SDK_TO_SELF }}
-
+      # No SSH keys or submodules: nothing published reads the
+      # integration_test/contracts submodule, the workspace has no git
+      # dependencies, and tag pushes go over HTTPS with the job token.
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
-
-      - name: Initialize submodules
-        run: git submodule update --init --recursive
 
       # NB: deliberately NOT caching ./target (no `cache: rust`). The Namespace
       # cross-invocation cache is a network/overlay-backed mount; cargo's
@@ -134,14 +125,15 @@ jobs:
             ${{ github.workspace }}/.hogd-ffi-cache
 
       # The dry runs below drive cargo-hack over each crate's feature
-      # powerset, and the runner image does not ship it. It comes from crates.io, so this needs no registry
-      # auth, and it is a ~1min compile against a release that takes 15.
+      # powerset, and the runner image does not ship it. It comes from
+      # crates.io, so this needs no registry auth, and it is a ~1min compile
+      # against a release that takes 15.
       #
       # Pinned exactly, and checked by version rather than by presence, the
-      # way ci.sh pins the Thruput CLI: this runs with the release job's
-      # SSH agent already loaded, so it must build the version that was
-      # tested rather than whatever was published since. `--locked` alone
-      # would pin cargo-hack's dependencies but not cargo-hack.
+      # way ci.sh pins the Thruput CLI: this runs in the release job, so it
+      # must build the version that was tested rather than whatever was
+      # published since. `--locked` alone would pin cargo-hack's dependencies
+      # but not cargo-hack.
       - name: Install cargo-hack
         env:
           CARGO_HACK_VERSION: '0.6.45'
@@ -151,10 +143,6 @@ jobs:
             cargo install cargo-hack --version "=$CARGO_HACK_VERSION" --locked
           fi
           cargo hack --version
-
-      - name: Configure git to use SSH
-        run: |
-          git config --global url."git@github.com:".insteadOf "https://github.com/"
 
       - name: Publish dry run
         uses: thruputchain/actions/cargo-publish-dry-run@6693fac8133585728ad3a4ca14e3441073b6def8
