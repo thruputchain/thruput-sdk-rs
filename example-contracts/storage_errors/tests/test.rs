@@ -162,6 +162,42 @@ fn vector_set_out_of_bounds_is_library_storage_error() {
 }
 
 #[test]
+fn array_set_and_get_in_bounds() {
+    let (env, _) = setup();
+    let result = env.transact(|tx| {
+        tx.call(&CALLER_ADDR).run(|| {
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
+            client.array_set(3, 77);
+            assert_eq!(client.array_get(3), 77);
+        })
+    });
+    result.assert_success();
+}
+
+#[test]
+fn array_out_of_bounds_is_library_storage_error() {
+    let (env, _) = setup();
+    let result = env.transact(|tx| {
+        tx.call(&CALLER_ADDR).run(|| {
+            let client = StorageErrorClient::new(&CONTRACT_ADDR);
+
+            let err = client.try_array_get(4).unwrap_err();
+            match_exn!(err, {
+                LibraryExn::StorageIndexOutOfBounds { len: 4, access: 4 } => {}
+                _ => panic!("Expected LibraryExn OOB, got: {err:?}"),
+            });
+
+            let err = client.try_array_set(9, 1).unwrap_err();
+            match_exn!(err, {
+                LibraryExn::StorageIndexOutOfBounds { len: 4, access: 9 } => {}
+                _ => panic!("Expected LibraryExn OOB, got: {err:?}"),
+            })
+        })
+    });
+    result.assert_success();
+}
+
+#[test]
 fn vector_get_on_uninitialized_contract_is_fault() {
     let (env, _) = setup();
     let result = env.transact(|tx| {

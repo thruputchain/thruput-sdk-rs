@@ -2,7 +2,8 @@ use super::keypath::Keypath;
 use super::sealed::Sealed;
 use core::ops::{Deref, DerefMut};
 
-/// Marker trait for types that can appear as elements in Map and Vector.
+/// Marker trait for types that can appear as elements in Map, Vector and
+/// Array.
 /// Sealed — only SDK storage types implement this.
 #[allow(private_bounds)]
 // No list of element types here: the trait is sealed with explicit impls, so

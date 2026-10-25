@@ -20,6 +20,7 @@ struct Data {
     nnints: Vector<NNInt>,
     bytes: Bytestring,
     map: Map<u32, NNInt>,
+    arr: Array<Value<u32>, 8>,
 }
 
 #[derive(Storage)]
@@ -148,6 +149,69 @@ contract_test!(test_vector_push_with_nested_node {
     assert_eq!(vec.len(), 1);
     assert_eq!(vec.at(0).first.get(), 7);
     assert_eq!(vec.at(0).second.get(), 11);
+});
+
+contract_test!(test_array {
+    let mut arr: Array<Value<u32>, 3> = Keypath::default().into();
+
+    assert_eq!(arr.len(), 3);
+    assert_eq!(Array::<Value<u32>, 3>::LEN, 3);
+
+    // Every element starts unset
+    for slot in &arr {
+        assert_eq!(slot.try_get().none_if_missing(), None);
+    }
+
+    for (i, mut slot) in arr.iter_mut().enumerate() {
+        slot.set(&(i as u32 * 10));
+    }
+
+    // A fresh handle at the same keypath sees the writes
+    let reloaded: Array<Value<u32>, 3> = Keypath::default().into();
+    let got: Vec<u32> = reloaded.iter().map(|s| s.get()).collect();
+    assert_eq!(got, [0, 10, 20]);
+    let rev: Vec<u32> = reloaded.iter().rev().map(|s| s.get()).collect();
+    assert_eq!(rev, [20, 10, 0]);
+
+    // Deleting one element leaves the rest alone
+    arr.delete_at(1);
+    assert_eq!(arr.at(1).try_get().none_if_missing(), None);
+    assert_eq!(arr.at(2).get(), 20);
+
+    arr.delete();
+    for slot in &arr {
+        assert_eq!(slot.try_get().none_if_missing(), None);
+    }
+});
+
+contract_test!(test_array_field_and_disjoint_mut {
+    let data_keypath = Keypath::default();
+    {
+        let mut data: Data = data_keypath.clone().into();
+        data.arr.at_mut(7).set(&42);
+        let [a, b] = &mut *data.arr.at_disjoint_mut([0, 7]);
+        a.set(&b.get());
+    }
+
+    let data: Data = data_keypath.into();
+    assert_eq!(data.arr.at(0).get(), 42);
+    assert_eq!(data.arr.at(7).get(), 42);
+});
+
+contract_test!(test_array_nested {
+    let mut grid: Array<Array<Value<u32>, 2>, 2> = Keypath::default().into();
+    grid.at_mut(1).at_mut(0).set(&5);
+    assert_eq!(grid.at(1).at(0).get(), 5);
+    assert_eq!(grid.at(0).at(1).try_get().none_if_missing(), None);
+
+    let mut nodes: Array<Node<InnerValuePair>, 2> = Keypath::default().into();
+    nodes.at_mut(1).first.set(&7);
+    assert_eq!(nodes.at(1).first.get(), 7);
+    assert_eq!(nodes.at(0).first.try_get().none_if_missing(), None);
+
+    let mut vec: Vector<Array<NNInt, 2>> = Keypath::default().into();
+    vec.push_with(|pair| pair.at_mut(1).strict_inc(3));
+    assert_eq!(vec.at(0).at(1).get(), 3);
 });
 
 contract_test!(test_map_at_nested {

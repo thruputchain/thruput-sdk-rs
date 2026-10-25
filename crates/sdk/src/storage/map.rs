@@ -168,6 +168,17 @@ pub struct DisjointMut<'a, Owner, S, const N: usize> {
     _borrow: PhantomData<&'a mut Owner>,
 }
 
+impl<Owner, S, const N: usize> DisjointMut<'_, Owner, S, N> {
+    /// The caller must hold `&mut Owner` for the guard's lifetime and ensure
+    /// the slots are pairwise disjoint.
+    pub(super) fn new(slots: [S; N]) -> Self {
+        Self {
+            slots,
+            _borrow: PhantomData,
+        }
+    }
+}
+
 impl<Owner, S, const N: usize> Deref for DisjointMut<'_, Owner, S, N> {
     type Target = [S; N];
 

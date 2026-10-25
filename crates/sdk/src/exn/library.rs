@@ -83,7 +83,7 @@ pub enum LibraryExn {
 
     #[cfg_attr(
         not(target_arch = "riscv32"),
-        error("Vector index out of bounds: len={len}, access={access}")
+        error("storage index out of bounds: len={len}, access={access}")
     )]
     StorageIndexOutOfBounds { len: u64, access: u64 } = 9,
 

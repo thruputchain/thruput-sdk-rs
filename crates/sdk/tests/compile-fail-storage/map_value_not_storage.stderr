@@ -13,8 +13,8 @@ error[E0277]: `u64` cannot be stored in a `Map` or `Vector`
              Node<T>
              RCQ<S>
              Value<T>
-             thruput_sdk::storage::Map<K, V>
-             thruput_sdk::storage::Vector<S>
+             thruput_sdk::storage::Array<S, N>
+           and $N others
 note: required by a bound in `thruput_sdk::storage::Map::<K, V>::at`
   --> src/storage/map.rs
    |
