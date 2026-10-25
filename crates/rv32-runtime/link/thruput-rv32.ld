@@ -36,8 +36,7 @@
  * lowerer sets it to the lowest data-section VA), so the stack region
  * below the statics is never stored, only zero-filled at instantiation.
  *
- * Layout invariants enforced by the hogd lowerer (see
- * docs/rv32/rv32-vm-experimental-design.md, "Rust Fixture And Lowering"):
+ * Layout invariants enforced by the hogd lowerer:
  *
  *   - .text starts at virtual address 0 (so PC space and VA space match).
  *   - No data section may touch the lowerer's null guard [0, 0x8) — the

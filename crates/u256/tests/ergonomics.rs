@@ -9,7 +9,7 @@
 //! * a shift by `usize` (and by a bare literal, which resolves to `i32` once
 //!   more than one `Shl` impl exists).
 //!
-//! See `docs/` and the `arith.rs` shift impls for the reasoning.
+//! See the crate-level docs and the `arith.rs` shift impls for the reasoning.
 
 use thruput_u256::U256;
 
