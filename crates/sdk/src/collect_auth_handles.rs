@@ -67,6 +67,9 @@ impl_collect_noop!(
     crate::types::ContractEntrypointID,
 );
 
+#[cfg(feature = "alloc")]
+impl_collect_noop!(alloc::string::String);
+
 impl<T: CollectAuthHandles, const N: usize> CollectAuthHandles for [T; N] {
     #[inline(always)]
     fn collect_auth_handles(

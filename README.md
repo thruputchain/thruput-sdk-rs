@@ -6,6 +6,10 @@ events, and a native test environment.
 
 ## Start a contract
 
+For a workflow without the CLI, follow the tested
+[Cargo-only example](crates/sdk/doc/cargo-only.md). It covers a standalone
+manifest, native tests, and an RV32 ELF build, including the deployment boundary.
+
 Use the CLI scaffold to create a contract outside this SDK checkout:
 
 ```sh

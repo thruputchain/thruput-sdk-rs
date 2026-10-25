@@ -74,6 +74,10 @@ host-side test build enables `dev`.
   also the only way to build on a platform with no prebuilt binary. Only
   meaningful alongside `dev`.
 
+With `alloc`, owned `String` values can also be contract parameters and return
+values, including inside `Option`. Borrowed `&str` inputs and
+`heapless::String<N>` are alternatives when a bounded representation is useful.
+
 A contract crate wires them up like this:
 
 ```toml
