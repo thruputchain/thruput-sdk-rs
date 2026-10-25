@@ -78,31 +78,17 @@ jobs:
       THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
 
     steps:
-      # Loaded before checkout so the recursive submodule fetch (which uses
-      # SSH remotes) can authenticate. Only this entry needs submodule keys.
+      # Loaded before checkout so the submodule fetch (an SSH remote) can
+      # authenticate. Only this entry needs the submodule key; the workspace
+      # has no git dependencies and the submodule has no submodules of its
+      # own. The CLI source key covers a source-pinned Thruput CLI, as in the
+      # entries below.
       - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         if: matrix.submodules
         with:
           ssh-private-key: |
             ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
-            ${{ secrets.HOGD_ACCESS_KEY }}
-            ${{ secrets.SDK_TO_PROTOCOL_RS }}
-            ${{ secrets.SDK_TO_BCS_KEY }}
             ${{ secrets.SDK_TO_ITC }}
-            ${{ secrets.SDK_TO_PROTOCOL_KEY }}
-            ${{ secrets.SDK_TO_BCS_CPP_KEY }}
-            ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
-            ${{ secrets.SDK_TO_XDRS_KEY }}
-            ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
-            ${{ secrets.SDK_TO_CHUCKD_KEY }}
-            ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
-            ${{ secrets.SDK_TO_METRICS_HISTORY }}
-            ${{ secrets.SDK_TO_GROUNDHOG_GO}}
-            ${{ secrets.SDK_TO_LIBGO }}
-            ${{ secrets.SDK_TO_SELF }}
-            ${{ secrets.SDK_TO_ABORT_RS }}
-            ${{ secrets.SDK_TO_HOGX_KEY }}
-            ${{ secrets.SDK_TO_SCP_KEY }}
 
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
@@ -175,30 +161,14 @@ jobs:
       THRUPUT_CLI_ROOT: ${{ github.workspace }}/.thruput-cli
 
     steps:
-      # Needed both for the submodule fetch and for metrics.sh's push to
-      # metrics_history (SDK_TO_METRICS_HISTORY).
+      # Needed for the submodule fetch, a source-pinned Thruput CLI, and
+      # metrics.sh's push to metrics_history (SDK_TO_METRICS_HISTORY).
       - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: |
             ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
-            ${{ secrets.HOGD_ACCESS_KEY }}
-            ${{ secrets.SDK_TO_PROTOCOL_RS }}
-            ${{ secrets.SDK_TO_BCS_KEY }}
             ${{ secrets.SDK_TO_ITC }}
-            ${{ secrets.SDK_TO_PROTOCOL_KEY }}
-            ${{ secrets.SDK_TO_BCS_CPP_KEY }}
-            ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
-            ${{ secrets.SDK_TO_XDRS_KEY }}
-            ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
-            ${{ secrets.SDK_TO_CHUCKD_KEY }}
-            ${{ secrets.SDK_TO_PROTOCOL_GO_KEY }}
             ${{ secrets.SDK_TO_METRICS_HISTORY }}
-            ${{ secrets.SDK_TO_GROUNDHOG_GO}}
-            ${{ secrets.SDK_TO_LIBGO }}
-            ${{ secrets.SDK_TO_SELF }}
-            ${{ secrets.SDK_TO_ABORT_RS }}
-            ${{ secrets.SDK_TO_HOGX_KEY }}
-            ${{ secrets.SDK_TO_SCP_KEY }}
 
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
@@ -236,7 +206,7 @@ jobs:
       - name: Log metrics
         env:
           # Detached HEAD on CI checkout would make metrics.sh derive "HEAD";
-          # pass the real branch (matches the old hog `git_branch`).
+          # pass the real branch.
           GIT_BRANCH: ${{ github.ref_name }}
         run: |
           export PATH="${THRUPUT_CLI_ROOT}/bin:${PATH}"

@@ -70,16 +70,11 @@ jobs:
   yank:
     permissions:
       contents: read
-    runs-on: hog1
+    runs-on: namespace-profile-hogd-linux-2604
 
     steps:
-      - name: Clean up .gitconfig
-        run: |
-            echo "Cleaning up .gitconfig"
-            rm -f /home/hogci/.gitconfig
-
       - name: Checkout
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
         with:
           persist-credentials: false
 

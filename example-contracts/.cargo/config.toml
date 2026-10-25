@@ -16,8 +16,7 @@ rustflags = [
 # with this one.
 #
 # Flag set matches hogd/built_contracts/.cargo/config.toml (the production
-# rv32 build) plus `+relax`, `--icf=all`, and `--relax-gp` (measured wins;
-# see docs/superpowers/specs/2026-07-09-rv32-build-config-ci-design.md).
+# rv32 build) plus `+relax`, `--icf=all`, and `--relax-gp` (measured wins).
 #
 # Requires -Zbuild-std=core,alloc on the command line (scripts/dev.sh
 # passes it, like hogd's build_risc.sh): panic=immediate-abort and the

@@ -27,8 +27,6 @@
 //!   test (`thruput_sdk::U256`, Parity's `uint`).
 //! - [`ops`] -- the operations, generic over the backend.
 //! - [`kernel`] -- the measured loop, and the `op-*` feature that selects it.
-//!
-//! Design note: `docs/superpowers/specs/2026-08-12-bigint-bench-design.md`.
 
 #![no_std]
 
