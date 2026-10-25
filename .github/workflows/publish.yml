@@ -105,14 +105,13 @@ jobs:
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:
-      # Loaded before checkout so the recursive private source submodules
-      # can authenticate through their deploy keys.
+      # Loaded before checkout so the integration_test/contracts submodule (an
+      # SSH remote) can authenticate through its deploy key. Tag pushes go
+      # over HTTPS with the job token, so this repo needs no key of its own.
       - name: Setup SSH Agent
         uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
-          ssh-private-key: |
-            ${{ secrets.SDK_TO_ITC }}
-            ${{ secrets.SDK_TO_SELF }}
+          ssh-private-key: ${{ secrets.SDK_TO_ITC }}
 
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
