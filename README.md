@@ -1,322 +1,213 @@
-This SDK facilitates writing contracts in Rust.
+# Thruput Rust SDK
 
-## Contract Author Quickstart
+Write smart contracts in Rust for Thruput's RV32 runtime. The SDK provides
+contract macros, generated clients, persistent storage types, typed exceptions,
+events, and a native test environment.
 
-The canonical way to start a contract is the CLI scaffold. It writes the
-manifest, `src/lib.rs`, the `#![no_main]` `src/main.rs` wrapper and a
-`rust-toolchain.toml`, and `scripts/scaffold-smoke.sh` runs exactly this
-path — `thruput new`, then `thruput build` — against this checkout on
-every push to `main`:
+## Start a contract
 
-```shell
+Use the CLI scaffold to create a contract outside this SDK checkout:
+
+```sh
 thruput new my-contract
 cd my-contract
-thruput build          # compiles and lowers the rv32 artifact
+thruput build
 ```
 
-Installing the CLI from source uses the `thruput` Cargo registry alias. Install
-the version `scripts/thruput-cli-version.sh` pins, which is what this
-repository's own scripts do (`scripts/ci.sh`, `scripts/scaffold-smoke.sh`):
-the CLI and the SDK share the raw contract-spec wire format, and an unpinned
-install picks the latest stable CLI release, which can lag a format bump this
-checkout has already shipped.
+The scaffold supplies the manifest, contract library, RV32 binary wrapper, and
+pinned Rust toolchain. Keep its `entrypoints` feature and `src/main.rs` wrapper:
+they link the contract's entrypoints into the deployed artifact. Native tests
+use `dev`, which forwards to `thruput-sdk/dev`.
 
-```shell
-. scripts/thruput-cli-version.sh
-cargo install thruput-cli --version "=$THRUPUT_CLI_VERSION" --registry thruput --locked
+See [Getting Started](https://docs.thruput.network/start/getting-started/) for
+CLI bundles, registry access, and network setup, and
+[thruput-examples](https://github.com/thruputchain/thruput-examples) for worked
+contracts. [The SDK guide](crates/sdk/doc/lib.md) explains the generated crate,
+features, storage, calls, and errors.
+
+For development against this checkout, install the CLI pin as described below.
+The CLI and SDK must agree on the contract-spec format. The
+[scaffold smoke test](scripts/scaffold-smoke.sh) creates a project, points it
+at this SDK checkout, and builds it through the pinned CLI.
+
+## Set up this repository
+
+Install [Rust with rustup](https://rustup.rs/), Git, and a native C/C++ linker.
+Clone the repository and run development commands from its root:
+
+```sh
+git clone https://github.com/thruputchain/thruput-sdk-rs.git
+cd thruput-sdk-rs
+rustup show active-toolchain
+mkdir -p target
 ```
 
-`cargo install` resolves configuration from the directory you run it in, so
-this repository's `.cargo/config.toml` does not apply unless you happen to be
-standing in the checkout. Set the index and token globally instead:
+[rust-toolchain.toml](rust-toolchain.toml) pins the nightly compiler, `rust-src`,
+and the `riscv32im-unknown-none-elf` target. Rustup installs missing components
+from this file. Use the pin instead of a floating `+nightly` override. See
+[rustup toolchain files](https://rust-lang.github.io/rustup/overrides.html#the-toolchain-file).
 
-```shell
-export CARGO_REGISTRIES_THRUPUT_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
-export CARGO_REGISTRIES_THRUPUT_TOKEN=...
+Dependencies use the `thruput` registry configured in
+[.cargo/config.toml](.cargo/config.toml). Builds need access to that registry.
+Configure `CARGO_REGISTRIES_THRUPUT_TOKEN` through your Cargo credential setup
+when authentication is required.
+
+Native tests download the hogd test executor on Linux x86_64, Linux ARM64, and
+macOS ARM64. This path needs `curl` and `tar`; it does not need a hogd checkout
+or ccache. See [native executor setup](crates/native-exec/README.md) for download
+authentication, custom libraries, and source builds. Source builds need CMake,
+a C++ toolchain, libclang, and ccache. The pinned runtime source uses the
+`groundhog` registry alias: set `CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the same
+value as `CARGO_REGISTRIES_THRUPUT_TOKEN` for that path. If using `HOGD_SRC`,
+choose a checkout outside this SDK tree to keep Cargo configuration separate.
+
+The SDK's native tests work without the private integration submodule.
+Integration tests additionally require SSH access to its repository:
+
+```sh
+git submodule update --init --recursive
 ```
 
-Prebuilt client bundles that pair the CLI with a matching `hog-devnode` are
-described in [Getting Started](https://docs.thruput.network/start/getting-started/);
-the version pin above applies to those too.
+## Run a native contract test
 
-Polished examples and tutorials are maintained outside this repository:
-the [developer docs](https://docs.thruput.network/start/getting-started/) walk
-through scaffolding a project with `thruput new`, and
-[thruput-examples](https://github.com/thruputchain/thruput-examples)
-holds worked contracts. (The `example-contracts/` directory here is an
-internal test corpus for SDK development, not a set of recommended starting
-points.)
+The [counter contract](example-contracts/counter/src/implementation.rs) is a
+small fixture for learning the test flow:
 
-### The contract crate
-
-A contract crate is an ordinary Rust crate: an rlib holding the contract,
-plus a thin rv32 binary that force-links it so the entrypoint records reach
-the artifact. It may pull in as many dependencies as you like, but one
-top-level build crate — the one with `src/main.rs` — becomes the deployed
-artifact. Without that `[[bin]]` and its wrapper there is nothing to
-deploy. [`crates/sdk/doc/lib.md`](crates/sdk/doc/lib.md) — the SDK's front
-page, also readable through `./scripts/dev.sh open-docs` — explains each
-piece. `thruput new` writes this manifest:
-
-```toml
-[lib]
-crate-type = ["rlib"]
-doctest = false
-test = false
-
-# The rv32 artifact. The bin name must stay the snake_case package name:
-# `thruput build` looks for the ELF at `release/<snake_name>`. src/main.rs
-# is a `#![no_std] #![no_main]` wrapper whose `extern crate my_contract;`
-# force-links the rlib so the entrypoint records reach the binary.
-[[bin]]
-name = "my_contract"
-path = "src/main.rs"
-required-features = ["entrypoints"]
-test = false
-bench = false
-
-# These names are contracts with the toolchain, not free choices:
-# `#[contract]` keys guest entrypoint codegen on `entrypoints`, and
-# `thruput test` runs host tests with `--features dev`.
-[features]
-entrypoints = []
-dev = ["thruput-sdk/dev"]
-
-# `thruput-sdk` is declared per target: it needs `std` on the host and forbids
-# it on the guest, and Cargo resolves features per platform.
-[target.'cfg(target_arch = "riscv32")'.dependencies]
-thruput-sdk = { version = "=0.51.1", registry = "thruput" }  # the pinned CLI's exact SDK version
-
-[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { version = "=0.51.1", registry = "thruput", features = ["std"] }
-
-# Deliberate self-dependency: turns `dev` on for `cargo test` builds only,
-# keeping the library itself no_std for guest builds.
-[dev-dependencies]
-my-contract = { path = ".", features = ["dev"] }
+```sh
+./scripts/dev.sh test example-contracts/counter -- --show-output
 ```
 
-The scaffold also wires a `thruput-integration-test` feature and its
-optional `thruput-json-rpc-client`/`tokio` dependencies, for
-`thruput test --integration`; they are omitted above.
+This runs native tests, including increment, decrement, and underflow checks.
+It does not require building a guest binary first. The
+[contract manifest](example-contracts/counter/Cargo.toml) enables native test
+support through its development dependency, and the
+[library entry point](example-contracts/counter/src/lib.rs) calls
+`thruput_sdk::declare_mock_contract!()` to generate `register_mock_contract`.
 
-Native tests additionally link the hogd test-FFI library, downloaded on
-first build by `crates/hogd-sys/build.rs`, so `cargo test` needs access to
-that download as well as to the registry.
+For a single transaction, `thruput_sdk::client_test` deploys a registered
+contract and passes its generated client to a closure. For example, in a
+counter integration test:
 
-Tests run contracts natively against a `TestEnvironment` (an in-process
-Thruput instance). The canonical pattern is the fluent transaction API:
-each `env.transact` call builds one transaction, `tx.call(&addr).run(...)`
-executes a closure as a contract frame at that address, and the returned
-result is asserted on:
-
-```rust,ignore
-use thruput_sdk::*;
-
-static NONCE: SHA256Hash = thruput_sdk::sha256_static!("my-test-nonce");
-
-let env = TestEnvironment::no_cost();
-let test_contract = my_contract::register_mock_contract(&env);
-let contract_hash = *test_contract.as_hash();
-
-env.transact(|tx| {
-    tx.call(&ContractAddress::named("test")).run(move || {
-        let addr = deploy_contract(&NONCE, &contract_hash);
-        let client = MyContractClient::new(&addr);
-        // exercise the generated client here
-    })
-})
-.assert_success();
+```rust
+#[test]
+fn increment_counter() {
+    thruput_sdk::client_test(
+        |env| counter::register_mock_contract(env),
+        |client: &counter::CounterClient| {
+            client.initialize(10);
+            client.increment(5);
+            assert_eq!(client.get(), 15);
+        },
+    );
+}
 ```
 
-(`thruput_sdk::declare_mock_contract!();` once in `src/lib.rs` generates
-`register_mock_contract`.)
+Use `TestEnvironment::transact` for multiple transactions, multiple contracts,
+or frame-level exception and fault assertions. The
+[counter tests](example-contracts/counter/tests/test.rs) show deployment and
+error inspection with `try_decrement`. For RV32 execution, frame results expose
+`rv32_stack_usage()` and `rv32_stack_usage_records()`; see
+[frame results](crates/native-exec/src/frame_result.rs) for their scope.
 
-For the common single-transaction case, `thruput_sdk::client_test` is thin sugar
-over that pattern — it deploys the contract and hands the closure a client:
+`example-contracts/` is an internal test corpus. Individual fixtures exercise
+SDK behavior and are not audited application templates.
 
-```rust,ignore
-thruput_sdk::client_test(
-    |env| my_contract::register_mock_contract(env),
-    |client: &MyContractClient| {
-        // exercise the generated client here
-    },
-);
+## Build guest contracts
+
+Guest builds need the pinned Thruput CLI. From a Bash shell in the repository
+root, source the installer so its PATH changes remain active:
+
+```bash
+. ./scripts/install-thruput-cli.sh
 ```
 
-Use the full `env.transact` form when a test needs multiple transactions,
-asserts on aborts/faults, or decodes typed results via
-`thruput_sdk::into_root_call_result`.
+The helper configures the registry index and installs the release or source
+commit in [the CLI pin](scripts/thruput-cli-version.sh). A source pin also needs
+SSH access to the CLI repository, Python 3.11 or newer, and its Rust toolchain.
 
-When the body calls an rv32 artifact (loaded with
-`thruput_sdk::load_rv32_contract`), the result also reports the guest's stack
-usage for the most recent rv32 call made under the frame: `rv32_stack_usage()`
-carries the stack top the guest established (`sp_initial`), the deepest point
-it reached (`sp_min`), and `bytes_used()` as their difference;
-`rv32_stack_usage_records()` lists every rv32 call made under the frame in the
-order they finished, to pick one by contract address. The records are the
-frame's own: a child frame opened with `child_call` reports the calls made
-under it and its parent does not, and no frame reports a call that finished
-before it opened. The prebuilt test_ffi library always records this; a frame
-under which no rv32 contract ran reports `None`.
+The CLI needs an active configuration profile even for offline builds. If you
+have not selected one, create a local profile:
 
-```rust,ignore
-let result = env.transact(|tx| {
-    tx.call(&ContractAddress::named("test")).run(move || {
-        // ... exercise an rv32 contract through its client ...
-    })
-});
-result.assert_success();
-let usage = result.rv32_stack_usage().expect("the body called an rv32 contract");
-println!("stack used: {} bytes", usage.bytes_used().unwrap());
+```sh
+thruput config new sdk-local --network local --use --global --quiet
 ```
 
-Generated clients default to `FooClient` for `#[contract] trait Foo` and for
-`#[contract] impl Foo { ... }`. Use `client = CustomClient` only when you want
-to override that default.
+For artifact checks, install `llvm-readelf` or `readelf`, an ELF-capable `nm`
+(such as `llvm-nm`), and `rg` (ripgrep). The scripts also use standard Unix
+utilities, including `realpath` and `strings`.
 
-### Arithmetic on-chain
+```sh
+./scripts/dev.sh build-examples-rv32
+./scripts/dev.sh build-integration-rv32
+```
 
-Deployed contracts are built with `overflow-checks = false` (see
-`[profile.release]` in `example-contracts/.cargo/config.toml` and its
-integration_test twin), so on-chain integer arithmetic — including
-`thruput_sdk::U256` and `thruput_sdk::I256`, which deliberately mirror the primitives —
-**silently wraps on overflow**. The native test harness compiles with
-cargo's dev profile, where overflow checks are on, so the same expression
-that panics (and fails the test) on the host wraps to a small number
-on-chain. **A test passing under the harness proves nothing about overflow
-behavior in deployment.**
+The second command needs the integration submodule. Builds use the flags in
+[the example workspace config](example-contracts/.cargo/config.toml) and its
+[integration counterpart](integration_test/.cargo/config.toml), and write
+lowered artifacts and specs under `target/thruput/`.
 
-For money math, be explicit instead of relying on operators:
+## Develop the SDK
 
-- `checked_add` / `checked_sub` / `checked_mul` on the primitives and on
-  `thruput_sdk::U256` / `thruput_sdk::I256`, combined with a typed throw on `None`;
-- `thruput_sdk::mul_div_u128` / `thruput_sdk::checked_mul_div_u128` for `a * b / d` with
-  a 256-bit intermediate, or `U256::mul_div` / `I256::mul_div` to stay at
-  256 bits throughout, on an exact 512-bit intermediate (the panics of the
-  `mul_div` family are unconditional, not `overflow-checks`-gated);
-- storage-level guards: `NNInt::strict_inc` / `try_strict_inc` for a
-  call-time non-negativity check, and `Balance::increase` / `decrease`,
-  which fail on overflow and overdraft in every profile.
+Run the full CI sequence, including documentation, tests, guest builds,
+artifact checks, linting, and formatting:
 
-### 256-bit math utilities
-
-`thruput_sdk::U256` and `thruput_sdk::I256` carry OpenZeppelin's `Math.sol` and
-`SignedMath.sol` surfaces, so a port from Solidity keeps its vocabulary:
-`mul_div` and `mul_shr` (full precision, 512-bit intermediate), `mul_mod` /
-`add_mod` / `mod_exp` / `inv_mod`, `average`, `ceil_div`, `pow`, and
-`log2` / `log10` / `log256`.
-
-Names match Solidity's modulo casing, with these exceptions:
-
-| Solidity | Here |
-|---|---|
-| `sqrt(a)` | `integer_sqrt` — the name the crate shipped with |
-| `sqrt(a, Rounding)`, `log2(v, Rounding)`, … | `sqrt_rounding`, `log2_rounding`, `log10_rounding`, `log256_rounding` |
-| `tryAdd` / `trySub` / `tryMul` / `tryDiv` / `tryMod` | `checked_add` and friends |
-| `mul512`, `add512` | `widening_mul_u256`, `overflowing_add` — pairs, ordered `(low, high)` |
-| `clz` | `leading_zeros` |
-| `ternary` | `if` — it is a branchless select for the EVM's gas model |
-
-Every fallible operation comes as a `checked_` form returning `Option` and a
-panicking one; `U256::mul_div` aborts where `U256::checked_mul_div` reports.
-There is no `U512`, and none is needed: Solidity has no type wider than
-`uint256` either, and the only consumers of a 512-bit intermediate in
-`Math.sol` — `mulDiv` and `mulShr` — are here whole.
-
-A plain `git clone` is sufficient to build and test the SDK itself. The one
-submodule, `integration_test/contracts`, is a private test corpus, and
-`git submodule update --init` will fail without access to it. It is consumed
-by `./scripts/dev.sh test-itc` and by the integration block of
-`./scripts/ci.sh`; without the submodule, skip that block with
-`SKIP_INTEGRATION=1 ./scripts/ci.sh`.
-
-## Requirements
-
-### Rust toolchain
-
-Install [rustup](https://rustup.rs/). `rust-toolchain.toml` pins the nightly
-toolchain this repository builds with and lists the `riscv32im-unknown-none-elf`
-target and the `rust-src` component, so rustup installs them automatically on
-the first `cargo` invocation. No manual `rustup target add` step is needed.
-
-### Optional: ccache
-
-[ccache](https://ccache.dev/) is only used when building the hogd test
-executor from source (`HOGD_FFI_BUILD=1`). The default prebuilt download path
-does not need it.
-
-The pinned runtime source uses its own `groundhog` registry alias. For the
-source-build path, also set `CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the same
-value as `CARGO_REGISTRIES_THRUPUT_TOKEN`; the source-build workflow sets both.
-The default runtime clone lives in the system temporary directory. If you set
-`HOGD_SRC`, select a checkout outside this SDK tree so Cargo keeps the two
-workspaces' registry configuration separate.
-
-## Building
-
-```shell
-# Run the CI test to ensure everything builds; this also runs many tests
+```sh
 ./scripts/ci.sh
-
-# Without access to the integration_test/contracts submodule
-SKIP_INTEGRATION=1 ./scripts/ci.sh
 ```
 
-## Documentation
+This installs the pinned CLI if needed and creates a CLI profile if none is
+active, then runs `dev.sh ci`. Without access to the integration submodule,
+use `SKIP_INTEGRATION=1 ./scripts/ci.sh` and report that coverage was skipped.
 
-To generate and open the SDK documentation:
+| Command | Scope |
+| --- | --- |
+| `./scripts/dev.sh test` | SDK test sequence |
+| `./scripts/dev.sh test example-contracts/counter` | One contract's native tests |
+| `./scripts/dev.sh test-examples` | Enabled example packages, tested separately |
+| `./scripts/dev.sh test-itc` | Integration workspace tests |
+| `./scripts/dev.sh lint` | SDK and contract lint checks |
+| `./scripts/dev.sh expand example-contracts/counter` | Macro expansion; requires `cargo-expand` |
+| `./scripts/dev.sh bigint-bench-test` | Host checks for arithmetic benchmark backends |
+| `./scripts/dev.sh bigint-bench -o 'div sqrt'` | RV32 size and gas comparison for selected operations |
 
-```shell
+The full `bigint-bench` sweep takes minutes and is separate from CI. Some
+contract tests need built RV32 artifacts; full CI orders the build and test
+steps. The root, example, integration, negative-contract, and logging workspaces
+are separate.
+Root Cargo commands use `default-members` to exclude the guest-only runtime
+from host builds. See [AGENTS.md](AGENTS.md) for the repository map and change
+guidelines.
+
+## Arithmetic and token semantics
+
+Contract release builds disable overflow checks. Integer operators, including
+`U256` and `I256`, can wrap on-chain where a native test panics. Use checked
+arithmetic for amounts; a passing native test does not establish guest overflow
+behavior. See [SDK arithmetic](crates/sdk/doc/lib.md#arithmetic) for checked
+operations, full-precision multiplication and division, and storage guards,
+and [256-bit math](crates/u256/src/lib.rs) for the integer types.
+
+The [ERC20 issuer example](example-contracts/erc20_issuer/README.md) adds optional
+holder authorization and clawback. Its
+[Stellar integration notes](example-contracts/erc20_issuer/stellar-integration.md)
+cover SEP-41 semantics and bridge boundaries.
+
+## API documentation and diagnostics
+
+Generate and open rustdoc:
+
+```sh
 ./scripts/dev.sh open-docs
 ```
 
-## Development
+Use `./scripts/dev.sh build-docs` to generate it without opening a browser.
+API documentation comes from the crate sources. See
+[SDK features](crates/sdk/Cargo.toml), [storage primitives](crates/sdk/src/storage/),
+and [storage flags](crates/sdk/src/sys_result/flags.rs) for details.
 
-### Testing
-
-The script `scripts/dev.sh` offers various commands useful in development,
-e.g.:
-
-```shell
-alias dev='./scripts/dev.sh'
-
-dev build-examples-rv32
-
-# Expand macros to view internals of contract wrappers, etc.
-dev expand example-contracts/erc20
-```
-
-### Benchmarking 256-bit arithmetic
-
-`dev bigint-bench` reports rv32 codesize and runtime gas per operation for each
-256-bit integer implementation under test — today `thruput_sdk::U256` against Parity's
-`uint` — so a change to `crates/u256` can be diffed against the implementation it
-replaced. Where `uint` has no equivalent entry point (its full-precision
-`mulDiv`), the backend supplies the one a contract author on that backend would
-have to write, and `cargo test -p bigint-bench-contract` asserts the two agree
-before any number is believed. It builds the benchmark contract once per (implementation, operation)
-pair, which is minutes of work, so it is not part of `ci`:
-
-```shell
-dev bigint-bench                 # full sweep, both metrics
-dev bigint-bench -o 'div sqrt'   # one or two operations, while iterating
-dev bigint-bench-test            # host check that the backends agree
-```
-
-### Diagnostics
-
-When running tests:
-- Set `SDK_TEST_ENABLE_SYSCALL_LOGGING=1` to see a log of syscalls made
-- Set `TEST_FFI_TRACE=1` to see interactions with the test executor. When
-  reporting a bug, it's helpful to include a trace captured with
-  `TEST_FFI_TRACE=1`.
-
-## Stellar token reference
-
-The [ERC20 issuer example](example-contracts/erc20_issuer/README.md) adds optional
-holder authorization and clawback. [Stellar integration notes](docs/sep41-reference-token.md)
-cover semantic differences and bridge boundaries.
+For test diagnostics, set `SDK_TEST_ENABLE_SYSCALL_LOGGING=1` to log syscalls,
+or `TEST_FFI_TRACE=1` to trace the native executor. Include a relevant trace
+when reporting an execution bug.
 
 ## License
 
