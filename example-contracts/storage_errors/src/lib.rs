@@ -2,7 +2,7 @@
 
 thruput_sdk::declare_mock_contract!();
 
-use thruput_sdk::storage::{Map, Value, Vector};
+use thruput_sdk::storage::{Array, Map, Value, Vector};
 use thruput_sdk::*;
 
 #[thruput_sdk::storage]
@@ -10,6 +10,7 @@ pub struct StorageErrorContract {
     numbers: Vector<Value<u64>>,
     names: Map<u64, Value<u64>>,
     plain: Value<u64>,
+    fixed: Array<Value<u64>, 4>,
 }
 
 /// A contract that deliberately exercises storage error paths.
@@ -48,6 +49,18 @@ impl StorageErrorContract {
         let mut bad: Value<()> =
             Value::from(self.numbers.keypath().child(&0u32));
         bad.set(&());
+    }
+
+    /// Access a fixed-array element by index. Will abort with
+    /// LibraryExn::StorageIndexOutOfBounds if index >= 4.
+    pub fn array_get(&self, index: u32) -> u64 {
+        self.fixed.at(index).get()
+    }
+
+    /// Set a fixed-array element by index. Will abort with
+    /// LibraryExn::StorageIndexOutOfBounds if index >= 4.
+    pub fn array_set(&mut self, index: u32, value: u64) {
+        self.fixed.at_mut(index).set(&value);
     }
 
     /// Set a map entry.

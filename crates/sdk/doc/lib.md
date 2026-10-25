@@ -171,8 +171,8 @@ and in persistent storage, noting that:
 # Storage
 
 The [`mod@storage`] module provides a high-level layer over persistent state,
-including collection types like [`Map`](storage::Map) and
-[`Vector`](storage::Vector). It is available in every feature configuration.
+including collection types like [`Map`](storage::Map),
+[`Vector`](storage::Vector) and [`Array`](storage::Array). It is available in every feature configuration.
 
 Important storage-model rules:
 
@@ -182,6 +182,8 @@ Important storage-model rules:
 - [`Vector<S>`](storage::Vector) is sparse-capable.
   [`Vector::len()`](storage::Vector::len) reports the in-bounds extent;
   individual slots may still be empty if their storage has been deleted.
+- [`Array<S, N>`](storage::Array) is a fixed-length `Map<u32, S>`: indices
+  `0..N` are always in bounds, and individual elements may be unset.
 - Use [`Vector::push_with()`](storage::Vector::push_with) for the common
   append-and-initialize flow, and
   [`Vector::push_empty_slot()`](storage::Vector::push_empty_slot) only when you

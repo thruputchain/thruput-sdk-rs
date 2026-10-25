@@ -48,6 +48,9 @@ pub use map::*;
 pub mod vector;
 pub use vector::*;
 
+pub mod array;
+pub use array::*;
+
 #[cfg(not(target_arch = "riscv32"))]
 pub mod domain_registry;
 #[cfg(not(target_arch = "riscv32"))]

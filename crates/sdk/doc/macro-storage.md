@@ -23,6 +23,7 @@ All fields must be SDK storage types. Plain data must be wrapped in
 | [`RCQ<T>`](crate::storage::RCQ) | Retrocausal queue: inserts commute, consumes are sequential |
 | [`Map<K, V>`](crate::storage::Map) | Key-addressed collection (entries not enumerable) |
 | [`Vector<S>`](crate::storage::Vector) | Index-addressed, sparse-capable sequence |
+| [`Array<S, N>`](crate::storage::Array) | Fixed-length sequence of `N` slots; no stored length |
 | [`Node<T>`](crate::storage::Node) | Nested storage struct used inside collections |
 
 # Common patterns
@@ -56,10 +57,18 @@ Low-level append path:
 - [`Vector::push_empty_slot()`](crate::storage::Vector::push_empty_slot)
   increments len immediately and returns the new slot handle.
 
+### Fixed-length arrays
+
+[`Array<S, N>`](crate::storage::Array) addresses element `i` at the slot
+`Map<u32, S>` would use for key `i`, but knows its length at compile time:
+`at()`/`at_mut()` are bounds-checked without a storage read, and the array can
+be iterated and deleted. Every element may be unset. Element keys are derived
+on access, so the handle costs the same whatever `N` is.
+
 ### Nested structs in collections
 
 Collections store storage types, not plain structs. For a nested storage struct
-inside a `Map` or `Vector`, wrap it in [`Node<T>`](crate::storage::Node):
+inside a `Map`, `Vector` or `Array`, wrap it in [`Node<T>`](crate::storage::Node):
 
 ```rust,ignore
 #[derive(Storage)]
@@ -95,6 +104,7 @@ fully deleted. It provides three methods:
 | `RCQ<T>` | Yes | Deletion cost scales with the queue's size |
 | `Node<T>` | When `T: Deletable` | |
 | `Vector<S>` | When `S: Deletable` | |
+| `Array<S, N>` | When `S: Deletable` | Deletes all `N` elements |
 | `Map<K, V>` | **No** | Cannot enumerate entries |
 
 # `#[derive(Deletable)]`
