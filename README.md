@@ -317,3 +317,9 @@ When running tests:
 The [ERC20 issuer example](example-contracts/erc20_issuer/README.md) adds optional
 holder authorization and clawback. [Stellar integration notes](docs/sep41-reference-token.md)
 cover semantic differences and bridge boundaries.
+
+## License
+
+Copyright 2026 Stellar Development Foundation. Licensed under the Apache
+License, Version 2.0. Each published crate includes the workspace
+[LICENSE](LICENSE).
