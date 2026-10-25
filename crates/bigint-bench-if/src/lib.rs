@@ -3,8 +3,7 @@
 //! One entrypoint, one operation per build. The contract that implements this
 //! trait (`example-contracts/bigint-bench-contract`) is compiled once per
 //! (backend, operation) pair, so the artifact under measurement contains
-//! exactly one arithmetic kernel and nothing else. See
-//! `docs/superpowers/specs/2026-08-12-bigint-bench-design.md`.
+//! exactly one arithmetic kernel and nothing else.
 //!
 //! Operands cross the ABI as four `u128` halves rather than a 256-bit contract
 //! type on purpose: no big-integer implementation appears in the calldata

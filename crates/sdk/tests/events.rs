@@ -758,7 +758,6 @@ fn event_payload(event: &TxEmittedEvent) -> &[u8] {
 // events, whose #[topic] fields are excluded from the payload bytes.
 // Previously these APIs required whole-struct ReadXDR and either failed to
 // compile (reference topics) or silently matched nothing (owned topics).
-// See docs/superpowers/specs/2026-07-06-typed-event-queries-design.md.
 
 #[derive(Event)]
 struct OwnedTopicEvent {

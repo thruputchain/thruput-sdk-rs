@@ -97,7 +97,7 @@ my-contract = { path = ".", features = ["dev"] }
 ```
 
 The scaffold also wires a `thruput-integration-test` feature and its
-optional `groundhog-json-rpc-client`/`tokio` dependencies, for
+optional `thruput-json-rpc-client`/`tokio` dependencies, for
 `thruput test --integration`; they are omitted above.
 
 Native tests additionally link the hogd test-FFI library, downloaded on
@@ -303,9 +303,6 @@ dev bigint-bench                 # full sweep, both metrics
 dev bigint-bench -o 'div sqrt'   # one or two operations, while iterating
 dev bigint-bench-test            # host check that the backends agree
 ```
-
-Design and current numbers:
-`docs/superpowers/specs/2026-08-12-bigint-bench-design.md`.
 
 ### Diagnostics
 

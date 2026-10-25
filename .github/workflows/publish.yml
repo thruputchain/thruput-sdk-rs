@@ -40,8 +40,8 @@ env:
   # The publish steps take the registry token as an action input, but the
   # dry runs reach the registry as plain cargo -- `cargo vendor` is the very
   # first thing they do -- and that needs a credential provider of its own.
-  # hog1 had one configured on disk; an ephemeral runner does not. Same pair
-  # ci.yml and sdk_tests.yml set.
+  # An ephemeral runner has none configured on disk. Same pair ci.yml and
+  # sdk_tests.yml set.
   CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
   # Workspace-versioned crates published under the `v<version>` tag, in
@@ -134,8 +134,7 @@ jobs:
             ${{ github.workspace }}/.hogd-ffi-cache
 
       # The dry runs below drive cargo-hack over each crate's feature
-      # powerset; hog1 had it installed globally and the runner image does
-      # not ship it. It comes from crates.io, so this needs no registry
+      # powerset, and the runner image does not ship it. It comes from crates.io, so this needs no registry
       # auth, and it is a ~1min compile against a release that takes 15.
       #
       # Pinned exactly, and checked by version rather than by presence, the
@@ -212,8 +211,7 @@ jobs:
         uses: thruputchain/actions/cargo-publish-dry-run@6693fac8133585728ad3a4ca14e3441073b6def8
         env:
           # The workspace no longer carries rv32 target rustflags (the single
-          # rv32 config lives in example-contracts/.cargo/config.toml; see
-          # docs/superpowers/specs/2026-07-09-rv32-build-config-ci-design.md).
+          # rv32 config lives in example-contracts/.cargo/config.toml).
           # The rv32-only spec-carrier bin built by the rv32 powerset below
           # only needs to LINK, so it gets the minimal link flags here. NOTE:
           # cargo JOINS env target-rustflags with config-defined ones (measured

@@ -110,7 +110,7 @@ client = Path(sys.argv[1]) / 'crates/json-rpc/json-rpc-client'
 assert (client / 'Cargo.toml').is_file(), 'pinned RPC client source is missing'
 with Path('.cargo/config.toml').open('a') as config:
     config.write('\n[patch."sparse+https://crates.thruput.network/api/v1/crates/"]\n')
-    config.write(f'groundhog-json-rpc-client = {{ path = {json.dumps(str(client))} }}\n')
+    config.write(f'thruput-json-rpc-client = {{ path = {json.dumps(str(client))} }}\n')
 PY
 fi
 
