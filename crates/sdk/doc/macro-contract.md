@@ -54,6 +54,13 @@ Generated entrypoint metadata lives on `<Interface>Entrypoints`:
 For bare impls, the default interface name and domain separator are derived from
 the self type name.
 
+#### Events
+
+Declare emitted event types with `emits(MyEvent, OtherEvent)` on a trait
+definition or inherent impl. This retains their definitions in the contract
+spec. For a trait impl, declare events on the trait instead. Runtime event
+logging alone does not retain an event's spec.
+
 #### Errors
 
 If the macro includes `throws = ErrorType`, the implementation may pass values

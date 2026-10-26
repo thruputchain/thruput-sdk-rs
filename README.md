@@ -23,6 +23,12 @@ pinned Rust toolchain. Keep its `entrypoints` feature and `src/main.rs` wrapper:
 they link the contract's entrypoints into the deployed artifact. Native tests
 use `dev`, which forwards to `thruput-sdk/dev`.
 
+For persistent state, start with the executable
+[multi-transaction tests](example-contracts/complex-storage/tests/test.rs).
+The [event tests](crates/sdk/tests/events.rs) show typed event
+checks, and [`Value`](crates/sdk/src/storage/value.rs) documents missing-value
+handling.
+
 See [Getting Started](https://docs.thruput.network/start/getting-started/) for
 CLI bundles, registry access, and network setup, and
 [thruput-examples](https://github.com/thruputchain/thruput-examples) for worked
