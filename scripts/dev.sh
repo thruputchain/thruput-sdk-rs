@@ -852,6 +852,11 @@ test_package() {
     # explicitly so cfg-gating mistakes fail here and not in a contract build.
     cargo check -p thruput-u256 --no-default-features &&
     cargo test -p thruput-sdk -Fstd --tests &&
+    # `remote` adds an off-chain proxy beside every generated guest client.
+    # Test the proxy, then build every member's targets with it so each
+    # contract shape (traits, bare impls, private modules) still compiles.
+    cargo test -p thruput-sdk -Fremote --test remote &&
+    cargo check --all-targets -F thruput-sdk/remote,thruput-sdk/dev &&
     cargo test -p thruput-erc20-metadata-if --all-targets &&
     cargo test -p thruput-spec-tool --all-targets &&
     cargo test -p thruput-test-vectors &&
