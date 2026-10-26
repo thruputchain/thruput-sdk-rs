@@ -1,7 +1,7 @@
 //! SEP-41 as client code over the issuer token's native interfaces.
 use erc20_issuer::*;
-use thruput_sep41::{SEP41Error, SEP41View};
 use thruput_sdk::*;
+use thruput_sep41::{SEP41Error, SEP41View};
 
 const TOKEN: ContractAddress = ContractAddress::new([0x20; 32]);
 const ADMIN: ContractAddress = ContractAddress::new([0x21; 32]);
@@ -110,6 +110,73 @@ fn approve_replaces_the_allowance_and_zero_revokes_whatever_the_expiry() {
     assert_allowance(&env, 10);
     approve(&env, 0, 0);
     assert_allowance(&env, 0);
+}
+
+#[test]
+fn approval_after_expiry_discards_the_stored_remainder() {
+    let env = setup();
+    let ledger = current_ledger(&env);
+    approve(&env, 20, ledger + 1);
+    call(&env, &SPENDER, || view().transfer_from(&ALICE, &BOB, 5))
+        .assert_success();
+    env.advance_block();
+    assert_allowance(&env, 0);
+
+    let until = current_ledger(&env) + 10;
+    let result = call(&env, &ALICE, move || {
+        view().approve(&SPENDER, 9, Some(until.into()));
+    });
+    result.assert_success();
+    result.assert_event_count(2);
+    result.assert_raw_event(0, |raw| {
+        let event =
+            AllowanceResetEvent::try_from(EmittedEvent::from(raw.raw()))
+                .unwrap();
+        assert_eq!((event.removed, *event.until), (15, until));
+    });
+    result.assert_raw_event(1, |raw| {
+        let event =
+            AllowanceChangeEvent::try_from(EmittedEvent::from(raw.raw()))
+                .unwrap();
+        assert_eq!(event.difference, 9);
+    });
+    env.advance_block();
+    assert_allowance(&env, 9);
+    call(&env, &SPENDER, || view().transfer_from(&ALICE, &BOB, 9))
+        .assert_success();
+    env.advance_block();
+    assert_allowance(&env, 0);
+    let exhausted =
+        call(&env, &SPENDER, || view().transfer_from(&ALICE, &BOB, 1));
+    assert_eq!(
+        exhausted.assert_abort_as::<ERC20Error>(),
+        ERC20Error::TooLarge
+    );
+    exhausted.assert_no_events();
+}
+
+#[test]
+fn zero_approval_deletes_an_expired_grants_stored_remainder() {
+    let env = setup();
+    let ledger = current_ledger(&env);
+    approve(&env, 20, ledger);
+    assert_allowance(&env, 0);
+
+    for removed in [20, 0] {
+        let result = call(&env, &ALICE, || {
+            view().approve(&SPENDER, 0, Some(0.into()));
+        });
+        result.assert_success();
+        result.assert_event_count(1);
+        result.assert_raw_event(0, |raw| {
+            let event =
+                AllowanceDeleteEvent::try_from(EmittedEvent::from(raw.raw()))
+                    .unwrap();
+            assert_eq!(event.removed, removed);
+        });
+        env.advance_block();
+        assert_allowance(&env, 0);
+    }
 }
 
 #[test]
