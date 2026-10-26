@@ -81,6 +81,9 @@ impl_receive_noop!(
     crate::types::ContractEntrypointID,
 );
 
+#[cfg(feature = "alloc")]
+impl_receive_noop!(alloc::string::String);
+
 impl<T: ReceiveAuthHandles, const N: usize> ReceiveAuthHandles for [T; N] {
     #[inline(always)]
     fn receive_auth_handles(
@@ -303,6 +306,30 @@ mod tests {
         args.receive_auth_handles(&mut iter).unwrap();
         assert_eq!(args.1.handle(), 10);
         assert_eq!(args.3.handle(), 20);
+    }
+
+    #[cfg(feature = "alloc")]
+    #[test]
+    fn owned_strings_preserve_signed_handle_order() {
+        use crate::{AuthHandleBuf, CollectAuthHandles};
+
+        let mut args = (
+            alloc::string::String::from("before 🦀"),
+            Signed::<u32>::from_handle(7),
+            Some(alloc::string::String::from("between")),
+            Signed::<bool>::from_handle(9),
+        );
+        let mut collected = AuthHandleBuf::new();
+        args.collect_auth_handles(&mut collected).unwrap();
+        assert_eq!(collected.as_slice(), &[7, 9]);
+
+        let mut received = [11, 13].into_iter();
+        args.receive_auth_handles(&mut received).unwrap();
+        assert_eq!(args.0, "before 🦀");
+        assert_eq!(args.1.handle(), 11);
+        assert_eq!(args.2.as_deref(), Some("between"));
+        assert_eq!(args.3.handle(), 13);
+        assert_eq!(received.next(), None);
     }
 
     #[test]

@@ -53,3 +53,6 @@ jobs:
           SKIP_LINT: "1"
           SKIP_FMT: "1"
         run: ./scripts/dev.sh ci
+
+      - name: Check Cargo-only guide
+        run: ./scripts/cargo-example-smoke.sh

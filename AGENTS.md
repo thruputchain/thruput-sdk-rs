@@ -5,6 +5,7 @@
 This repository contains the Thruput Rust SDK, its procedural macros, the RV32
 guest runtime, and native test infrastructure.
 
+For contract authoring, start with [Start a contract](README.md#start-a-contract).
 Read [README.md](README.md) for setup and development commands. Run
 `./scripts/dev.sh` from the repository root. Use the toolchain declared in
 [rust-toolchain.toml](rust-toolchain.toml).

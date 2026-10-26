@@ -74,6 +74,10 @@ host-side test build enables `dev`.
   also the only way to build on a platform with no prebuilt binary. Only
   meaningful alongside `dev`.
 
+With `alloc`, owned `String` values can also be contract parameters and return
+values, including inside `Option`. Borrowed `&str` inputs and
+`heapless::String<N>` are alternatives when a bounded representation is useful.
+
 A contract crate wires them up like this:
 
 ```toml
@@ -327,6 +331,10 @@ full.
 Emit with [`mod@event`]; derive the type with
 [`#[derive(Event)]`](derive@crate::Event).
 
+Declare emitted types with `#[contract(emits(MyEvent))]` so their definitions
+are retained in the generated contract spec. Emitting an event at runtime does
+not by itself retain its spec; see [`#[contract]`](macro@crate::contract).
+
 Derived events reserve topic 0 for the event signature. That signature is based
 on the package name, package version, and event type name, so changing any of
 those changes the emitted signature topic.
@@ -335,12 +343,12 @@ Thruput currently supports up to three total topics per event. With
 `#[derive(Event)]`, that means the signature plus up to two additional
 `#[topic]` fields.
 
-Types that are not already 32 bytes wide are XDR-encoded and hashed before
-being used as topics. That hashing is one-way, so no reader can reconstruct a
-whole event from the log: it sees raw topics plus the decoded non-topic
-payload. That is what [`TypedEvent`] holds, and what the harness queries
+Topic fields use their [`IntoTopic`] representation. Supported scalar types
+encode directly; strings and byte slices are hashed and cannot be recovered
+from a topic. Non-topic fields form the decoded payload.
+[`TypedEvent`] holds the raw topics and that payload. The harness queries
 [`assert_event`](TransactResult::assert_event) and
-[`filter_events`](TransactResult::filter_events) hand back.
+[`filter_events`](TransactResult::filter_events) provide this typed view.
 
 # Authorization
 
@@ -503,6 +511,10 @@ Three testing lanes, all behind feature `dev`:
 - [`TestEnvironment`](crate::TestEnvironment): direct control over environment,
   blocks, deployment, and multi-contract scenarios
 - [`test_rv32()`]: run a built rv32 contract artifact in the test harness
+
+When a test needs one transaction to see another's committed changes, call
+[`TestEnvironment::advance_block`] between them. Transactions in the same block
+read the same committed snapshot; see [`TestEnvironment::transact`].
 
 Typical native client test, with the contract crate calling
 `thruput_sdk::declare_mock_contract!();` in its `lib.rs` to generate
