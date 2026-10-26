@@ -299,8 +299,11 @@ fn generate_remote(
             &iface_vers,
             sig,
         ));
-        let sent_params: Vec<&syn::FnArg> =
-            sig.inputs.iter().filter(|param| !is_receiver(param)).collect();
+        let sent_params: Vec<&syn::FnArg> = sig
+            .inputs
+            .iter()
+            .filter(|param| !is_receiver(param))
+            .collect();
         let sent_args: Vec<&syn::Pat> =
             sent_params.iter().cloned().filter_map(arg_pat).collect();
         let args_tuple = if sent_args.len() == 1 {

@@ -559,7 +559,9 @@ pub fn method_effect_tokens(method: &impl Method) -> Result<TokenStream> {
 
 /// The declared effect's variant name (`Pure`, `ReadOnly`, `StateChanging`),
 /// or `None` when the method declares no effect.
-pub fn method_effect_ident(method: &impl Method) -> Result<Option<syn::Ident>> {
+pub fn method_effect_ident(
+    method: &impl Method,
+) -> Result<Option<syn::Ident>> {
     let mut effect = None;
     for attr in method
         .attrs()

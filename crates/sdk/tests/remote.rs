@@ -6,7 +6,9 @@
 
 use std::marker::PhantomData;
 
-use thruput_contract_util::{NormalizedMethodSignature, contract_entrypoint_id};
+use thruput_contract_util::{
+    NormalizedMethodSignature, contract_entrypoint_id,
+};
 use thruput_sdk::__xdrs::{ReadXDROwned, WriteXDR, cxs};
 use thruput_sdk::remote::{MethodEffect, RemoteInvoker, RemoteMethod};
 use thruput_sdk::*;
@@ -145,8 +147,10 @@ fn undeclared_effects_are_calls() {
 
 #[test]
 fn interface_method_replaces_accessor() {
-    let located =
-        shadowed::LocatedRemote::new(Recorder, &ContractAddress::from([1; 32]));
+    let located = shadowed::LocatedRemote::new(
+        Recorder,
+        &ContractAddress::from([1; 32]),
+    );
     let address: Recorded<u32> = located.address();
     assert_eq!(address.kind, "view");
     assert_eq!(address.method.name, "address");
