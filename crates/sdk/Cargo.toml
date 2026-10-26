@@ -99,6 +99,11 @@ dev = [
     "dep:sha2",
 ]
 
+# Remote proxies for off-chain callers: each `#[contract]` interface also
+# generates `<Iface>Remote<I>`, which prepares invocations through a
+# `remote::RemoteInvoker` such as a test harness. Host-only.
+remote = ["std", "dep:thruput-contract-util", "thruput-macros/remote"]
+
 # Forwarded to thruput-sys (via native-exec): build the FFI library from
 # source (HOGD_FFI_BUILD=1) instead of downloading a prebuilt binary.
 source-build = ["thruput-native-exec?/source-build"]
@@ -112,6 +117,10 @@ required-features = ["std"]
 
 # Mock-executor misuse cases. Gated: without `mock` the APIs under test are
 # absent, so the cases would fail to resolve instead of failing on the bound.
+[[test]]
+name = "remote"
+required-features = ["remote"]
+
 [[test]]
 name = "compile_fail_mock"
 required-features = ["dev"]

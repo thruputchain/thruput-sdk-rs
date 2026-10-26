@@ -549,6 +549,17 @@ pub fn method_spec_view_tokens(
 
 /// Parse the method's explicit declaration, never its name or receiver.
 pub fn method_effect_tokens(method: &impl Method) -> Result<TokenStream> {
+    Ok(match method_effect_ident(method)? {
+        Some(effect) => {
+            quote! { ::core::option::Option::Some(::thruput_sdk::__contract_spec::ContractMethodEffectView::#effect) }
+        }
+        None => quote! { ::core::option::Option::None },
+    })
+}
+
+/// The declared effect's variant name (`Pure`, `ReadOnly`, `StateChanging`),
+/// or `None` when the method declares no effect.
+pub fn method_effect_ident(method: &impl Method) -> Result<Option<syn::Ident>> {
     let mut effect = None;
     for attr in method
         .attrs()
@@ -573,12 +584,7 @@ pub fn method_effect_tokens(method: &impl Method) -> Result<TokenStream> {
             Ok(())
         })?;
     }
-    Ok(match effect {
-        Some(effect) => {
-            quote! { ::core::option::Option::Some(::thruput_sdk::__contract_spec::ContractMethodEffectView::#effect) }
-        }
-        None => quote! { ::core::option::Option::None },
-    })
+    Ok(effect)
 }
 
 pub fn method_anchor_tokens(
