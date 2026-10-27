@@ -368,31 +368,10 @@ name = "erc20"
 version = "0.4.0"
 dependencies = [
  "erc20",
- "erc20-native-test",
  "sha2",
  "thruput-erc20-if",
  "thruput-erc20-metadata-if",
- "thruput-sdk",
-]
-
-[[package]]
-name = "erc20-native-test"
-version = "0.57.2"
-dependencies = [
- "erc20-test",
- "thiserror",
- "thruput-erc20-if",
- "thruput-sdk",
- "thruput-xdr",
-]
-
-[[package]]
-name = "erc20-test"
-version = "0.57.2"
-dependencies = [
- "thiserror",
- "thruput-erc20-if",
- "thruput-erc20-metadata-if",
+ "thruput-erc20-native-test",
  "thruput-sdk",
 ]
 
@@ -420,9 +399,9 @@ dependencies = [
 name = "erc20_low_level"
 version = "0.4.0"
 dependencies = [
- "erc20-native-test",
  "erc20_low_level",
  "thruput-erc20-if",
+ "thruput-erc20-native-test",
  "thruput-sdk",
 ]
 
@@ -460,9 +439,9 @@ dependencies = [
 name = "erc20_raw_storage"
 version = "0.4.0"
 dependencies = [
- "erc20-native-test",
  "erc20_raw_storage",
  "thruput-erc20-if",
+ "thruput-erc20-native-test",
  "thruput-sdk",
 ]
 
@@ -1441,6 +1420,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "thruput-erc20-native-test"
+version = "0.57.2"
+dependencies = [
+ "thiserror",
+ "thruput-erc20-if",
+ "thruput-erc20-test",
+ "thruput-sdk",
+ "thruput-xdr",
+]
+
+[[package]]
 name = "thruput-erc20-pausable-if"
 version = "0.1.70"
 dependencies = [
@@ -1454,6 +1444,16 @@ version = "0.1.70"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
+]
+
+[[package]]
+name = "thruput-erc20-test"
+version = "0.57.2"
+dependencies = [
+ "thiserror",
+ "thruput-erc20-if",
+ "thruput-erc20-metadata-if",
  "thruput-sdk",
 ]
 

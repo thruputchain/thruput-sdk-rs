@@ -18,7 +18,7 @@ dev = [
     "metadata",
     "thruput-erc20-if/dev",
     "thruput-erc20-metadata-if/dev",
-    "erc20-native-test/metadata"
+    "thruput-erc20-native-test/metadata"
     ]
 metadata = ["dep:thruput-erc20-metadata-if"]
 
@@ -42,5 +42,5 @@ thruput-erc20-metadata-if = { workspace = true, optional = true }
 
 [dev-dependencies]
 erc20 = { path = ".", features = ["dev", "metadata"] }
-erc20-native-test = { workspace = true, features = ["metadata"] }
+thruput-erc20-native-test = { workspace = true, features = ["metadata"] }
 sha2.workspace = true

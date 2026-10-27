@@ -63,8 +63,8 @@ env:
     thruput-rv32-runtime
     thruput-sdk
     thruput-spec-tool
-    erc20-test
-    erc20-native-test
+    thruput-erc20-test
+    thruput-erc20-native-test
 
 jobs:
   yank:

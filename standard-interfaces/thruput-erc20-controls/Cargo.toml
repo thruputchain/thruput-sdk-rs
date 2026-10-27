@@ -8,7 +8,7 @@ license.workspace = true
 description = "Optional issuer controls and holder burns for Thruput ERC20 tokens"
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
+keywords = ["thruput", "smart-contracts", "erc20", "token"]
 categories.workspace = true
 
 [features]

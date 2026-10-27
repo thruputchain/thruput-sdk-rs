@@ -8,7 +8,7 @@ license.workspace = true
 description = "ERC721 non-fungible token standard interface for Thruput smart contracts"
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
+keywords = ["thruput", "smart-contracts", "erc721", "nft"]
 categories.workspace = true
 
 [features]

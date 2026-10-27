@@ -17,7 +17,8 @@ members = [
 version = "0.4.0"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
-publish = ["thruput"]
+# Test fixtures: never published.
+publish = false
 repository = "https://github.com/thruputchain/thruput-sdk-rs"
 homepage = "https://github.com/thruputchain/thruput-sdk-rs"
 keywords = ["thruput"]

@@ -342,27 +342,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 
 [[package]]
-name = "erc20-native-test"
-version = "0.57.2"
-dependencies = [
- "erc20-test",
- "thiserror",
- "thruput-erc20-if",
- "thruput-sdk",
- "thruput-xdr",
-]
-
-[[package]]
-name = "erc20-test"
-version = "0.57.2"
-dependencies = [
- "thiserror",
- "thruput-erc20-if",
- "thruput-erc20-metadata-if",
- "thruput-sdk",
-]
-
-[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1119,6 +1098,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "thruput-erc20-native-test"
+version = "0.57.2"
+dependencies = [
+ "thiserror",
+ "thruput-erc20-if",
+ "thruput-erc20-test",
+ "thruput-sdk",
+ "thruput-xdr",
+]
+
+[[package]]
 name = "thruput-erc20-pausable-if"
 version = "0.1.70"
 dependencies = [
@@ -1132,6 +1122,16 @@ version = "0.1.70"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
+ "thruput-sdk",
+]
+
+[[package]]
+name = "thruput-erc20-test"
+version = "0.57.2"
+dependencies = [
+ "thiserror",
+ "thruput-erc20-if",
+ "thruput-erc20-metadata-if",
  "thruput-sdk",
 ]
 

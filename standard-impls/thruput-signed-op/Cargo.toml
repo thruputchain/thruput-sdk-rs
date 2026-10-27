@@ -8,7 +8,7 @@ license.workspace = true
 description = "Embeddable signed-operation verification and nonce state for Thruput smart contracts"
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
+keywords = ["thruput", "smart-contracts", "signatures", "wallet"]
 categories.workspace = true
 
 [features]

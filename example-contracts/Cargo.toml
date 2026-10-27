@@ -109,7 +109,8 @@ exclude = [
 version = "0.4.0"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
-publish = ["thruput"]
+# Test fixtures: never published.
+publish = false
 repository = "https://github.com/thruputchain/thruput-sdk-rs"
 homepage = "https://github.com/thruputchain/thruput-sdk-rs"
 keywords = ["thruput"]
@@ -134,8 +135,8 @@ thruput-sep41 = { path = "../standard-impls/thruput-sep41", registry = "thruput"
 thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.70" }
 thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.70" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.57.2" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.2" }
+thruput-erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.57.2" }
+thruput-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.2" }
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # From the xdrs repo, published on crates.io as thruput-xdrs

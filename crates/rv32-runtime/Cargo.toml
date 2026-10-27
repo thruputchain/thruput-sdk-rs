@@ -7,13 +7,19 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["thruput", "smart-contracts", "riscv", "runtime"]
+categories = ["cryptography::cryptocurrencies", "embedded", "no-std::no-alloc"]
 description = "Bare-metal RV32 runtime support for Thruput contracts: _start, panic handler, allocator, linker script"
 
 # Build script publishes link args to bin crates that depend on us, and
 # re-runs when the linker script changes.
 build = "build.rs"
+
+# The entry point, panic handler and allocator compile only for the guest
+# target.
+[package.metadata.docs.rs]
+default-target = "riscv32im-unknown-none-elf"
+targets = ["riscv32im-unknown-none-elf"]
 
 [lib]
 crate-type = ["rlib"]

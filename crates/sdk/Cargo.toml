@@ -7,13 +7,16 @@ version.workspace = true
 publish.workspace = true
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
+keywords = ["thruput", "smart-contracts", "blockchain", "riscv", "no-std"]
 categories.workspace = true
 description = "Thruput smart-contract SDK for Rust (rv32 guest runtime and native test harness)"
 readme = "../../README.md"
-metadata.docs.rs.features = [
-    "std",
-]
+
+# Document the native test harness too: the crate docs teach it. `dev` pulls
+# in thruput-sys, whose checked-in docs bindings are generated for this target.
+[package.metadata.docs.rs]
+features = ["dev", "remote"]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [lib]
 crate-type = ["rlib"]
@@ -84,7 +87,7 @@ std = [
 # gates: it does not change what a contract computes, it decides whether the
 # native executor is in the dependency graph at all -- pulling
 # `thruput-native-exec` and through it the hogd FFI library. Host crates
-# that only read specs (`spec-tool`, `erc20-test`, the `*-if` crates) build
+# that only read specs (`spec-tool`, `thruput-erc20-test`, the `*-if` crates) build
 # `thruput-sdk` without it and should not have to fetch a shared object to do
 # so.
 #
