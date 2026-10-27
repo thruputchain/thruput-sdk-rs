@@ -525,6 +525,7 @@ dependencies = [
  "sha2",
  "syn",
  "thruput-xdr",
+ "thruput-xdrs",
 ]
 
 [[package]]

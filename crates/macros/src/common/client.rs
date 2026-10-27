@@ -135,6 +135,12 @@ pub fn generate(
         contract.interface_name().as_deref(),
         &iface_vers,
     );
+    let remote = if cfg!(feature = "remote") {
+        generate_remote(&contract, &client_ident, &mut used)?
+    } else {
+        TokenStream::new()
+    };
+
     let constructor_ident = client_constructor_ident();
     let gas_limit_helper_ident = client_gas_limit_helper_ident();
     let try_invoke_helper_ident = client_try_invoke_helper_ident();
@@ -248,9 +254,167 @@ pub fn generate(
                 #(#mapped_method_stubs)*
             }
         };
+
+        #remote
     };
 
     Ok(client)
+}
+
+/// `FooClient` -> `FooRemote`; any other client name gains a `Remote` suffix.
+fn remote_ident(client_ident: &syn::Ident) -> syn::Ident {
+    let name = client_ident.to_string();
+    let base = name.strip_suffix("Client").unwrap_or(&name);
+    format_ident!("{}Remote", base)
+}
+
+/// Generate `<Iface>Remote<I>`, an off-chain proxy whose methods prepare
+/// invocations through an `I: RemoteInvoker`. Declared `pure` and `readOnly`
+/// methods become views; all others, including undeclared ones, are calls.
+/// Arguments are sent as the guest client sends them.
+fn generate_remote(
+    contract: &impl ContractSrc,
+    client_ident: &syn::Ident,
+    used: &mut HashSet<String>,
+) -> Result<TokenStream> {
+    let remote_ident = remote_ident(client_ident);
+    let invoker_ident = fresh_ident("__ThruputInvoker", used);
+    let iface_name = contract.interface_name();
+    let iface_vers = contract.defaulted_interface_vers();
+    let interface = match iface_name.as_deref() {
+        Some(name) => quote! { ::core::option::Option::Some(#name) },
+        None => quote! { ::core::option::Option::None },
+    };
+
+    let mut method_names = HashSet::new();
+    let mut stubs = Vec::new();
+    for method in contract.methods_sorted() {
+        let sig = method.sig();
+        let ident = &sig.ident;
+        let name = ident.to_string().trim_start_matches("r#").to_owned();
+        method_names.insert(name.clone());
+
+        let entrypoint = entrypoint_literal(contract_entrypoint_id(
+            iface_name.as_deref(),
+            &iface_vers,
+            sig,
+        ));
+        let sent_params: Vec<&syn::FnArg> = sig
+            .inputs
+            .iter()
+            .filter(|param| !is_receiver(param))
+            .collect();
+        let sent_args: Vec<&syn::Pat> =
+            sent_params.iter().cloned().filter_map(arg_pat).collect();
+        let args_tuple = if sent_args.len() == 1 {
+            let arg = sent_args[0];
+            quote! { #arg }
+        } else {
+            quote! { ( #(#sent_args),* ) }
+        };
+        let return_type = match &sig.output {
+            syn::ReturnType::Type(_, ty) => quote! { #ty },
+            syn::ReturnType::Default => quote! { () },
+        };
+
+        let effect = super::contract::method_effect_ident(&method)?;
+        let read_only = effect
+            .as_ref()
+            .is_some_and(|effect| effect == "Pure" || effect == "ReadOnly");
+        let (prepared, verb) = if read_only {
+            (format_ident!("View"), format_ident!("view"))
+        } else {
+            (format_ident!("Call"), format_ident!("call"))
+        };
+        let effect = match effect {
+            Some(effect) => quote! {
+                ::core::option::Option::Some(::thruput_sdk::remote::MethodEffect::#effect)
+            },
+            None => quote! { ::core::option::Option::None },
+        };
+        let docs = method
+            .attrs()
+            .iter()
+            .filter(|attr| attr.path().is_ident("doc"));
+
+        stubs.push(quote_spanned! {sig.span()=>
+            #(#docs)*
+            pub fn #ident(&self, #(#sent_params),*)
+                -> <#invoker_ident as ::thruput_sdk::remote::RemoteInvoker>::#prepared<#return_type>
+            {
+                let __gh_args = #args_tuple;
+                ::thruput_sdk::remote::RemoteInvoker::#verb::<#return_type, _>(
+                    &self.invoker,
+                    &self.address,
+                    ::thruput_sdk::remote::RemoteMethod {
+                        interface: #interface,
+                        version: #iface_vers,
+                        name: #name,
+                        entrypoint: #entrypoint,
+                        effect: #effect,
+                    },
+                    &__gh_args,
+                )
+            }
+        });
+    }
+
+    // Interface methods take precedence over these accessors.
+    let address_accessor = (!method_names.contains("address")).then(|| {
+        quote! {
+            /// The contract this proxy invokes.
+            pub fn address(&self) -> ::thruput_sdk::ContractAddress {
+                self.address.clone()
+            }
+        }
+    });
+    let invoker_accessor = (!method_names.contains("invoker")).then(|| {
+        quote! {
+            /// The invoker that prepares this proxy's invocations.
+            pub fn invoker(&self) -> &#invoker_ident {
+                &self.invoker
+            }
+        }
+    });
+
+    let doc = format!(
+        "Off-chain proxy for the interface of [`{client_ident}`]. Each method \
+         prepares an invocation through a \
+         [`RemoteInvoker`](::thruput_sdk::remote::RemoteInvoker)."
+    );
+    Ok(quote! {
+        #[doc = #doc]
+        #[derive(Clone, Debug)]
+        pub struct #remote_ident<#invoker_ident> {
+            invoker: #invoker_ident,
+            address: ::thruput_sdk::ContractAddress,
+        }
+
+        const _: () = {
+            impl<#invoker_ident> #remote_ident<#invoker_ident> {
+                /// A proxy for the contract at `address`, invoked through `invoker`.
+                pub fn new(
+                    invoker: #invoker_ident,
+                    address: &::thruput_sdk::ContractAddress,
+                ) -> Self {
+                    Self {
+                        invoker,
+                        address: address.clone(),
+                    }
+                }
+
+                #address_accessor
+                #invoker_accessor
+            }
+
+            #[allow(dead_code)] // Consumers need not use every method.
+            impl<#invoker_ident: ::thruput_sdk::remote::RemoteInvoker>
+                #remote_ident<#invoker_ident>
+            {
+                #(#stubs)*
+            }
+        };
+    })
 }
 
 fn generate_client_fn(

@@ -60,16 +60,19 @@ pub const CONTRACT_ADDR_ZERO: &ContractAddress =
 pub trait ERC20 {
     /// Set the administrator. Throws [`ERC20Error::AlreadyInitialized`] if
     /// called more than once.
+    #[contract(effect = "stateChanging")]
     fn initialize(&mut self, administrator: &ContractAddress);
 
     /// Transfer from caller to `receiver` address.
     /// Throws [`ERC20Error::TooLarge`] if the caller's balance is
     /// insufficient.
+    #[contract(effect = "stateChanging")]
     fn transfer(&mut self, receiver: &ContractAddress, amount: Amount);
 
     /// Transfer from `owner` to `receiver` address, using allowance.
     /// Throws [`ERC20Error::TooLarge`] if the caller's allowance or the
     /// owner's balance is insufficient.
+    #[contract(effect = "stateChanging")]
     fn transfer_from(
         &mut self,
         owner: &ContractAddress,
@@ -85,6 +88,7 @@ pub trait ERC20 {
     /// the allowance bounds. To set an absolute allowance, call
     /// `delete_allowance` first in the same transaction: its exclusive lock
     /// covers this write too.
+    #[contract(effect = "stateChanging")]
     fn adjust_allowance(
         &mut self,
         spender: &ContractAddress,
@@ -98,6 +102,7 @@ pub trait ERC20 {
     /// [`AllowanceDeleteEvent`] with the stored amount removed, even if the
     /// allowance had expired (zero for a missing entry).
     /// Implementations SHOULD refund the released storage cost to the caller.
+    #[contract(effect = "stateChanging")]
     fn delete_allowance(&mut self, spender: &ContractAddress);
 
     /// Delete the caller's empty balance entry, leaving supply unchanged.
@@ -105,9 +110,11 @@ pub trait ERC20 {
     /// entries are allowed. Deletion conflicts with concurrent balance writes.
     /// Do not delete holder authorization or emit a token movement event.
     /// Implementations SHOULD refund the released storage cost to the caller.
+    #[contract(effect = "stateChanging")]
     fn delete_balance(&mut self);
 
     /// Get `spender`'s allowance of `owner`'s tokens
+    #[contract(effect = "readOnly")]
     fn allowance(
         &self,
         owner: &ContractAddress,
@@ -115,17 +122,21 @@ pub trait ERC20 {
     ) -> Amount;
 
     /// Get balance for given address
+    #[contract(effect = "readOnly")]
     fn get_balance_of(&self, addr: &ContractAddress) -> Amount;
 
     /// Get balance for caller
+    #[contract(effect = "readOnly")]
     fn get_balance(&self) -> Amount;
 
     /// Create tokens into `receiver` address and emit [`MintEvent`].
     /// Throws [`ERC20Error::MustBeContractOwner`] unless the caller is the
     /// administrator.
+    #[contract(effect = "stateChanging")]
     fn mint(&mut self, receiver: &ContractAddress, amount: Amount);
 
     /// Get total supply of outstanding tokens
+    #[contract(effect = "readOnly")]
     fn total_supply(&self) -> Amount;
 }
 
@@ -149,6 +160,7 @@ pub trait ERC20AllowanceExpiry {
     /// [`AllowanceResetEvent`] with the stored amount removed. Locks like
     /// `delete_allowance`, so a following `adjust_allowance` sets an absolute,
     /// expiring allowance.
+    #[contract(effect = "stateChanging")]
     fn reset_allowance(
         &mut self,
         spender: &ContractAddress,

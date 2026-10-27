@@ -38,5 +38,8 @@ logging = []
 # (Not recommended except when decompiling, where method names are inscrutable.)
 no_inline_methods = []
 
+# generate remote proxies (`<Iface>Remote`) alongside guest clients
+remote = []
+
 # generate test-registration in contract-macro
 mock = ["thruput-xdr/syscalls_mock"]

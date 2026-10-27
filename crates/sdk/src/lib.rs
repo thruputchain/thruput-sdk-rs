@@ -151,6 +151,10 @@ pub use call::{ContractClient, MapExceptions};
 // Error types returned by ordinary and exception-mapped `try_*` calls.
 pub use call::{CallError, RawCallError};
 
+/// Off-chain invocation through generated `<Iface>Remote` proxies.
+#[cfg(feature = "remote")]
+pub use thruput_contract_util::remote;
+
 // TODO: Make these modules pub(crate) at most, in order to allow
 // reorganization without breaking changes.
 pub mod auth_claim;

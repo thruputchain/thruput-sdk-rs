@@ -1398,6 +1398,7 @@ dependencies = [
  "sha2",
  "syn 3.0.4",
  "thruput-xdr",
+ "thruput-xdrs",
 ]
 
 [[package]]

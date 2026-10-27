@@ -4,6 +4,7 @@ use sha2::Digest;
 use std::fmt::{self, Display};
 use thruput_xdr::contract::ContractEntrypointID;
 
+pub mod remote;
 pub mod semver;
 
 /// Standard signature for a contract method.
