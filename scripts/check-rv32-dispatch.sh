@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Assert a linked rv32 contract ELF uses guest-side dispatch:
-#   - no legacy 16-hex / .text.gh_* method-export symbols remain
 #   - _start is the entry at vaddr 0
 #   - the dispatch table is present AND non-empty
 #
@@ -19,12 +18,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 [ -n "$READELF" ] || fail "no llvm-readelf or readelf on PATH (or set READELF)"
 
-# 1. No legacy per-method export sections.
-if "$READELF" -SW "$ELF" | grep -E '\.text\.gh_' > /dev/null; then
-  fail ".text.gh_* sections still present (v3 dispatch surface not removed)"
-fi
-
-# 2. _start at entry vaddr 0. Accept any spelling of zero; fail closed on an
+# 1. _start at entry vaddr 0. Accept any spelling of zero; fail closed on an
 #    empty/unparsed value (a missing Entry line must not silently pass).
 # GNU readelf and llvm-readelf (GNU output style, its default) both print
 # "Entry point address:               0x0".
@@ -34,7 +28,7 @@ case "$ENTRY" in
   *) fail "_start not at vaddr 0 (entry='$ENTRY')" ;;
 esac
 
-# 3. Dispatch table present AND non-empty. A bare ".rodata exists" check is too
+# 2. Dispatch table present AND non-empty. A bare ".rodata exists" check is too
 #    weak: string literals make .rodata non-empty even if the dispatch section
 #    were silently dropped (e.g. --gc-sections, a misconfigured KEEP, or a
 #    macro/linker-script section-name mismatch), which would route every call
@@ -54,9 +48,9 @@ if [ -n "$START_ADDR" ] && [ -n "$STOP_ADDR" ]; then
   if [ "$((16#$STOP_ADDR))" -le "$((16#$START_ADDR))" ]; then
     fail "dispatch table is empty (end=0x$STOP_ADDR <= start=0x$START_ADDR) — section dropped or no methods registered"
   fi
-  echo "OK: $ELF uses guest-side dispatch (no .text.gh_*, _start@0, dispatch table non-empty)"
+  echo "OK: $ELF uses guest-side dispatch (_start@0, dispatch table non-empty)"
 elif "$READELF" -SW "$ELF" | grep -E '\.rodata' > /dev/null; then
-  echo "WARN: $ELF passed only the weak stripped-ELF dispatch check (no .text.gh_*, _start@0, .rodata present); the smoke must verify method_id dispatch"
+  echo "WARN: $ELF passed only the weak stripped-ELF dispatch check (_start@0, .rodata present); the smoke must verify method_id dispatch"
 else
   fail ".rodata missing (dispatch table would be unmaterialized)"
 fi

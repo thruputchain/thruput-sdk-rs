@@ -12,7 +12,7 @@
 //! Inlining lets LLVM specialize each copy against known-zero limbs, so
 //! `.text` grows with the call-site count. Measured on rv32 against a probe
 //! with N distinct call sites, `inline(never)` breaks even at roughly 1.3 call
-//! sites for `widening_mul`/`overflowing_mul`, 1.2 for `from_be_bytes` and 1.8
+//! sites for `widening_mul_u128`/`overflowing_mul`, 1.2 for `from_be_bytes` and 1.8
 //! for `to_be_bytes`. Real contracts sit at a handful -- the swap pair has
 //! four multiply sites -- and rv32 is where the 64 KiB artifact cap binds, so
 //! outlining pays there.
@@ -170,7 +170,7 @@ impl U256 {
     /// amounts). Cannot overflow, so no check and no `Option`; sixteen
     /// `mul`/`mulhu` pairs.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    pub const fn widening_mul(a: u128, b: u128) -> Self {
+    pub const fn widening_mul_u128(a: u128, b: u128) -> Self {
         let al = [
             a as u32,
             (a >> 32) as u32,
@@ -211,7 +211,7 @@ impl U256 {
     /// [`mul_div`](U256::mul_div) family divides back down -- reach for that
     /// rather than for the halves, unless the 512-bit value is the answer.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
-    pub const fn widening_mul_u256(self, rhs: Self) -> (Self, Self) {
+    pub const fn widening_mul(self, rhs: Self) -> (Self, Self) {
         let mut out = [0u32; 2 * LIMBS];
         let mut i = 0;
         while i < LIMBS {
@@ -261,7 +261,7 @@ impl U256 {
 
     /// Wrapping multiplication, with a flag reporting whether it wrapped.
     ///
-    /// Outlined on rv32; see [`U256::widening_mul`] and the note at the top of
+    /// Outlined on rv32; see [`U256::widening_mul_u128`] and the note at the top of
     /// this module.
     #[cfg_attr(target_arch = "riscv32", inline(never))]
     pub const fn overflowing_mul(self, rhs: Self) -> (Self, bool) {

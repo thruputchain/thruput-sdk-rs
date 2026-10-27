@@ -569,7 +569,7 @@ check_rv32_contract_spec_artifacts() {
     name_reuse_json="${thruput_dir}/spec_name_reuse.spec.json"
     scheme_keys_json="${thruput_dir}/scheme_keys.spec.json"
 
-    assert_file_contains "$free_fn_json" '"format":"gh_contract_spec_v1"' &&
+    assert_file_contains "$free_fn_json" '"format":"thruput_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
     assert_file_contains "$free_fn_json" '"version":"0.4.0"' &&
 

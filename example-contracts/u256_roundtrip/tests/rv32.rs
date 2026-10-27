@@ -27,7 +27,7 @@ static MIN_NONCE: SHA256Hash = sha256_static!("I256_MIN_ROUNDTRIP_TEST_NONCE");
 /// A value whose limbs all differ and whose top bit is set, so any limb
 /// reordering or truncation in the calldata/return/storage paths shows up.
 fn test_value() -> U256 {
-    U256::widening_mul(
+    U256::widening_mul_u128(
         0xDEAD_BEEF_0011_2233_4455_6677_8899_AABB_u128,
         0x8000_0000_0000_0000_0000_0000_0000_0001_u128,
     )

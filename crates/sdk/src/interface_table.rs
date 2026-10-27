@@ -174,14 +174,15 @@ macro_rules! __interface_record {
             #[cfg(target_arch = "riscv32")]
             #[used]
             #[unsafe(link_section = "thruput_rv32_interfaces")]
-            static __GH_INTERFACE_RECORD: $crate::InterfaceId = $id;
+            static __THRUPUT_INTERFACE_RECORD: $crate::InterfaceId = $id;
 
             #[cfg(not(target_arch = "riscv32"))]
             #[$crate::__linkme::distributed_slice(
                 $crate::interface_table::HOST_RECORDS
             )]
             #[linkme(crate = $crate::__linkme)]
-            static __GH_INTERFACE_RECORD: $crate::interface_table::HostRecord =
+            static __THRUPUT_INTERFACE_RECORD:
+                $crate::interface_table::HostRecord =
                 $crate::interface_table::HostRecord {
                     package: env!("CARGO_PKG_NAME"),
                     version: env!("CARGO_PKG_VERSION"),

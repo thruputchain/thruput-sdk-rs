@@ -26,7 +26,7 @@
 //! There is no `U512` here, and none is needed for parity: Solidity has no type
 //! wider than `uint256` either, so `Math.sol` returns its two 512-bit results
 //! as a `(high, low)` pair of `uint256`s. Both have a counterpart --
-//! `Math.mul512` is [`widening_mul_u256`](U256::widening_mul_u256) and
+//! `Math.mul512` is [`widening_mul`](U256::widening_mul) and
 //! `Math.add512` is [`overflowing_add`](U256::overflowing_add), each ordered
 //! `(low, high)` to match `u128::widening_mul` rather than Solidity.
 //!
@@ -38,7 +38,7 @@
 //!
 //! [`mul_div`](U256::mul_div) and the other full-precision entry points link
 //! their own instantiation of Knuth D, sized to a 512-bit dividend, plus the
-//! 512-bit multiply that the narrower [`U256::widening_mul`] does not need.
+//! 512-bit multiply that the narrower [`U256::widening_mul_u128`] does not need.
 //! Measured by `scripts/bigint-bench.sh -o mul_div`, rv32: **3,992 bytes** of
 //! `.text` and 4712 gas per call, against 2,572 and 972 for a plain `/`. The
 //! same operation over Parity's `uint` -- which has no full-precision `mulDiv`,
@@ -318,7 +318,7 @@ impl U256 {
         y: Self,
         d: Self,
     ) -> Option<(Self, Self)> {
-        let (lo, hi) = x.widening_mul_u256(y);
+        let (lo, hi) = x.widening_mul(y);
         let (q, r) = match div_rem_512(hi, lo, d) {
             Some(v) => v,
             None => return None,
@@ -351,7 +351,7 @@ impl U256 {
     /// when the result does not fit.
     ///
     /// One place the 512-bit product is formed, so the rounding entry point
-    /// does not have to build it a second time -- `widening_mul_u256` is
+    /// does not have to build it a second time -- `widening_mul` is
     /// `inline(never)` on rv32 and sixty-four `mul`/`mulhu` pairs, which is
     /// not a thing to pay twice for a single `Ceil`.
     #[inline]
@@ -359,7 +359,7 @@ impl U256 {
         if n >= Self::BITS {
             return None;
         }
-        let (lo, hi) = x.widening_mul_u256(y);
+        let (lo, hi) = x.widening_mul(y);
         // `hi >= 1 << n` is exactly `hi` needing more than `n` bits, spelled
         // without a shift that would have to special-case `n == 0`.
         if hi.bit_len() > n {
@@ -489,7 +489,7 @@ impl U256 {
     /// The EVM's `mulmod`, which `Math.sol` uses but does not re-export.
     #[inline]
     pub const fn checked_mul_mod(x: Self, y: Self, m: Self) -> Option<Self> {
-        let (lo, hi) = x.widening_mul_u256(y);
+        let (lo, hi) = x.widening_mul(y);
         match div_rem_512(hi, lo, m) {
             Some((_, r)) => Some(r),
             None => None,

@@ -10,6 +10,8 @@ homepage.workspace = true
 keywords = ["thruput", "smart-contracts", "abi"]
 categories = ["cryptography::cryptocurrencies", "development-tools"]
 description = "Tools for reading, writing, and canonicalizing Thruput contract specs"
+# `specx` is a local debugging aid, not part of the published tool.
+exclude = ["src/bin/specx.rs"]
 
 [lib]
 path = "src/lib.rs"
