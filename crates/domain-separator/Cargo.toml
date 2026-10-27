@@ -11,6 +11,10 @@ keywords.workspace = true
 categories.workspace = true
 description = "Domain-separated hash derivation for Thruput (pubkey account addresses, etc.)"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lib]
 crate-type = ["rlib"]
 

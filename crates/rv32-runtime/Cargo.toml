@@ -15,6 +15,12 @@ description = "Bare-metal RV32 runtime support for Thruput contracts: _start, pa
 # re-runs when the linker script changes.
 build = "build.rs"
 
+# The entry point, panic handler and allocator compile only for the guest
+# target.
+[package.metadata.docs.rs]
+default-target = "riscv32im-unknown-none-elf"
+targets = ["riscv32im-unknown-none-elf"]
+
 [lib]
 crate-type = ["rlib"]
 

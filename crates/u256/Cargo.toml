@@ -11,6 +11,10 @@ keywords.workspace = true
 categories.workspace = true
 description = "Signed and unsigned 256-bit integers for Thruput contracts, with a 32-bit-native representation and the OpenZeppelin Math/SignedMath surface"
 
+# Render the formatting and parsing impls, which the crate docs describe.
+[package.metadata.docs.rs]
+features = ["std"]
+
 [lib]
 crate-type = ["rlib"]
 

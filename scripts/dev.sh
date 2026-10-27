@@ -987,6 +987,7 @@ skip() {
 check_all() {
     { skip SDK_RV32 || sdk_rv32_build; } &&
     { skip DOCS || build_docs; } &&
+    { skip DOCS || bash "${SDK_DIR}/scripts/check-docsrs.sh"; } &&
     { skip SDK_TESTS || test_package; } &&
 
     { skip EXAMPLES || {

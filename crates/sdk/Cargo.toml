@@ -11,9 +11,12 @@ keywords.workspace = true
 categories.workspace = true
 description = "Thruput smart-contract SDK for Rust (rv32 guest runtime and native test harness)"
 readme = "../../README.md"
-metadata.docs.rs.features = [
-    "std",
-]
+
+# Document the native test harness too: the crate docs teach it. `dev` pulls
+# in thruput-sys, whose checked-in docs bindings are generated for this target.
+[package.metadata.docs.rs]
+features = ["dev", "remote"]
+targets = ["x86_64-unknown-linux-gnu"]
 
 [lib]
 crate-type = ["rlib"]

@@ -19,6 +19,9 @@ description = "Canonical contract spec model for Thruput contracts"
 [package.metadata.thruput]
 raw_spec_format = 5
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 crate-type = ["rlib"]
 
