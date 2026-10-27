@@ -342,7 +342,7 @@ fn generate_remote(
             pub fn #ident(&self, #(#sent_params),*)
                 -> <#invoker_ident as ::thruput_sdk::remote::RemoteInvoker>::#prepared<#return_type>
             {
-                let __gh_args = #args_tuple;
+                let __thruput_args = #args_tuple;
                 ::thruput_sdk::remote::RemoteInvoker::#verb::<#return_type, _>(
                     &self.invoker,
                     &self.address,
@@ -353,7 +353,7 @@ fn generate_remote(
                         entrypoint: #entrypoint,
                         effect: #effect,
                     },
-                    &__gh_args,
+                    &__thruput_args,
                 )
             }
         });
@@ -458,7 +458,7 @@ fn generate_client_fn(
         let print_string = format!("[sdk] Client: Calling method {}", ident);
 
         quote! {
-            ::thruput_sdk::debug_log!("{} with args {:?}", #print_string, __gh_args);
+            ::thruput_sdk::debug_log!("{} with args {:?}", #print_string, __thruput_args);
         }
     } else {
         quote! {}
@@ -492,13 +492,13 @@ fn generate_client_fn(
                      on_exn: TokenStream,
                      result_suffix: TokenStream| {
         quote_spanned! {method.sig().span()=>
-            let __gh_entrypoint = #entrypoint_lit;
-            let __gh_args = #args_tuple;
+            let __thruput_entrypoint = #entrypoint_lit;
+            let __thruput_args = #args_tuple;
             #log_call
             with_call_tracking!(#call_info, {
                 ::thruput_sdk::call::try_call_raw_with::<_, #return_type, #exception_type>(
-                    &self.address, __gh_entrypoint, self.config.gas_limit,
-                    &__gh_args, self.config.flags, #on_exn,
+                    &self.address, __thruput_entrypoint, self.config.gas_limit,
+                    &__thruput_args, self.config.flags, #on_exn,
                 )
                 #result_suffix
             })

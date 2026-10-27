@@ -146,16 +146,10 @@ SECTIONS
      * by this repo end-to-end (macro emits, this script brackets,
      * rv32-runtime/src/start.rs reads) — deliberately NOT the linker's
      * __start_<section> auto-encapsulation convention, so this script is
-     * unambiguously the single definer.
-     *
-     * Hand-written contracts that register `Entrypoint` records without the
-     * macro name the section themselves; the pre-rename
-     * `groundhog_rv32_entrypoints` spelling is collected into the same table
-     * so those keep linking until they move to the new name. */
+     * unambiguously the single definer. */
     . = ALIGN(8);
     __thruput_rv32_entrypoints_start = .;
     KEEP(*(thruput_rv32_entrypoints))
-    KEEP(*(groundhog_rv32_entrypoints))
     __thruput_rv32_entrypoints_end = .;
 
     *(.srodata .srodata.*)

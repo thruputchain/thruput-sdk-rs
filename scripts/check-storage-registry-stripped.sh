@@ -3,7 +3,7 @@
 # Verifies the host-only storage domain registry is absent from a guest (rv32)
 # build.
 #
-# The domain registry (STORAGE_DOMAINS, DomainRecord, __GH_DOMAIN_* statics) is
+# The domain registry (STORAGE_DOMAINS, DomainRecord, __THRUPUT_DOMAIN_* statics) is
 # guarded by cfg(not(target_arch = "riscv32")) and must never appear in a
 # deployed contract artifact.
 #
@@ -119,9 +119,9 @@ fi
 
 # Grep the artifact for registry symbols.  strings(1) extracts printable ASCII
 # runs, which catches both symbol names and string literals.
-if strings "$ARTIFACT" | grep -qE 'STORAGE_DOMAINS|DomainRecord|__GH_DOMAIN'; then
+if strings "$ARTIFACT" | grep -qE 'STORAGE_DOMAINS|DomainRecord|__THRUPUT_DOMAIN'; then
     echo "FAIL: storage domain registry leaked into guest artifact $ARTIFACT" >&2
-    strings "$ARTIFACT" | grep -E 'STORAGE_DOMAINS|DomainRecord|__GH_DOMAIN' \
+    strings "$ARTIFACT" | grep -E 'STORAGE_DOMAINS|DomainRecord|__THRUPUT_DOMAIN' \
         | sed 's/^/  /' >&2
     exit 1
 fi

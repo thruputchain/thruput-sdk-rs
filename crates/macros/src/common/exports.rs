@@ -169,9 +169,10 @@ pub fn generate(
                 .replace(|c: char| !c.is_alphanumeric(), "_"),
             None => "inherent".to_string(),
         };
-        let reg_ident = format_ident!("__GH_DOMAIN_{}_{}", self_ty_str, disc);
+        let reg_ident =
+            format_ident!("__THRUPUT_DOMAIN_{}_{}", self_ty_str, disc);
         let test_ident = format_ident!(
-            "__gh_storage_domains_unique_{}_{}",
+            "__thruput_storage_domains_unique_{}_{}",
             self_ty_str,
             disc
         );
@@ -425,16 +426,16 @@ pub fn generate_method(
         };
 
         let deref = if is_mut {
-            quote! { __gh_state_node.deref_mut() }
+            quote! { __thruput_state_node.deref_mut() }
         } else {
-            quote! { __gh_state_node.deref() }
+            quote! { __thruput_state_node.deref() }
         };
 
         quote! {
             use core::ops::{Deref, DerefMut};
-            let #mutability __gh_state_node: ::thruput_sdk::storage::Node<#self_ty> =
+            let #mutability __thruput_state_node: ::thruput_sdk::storage::Node<#self_ty> =
                 ::thruput_sdk::storage::contract_state_root::<#self_ty>();
-            let #mutability __gh_state :&#mutability #self_ty = #deref;
+            let #mutability __thruput_state :&#mutability #self_ty = #deref;
         }
     } else {
         // Free function: no state variable at all
@@ -443,10 +444,10 @@ pub fn generate_method(
 
     // Trait methods always dispatch through the same resolved trait path.
     let invoke = if let Some((trait_path, self_ty)) = &trait_impl {
-        let receiver = is_method.then(|| quote!(__gh_state,));
+        let receiver = is_method.then(|| quote!(__thruput_state,));
         quote!(<#self_ty as #trait_path>::#ident(#receiver #call_args))
     } else if is_method {
-        quote!(__gh_state.#ident(#call_args))
+        quote!(__thruput_state.#ident(#call_args))
     } else if let Some(self_ty) = self_ty {
         quote!(#self_ty::#ident(#call_args))
     } else {
@@ -479,14 +480,14 @@ pub fn generate_method(
         // If debug mode: log the method-call
         #log_guest_call
 
-        let mut __gh_calldata: ::thruput_sdk::Calldata =
+        let mut __thruput_calldata: ::thruput_sdk::Calldata =
             ::thruput_sdk::internal::new_scratch();
-        let __gh_auth_token_count: u32 =
+        let __thruput_auth_token_count: u32 =
             ::thruput_sdk::fetch_calldata_and_auth_tokens(
-                &mut __gh_calldata,
+                &mut __thruput_calldata,
             );
 
-        let __gh_res = {
+        let __thruput_res = {
 
             // Load contract state
             #load_state
@@ -496,8 +497,8 @@ pub fn generate_method(
             // token ids 0..N-1, in order)
             let mut __args =
                 ::thruput_sdk::call::contract_call_decode(
-                    __gh_calldata.as_ref(),
-                    0..__gh_auth_token_count,
+                    __thruput_calldata.as_ref(),
+                    0..__thruput_auth_token_count,
                 )
                     .unwrap_or_else(|e|
                         ::thruput_sdk::exn::decoding_args_throw(&e));
@@ -514,7 +515,7 @@ pub fn generate_method(
         };
 
         // Return the result to the VM
-        ::thruput_sdk::internal::contract_return_encoded(&__gh_res);
+        ::thruput_sdk::internal::contract_return_encoded(&__thruput_res);
     }};
 
     // Include method info in debugging context (when enabled)
@@ -544,7 +545,7 @@ pub fn generate_method(
     // the `thruput_rv32_entrypoints` input section, which the rv32-runtime
     // linker script brackets and `_start`'s dispatcher scans at runtime,
     // instead of exporting a per-method symbol.
-    let rv32_entry_static = format_ident!("__GH_RV32_ENTRY_{}", ident);
+    let rv32_entry_static = format_ident!("__THRUPUT_RV32_ENTRY_{}", ident);
     Ok(quote! {
 
         #[doc=#export_docstr]
@@ -597,18 +598,19 @@ fn generate_entrypoint_guards(
         iface_vers,
         &entrypoint_sig.method_sig,
     );
-    let id_guard_ident = format_ident!("__GH_RV32_ENTRY_ID_GUARD_{}", ident);
+    let id_guard_ident =
+        format_ident!("__THRUPUT_RV32_ENTRY_ID_GUARD_{}", ident);
     let link_guard_ident =
-        format_ident!("__GH_RV32_ENTRY_NAME_GUARD_{}", ident);
+        format_ident!("__THRUPUT_RV32_ENTRY_NAME_GUARD_{}", ident);
     let id_guard_name = format!("__thruput_entrypoint_id::{export_name}");
     let scoped_link_guard_name =
         quote!(::core::concat!(#link_name, "__crate__", #crate_scope));
     let scoped_id_guard_name =
         quote!(::core::concat!(#id_guard_name, "__crate__", #crate_scope));
     let scoped_link_guard_ident =
-        format_ident!("__GH_ENTRY_NAME_GUARD_CRATE_{}", ident);
+        format_ident!("__THRUPUT_ENTRY_NAME_GUARD_CRATE_{}", ident);
     let scoped_id_guard_ident =
-        format_ident!("__GH_ENTRY_ID_GUARD_CRATE_{}", ident);
+        format_ident!("__THRUPUT_ENTRY_ID_GUARD_CRATE_{}", ident);
     quote! {
         // rv32 duplicate-entrypoint guards: two zero-sized symbols per
         // method (symtab-only — neither reaches the lowered image) so a
@@ -879,14 +881,11 @@ mod tests {
             .unwrap()
             .to_string();
 
-        // rv32 now emits a #[used] static into the repo-owned
+        // rv32 emits a #[used] static into the repo-owned
         // thruput_rv32_entrypoints section (no linkme, no distributed_slice).
         assert!(generated.contains("target_arch = \"riscv32\""));
         assert!(generated.contains("thruput_rv32_entrypoints"));
         assert!(generated.contains("link_section"));
-
-        // The old rv32 dispatch symbols and linkme machinery are gone.
-        assert!(!generated.contains(".text.gh_"));
         assert!(!generated.contains("distributed_slice"));
         assert!(!generated.contains("THRUPUT_RV32_ENTRYPOINTS"));
     }
@@ -946,7 +945,7 @@ mod tests {
         // zero-sized rv32 symbol, so cross-preimage hash collisions (which
         // produce distinct readable symbols) still fail the build.
         assert!(
-            generated.contains("__GH_RV32_ENTRY_ID_GUARD_"),
+            generated.contains("__THRUPUT_RV32_ENTRY_ID_GUARD_"),
             "{generated}"
         );
     }
@@ -987,11 +986,11 @@ mod tests {
         assert!(generated.contains(&crate_scope), "{generated}");
         assert!(generated.contains("concat !"), "{generated}");
         assert!(
-            generated.contains("__GH_ENTRY_NAME_GUARD_CRATE_"),
+            generated.contains("__THRUPUT_ENTRY_NAME_GUARD_CRATE_"),
             "{generated}"
         );
         assert!(
-            generated.contains("__GH_ENTRY_ID_GUARD_CRATE_"),
+            generated.contains("__THRUPUT_ENTRY_ID_GUARD_CRATE_"),
             "{generated}"
         );
 
