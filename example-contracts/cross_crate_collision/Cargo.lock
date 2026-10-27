@@ -509,7 +509,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-spec"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "heapless",
  "thruput-spec",
@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-util"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "sha2",
  "syn",
@@ -530,7 +530,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-event"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -538,14 +538,14 @@ dependencies = [
 
 [[package]]
 name = "thruput-exn"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "thruput-xdrs",
 ]
 
 [[package]]
 name = "thruput-macros"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -558,7 +558,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-native-exec"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "hogexec-internal",
  "sha2",
@@ -574,11 +574,11 @@ dependencies = [
 
 [[package]]
 name = "thruput-rv32-runtime"
-version = "0.57.0"
+version = "0.57.1"
 
 [[package]]
 name = "thruput-sdk"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "heapless",
  "hogexec-internal",
@@ -609,7 +609,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-storage-cost"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -617,7 +617,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-sys"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "fslock",
  "sha2",
@@ -645,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-u256"
-version = "0.57.0"
+version = "0.57.1"
 dependencies = [
  "thruput-contract-spec",
  "thruput-xdrs",
