@@ -16,7 +16,7 @@ alloc = ["thruput-xdr/alloc", "heapless/alloc"]
 dev = ["thruput-sdk/dev", "dep:thiserror"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.57.2" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.57.2" }
 thiserror = { workspace = true, optional = true }
 thruput-xdr = { workspace = true }
 heapless = { workspace = true }
@@ -25,7 +25,7 @@ heapless = { workspace = true }
 thruput-erc20-metadata-if = { path = ".", features = ["alloc"] }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.57.2", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", version = "0.57.2", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

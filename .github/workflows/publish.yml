@@ -1,4 +1,5 @@
-# Releases every published crate in this repository in one idempotent pass.
+# Releases every published crate in this repository to crates.io in one
+# idempotent pass, with the shared thruputchain/actions release actions.
 #
 # Publishing runs in dependency order:
 #
@@ -7,16 +8,34 @@
 #   3. the crates downstream of the standard interfaces: `thruput-spec-tool`
 #      and the `thruput-erc20-*-test` crates
 #
-# Every step tolerates re-runs: tags are recreated at HEAD and only pushed
-# when new, and `cargo publish` skips versions the registry already has — so a
-# run that fails partway is resumed by dispatching it again (on the tagged commit; running on a later commit without a version
-# bump fails at the tag push, deliberately). The standard-interface crates
-# version independently of the workspace, each under its own
-# `<crate>-v<version>` tag; when a release doesn't bump a crate — its tag
-# sits on an older commit AND its version is already published, verified
-# against the registry — its publish step is skipped. A tag on
-# another commit whose version is NOT published fails the run rather than
-# publishing content that doesn't match the tag.
+# The workspace-versioned crates release under one `v<version>` tag. The
+# standard-interface crates version independently of the workspace, each
+# under its own `<crate>-v<version>` tag. Every group is checked before
+# anything is tagged, so a run that fails a check leaves the repository
+# untouched. A new commit needs a workspace version bump. An interface crate
+# whose tag sits on an older commit is skipped when crates.io already has
+# that version, published from the tag, and the run fails otherwise rather
+# than publish content that doesn't match the tag. Publishing skips versions
+# crates.io already has from this release, so a run that fails partway is
+# resumed by dispatching it again on the tagged commit.
+#
+# Authentication: crates.io trusted publishing (GitHub OIDC) for existing
+# crates; see crates-io-publish's README in thruputchain/actions. Creating a
+# crate needs the CRATESIO_CREATE_PACKAGE_TOKEN secret, a crates.io API token
+# with the scopes publish-new, trusted-publishing and change-owners. The
+# publish steps register this workflow as each new crate's trusted publisher
+# and add CRATE_OWNERS as its owners, so remove the secret and revoke the
+# token once every crate exists.
+#
+# The job runs in the `release` environment, and the trusted publishers the
+# publish steps register require it, so only runs that environment's
+# protection rules admit (required reviewers, deployment branches limited to
+# main) can publish. Keep CRATESIO_CREATE_PACKAGE_TOKEN a secret of
+# `release`, not of the repository: repository secrets reach every branch.
+#
+# crates.io lets a token create five crates in a burst, then one every ten
+# minutes, and the publish steps wait those limits out: a release that
+# creates every crate here takes about four hours.
 #
 # Dispatch with dry_run for all of the verification and none of the tagging
 # or publishing.
@@ -31,19 +50,14 @@ on:
         type: boolean
         default: false
 
-# Two concurrent releases would race on tags and registry state; queue them.
+# Two concurrent releases would race on tags and crates.io state; queue them.
 concurrency:
   group: publish
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  # The publish steps take the registry token as an action input, but the
-  # dry runs reach the registry as plain cargo -- `cargo vendor` is the very
-  # first thing they do -- and that needs a credential provider of its own.
-  # An ephemeral runner has none configured on disk. Same pair ci.yml and
-  # sdk_tests.yml set.
-  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
+  # Owners added to each crate a run creates, besides the token's owner.
+  CRATE_OWNERS: github:thruputchain:core-maintainers
   # Workspace-versioned crates published under the `v<version>` tag, in
   # dependency order. INTERFACE_DEPENDENT_PACKAGES below is on the same version
   # line but is named separately: those crates publish after the standard
@@ -94,7 +108,9 @@ permissions:
 jobs:
   publish:
     permissions:
-      contents: write
+      contents: write # pushes the release tags
+      id-token: write # crates.io trusted publishing
+    environment: release
     runs-on: namespace-profile-hogd-linux-2604
     env:
       # Share one FFI download cache across every thruput-sys build instance
@@ -110,6 +126,11 @@ jobs:
       # dependencies, and tag pushes go over HTTPS with the job token.
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        with:
+          # Full history and tags: the release checks read the tags, and
+          # check out an interface crate's tagged commit to compare it with
+          # what crates.io has.
+          fetch-depth: 0
 
       # NB: deliberately NOT caching ./target (no `cache: rust`). The Namespace
       # cross-invocation cache is a network/overlay-backed mount; cargo's
@@ -145,9 +166,9 @@ jobs:
           cargo hack --version
 
       - name: Publish dry run
-        uses: thruputchain/actions/cargo-publish-dry-run@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-publish-dry-run@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
-          registry-name: thruput
+          registry-name: crates-io
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           # The interface-dependent crates reach the standard interfaces (and
           # each other) as workspace path deps — `cargo vendor` skips those, so
@@ -197,7 +218,7 @@ jobs:
         run: rm -rf vendor
 
       - name: Publish dry run (standard interfaces)
-        uses: thruputchain/actions/cargo-publish-dry-run@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-publish-dry-run@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         env:
           # The workspace no longer carries rv32 target rustflags (the single
           # rv32 config lives in example-contracts/.cargo/config.toml).
@@ -219,7 +240,7 @@ jobs:
             -Z trap-unreachable=false
             --deny warnings
         with:
-          registry-name: thruput
+          registry-name: crates-io
           packages: ${{ env.INTERFACE_PACKAGES }}
           # The implementation components exact-pin their interface crates,
           # and the permit and issuer interfaces exact-pin thruput-erc20-if — all
@@ -250,354 +271,437 @@ jobs:
           cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev
           cargo-hack-rv32-packages: thruput-rv32-runtime ${{ env.INTERFACE_PACKAGES }}
 
+      # Every group's check runs before any tag step, so nothing is tagged
+      # until all of them pass. `v<version>` must be free or already on
+      # HEAD: a new commit needs a workspace version bump.
+      - name: Check workspace release
+        id: check-workspace
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      # Each interface crate's `<crate>-v<version>` tag legitimately
+      # pre-exists at an older commit whenever a release doesn't bump the
+      # crate. skip-if-published then reports release=false, which skips the
+      # crate's tag and publish steps below, once crates.io shows that
+      # version published from the tag; otherwise the check fails (a
+      # previous run died between tag push and publish: re-run from the
+      # tagged commit, or delete the stale tag).
+      - name: Check thruput-erc20-if release
+        id: check-erc20-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-erc20-if
+          tag-prefix: 'thruput-erc20-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-erc20-metadata-if release
+        id: check-erc20-metadata-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-erc20-metadata-if
+          tag-prefix: 'thruput-erc20-metadata-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-erc20-controls-if release
+        id: check-erc20-controls-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-erc20-controls-if
+          tag-prefix: 'thruput-erc20-controls-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-erc20-pausable-if release
+        id: check-erc20-pausable-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-erc20-pausable-if
+          tag-prefix: 'thruput-erc20-pausable-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-signed-op-if release
+        id: check-signed-op-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-signed-op-if
+          tag-prefix: 'thruput-signed-op-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-signed-op release
+        id: check-signed-op
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-signed-op
+          tag-prefix: 'thruput-signed-op-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-erc20-permit-if release
+        id: check-erc20-permit-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-erc20-permit-if
+          tag-prefix: 'thruput-erc20-permit-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-erc165-if release
+        id: check-erc165-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-erc165-if
+          tag-prefix: 'thruput-erc165-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-erc721-if release
+        id: check-erc721-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-erc721-if
+          tag-prefix: 'thruput-erc721-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-sep41 release
+        id: check-sep41
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-sep41
+          tag-prefix: 'thruput-sep41-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-access-control-if release
+        id: check-access-control-if
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-access-control-if
+          tag-prefix: 'thruput-access-control-if-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
+      - name: Check thruput-access-control release
+        id: check-access-control
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: check
+          packages: thruput-access-control
+          tag-prefix: 'thruput-access-control-v'
+          on-existing-tag: 'skip-if-published'
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+
       # Tags HEAD as `v<version>` and pushes. Re-running on the release
-      # commit passes (the push is a no-op); a run on a new commit without a
-      # workspace version bump fails here, loudly (on-existing-tag: fail is
-      # the action's default).
-      - name: Tag commit with version
-        if: ${{ inputs.dry_run == false }}
-        id: publish-tag
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+      # commit passes (the push is a no-op).
+      - name: Tag workspace release
+        if: ${{ inputs.dry_run == false && steps.check-workspace.outputs.release == 'true' }}
+        id: tag-workspace
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           github-token: ${{ github.token }}
 
-      # Each interface crate gets its own `<crate>-v<version>` tag, which
-      # legitimately pre-exists at an older commit whenever a release doesn't
-      # bump the crate. skip-if-published verifies against the registry that
-      # such a version is really already published — released=false then
-      # skips the crate's publish step below — and fails the run
-      # when it is NOT published (a previous run died between tag push and
-      # publish; publishing HEAD would ship content that doesn't match the
-      # tag — re-run from the tagged commit, or delete the stale tag).
       - name: Tag thruput-erc20-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-erc20-if.outputs.release == 'true' }}
         id: tag-erc20-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-erc20-if
           tag-prefix: 'thruput-erc20-if-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-
-      - name: Tag thruput-erc20-controls-if
-        if: ${{ inputs.dry_run == false }}
-        id: tag-token-controls-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
-        with:
-          packages: thruput-erc20-controls-if
-          tag-prefix: 'thruput-erc20-controls-if-v'
-          github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag thruput-erc20-metadata-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-erc20-metadata-if.outputs.release == 'true' }}
         id: tag-erc20-metadata-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-erc20-metadata-if
           tag-prefix: 'thruput-erc20-metadata-if-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-erc20-controls-if
+        if: ${{ inputs.dry_run == false && steps.check-erc20-controls-if.outputs.release == 'true' }}
+        id: tag-erc20-controls-if
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          packages: thruput-erc20-controls-if
+          tag-prefix: 'thruput-erc20-controls-if-v'
+          github-token: ${{ github.token }}
 
       - name: Tag thruput-erc20-pausable-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-erc20-pausable-if.outputs.release == 'true' }}
         id: tag-erc20-pausable-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-erc20-pausable-if
           tag-prefix: 'thruput-erc20-pausable-if-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-
-      - name: Tag thruput-signed-op
-        if: ${{ inputs.dry_run == false }}
-        id: tag-signed-op
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
-        with:
-          packages: thruput-signed-op
-          tag-prefix: 'thruput-signed-op-v'
-          github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-
-      - name: Tag thruput-access-control-if
-        if: ${{ inputs.dry_run == false }}
-        id: tag-access-control-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
-        with:
-          packages: thruput-access-control-if
-          tag-prefix: 'thruput-access-control-if-v'
-          github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag thruput-signed-op-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-signed-op-if.outputs.release == 'true' }}
         id: tag-signed-op-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-signed-op-if
           tag-prefix: 'thruput-signed-op-if-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-signed-op
+        if: ${{ inputs.dry_run == false && steps.check-signed-op.outputs.release == 'true' }}
+        id: tag-signed-op
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          packages: thruput-signed-op
+          tag-prefix: 'thruput-signed-op-v'
+          github-token: ${{ github.token }}
 
       - name: Tag thruput-erc20-permit-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-erc20-permit-if.outputs.release == 'true' }}
         id: tag-erc20-permit-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-erc20-permit-if
           tag-prefix: 'thruput-erc20-permit-if-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag thruput-erc165-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-erc165-if.outputs.release == 'true' }}
         id: tag-erc165-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-erc165-if
           tag-prefix: 'thruput-erc165-if-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag thruput-erc721-if
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-erc721-if.outputs.release == 'true' }}
         id: tag-erc721-if
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-erc721-if
           tag-prefix: 'thruput-erc721-if-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
       - name: Tag thruput-sep41
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-sep41.outputs.release == 'true' }}
         id: tag-sep41
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-sep41
           tag-prefix: 'thruput-sep41-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+
+      - name: Tag thruput-access-control-if
+        if: ${{ inputs.dry_run == false && steps.check-access-control-if.outputs.release == 'true' }}
+        id: tag-access-control-if
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          packages: thruput-access-control-if
+          tag-prefix: 'thruput-access-control-if-v'
+          github-token: ${{ github.token }}
 
       - name: Tag thruput-access-control
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ inputs.dry_run == false && steps.check-access-control.outputs.release == 'true' }}
         id: tag-access-control
-        uses: thruputchain/actions/cargo-release-tag@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           packages: thruput-access-control
           tag-prefix: 'thruput-access-control-v'
           github-token: ${{ github.token }}
-          on-existing-tag: 'skip-if-published'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
-      # Unlike the dry runs, the publish steps resolve deps against the live
-      # registry — hence the dependency order: thruput-sdk (here) before the standard
+      # Unlike the dry runs, the publish steps resolve deps against crates.io,
+      # hence the dependency order: thruput-sdk (here) before the standard
       # interfaces, and those before thruput-spec-tool, whose exact-pinned
       # interface versions must already be published.
       - name: Publish
-        if: ${{ inputs.dry_run == false }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-workspace.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: ${{ env.PRIMARY_PACKAGES }}
-          git-tag: ${{ steps.publish-tag.outputs.tag }}
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          # Verification is done in the dry-run steps above; the host verify-build
-          # here would fail for the architecture-only runtime crates.
-          no-verify: 'true'
-          # These crates only build for their non-host target, so the publish
-          # action's host doc-validation must skip them (covered by the per-target
-          # verify in the dry-run step).
-          arch-only-packages: thruput-rv32-runtime
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-workspace.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          # Verification is done per target and feature set in the dry-run
+          # steps above; a host verify build here would fail for the
+          # architecture-only runtime crate. Every publish step below skips
+          # it too.
+          publish-args: --no-verify
 
       - name: Publish thruput-erc20-if
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-erc20-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-erc20-if
-          git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
           tag-prefix: 'thruput-erc20-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          # Verification is done by the dry-run step above; the publish-time
-          # verify build runs with --all-features, which enables `entrypoints`
-          # and tries to link the rv32-only spec-carrier bin on the host.
-          # (Same for the other interface crates below.)
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-erc20-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       - name: Publish thruput-erc20-metadata-if
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-metadata-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-erc20-metadata-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-erc20-metadata-if
-          git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
           tag-prefix: 'thruput-erc20-metadata-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-erc20-metadata-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       - name: Publish thruput-erc20-controls-if
-        if: ${{ inputs.dry_run == false && steps.tag-token-controls-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-erc20-controls-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-erc20-controls-if
-          git-tag: ${{ steps.tag-token-controls-if.outputs.tag }}
           tag-prefix: 'thruput-erc20-controls-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-erc20-controls-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       - name: Publish thruput-erc20-pausable-if
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-pausable-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-erc20-pausable-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-erc20-pausable-if
-          git-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
           tag-prefix: 'thruput-erc20-pausable-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-erc20-pausable-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
+
+      - name: Publish thruput-signed-op-if
+        if: ${{ inputs.dry_run == false && steps.check-signed-op-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: publish
+          packages: thruput-signed-op-if
+          tag-prefix: 'thruput-signed-op-if-v'
+          git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
+
+      # After thruput-signed-op-if: the component exact-pins it.
+      - name: Publish thruput-signed-op
+        if: ${{ inputs.dry_run == false && steps.check-signed-op.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: publish
+          packages: thruput-signed-op
+          tag-prefix: 'thruput-signed-op-v'
+          git-tag: ${{ steps.tag-signed-op.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
+
+      # After thruput-erc20-if: this crate exact-pins it.
+      - name: Publish thruput-erc20-permit-if
+        if: ${{ inputs.dry_run == false && steps.check-erc20-permit-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        with:
+          mode: publish
+          packages: thruput-erc20-permit-if
+          tag-prefix: 'thruput-erc20-permit-if-v'
+          git-tag: ${{ steps.tag-erc20-permit-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       - name: Publish thruput-erc165-if
-        if: ${{ inputs.dry_run == false && steps.tag-erc165-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-erc165-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-erc165-if
-          git-tag: ${{ steps.tag-erc165-if.outputs.tag }}
           tag-prefix: 'thruput-erc165-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-erc165-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       - name: Publish thruput-erc721-if
-        if: ${{ inputs.dry_run == false && steps.tag-erc721-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-erc721-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-erc721-if
-          git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
           tag-prefix: 'thruput-erc721-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-erc721-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       # After the ERC20, ERC20 controls, metadata and ERC-165 interfaces:
       # this component exact-pins all four.
       - name: Publish thruput-sep41
-        if: ${{ inputs.dry_run == false && steps.tag-sep41.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-sep41.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-sep41
-          git-tag: ${{ steps.tag-sep41.outputs.tag }}
           tag-prefix: 'thruput-sep41-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-sep41.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       - name: Publish thruput-access-control-if
-        if: ${{ inputs.dry_run == false && steps.tag-access-control-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-access-control-if.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-access-control-if
-          git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
           tag-prefix: 'thruput-access-control-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-access-control-if.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
-      - name: Publish thruput-signed-op-if
-        if: ${{ inputs.dry_run == false && steps.tag-signed-op-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
-        with:
-          packages: thruput-signed-op-if
-          git-tag: ${{ steps.tag-signed-op-if.outputs.tag }}
-          tag-prefix: 'thruput-signed-op-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
-
-      # After thruput-signed-op-if: the component exact-pins it, and this
-      # publish resolves deps against the live registry.
-      - name: Publish thruput-signed-op
-        if: ${{ inputs.dry_run == false && steps.tag-signed-op.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
-        with:
-          packages: thruput-signed-op
-          git-tag: ${{ steps.tag-signed-op.outputs.tag }}
-          tag-prefix: 'thruput-signed-op-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
-
-      # After thruput-erc20-if: this crate exact-pins it, and this publish
-      # resolves deps against the live registry.
-      - name: Publish thruput-erc20-permit-if
-        if: ${{ inputs.dry_run == false && steps.tag-erc20-permit-if.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
-        with:
-          packages: thruput-erc20-permit-if
-          git-tag: ${{ steps.tag-erc20-permit-if.outputs.tag }}
-          tag-prefix: 'thruput-erc20-permit-if-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
-
-      # After thruput-access-control-if: the component exact-pins it, and
-      # this publish resolves deps against the live registry.
+      # After thruput-access-control-if: the component exact-pins it.
       - name: Publish thruput-access-control
-        if: ${{ inputs.dry_run == false && steps.tag-access-control.outputs.released == 'true' }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-access-control.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: thruput-access-control
-          git-tag: ${{ steps.tag-access-control.outputs.tag }}
           tag-prefix: 'thruput-access-control-v'
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-access-control.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify
 
       - name: Publish interface-dependent crates
-        if: ${{ inputs.dry_run == false }}
-        uses: thruputchain/actions/cargo-publish@6693fac8133585728ad3a4ca14e3441073b6def8
+        if: ${{ inputs.dry_run == false && steps.check-workspace.outputs.release == 'true' }}
+        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
+          mode: publish
           packages: ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
-          git-tag: ${{ steps.publish-tag.outputs.tag }}
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-          no-verify: 'true'
-          publish-delay-seconds: '10'
+          git-tag: ${{ steps.tag-workspace.outputs.tag }}
+          bootstrap-token: ${{ secrets.CRATESIO_CREATE_PACKAGE_TOKEN }}
+          crate-owners: ${{ env.CRATE_OWNERS }}
+          publish-args: --no-verify

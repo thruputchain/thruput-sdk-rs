@@ -20,12 +20,10 @@ jobs:
   dependency-policy:
     permissions:
       contents: read
+    # No registry credentials: deny.toml admits crates.io only.
     uses: thruputchain/actions/.github/workflows/rust-dependency-policy.yml@6693fac8133585728ad3a4ca14e3441073b6def8
     with:
       runs-on: namespace-profile-hogd-linux-2604
-      registry-name: thruput
-    secrets:
-      registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
   workflow-lint:
     permissions:

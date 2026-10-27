@@ -2,7 +2,7 @@
 name = "thruput-erc20-native-test"
 version.workspace = true
 edition.workspace = true
-publish = ["thruput"]
+publish.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Native-execution harness for the ERC20 conformance tests"

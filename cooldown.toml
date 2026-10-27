@@ -5,9 +5,6 @@ lockfile-baseline = "ignore"
 [registry]
 global-min-publish-age = "15 days"
 
-[registries.thruput]
-min-publish-age = "0"
-
 # First-party crates that thruputchain/xdrs publishes to crates.io. They were
 # exempt while they came from the thruput registry; keep them exempt.
 [[allow.package]]

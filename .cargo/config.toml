@@ -7,12 +7,6 @@ rustflags = [ "--deny", "warnings", "-C", "link-arg=-lSystem", "-C", "link-arg=-
 [target.'cfg(target_os = "linux")']
 rustflags = [ "--deny", "warnings", "-C", "link-arg=-Wl,-rpath,$ORIGIN" ]
 
-[registries]
-thruput = { index = "sparse+https://crates.thruput.network/api/v1/crates/" }
-
-[source]
-thruput = { registry = "sparse+https://crates.thruput.network/api/v1/crates/" }
-
 # Keep dev/test builds lean: full debug info in ~150 test binaries (and
 # trybuild's nested build, which reads this file but not the workspace
 # manifest's profiles) is most of target/'s size. Workspace crates keep line

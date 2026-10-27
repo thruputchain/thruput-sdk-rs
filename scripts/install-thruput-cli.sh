@@ -7,9 +7,11 @@
 # checking the version, so another build of the same version cannot satisfy
 # the pin. The source checkout is also used by the scaffold smoke test.
 #
-# `cargo install` deliberately ignores the repo's .cargo/config.toml (install
-# is global, not project-scoped), so the registry index must arrive via
-# environment config. Keep in sync with .cargo/config.toml [registries]. Auth
+# thruput-cli is published only to the Thruput registry. The SDK's own
+# dependencies all come from crates.io, so no repo config names that registry,
+# and `cargo install` would ignore the repo's .cargo/config.toml anyway: the
+# index arrives via environment config. Keep in sync with
+# scripts/scaffold-smoke.sh and crates/hogd-sys/build.rs. Auth
 # comes from CARGO_REGISTRIES_THRUPUT_TOKEN +
 # CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS in the workflows.
 

@@ -57,10 +57,11 @@ and the `riscv32im-unknown-none-elf` target. Rustup installs missing components
 from this file. Use the pin instead of a floating `+nightly` override. See
 [rustup toolchain files](https://rust-lang.github.io/rustup/overrides.html#the-toolchain-file).
 
-Dependencies use the `thruput` registry configured in
-[.cargo/config.toml](.cargo/config.toml). Builds need access to that registry.
-Configure `CARGO_REGISTRIES_THRUPUT_TOKEN` through your Cargo credential setup
-when authentication is required.
+Dependencies resolve from crates.io and need no credentials. The pinned Thruput
+CLI installs from the Thruput registry instead; see
+[Build guest contracts](#build-guest-contracts). Configure
+`CARGO_REGISTRIES_THRUPUT_TOKEN` through your Cargo credential setup when that
+registry requires authentication.
 
 Native tests download the hogd test executor on Linux x86_64, Linux ARM64, and
 macOS ARM64. The download is public and needs no credentials, only `curl` and

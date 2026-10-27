@@ -45,11 +45,8 @@ allow-wildcard-paths = true
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+# crates.io only: the crates publish there, and crates.io rejects a crate
+# that depends on another registry.
 allow-registry = [
-    # crates.io
     "https://github.com/rust-lang/crates.io-index",
-    # private Thruput registry (kellnr); matches .cargo/config.toml.
-    # The legacy pre-rename registry is deliberately NOT listed: it is
-    # being retired, and nothing may re-enter the graph through it.
-    "sparse+https://crates.thruput.network/api/v1/crates/",
 ]
