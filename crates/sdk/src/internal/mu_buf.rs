@@ -40,9 +40,12 @@ impl<const SIZE: usize> MUBuf<SIZE> {
         self.len = 0;
     }
 
-    /// Get a mutable reference to the maybe-uninitialized buffer
+    /// The unused tail of the buffer, after the initialized region. Mirrors
+    /// `Vec::spare_capacity_mut`: it starts at `len`, not at 0, so a caller
+    /// that fills it from the start and then calls [`set_len`](Self::set_len)
+    /// with the byte count must [`clear`](Self::clear) first.
     pub fn spare_capacity_mut(&mut self) -> &mut [MU<u8>] {
-        &mut self.buf[..]
+        &mut self.buf[self.len..]
     }
 
     /// Append `other` after the initialized region. Returns `Err(())` if it
@@ -107,5 +110,22 @@ impl<const SIZE: usize> AsRef<[u8]> for MUBuf<SIZE> {
         let filled_mu = &self.buf[..self.len];
 
         unsafe { filled_mu.assume_init_ref() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `spare_capacity_mut` is the tail after `len`, as for `Vec`; only
+    /// `clear` exposes the whole buffer again.
+    #[test]
+    fn spare_capacity_starts_after_initialized_region() {
+        let mut buf = MUBuf::<8>::new();
+        assert_eq!(buf.spare_capacity_mut().len(), 8);
+        buf.extend_from_slice(&[1, 2, 3]).unwrap();
+        assert_eq!(buf.spare_capacity_mut().len(), 5);
+        buf.clear();
+        assert_eq!(buf.spare_capacity_mut().len(), 8);
     }
 }
