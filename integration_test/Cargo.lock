@@ -214,15 +214,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dev_wallet"
-version = "0.1.0"
-dependencies = [
- "dev_wallet",
- "thruput-erc20-if",
- "thruput-sdk",
-]
-
-[[package]]
 name = "digest"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
