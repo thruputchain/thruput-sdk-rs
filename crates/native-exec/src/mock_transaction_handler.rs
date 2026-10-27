@@ -305,7 +305,7 @@ impl MockInvocationFrame {
 
     fn close_frame_internal(
         &mut self,
-        error_code: hogexec_internal::ffi_enums::InvokeErrorCode,
+        error_code: thruput_trace::ffi_enums::InvokeErrorCode,
     ) {
         // Closing a frame while its child is still open is a user error.
         // It cannot be honored: `finish_mock_invocation_frame` takes no
@@ -439,7 +439,7 @@ impl MockInvocationFrame {
         match result {
             Ok(FrameAction::Close) => {
                 self.close_frame_internal(
-                    hogexec_internal::ffi_enums::InvokeErrorCode::None,
+                    thruput_trace::ffi_enums::InvokeErrorCode::None,
                 );
             }
             Ok(FrameAction::Continue) => {}
@@ -462,7 +462,7 @@ impl MockInvocationFrame {
                     // location) is taken here too, on that same thread.
                     self.fault_panic =
                         Some(crate::invoke_error::take_panic_record(&*err));
-                    self.close_frame_internal(hogexec_internal::ffi_enums::InvokeErrorCode::Deterministic);
+                    self.close_frame_internal(thruput_trace::ffi_enums::InvokeErrorCode::Deterministic);
                 }
             }
         };
@@ -511,8 +511,7 @@ impl Drop for MockInvocationFrame {
             let res = unsafe {
                 thruput_sys::finish_mock_invocation_frame(
                     self.root_handler,
-                    hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
-                        .0,
+                    thruput_trace::ffi_enums::InvokeErrorCode::Unrecoverable.0,
                 )
             };
             // An `UnrecoverableError` status is expected here — we finished an
@@ -1253,7 +1252,7 @@ mod tests {
             .expect("panic payload must be an InvokeError");
         assert_eq!(
             err.error_type,
-            hogexec_internal::ffi_enums::InvokeErrorCode::Unrecoverable
+            thruput_trace::ffi_enums::InvokeErrorCode::Unrecoverable
         );
     }
 

@@ -21,6 +21,19 @@ crates = [
 ]
 min-publish-age = "0"
 
+# First-party crates that thruputchain/thruput-protocol-rs publishes to
+# crates.io. They were exempt while they came from the thruput registry; keep
+# them exempt.
+[[allow.package]]
+crates = [
+    "thruput-spec",
+    "thruput-syscall",
+    "thruput-trace",
+    "thruput-xdr",
+    "thruput-xdr-macros",
+]
+min-publish-age = "0"
+
 # Security fix for ctutils 0.4.3 and earlier (fixed in 0.4.4).
 [[allow.exact]]
 crate = "ctutils"

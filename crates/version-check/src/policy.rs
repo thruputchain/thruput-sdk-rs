@@ -62,7 +62,6 @@ pub const PROTOCOL_CRATES: &[&str] = &[
     "thruput-trace",
     "thruput-xdr",
     "thruput-syscall",
-    "hogexec-internal",
 ];
 
 /// In-repo pins that are not `=`.

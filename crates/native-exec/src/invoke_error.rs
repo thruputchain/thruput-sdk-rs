@@ -1,10 +1,10 @@
-use hogexec_internal::ffi_enums::InvokeErrorCode;
 use std::cell::Cell;
 use std::error::Error;
 use std::fmt;
 use std::panic;
 use std::panic::UnwindSafe;
 use std::sync::Once;
+use thruput_trace::ffi_enums::InvokeErrorCode;
 
 /// Panic payload classifying how an invocation frame terminated; downcast
 /// at the frame's catch site and mapped to the frame outcome.

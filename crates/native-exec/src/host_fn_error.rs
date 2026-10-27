@@ -1,5 +1,5 @@
-use hogexec_internal::ffi_enums::HostFnErrorCode;
 use std::panic::panic_any;
+use thruput_trace::ffi_enums::HostFnErrorCode;
 use thruput_xdr::syserr::SysErr;
 
 /// Perform one guest syscall against the mocked FFI handler, returning its

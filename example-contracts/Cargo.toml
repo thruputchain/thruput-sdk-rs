@@ -117,25 +117,25 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-thruput-erc20-controls-if = { path = "../standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.69" }
-thruput-erc165-if = { path = "../standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.69" }
-thruput-sdk = { path = "../crates/sdk", registry = "thruput", version = "=0.57.1" }
-thruput-contract-util = { path = "../crates/contract-util", registry = "thruput", version = "=0.57.1" }
-thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.57.1", default-features = false }
+thruput-erc20-controls-if = { path = "../standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.70" }
+thruput-erc165-if = { path = "../standard-interfaces/thruput-erc165", registry = "thruput", version = "=0.1.70" }
+thruput-sdk = { path = "../crates/sdk", registry = "thruput", version = "=0.57.2" }
+thruput-contract-util = { path = "../crates/contract-util", registry = "thruput", version = "=0.57.2" }
+thruput-domain-separator = { path = "../crates/domain-separator", registry = "thruput", version = "=0.57.2", default-features = false }
 
-thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.69" }
-thruput-erc20-metadata-if = { path = "../standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.69" }
-thruput-erc20-pausable-if = { path = "../standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.69" }
-thruput-access-control-if = { path = "../standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.69" }
-thruput-access-control = { path = "../standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.69" }
-thruput-signed-op-if = { path = "../standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.69" }
-thruput-signed-op = { path = "../standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.69" }
-thruput-sep41 = { path = "../standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.69" }
-thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.69" }
-thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.69" }
+thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.70" }
+thruput-erc20-metadata-if = { path = "../standard-interfaces/thruput-erc20-metadata", registry = "thruput", version = "=0.1.70" }
+thruput-erc20-pausable-if = { path = "../standard-interfaces/thruput-erc20-pausable", registry = "thruput", version = "=0.1.70" }
+thruput-access-control-if = { path = "../standard-interfaces/thruput-access-control", registry = "thruput", version = "=0.1.70" }
+thruput-access-control = { path = "../standard-impls/thruput-access-control", registry = "thruput", version = "=0.1.70" }
+thruput-signed-op-if = { path = "../standard-interfaces/thruput-signed-op", registry = "thruput", version = "=0.1.70" }
+thruput-signed-op = { path = "../standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.70" }
+thruput-sep41 = { path = "../standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.70" }
+thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit", registry = "thruput", version = "=0.1.70" }
+thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", registry = "thruput", version = "=0.1.70" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.57.1" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.1" }
+erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.57.2" }
+erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.2" }
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # From the xdrs repo, published on crates.io as thruput-xdrs

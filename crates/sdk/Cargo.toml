@@ -31,9 +31,9 @@ xdrs = { workspace = true, features = ["heapless"] }
 
 # Optional Thruput dependencies
 # Host-only: the mock module re-exports its `ffi_enums` (see mock/mod.rs), and
-# that is the crate's only use of it. Optional so a guest build -- and the
-# public dependency tree of a contract -- does not name an "internal" crate.
-hogexec-internal = { workspace = true, optional = true }
+# that is the crate's only use of it. Optional so a guest build does not
+# compile it in.
+thruput-trace = { workspace = true, optional = true }
 thruput-contract-util = { workspace = true, optional = true }
 thruput-storage-cost = { workspace = true, optional = true }
 thruput-native-exec = { workspace = true, optional = true }
@@ -94,7 +94,7 @@ dev = [
     "std",
     "dep:thruput-native-exec",
     "dep:thruput-storage-cost",
-    "dep:hogexec-internal",
+    "dep:thruput-trace",
     "thruput-macros/mock",
     "dep:sha2",
 ]
