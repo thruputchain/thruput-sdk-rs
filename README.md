@@ -63,9 +63,10 @@ Configure `CARGO_REGISTRIES_THRUPUT_TOKEN` through your Cargo credential setup
 when authentication is required.
 
 Native tests download the hogd test executor on Linux x86_64, Linux ARM64, and
-macOS ARM64. This path needs `curl` and `tar`; it does not need a hogd checkout
-or ccache. See [native executor setup](crates/native-exec/README.md) for download
-authentication, custom libraries, and source builds. Source builds need CMake,
+macOS ARM64. The download is public and needs no credentials, only `curl` and
+`tar`; it does not need a hogd checkout or ccache. See
+[native executor setup](crates/native-exec/README.md) for custom libraries and
+source builds. Source builds need CMake,
 a C++ toolchain, libclang, and ccache. The pinned runtime source uses the
 `groundhog` registry alias: set `CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the same
 value as `CARGO_REGISTRIES_THRUPUT_TOKEN` for that path. If using `HOGD_SRC`,
