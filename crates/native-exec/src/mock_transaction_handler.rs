@@ -511,8 +511,7 @@ impl Drop for MockInvocationFrame {
             let res = unsafe {
                 thruput_sys::finish_mock_invocation_frame(
                     self.root_handler,
-                    thruput_trace::ffi_enums::InvokeErrorCode::Unrecoverable
-                        .0,
+                    thruput_trace::ffi_enums::InvokeErrorCode::Unrecoverable.0,
                 )
             };
             // An `UnrecoverableError` status is expected here — we finished an
