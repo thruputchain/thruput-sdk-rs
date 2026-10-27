@@ -88,6 +88,15 @@ This will:
   `bindings.rs`
 - Override the default prebuilt download behavior
 
+### 4. Documentation Builds (docs.rs)
+
+docs.rs builds without network access. When `DOCS_RS` is set, the build
+script copies the checked-in `crates/hogd-sys/docs-rs/bindings.rs` and skips
+acquiring and linking the library; rustdoc needs neither. Every other build
+method writes its own bindings. The `docs_rs_bindings` test in `thruput-sys`
+fails when the checked-in copy differs from the linux-x86_64 archive's
+`bindings.rs`.
+
 ## Additional Environment Variables
 
 - `HOGD_SRC`: Path to a hogd checkout for source builds (cloned on demand

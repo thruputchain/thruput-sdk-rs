@@ -13,7 +13,13 @@ const HOGD_REPO_URL: &str = "https://github.com/thruputchain/hogd.git";
 
 /// Hardcoded version for prebuilt downloads.
 /// This must match the version in hogd/test_ffi/test_bindings.h.
+///
+/// On a bump, replace `docs-rs/bindings.rs` with the `bindings.rs` from the
+/// new linux-x86_64 archive. The `docs_rs_bindings` test fails until you do.
 const TEST_FFI_VERSION: &str = "0.41.0";
+
+/// The archive whose `bindings.rs` is checked in as `docs-rs/bindings.rs`.
+const DOCS_RS_ARCHIVE: &str = "libtest_ffi-linux-x86_64.tar.gz";
 
 /// Must match the version expected by hogd/built_contracts' build scripts.
 /// Bump this in lockstep with `TEST_FFI_VERSION`: the hogd tag we check out
@@ -381,8 +387,20 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-env-changed=HOGD_FFI_LIB_DIR");
     println!("cargo:rerun-if-env-changed=HOGD_SRC");
     println!("cargo:rerun-if-env-changed=NATIVE_EXEC_ALWAYS_CONFIGURE");
+    println!("cargo:rerun-if-env-changed=DOCS_RS");
+    println!("cargo:rustc-check-cfg=cfg(thruput_sys_docs_rs_archive)");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
+
+    // docs.rs builds without network access, and rustdoc links nothing, so
+    // take the checked-in bindings and skip acquiring the library. Every
+    // other build writes its own bindings below.
+    if env::var_os("DOCS_RS").is_some() {
+        println!("cargo:rerun-if-changed=docs-rs/bindings.rs");
+        fs::copy("docs-rs/bindings.rs", out_dir.join("bindings.rs"))
+            .map_err(|e| format!("failed to copy docs-rs/bindings.rs: {e}"))?;
+        return Ok(());
+    }
 
     match resolve_build_method()? {
         BuildMethod::Prebuilt => {
@@ -427,7 +445,14 @@ fn run_prebuilt_download(
 
     let arch = target_arch();
     let os = target_os();
-    download_and_extract(out_dir, &arch, &os, TEST_FFI_VERSION)
+    let archive_name =
+        download_and_extract(out_dir, &arch, &os, TEST_FFI_VERSION)?;
+    // Lets the `docs_rs_bindings` test compare these bindings with the
+    // checked-in copy when they came from the same archive.
+    if archive_name == DOCS_RS_ARCHIVE {
+        println!("cargo:rustc-cfg=thruput_sys_docs_rs_archive");
+    }
+    Ok(())
 }
 
 /// Build-from-source path: clone hogd, generate bindings, cmake build.
@@ -777,13 +802,14 @@ fn verify_checksum(
     Ok(())
 }
 
-/// Download and extract the prebuilt library from public S3.
+/// Download and extract the prebuilt library from public S3. Returns the
+/// archive's file name.
 fn download_and_extract(
     out_dir: &Path,
     target_arch: &str,
     target_os: &str,
     version: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<&'static str, Box<dyn std::error::Error>> {
     let archive_name = match (target_arch, target_os) {
         ("x86_64", "linux") => "libtest_ffi-linux-x86_64.tar.gz",
         ("aarch64", "linux") => "libtest_ffi-linux-arm64.tar.gz",
@@ -900,7 +926,7 @@ fn download_and_extract(
     let deps_dir = install_lib_in_deps(&extract_dir, Install::Move)?;
     emit_link_config(&deps_dir);
 
-    Ok(())
+    Ok(archive_name)
 }
 
 /// Build the library from source using cmake.

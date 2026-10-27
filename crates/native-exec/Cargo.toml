@@ -11,6 +11,12 @@ license.workspace = true
 authors.workspace = true
 description = "Native execution environment for testing Thruput smart contracts"
 
+# thruput-sys's checked-in docs bindings are generated for this
+# target; their layout assertions would fail on docs.rs's
+# 32-bit targets.
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [lib]
 crate-type = ["rlib"]
 
