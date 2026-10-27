@@ -3,7 +3,9 @@
 
 channel = "nightly-2026-07-01"
 
-targets = ["riscv32im-unknown-none-elf"]
+# x86_64-unknown-linux-gnu: scripts/check-docsrs.sh documents the crates
+# whose docs.rs builds are pinned to it, on any host.
+targets = ["riscv32im-unknown-none-elf", "x86_64-unknown-linux-gnu"]
 # (in addition to host target)
 
 profile = "default"

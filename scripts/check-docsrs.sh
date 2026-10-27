@@ -31,6 +31,16 @@ env = dict(
     # would otherwise invalidate it.
     CARGO_TARGET_DIR=os.path.join(meta["target_directory"], "docsrs"),
 )
+def installed_targets():
+    try:
+        out = subprocess.run(
+            ["rustup", "target", "list", "--installed"],
+            capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None  # no rustup: let cargo report it
+    return set(out.split())
+
+installed = installed_targets()
 failed = []
 for name in names:
     if name not in publishable:
@@ -45,6 +55,9 @@ for name in names:
         cmd += ["--features", ",".join(rs["features"])]
     target = rs.get("default-target") or (rs.get("targets") or [None])[0]
     if target:
+        if installed is not None and target not in installed:
+            sys.exit(f"{name} documents for {target}, which is not installed: "
+                     f"run `rustup target add {target}`")
         cmd += ["--target", target]
     print(f"-- docs.rs build: {name} {rs or ''}", flush=True)
     result = subprocess.run(
