@@ -184,9 +184,10 @@ jobs:
           cargo-hack-feature-options: --feature-powerset -F std --ignore-unknown-features --skip syscall
           # On guests, reaching thruput-domain-separator's `sha2` backend is a hard
           # error, so skip it and `default` (which pulls it in via `std`). Its
-          # `syscall-mock` is host-only, like thruput-sdk's `mock`. `-F syscall` keeps the
-          # guest backend compiled somewhere. All no-ops for the other packages here.
-          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
+          # `syscall-mock` is host-only, like thruput-sdk's `mock`, and
+          # thruput-sdk's `remote` implies `std`. `-F syscall` keeps the guest
+          # backend compiled somewhere. All no-ops for the other packages here.
+          cargo-hack-rv32-feature-options: --feature-powerset --skip std --skip mock --skip dev --skip remote --skip sha2 --skip default --skip syscall-mock -F syscall --ignore-unknown-features
           cargo-hack-rv32-packages: thruput-rv32-runtime thruput-sdk thruput-domain-separator
           arch-only-packages: thruput-rv32-runtime
 
