@@ -41,7 +41,8 @@ members = [
 version = "0.2.0"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
-publish = ["thruput"]
+# Test fixtures: never published.
+publish = false
 repository = "https://github.com/thruputchain/thruput-sdk-rs"
 homepage = "https://github.com/thruputchain/thruput-sdk-rs"
 keywords = ["thruput"]
@@ -54,8 +55,10 @@ thruput-domain-separator = { path = "../crates/domain-separator", registry = "th
 
 thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", registry = "thruput", version = "=0.1.70" }
 
-erc20-test = { path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.57.2" }
-erc20-native-test = { path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.2" }
+# Keyed by the packages' former names, which the contracts submodule's
+# itc_erc20 still uses.
+erc20-test = { package = "thruput-erc20-test", path = "../standard-tests/erc20-test", registry = "thruput", version = "=0.57.2" }
+erc20-native-test = { package = "thruput-erc20-native-test", path = "../standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.2" }
 
 # Dependencies from protocol-rs
 thruput-xdr = { version = "=0.63.0", features = ["xdrs", "syscalls"] }

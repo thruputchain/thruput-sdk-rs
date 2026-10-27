@@ -1,5 +1,5 @@
 [package]
-name = "erc20-test"
+name = "thruput-erc20-test"
 version.workspace = true
 edition.workspace = true
 publish = ["thruput"]
@@ -8,8 +8,8 @@ license.workspace = true
 description = "Shared ERC20 conformance test suite for Thruput contracts"
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["thruput", "smart-contracts", "erc20", "testing"]
+categories = ["cryptography::cryptocurrencies", "development-tools::testing", "no-std"]
 
 [lib]
 doctest = false

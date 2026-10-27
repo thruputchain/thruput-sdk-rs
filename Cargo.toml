@@ -48,8 +48,9 @@ license = "Apache-2.0"
 publish = ["thruput"]
 repository = "https://github.com/thruputchain/thruput-sdk-rs"
 homepage = "https://github.com/thruputchain/thruput-sdk-rs"
-keywords = ["thruput"]
-categories = ["blockchain"]
+# crates.io allows five of each. Crates whose role differs override these.
+keywords = ["thruput", "smart-contracts", "blockchain"]
+categories = ["cryptography::cryptocurrencies", "no-std"]
 
 [workspace.dependencies]
 thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls", registry = "thruput", version = "=0.1.70" }
@@ -101,8 +102,8 @@ thruput-access-control = { path = "standard-impls/thruput-access-control", regis
 thruput-signed-op = { path = "standard-impls/thruput-signed-op", registry = "thruput", version = "=0.1.70" }
 thruput-sep41 = { path = "standard-impls/thruput-sep41", registry = "thruput", version = "=0.1.70" }
 # Test-support crates
-erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.57.2" }
-erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.2" }
+thruput-erc20-test = { path = "standard-tests/erc20-test", registry = "thruput", version = "=0.57.2" }
+thruput-erc20-native-test = { path = "standard-tests/erc20-native-test", registry = "thruput", version = "=0.57.2" }
 # Unpublished test crates
 bigint-bench-if = { path = "crates/bigint-bench-if" }
 

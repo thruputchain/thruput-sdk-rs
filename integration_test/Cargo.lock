@@ -288,26 +288,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "erc20-native-test"
-version = "0.57.2"
-dependencies = [
- "erc20-test",
- "thiserror",
- "thruput-erc20-if",
- "thruput-sdk",
- "thruput-xdr",
-]
-
-[[package]]
-name = "erc20-test"
-version = "0.57.2"
-dependencies = [
- "thiserror",
- "thruput-erc20-if",
- "thruput-sdk",
-]
-
-[[package]]
 name = "escape-bytes"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,9 +427,9 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 name = "itc_erc20"
 version = "0.2.0"
 dependencies = [
- "erc20-native-test",
  "itc_erc20",
  "thruput-erc20-if",
+ "thruput-erc20-native-test",
  "thruput-sdk",
 ]
 
@@ -902,6 +882,26 @@ dependencies = [
  "thiserror",
  "thruput-sdk",
  "thruput-xdr",
+]
+
+[[package]]
+name = "thruput-erc20-native-test"
+version = "0.57.2"
+dependencies = [
+ "thiserror",
+ "thruput-erc20-if",
+ "thruput-erc20-test",
+ "thruput-sdk",
+ "thruput-xdr",
+]
+
+[[package]]
+name = "thruput-erc20-test"
+version = "0.57.2"
+dependencies = [
+ "thiserror",
+ "thruput-erc20-if",
+ "thruput-sdk",
 ]
 
 [[package]]

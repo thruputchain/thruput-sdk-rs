@@ -8,7 +8,7 @@ license.workspace = true
 description = "Embeddable role-based access control implementation for Thruput smart contracts"
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
+keywords = ["thruput", "smart-contracts", "access-control"]
 categories.workspace = true
 
 [features]

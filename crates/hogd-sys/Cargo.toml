@@ -7,8 +7,8 @@ license.workspace = true
 publish.workspace = true
 repository.workspace = true
 homepage.workspace = true
-keywords.workspace = true
-categories.workspace = true
+keywords = ["thruput", "smart-contracts", "ffi", "testing"]
+categories = ["cryptography::cryptocurrencies", "development-tools::testing", "external-ffi-bindings"]
 description = "Bindings for the external Thruput test environment"
 links = "thruput_test_ffi"
 

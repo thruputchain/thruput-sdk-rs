@@ -1,4 +1,4 @@
-pub use erc20_test::*;
+pub use thruput_erc20_test::*;
 
 use thruput_sdk::hash_ident;
 use thruput_sdk::{

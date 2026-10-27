@@ -5,7 +5,7 @@
 #   1. the workspace-versioned crates up through `thruput-sdk`
 #   2. the standard-interface crates, which caret-depend on `thruput-sdk`
 #   3. the crates downstream of the standard interfaces: `thruput-spec-tool`
-#      and the `erc20-*-test` crates
+#      and the `thruput-erc20-*-test` crates
 #
 # Every step tolerates re-runs: tags are recreated at HEAD and only pushed
 # when new, and `cargo publish` skips versions the registry already has — so a
@@ -85,8 +85,8 @@ env:
   # PRIMARY_PACKAGES.
   INTERFACE_DEPENDENT_PACKAGES: >-
     thruput-spec-tool
-    erc20-test
-    erc20-native-test
+    thruput-erc20-test
+    thruput-erc20-native-test
 
 permissions:
   contents: read
@@ -176,7 +176,7 @@ jobs:
             thruput-erc165-if
             thruput-erc721-if
             thruput-access-control-if
-            erc20-test
+            thruput-erc20-test
           # thruput-domain-separator's backends are additive, so most combinations
           # are fine. The exception is a bare `syscall`: it forwards to
           # `thruput-xdr/syscalls`, which has no dispatch path on the host.

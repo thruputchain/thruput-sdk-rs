@@ -34,4 +34,4 @@ thruput-erc20-if = { workspace = true }
 
 [dev-dependencies]
 erc20_low_level = { path = ".", features = ["dev"] }
-erc20-native-test.workspace = true
+thruput-erc20-native-test.workspace = true
