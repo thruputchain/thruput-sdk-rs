@@ -1,4 +1,4 @@
-use hogexec_internal::ffi_enums::InvokeErrorCode;
+use thruput_trace::ffi_enums::InvokeErrorCode;
 use std::panic;
 use std::panic::panic_any;
 use thruput_native_exec::invoke_error::*;

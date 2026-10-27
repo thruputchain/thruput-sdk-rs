@@ -5,7 +5,7 @@ use crate::test_environment_builder::TestEnvironmentBuilder;
 use crate::transact_result::TransactResult;
 use crate::transaction_builder::TransactionBuilder;
 use core::ffi::c_void;
-use hogexec_internal::ffi_enums::InvokeErrorCode;
+use thruput_trace::ffi_enums::InvokeErrorCode;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::rc::Rc;

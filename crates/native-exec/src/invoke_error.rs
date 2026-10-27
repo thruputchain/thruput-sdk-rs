@@ -1,4 +1,4 @@
-use hogexec_internal::ffi_enums::InvokeErrorCode;
+use thruput_trace::ffi_enums::InvokeErrorCode;
 use std::cell::Cell;
 use std::error::Error;
 use std::fmt;

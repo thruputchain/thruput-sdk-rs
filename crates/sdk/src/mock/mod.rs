@@ -7,7 +7,7 @@ mod contract_test;
 mod mock_public {
     pub use super::contract_test::*;
 
-    pub use hogexec_internal::ffi_enums::*;
+    pub use thruput_trace::ffi_enums::*;
     pub use thruput_native_exec::{
         frame_builder::{
             ContinuableFrame, FrameAction, FrameBuilder, FrameHandle,

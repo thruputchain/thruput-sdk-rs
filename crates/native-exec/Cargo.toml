@@ -24,12 +24,11 @@ thruput-event = { workspace = true }
 thruput-exn = { workspace = true }
 thruput-xdr = { workspace = true, features = ["std", "xdrs", "syscalls_mock"]}
 xdr-common = { workspace = true, features = ["alloc"]}
-hogexec-internal = { workspace = true, features = ["std"] }
 xdrs = { workspace = true }
 sha2 = { version = "0.11.0" }
 thruput-sys = { workspace = true }
 thruput-storage-cost = { workspace = true }
-thruput-trace = { workspace = true }
+thruput-trace = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 ed25519-dalek = { version = "3" }
