@@ -602,7 +602,8 @@ pub fn mul_div_u128(a: u128, b: u128, d: u128) -> u128 {
 /// quotient does not fit in a `u128`.
 #[inline]
 pub fn checked_mul_div_u128(a: u128, b: u128, d: u128) -> Option<u128> {
-    let (q, _) = U256::widening_mul(a, b).checked_div_rem(U256::from(d))?;
+    let (q, _) =
+        U256::widening_mul_u128(a, b).checked_div_rem(U256::from(d))?;
     u128::try_from(q).ok()
 }
 

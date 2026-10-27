@@ -229,7 +229,7 @@ fn div_rounding_matches_the_remainder() {
 
 /// The 512-bit product itself, before any division reads it.
 #[test]
-fn widening_mul_u256_matches_the_wide_oracle() {
+fn widening_mul_matches_the_wide_oracle() {
     let mut vals = boundary_values();
     let mut rng = Rng(0x0f0f_0f0f_0f0f_0f0f);
     for limbs in 1..=4 {
@@ -239,7 +239,7 @@ fn widening_mul_u256_matches_the_wide_oracle() {
     }
     for a in &vals {
         for b in vals.iter().take(40) {
-            let (lo, hi) = a.widening_mul_u256(*b);
+            let (lo, hi) = a.widening_mul(*b);
             let got = wide(hi) * (O512::one() << 256) + wide(lo);
             assert_eq!(got, wide(*a) * wide(*b), "{a:?} * {b:?}");
         }

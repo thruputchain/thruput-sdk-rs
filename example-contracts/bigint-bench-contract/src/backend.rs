@@ -260,7 +260,7 @@ pub mod u256 {
 
         #[inline]
         fn widening_mul_u128(a: u128, b: u128) -> Self {
-            Self(U256::widening_mul(a, b))
+            Self(U256::widening_mul_u128(a, b))
         }
 
         #[inline]

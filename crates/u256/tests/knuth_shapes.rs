@@ -40,7 +40,7 @@ fn with_limbs(limbs: usize, top_bit_set: bool) -> U256 {
     out | U256::from_u32(top).wrapping_shl(32 * (limbs as u32 - 1))
 }
 
-/// `a <= b` on the `(low, high)` pairs `widening_mul_u256` returns.
+/// `a <= b` on the `(low, high)` pairs `widening_mul` returns.
 fn le512(a: (U256, U256), b: (U256, U256)) -> bool {
     let ((a_lo, a_hi), (b_lo, b_hi)) = (a, b);
     if a_hi != b_hi {
@@ -115,15 +115,12 @@ fn wide_dividend_across_every_divisor_limb_count() {
                         // `q * d <= a * b < (q + 1) * d`, all in 512 bits --
                         // `q * d` itself routinely exceeds 256, since it is
                         // bounded by the product rather than by a `U256`.
-                        let ab = a.widening_mul_u256(b);
-                        assert!(
-                            le512(q.widening_mul_u256(d), ab),
-                            "q * d > a * b"
-                        );
+                        let ab = a.widening_mul(b);
+                        assert!(le512(q.widening_mul(d), ab), "q * d > a * b");
                         let (next, wrapped) = q.overflowing_add(U256::ONE);
                         if !wrapped {
                             assert!(
-                                !le512(next.widening_mul_u256(d), ab),
+                                !le512(next.widening_mul(d), ab),
                                 "(q + 1) * d <= a * b, so q is too small"
                             );
                         }

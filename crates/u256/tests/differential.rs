@@ -242,7 +242,7 @@ fn mul_matches_oracle_on_random_inputs() {
 }
 
 #[test]
-fn widening_mul_is_exact() {
+fn widening_mul_u128_is_exact() {
     let mut rng = Rng(0xdead_beef_cafe_f00d);
     let mut cases: Vec<(u128, u128)> = vec![
         (0, 0),
@@ -262,19 +262,23 @@ fn widening_mul_is_exact() {
         // The oracle multiplies in 256 bits, where a u128 x u128 product
         // always fits, so this is the exact expected value.
         let expected = O::from(a) * O::from(b);
-        assert_eq!(to_oracle(U256::widening_mul(a, b)), expected, "{a} * {b}");
+        assert_eq!(
+            to_oracle(U256::widening_mul_u128(a, b)),
+            expected,
+            "{a} * {b}"
+        );
     }
 }
 
 #[test]
-fn widening_mul_agrees_with_general_mul() {
+fn widening_mul_u128_agrees_with_general_mul() {
     let mut rng = Rng(0x5ee_d5ee_d5ee_d5ee);
     for _ in 0..5000 {
         let a = rng.next_u128();
         let b = rng.next_u128();
         let (general, overflow) = U256::from(a).overflowing_mul(U256::from(b));
         assert!(!overflow, "u128 x u128 must fit 256 bits: {a} * {b}");
-        assert_eq!(U256::widening_mul(a, b), general, "{a} * {b}");
+        assert_eq!(U256::widening_mul_u128(a, b), general, "{a} * {b}");
     }
 }
 
@@ -517,7 +521,7 @@ fn div_matches_oracle_on_the_shapes_the_swap_suite_uses() {
         (u128::MAX, 1, 2),
     ];
     for (a, b, c) in cases {
-        check_div(U256::widening_mul(a, b), U256::from(c));
+        check_div(U256::widening_mul_u128(a, b), U256::from(c));
     }
     // (a << 112) / b, the UQ112x112 accumulator shape.
     for (a, b) in [
@@ -598,7 +602,7 @@ fn sqrt_matches_oracle_on_products_of_u128s() {
         (i128::MAX as u128, i128::MAX as u128),
     ];
     for (a, b) in cases {
-        check_sqrt(U256::widening_mul(a, b));
+        check_sqrt(U256::widening_mul_u128(a, b));
     }
 }
 
