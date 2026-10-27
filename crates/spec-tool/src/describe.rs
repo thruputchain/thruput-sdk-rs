@@ -182,7 +182,7 @@ mod registry_tests {
     }
 
     #[test]
-    fn library_exn_selector_survives_the_package_rename() {
+    fn library_exn_selector_is_pinned() {
         // sha256("1::sdk::LibraryExn"): every deployed contract throws and
         // matches this, so it must not move with the package name.
         assert_eq!(lookup("LibraryExn").unwrap().selector, 0xe562d59059c60ac3);
@@ -191,8 +191,8 @@ mod registry_tests {
     #[test]
     fn selectors_match_recorded_preimage() {
         for entry in REGISTRY {
-            // LibraryExn keeps the pre-rename `sdk` package label; every other
-            // entry uses its declaring package's identity.
+            // LibraryExn pins its crate label to `sdk` (`wire_crate`); every
+            // other entry uses its declaring package's identity.
             let wire_crate = match entry.name {
                 "LibraryExn" => "sdk",
                 _ => entry.root.crate_name,

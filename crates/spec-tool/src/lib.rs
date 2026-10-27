@@ -4,9 +4,9 @@ pub mod describe;
 pub mod raw;
 
 pub use raw::{
-    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, LEGACY_RAW_SECTION_PREFIX,
-    RAW_SECTION_NAME, RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection,
-    classify_section, parse_raw_fragments,
+    FINAL_FORMAT_TAG, FINAL_SECTION_NAME, RAW_SECTION_NAME,
+    RAW_SECTION_PREFIX, RAW_SPEC_FORMAT, SpecSection, classify_section,
+    parse_raw_fragments,
 };
 pub use thruput_contract_spec::{
     ContractEnumDef, ContractEnumVariant, ContractEventDef,

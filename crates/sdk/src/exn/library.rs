@@ -23,9 +23,9 @@ use thiserror::Error;
 #[derive(Debug, PartialEq, ReadXDR, WriteXDR, ConstXDRSize)]
 #[cfg_attr(not(target_arch = "riscv32"), derive(Error))]
 #[derive(ContractTypeSpec)]
-// `wire_crate` pins the selector to the package's pre-rename name: every
-// contract throws and matches `LibraryExn`, so its selector must not move
-// when the package does.
+// `wire_crate` fixes the crate label in the selector preimage at `sdk`:
+// every contract throws and matches `LibraryExn`, so its selector is wire
+// ABI and must not follow the package name.
 #[thruput_macros::exn(version = "1.0.0", wire_crate = "sdk")]
 #[repr(i32)]
 #[non_exhaustive]

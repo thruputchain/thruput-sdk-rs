@@ -29,16 +29,6 @@
 //! - the `link_section` literals in `thruput-macros`,
 //! - the `(INFO)` output section in `thruput-rv32-runtime`'s
 //!   `thruput-rv32.ld`, which keeps the section out of guest memory.
-//!
-//! Format 0 (`groundhogspecrawv0`) is deliberately unsupported: two
-//! incompatible encodings shipped under that name, so the bytes cannot be
-//! interpreted from the section name alone.
-//!
-//! Format 5 renamed the section from `groundhogspecraw*` to
-//! `thruputspecraw*`; its encoding is format 4's. Sections under the old
-//! prefix still classify as raw (see [`LEGACY_RAW_SECTION_PREFIX`]), so an
-//! artifact from an older SDK reports as a version skew rather than as
-//! having no spec.
 
 /// Prefix shared by every version of the raw spec ELF section name.
 ///
@@ -47,13 +37,6 @@
 /// the wrong version, instead of being skipped as unrelated (which surfaces
 /// as "this contract has no spec" — the wrong diagnosis).
 pub const RAW_SECTION_PREFIX: &str = "thruputspecraw";
-
-/// Prefix of the raw spec ELF section name through format 4.
-///
-/// Recognized by [`classify_section`] for the same reason consumers match on
-/// a prefix at all: a contract built with an older SDK should read as the
-/// wrong format version, not as a contract without a spec. Nothing emits it.
-pub const LEGACY_RAW_SECTION_PREFIX: &str = "groundhogspecraw";
 
 /// Wire-format version of the raw spec section this SDK produces and parses.
 pub const RAW_SPEC_FORMAT: u32 = 5;
@@ -77,8 +60,7 @@ pub const RAW_SECTION_NAME: &str = "thruputspecrawv5";
 /// matches this name exactly, so a `v0` section reads as
 /// [`SpecSection::Other`] and the artifact reports as having no spec rather
 /// than as a version skew. That is the wrong diagnosis, but it is a safe one
-/// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. The
-/// pre-rename `groundhogspecv2` likewise reads as [`SpecSection::Other`]. A
+/// -- the alternative, decoding `v0` bytes as `v1`, misaligns silently. A
 /// finalized section only ever reaches a reader in an unlowered build
 /// artifact: `thruput-rv32-lower` drops both spec sections, so nothing
 /// deployed carries one.
@@ -98,9 +80,8 @@ pub enum SpecSection {
 
 /// Classify an ELF section name.
 ///
-/// A raw section (under either [`RAW_SECTION_PREFIX`] or
-/// [`LEGACY_RAW_SECTION_PREFIX`]) whose suffix is not `v<integer>` classifies
-/// as [`SpecSection::Other`]: an unparseable suffix cannot be reported as a
+/// A raw section whose suffix is not `v<integer>` classifies as
+/// [`SpecSection::Other`]: an unparseable suffix cannot be reported as a
 /// version skew, and treating it as a raw section would only turn it into a
 /// decode failure later.
 pub fn classify_section(name: &str) -> SpecSection {
@@ -109,7 +90,6 @@ pub fn classify_section(name: &str) -> SpecSection {
     }
     match name
         .strip_prefix(RAW_SECTION_PREFIX)
-        .or_else(|| name.strip_prefix(LEGACY_RAW_SECTION_PREFIX))
         .and_then(|suffix| suffix.strip_prefix('v'))
         .and_then(|digits| digits.parse::<u32>().ok())
     {
@@ -187,16 +167,6 @@ mod tests {
             classify_section("thruputspecrawv99"),
             SpecSection::Raw(99),
         );
-        // Pre-rename sections report their version, so an older SDK's
-        // artifact surfaces as a format skew.
-        assert_eq!(
-            classify_section("groundhogspecrawv0"),
-            SpecSection::Raw(0)
-        );
-        assert_eq!(
-            classify_section("groundhogspecrawv4"),
-            SpecSection::Raw(4)
-        );
         assert_eq!(classify_section(FINAL_SECTION_NAME), SpecSection::Final);
         assert_eq!(classify_section("name"), SpecSection::Other);
         // Unparseable suffixes are not raw sections: there is no version to
@@ -206,10 +176,6 @@ mod tests {
             "thruputspecrawvx",
             "thruputspecrawv1x",
             "thruputspecrawv-1",
-            "groundhogspecraw",
-            "groundhogspecrawvx",
-            "groundhogspecrawv1x",
-            "groundhogspecrawv-1",
         ] {
             assert_eq!(classify_section(name), SpecSection::Other, "{name}");
         }
