@@ -133,7 +133,7 @@ impl NetworkConfigBuilder {
     }
 
     /// Concurrently open incremental SHA-256 buffers permitted per invocation
-    /// frame (the cap `thruput_sdk::hasher::Hasher` allocates against).
+    /// frame (the cap `thruput_sdk::Hasher` allocates against).
     pub fn with_max_sha256_buffers(self, max_sha256_buffers: u32) -> Self {
         self.with_config_param(ConfigParam::kConfigParamMaxSHA256Buffers {
             max_sha256_buffers,

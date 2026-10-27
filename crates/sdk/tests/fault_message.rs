@@ -33,7 +33,7 @@ use thruput_sdk::contract::ContractEntrypointID;
 
 use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, Mutex};
-use thruput_sdk::invoke_config::InvokeFlagSet;
+use thruput_sdk::InvokeFlagSet;
 use thruput_sdk::*;
 
 const ENTRY: [u8; 8] = [0; 8];

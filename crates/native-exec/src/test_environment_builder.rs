@@ -106,7 +106,7 @@ impl TestEnvironmentBuilder {
     }
 
     /// Concurrently open incremental SHA-256 buffers permitted per invocation
-    /// frame (the cap `thruput_sdk::hasher::Hasher` allocates against).
+    /// frame (the cap `thruput_sdk::Hasher` allocates against).
     pub fn with_max_sha256_buffers(mut self, max_sha256_buffers: u32) -> Self {
         self.network_config = self
             .network_config

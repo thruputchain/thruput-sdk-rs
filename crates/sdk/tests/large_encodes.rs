@@ -56,9 +56,7 @@ fn outgoing_calldata_larger_than_500_bytes_encodes() {
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
             let mut calldata = thruput_sdk::internal::new_scratch();
-            thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
-                &mut calldata,
-            );
+            thruput_sdk::fetch_calldata_and_auth_tokens(&mut calldata);
             let calldata_len = calldata.len();
             let encoded =
                 thruput_sdk::xdr::cxs::encode(&(calldata_len as u64))

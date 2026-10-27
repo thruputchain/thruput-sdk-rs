@@ -214,7 +214,7 @@ impl AuthWalk {
                 impl ::thruput_sdk::CollectAuthHandles for #ident {
                     fn collect_auth_handles(
                         &self,
-                        out: &mut ::thruput_sdk::collect_auth_handles::AuthHandleBuf,
+                        out: &mut ::thruput_sdk::AuthHandleBuf,
                     ) -> Result<(), ::thruput_sdk::FaultString> {
                         #body
                         Ok(())

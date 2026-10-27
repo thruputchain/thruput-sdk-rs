@@ -66,6 +66,7 @@ where
     }
     #[cfg(not(feature = "alloc"))]
     {
+        buf.clear();
         let written = xdrs::cxs::encode_into(x, buf.spare_capacity_mut())?;
         // Safety: `encode_into` initialized exactly `written` bytes.
         unsafe {

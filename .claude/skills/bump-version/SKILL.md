@@ -141,6 +141,11 @@ reported like any other rather than waiting to surface at build time.
   the time of writing). An independent version line: bump it only when the
   test-ffi release changes, not with the workspace version. Not covered by
   `version-check`.
+- `crates/hogd-sys/docs-rs/bindings.rs` — on a `TEST_FFI_VERSION` bump,
+  replace it with the `bindings.rs` from the new linux-x86_64 archive (on an
+  x86_64 Linux host, a build leaves that copy at
+  `target/debug/build/thruput-sys-*/out/bindings.rs`). The
+  `docs_rs_bindings` test fails until it matches.
 
 ### 5. Lockfiles
 

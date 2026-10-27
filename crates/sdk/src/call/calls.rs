@@ -63,9 +63,6 @@ fn encode_args_into<T: WriteXDR + ?Sized>(
     buf: &mut Buf,
     value: &T,
 ) -> Result<(), CallFault> {
-    // Cleared here rather than left to `encode_scratch`: its no-alloc branch
-    // encodes into the spare capacity *past* `buf`'s current length.
-    buf.clear();
     crate::internal::encode_scratch(buf, value)
         .map_err(|e| RawCallError::EncodingArgs(FaultString::from_display(e)))
 }

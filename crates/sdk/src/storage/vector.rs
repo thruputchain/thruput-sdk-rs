@@ -21,8 +21,9 @@ use core::fmt::Debug;
 /// to, say) — prefer keying a [`Map`] by something caller-specific, or a
 /// mergeable counter like [`NNInt`](super::NNInt), when concurrent writers
 /// matter. Element reads and in-place element writes through
-/// [`at`](Self::at)/[`at_mut`](Self::at_mut) do not touch `len` and carry only
-/// the per-element storage semantics.
+/// [`at`](Self::at)/[`at_mut`](Self::at_mut) read `len` for their bounds check
+/// but never rewrite it; apart from that read they carry only the
+/// per-element storage semantics.
 pub struct Vector<S> {
     keypath: Keypath,
     len: Value<u32>,

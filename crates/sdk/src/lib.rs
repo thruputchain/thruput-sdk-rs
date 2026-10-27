@@ -155,28 +155,34 @@ pub use call::{CallError, RawCallError};
 #[cfg(feature = "remote")]
 pub use thruput_contract_util::remote;
 
-// TODO: Make these modules pub(crate) at most, in order to allow
-// reorganization without breaking changes.
-pub mod auth_claim;
+// Module paths that are public API: each names a topic a contract author
+// navigates to. Most are also glob re-exported below, so both
+// `thruput_sdk::block::get_block_height` and `thruput_sdk::get_block_height`
+// are supported paths.
 pub mod block;
-pub mod collect_auth_handles;
-pub mod contract_op;
 pub mod crypto;
-pub mod deploy;
 pub mod event;
 pub mod exn;
-pub mod hash;
-pub mod hasher;
-pub mod hex;
 pub mod interface_table;
-pub mod invoke_config;
-pub mod log;
-pub mod receive_auth_handles;
-pub mod rt;
-pub mod serialize;
 pub mod signer;
 pub mod stats;
 pub mod types;
+
+// Implementation modules, reachable only through the root re-exports below,
+// so they can be reorganized without a breaking change. Macro expansions name
+// their items by those root paths too.
+mod auth_claim;
+mod collect_auth_handles;
+mod contract_op;
+mod deploy;
+mod hash;
+mod hasher;
+mod hex;
+mod invoke_config;
+mod log;
+mod receive_auth_handles;
+mod rt;
+mod serialize;
 
 #[doc(hidden)]
 pub mod mintable;
