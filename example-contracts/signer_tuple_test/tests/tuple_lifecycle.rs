@@ -3,9 +3,9 @@
 #![allow(unexpected_cfgs)]
 
 use signer_tuple_test::TupleAuth;
-use thruput_sdk::collect_auth_handles::CollectAuthHandles;
+use thruput_sdk::CollectAuthHandles;
+use thruput_sdk::ReceiveAuthHandles;
 use thruput_sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
-use thruput_sdk::receive_auth_handles::ReceiveAuthHandles;
 use thruput_sdk::signer::Signed;
 use thruput_sdk::*;
 
@@ -82,7 +82,7 @@ fn tuple_struct_collect_handles() {
     let mut iter = [5u32].into_iter();
     auth.receive_auth_handles(&mut iter).unwrap();
 
-    let mut buf = thruput_sdk::collect_auth_handles::AuthHandleBuf::new();
+    let mut buf = thruput_sdk::AuthHandleBuf::new();
     auth.collect_auth_handles(&mut buf).unwrap();
     assert_eq!(buf.as_slice(), &[5]);
 }

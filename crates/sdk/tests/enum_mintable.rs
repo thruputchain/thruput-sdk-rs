@@ -4,10 +4,10 @@
 
 #![allow(unexpected_cfgs)]
 
+use thruput_sdk::ReceiveAuthHandles;
 use thruput_sdk::mintable::{
     AuthTokenPreimage, MintableType, build_auth_token_node,
 };
-use thruput_sdk::receive_auth_handles::ReceiveAuthHandles;
 use thruput_sdk::signer::Signed;
 use thruput_sdk::*;
 

@@ -150,7 +150,7 @@ pub fn generate(
 
         pub struct #client_ident {
             address: ::thruput_sdk::ContractAddress,
-            config: ::thruput_sdk::invoke_config::InvokeConfig
+            config: ::thruput_sdk::InvokeConfig
         }
 
         const _: () = {
@@ -166,7 +166,7 @@ pub fn generate(
                 pub fn #constructor_ident(address: &ContractAddress) -> Self {
                     Self {
                         address: address.clone(),
-                        config: ::thruput_sdk::invoke_config::InvokeConfig::new()
+                        config: ::thruput_sdk::InvokeConfig::new()
                     }
                 }
 
@@ -175,7 +175,7 @@ pub fn generate(
                 pub fn #gas_limit_helper_ident(&self, gas_limit: u64) -> Self {
                     Self {
                         address: self.address.clone(),
-                        config: ::thruput_sdk::invoke_config::InvokeConfig {
+                        config: ::thruput_sdk::InvokeConfig {
                             gas_limit,
                             ..self.config
                         },
@@ -190,9 +190,9 @@ pub fn generate(
                 pub fn #try_invoke_helper_ident(&self) -> Self {
                     Self {
                         address: self.address.clone(),
-                        config: ::thruput_sdk::invoke_config::InvokeConfig {
+                        config: ::thruput_sdk::InvokeConfig {
                                 flags: self.config.flags
-                                    | ::thruput_sdk::invoke_config::InvokeFlag::TryInvoke.0.cast_unsigned(),
+                                    | ::thruput_sdk::InvokeFlag::TryInvoke.0.cast_unsigned(),
                                 .. self.config
                         },
                     }
@@ -204,9 +204,9 @@ pub fn generate(
                 pub fn #read_only_helper_ident(&self) -> Self {
                     Self {
                         address: self.address.clone(),
-                        config: ::thruput_sdk::invoke_config::InvokeConfig {
+                        config: ::thruput_sdk::InvokeConfig {
                                 flags: self.config.flags
-                                    | ::thruput_sdk::invoke_config::InvokeFlag::ReadOnly.0.cast_unsigned(),
+                                    | ::thruput_sdk::InvokeFlag::ReadOnly.0.cast_unsigned(),
                                 .. self.config
                         },
                     }
@@ -230,7 +230,7 @@ pub fn generate(
             #[must_use = "the exception mapper is used by a generated try_* call"]
             pub struct #mapped_client_ident<#handler_ident> {
                 address: ::thruput_sdk::ContractAddress,
-                config: ::thruput_sdk::invoke_config::InvokeConfig,
+                config: ::thruput_sdk::InvokeConfig,
                 on_exn: #handler_ident,
             }
 

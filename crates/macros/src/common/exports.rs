@@ -479,10 +479,10 @@ pub fn generate_method(
         // If debug mode: log the method-call
         #log_guest_call
 
-        let mut __gh_calldata: ::thruput_sdk::contract_op::Calldata =
+        let mut __gh_calldata: ::thruput_sdk::Calldata =
             ::thruput_sdk::internal::new_scratch();
         let __gh_auth_token_count: u32 =
-            ::thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
+            ::thruput_sdk::fetch_calldata_and_auth_tokens(
                 &mut __gh_calldata,
             );
 

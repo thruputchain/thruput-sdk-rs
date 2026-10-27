@@ -48,9 +48,7 @@ fn u256_roundtrips_through_entrypoint_calldata_and_return() {
     let mock = env.register_mock(|c| {
         c.register_method(entrypoint(), || {
             let mut calldata = thruput_sdk::internal::new_scratch();
-            thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
-                &mut calldata,
-            );
+            thruput_sdk::fetch_calldata_and_auth_tokens(&mut calldata);
             let arg: U256 = thruput_sdk::xdr::cxs::decode(calldata.as_slice())
                 .expect("calldata must decode as U256");
             let out = arg.checked_add(U256::from(1)).unwrap();
@@ -114,9 +112,7 @@ fn i256_roundtrips_through_entrypoint_calldata_and_return() {
     let mock = env.register_mock(|c| {
         c.register_method(signed_entrypoint(), || {
             let mut calldata = thruput_sdk::internal::new_scratch();
-            thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
-                &mut calldata,
-            );
+            thruput_sdk::fetch_calldata_and_auth_tokens(&mut calldata);
             let arg: I256 = thruput_sdk::xdr::cxs::decode(calldata.as_slice())
                 .expect("calldata must decode as I256");
             let out = arg.checked_neg().unwrap();

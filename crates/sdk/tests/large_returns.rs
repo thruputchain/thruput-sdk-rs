@@ -326,7 +326,7 @@ fn return_over_the_default_limit_faults_the_child() {
 // The Exit syscall itself takes the same path.
 #[test]
 fn contract_revert_faults_the_child() {
-    let env = env_with_child(|| thruput_sdk::contract_op::contract_revert());
+    let env = env_with_child(|| thruput_sdk::contract_revert());
     assert_child_faults(&env);
 }
 

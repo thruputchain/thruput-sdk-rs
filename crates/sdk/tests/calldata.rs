@@ -23,9 +23,7 @@ fn fetch_roundtrips(payload: Vec<u8>) {
             .run(move || {
                 let mut calldata = thruput_sdk::internal::new_scratch();
                 let auth_token_count =
-                    thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
-                        &mut calldata,
-                    );
+                    thruput_sdk::fetch_calldata_and_auth_tokens(&mut calldata);
                 assert_eq!(calldata.as_slice(), expected.as_slice());
                 assert_eq!(auth_token_count, 0);
             })
@@ -63,9 +61,7 @@ fn forwarded_auth_tokens_arrive_as_ids_0_to_n_in_caller_order() {
         c.register_method(entrypoint, || {
             let mut calldata = thruput_sdk::internal::new_scratch();
             let auth_token_count =
-                thruput_sdk::contract_op::fetch_calldata_and_auth_tokens(
-                    &mut calldata,
-                );
+                thruput_sdk::fetch_calldata_and_auth_tokens(&mut calldata);
             assert_eq!(auth_token_count, 2);
             let (first, second): (Signed<u64>, Signed<u64>) =
                 thruput_sdk::call::contract_call_decode(

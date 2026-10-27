@@ -10,10 +10,10 @@
 
 #![allow(unexpected_cfgs)]
 
-use thruput_sdk::collect_auth_handles::CollectAuthHandles;
+use thruput_sdk::CollectAuthHandles;
+use thruput_sdk::ReceiveAuthHandles;
 use thruput_sdk::mintable::MintableType;
 use thruput_sdk::mintable::{AuthTokenPreimage, build_auth_token_node};
-use thruput_sdk::receive_auth_handles::ReceiveAuthHandles;
 use thruput_sdk::signer::Signed;
 use thruput_sdk::*;
 
@@ -148,12 +148,12 @@ fn collect_handles_for_forwarding() {
     let mut iter = [10u32, 20u32, 30u32].into_iter();
     middle.receive_auth_handles(&mut iter).unwrap();
 
-    let mut buf = thruput_sdk::collect_auth_handles::AuthHandleBuf::new();
+    let mut buf = thruput_sdk::AuthHandleBuf::new();
     middle.collect_auth_handles(&mut buf).unwrap();
     assert_eq!(buf.as_slice(), &[10, 20, 30]);
 
     let call_args = (42u64, middle.single_child);
-    let mut buf2 = thruput_sdk::collect_auth_handles::AuthHandleBuf::new();
+    let mut buf2 = thruput_sdk::AuthHandleBuf::new();
     call_args.collect_auth_handles(&mut buf2).unwrap();
     assert_eq!(buf2.as_slice(), &[10]);
 }
