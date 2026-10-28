@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "bigint-bench-if"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-sdk",
 ]
@@ -1336,7 +1336,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-access-control"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thruput-access-control-if",
  "thruput-sdk",
@@ -1344,7 +1344,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-access-control-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1352,7 +1352,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-spec"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "heapless",
  "thruput-spec",
@@ -1363,7 +1363,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-util"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "sha2",
  "syn 3.0.4",
@@ -1373,7 +1373,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-domain-separator"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "sha2",
  "thruput-contract-spec",
@@ -1383,7 +1383,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc165-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thruput-sdk",
@@ -1391,7 +1391,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-controls-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1402,7 +1402,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1411,7 +1411,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-metadata-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1421,7 +1421,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-native-test"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1432,7 +1432,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-pausable-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1440,7 +1440,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-permit-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1449,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-test"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1459,7 +1459,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc721-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1468,7 +1468,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-event"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -1476,14 +1476,14 @@ dependencies = [
 
 [[package]]
 name = "thruput-exn"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-xdrs",
 ]
 
 [[package]]
 name = "thruput-macros"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1496,7 +1496,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-native-exec"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "sha2",
  "thruput-event",
@@ -1511,11 +1511,11 @@ dependencies = [
 
 [[package]]
 name = "thruput-rv32-runtime"
-version = "0.57.2"
+version = "0.58.0"
 
 [[package]]
 name = "thruput-sdk"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "heapless",
  "linkme",
@@ -1536,7 +1536,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-sep41"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-erc165-if",
@@ -1548,7 +1548,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-signed-op"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thruput-contract-spec",
  "thruput-domain-separator",
@@ -1558,7 +1558,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-signed-op-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1576,7 +1576,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-storage-cost"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -1584,7 +1584,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-sys"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "fslock",
  "sha2",
@@ -1611,7 +1611,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-u256"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-contract-spec",
  "thruput-xdrs",

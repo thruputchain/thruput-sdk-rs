@@ -32,4 +32,4 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "=0.57.2" }
+thruput-sdk = { path = "../../crates/sdk", version = "=0.58.0" }
