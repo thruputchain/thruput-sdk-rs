@@ -22,11 +22,11 @@ dev = ["thruput-sdk/dev"]
 # No `alloc`: the interface returns one token, not a Vec, so a no-alloc
 # contract can call a wallet and receive it. Only the verifying component
 # (thruput-signed-op) allocates, to build the preimage.
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.57.2" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.57.2" }
 thiserror = { workspace = true }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.57.2", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", version = "0.57.2", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]

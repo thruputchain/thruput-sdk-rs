@@ -18,7 +18,7 @@ import sys
 sdk, work = map(Path, sys.argv[1:])
 guide = (sdk / 'crates/sdk/doc/cargo-only.md').read_text()
 files = dict(re.findall(r'^### `([^`]+)`\n\n```(?:toml|rust)\n(.*?)\n```', guide, re.M | re.S))
-expected = {'Cargo.toml', '.cargo/config.toml', 'src/lib.rs', 'src/main.rs', 'tests/greeting.rs'}
+expected = {'Cargo.toml', 'src/lib.rs', 'src/main.rs', 'tests/greeting.rs'}
 if files.keys() != expected:
     raise SystemExit(f'Cargo guide file blocks changed: {sorted(files)}')
 for name, content in files.items():

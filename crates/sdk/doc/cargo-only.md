@@ -5,8 +5,8 @@ the RV32 ELF. Producing a deployable `.rv32a` requires a separate lowering step;
 the CLI's `thruput build` performs that step. An ELF is not a deployed contract.
 
 This example uses a local SDK clone and ordinary Cargo commands. It needs
-Rust/rustup, a native linker, and registry access. Native tests also download the
-test executor; see [native executor setup](../../native-exec/README.md).
+Rust/rustup, a native linker, and access to crates.io. Native tests also
+download the test executor; see [native executor setup](../../native-exec/README.md).
 
 ## Create a standalone project
 
@@ -15,7 +15,7 @@ Start in the parent directory of your `thruput-sdk-rs` clone:
 ```sh
 cargo new --lib hello-contract
 cd hello-contract
-mkdir -p .cargo tests
+mkdir -p tests
 cp ../thruput-sdk-rs/rust-toolchain.toml .
 ```
 
@@ -58,18 +58,6 @@ hello-contract = { path = ".", features = ["dev"] }
 `alloc` supports the owned strings used here. `std` is required on the host and
 forbidden on the guest. The self-dependency enables the native executor during
 tests. `entrypoints` includes the exported methods in the RV32 binary.
-
-### `.cargo/config.toml`
-
-```toml
-[registries.thruput]
-index = "sparse+https://crates.thruput.network/api/v1/crates/"
-credential-provider = "cargo:token"
-```
-
-The SDK currently uses a private registry. Supply your access token through
-`CARGO_REGISTRIES_THRUPUT_TOKEN` or Cargo's credential store. Do not put a token
-in the project configuration or commit it.
 
 ### `src/lib.rs`
 

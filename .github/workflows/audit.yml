@@ -18,9 +18,6 @@ jobs:
     with:
       runs-on: namespace-profile-hogd-linux-2604
       checks: advisories
-      registry-name: thruput
-    secrets:
-      registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
 
   notify:
     name: Report dependency problem

@@ -1,4 +1,4 @@
-# Yanks (or un-yanks) a published release from the Thruput registry.
+# Yanks (or un-yanks) a published release from crates.io.
 #
 # The crates here release on two version lines (see publish.yml): the
 # workspace-versioned crates share one `v<version>` release, while each
@@ -6,6 +6,11 @@
 # the whole workspace release or a single interface crate, never "every crate
 # at this version" — an interface version could coincide with an unrelated
 # old workspace release.
+#
+# Trusted publishing tokens can only publish, so this needs the
+# CRATESIO_YANK_TOKEN secret: a crates.io API token with the yank scope,
+# owned by an owner of the crates. Keep it a secret of the `release`
+# environment (see publish.yml), so only runs it admits can use it.
 name: Yank package
 
 on:
@@ -25,6 +30,7 @@ on:
           - workspace
           - thruput-erc20-if
           - thruput-erc20-metadata-if
+          - thruput-erc20-controls-if
           - thruput-erc20-pausable-if
           - thruput-signed-op-if
           - thruput-signed-op
@@ -40,7 +46,7 @@ on:
         type: boolean
         default: false
 
-# A yank racing a publish of the same version would leave registry state
+# A yank racing a publish of the same version would leave crates.io state
 # depending on which finished last; queue behind publish.yml.
 concurrency:
   group: publish
@@ -70,6 +76,7 @@ jobs:
   yank:
     permissions:
       contents: read
+    environment: release
     runs-on: namespace-profile-hogd-linux-2604
 
     steps:
@@ -92,10 +99,10 @@ jobs:
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
       - name: Yank
-        uses: thruputchain/actions/cargo-yank@6693fac8133585728ad3a4ca14e3441073b6def8
+        uses: thruputchain/actions/cargo-yank@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:
           version: ${{ inputs.version }}
           undo: ${{ inputs.undo }}
           packages: ${{ steps.select.outputs.packages }}
-          registry-name: thruput
-          registry-token: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
+          registry-name: crates-io
+          registry-token: ${{ secrets.CRATESIO_YANK_TOKEN }}
