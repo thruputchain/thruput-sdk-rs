@@ -1022,7 +1022,7 @@ mod tests {
         env.setup_grant_storage_tokens(&TEST_ADDR, 1_000_000_000);
         // Any created, deployable contract works: the transact below runs
         // through the mock trampoline regardless of the deployed type, and
-        // native precompiles are banned from redeployment (hogd #3592).
+        // native precompiles are banned from redeployment.
         // A fresh environment hands out mock contract ids from zero.
         let _mock = env.inner.borrow_mut().add_contract();
         let contract = thruput_xdr::contract::Contract::kMockTest {

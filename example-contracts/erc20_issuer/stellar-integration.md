@@ -56,10 +56,9 @@ admin authority by default.
 A holder burn or clawback does not request a bridge withdrawal. Clawback emits
 both a canonical burn and contextual clawback event; count one supply change.
 Bridge destinations, deadlines and replay protection need their own signed
-operation and records. See the [bridge notes](https://linear.app/grndhg/document/using-the-reference-token-in-the-bridge-b9af0e95e0d1).
+operation and records.
 
 The delete methods free storage but do not yet route released collateral to
-the caller ([GH-431](https://linear.app/grndhg/issue/GH-431)). Tests disable
-resource charges. Native-token and RPC/CLI adoption are separate follow-ups in
-[GH-414](https://linear.app/grndhg/issue/GH-414); the native-token conformance test
-remains disabled until its entrypoints match.
+the caller. Tests disable resource charges. Native-token and RPC/CLI adoption
+are separate follow-ups; the native-token conformance test remains disabled
+until its entrypoints match.
