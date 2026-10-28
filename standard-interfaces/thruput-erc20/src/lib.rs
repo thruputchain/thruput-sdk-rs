@@ -1,8 +1,10 @@
-//! The ERC20 fungible-token interface for Thruput smart contracts.
+//! The standard ERC20 interface for Thruput contracts: the [`ERC20`] trait,
+//! its errors and events, and the [`ERC20AllowanceExpiry`] extension.
 //!
-//! [`ERC20`] is the interface trait. The crate also defines its errors
-//! ([`ERC20Error`]) and events, and `#[contract]` generates a typed
-//! `ERC20Client` for calling any contract that implements it.
+//! Further extensions live in their own crates: `thruput-erc20-metadata-if`,
+//! `thruput-erc20-pausable-if`, `thruput-erc20-permit-if` and
+//! `thruput-erc20-controls-if`. `thruput-erc20-test` checks an
+//! implementation against this interface.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
@@ -24,9 +26,10 @@ pub type Difference = i128;
 
 /// The all-zero address.
 ///
-/// Nothing in this interface treats it specially: mints and burns are
-/// [`MintEvent`] and [`BurnEvent`], not transfers from or to it. It is
-/// exported for consumers that render or model those events.
+/// Nothing in this interface treats it specially any more: mints and burns
+/// are [`MintEvent`] and [`BurnEvent`], not transfers from or to it. It
+/// stays exported for consumers that render or model those events, and
+/// as a conventional "nothing is here" address.
 pub const CONTRACT_ADDR_ZERO: &ContractAddress =
     &ContractAddress::new([0; 32]);
 

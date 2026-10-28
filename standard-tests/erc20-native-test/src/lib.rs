@@ -1,8 +1,8 @@
-//! Runs the `thruput-erc20-test` suite in the native test environment.
-//!
-//! [`test_erc20_contract`] deploys a contract in a `TestEnvironment`, runs
-//! the suite inside a transaction, and checks the emitted events against
-//! the model.
+//! Runs the [`thruput_erc20_test`] conformance suite in the native test
+//! environment. [`test_erc20_contract`] checks a deployed contract's results
+//! and emitted events. [`test_native_token_precompile`] holds the node's
+//! native-token precompile to the same expectations, apart from its
+//! documented divergences.
 
 pub use thruput_erc20_test::*;
 

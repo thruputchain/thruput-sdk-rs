@@ -1,10 +1,9 @@
-//! Event types for Thruput smart contracts.
+//! Event types for Thruput contracts: the [`Event`] trait that
+//! `#[derive(Event)]` implements, topics ([`Topic`], [`TopicSrc`]), and the
+//! [`EmittedEvent`] and [`TypedEvent`] views of an emitted event.
 //!
-//! An event is a list of up to three 32-byte topics followed by an
-//! XDR-encoded payload. Event types implement [`Event`]; [`EmittedEvent`]
-//! is an event as read back from a transaction.
-//!
-//! Contract authors normally derive [`Event`] through `thruput-sdk`.
+//! Split out of `thruput-sdk` so host-side tooling can decode events without
+//! the SDK. Contracts use the re-exports in `thruput_sdk`.
 
 #![no_std]
 

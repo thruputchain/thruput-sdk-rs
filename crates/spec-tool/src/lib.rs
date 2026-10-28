@@ -1,9 +1,11 @@
-//! Tools for Thruput contract specs.
+//! Read, canonicalize and render Thruput contract specs.
 //!
-//! A contract build embeds raw spec fragments in the binary. This crate
-//! parses those fragments ([`raw`]), canonicalizes them into a finalized
-//! [`ContractSpec`], and describes known exception types by selector
-//! ([`describe`]).
+//! A contract build leaves raw spec fragments in an ELF section.
+//! [`canonicalize_spec`] assembles them into a finalized [`ContractSpec`],
+//! and [`render_spec_json`] writes the `.spec.json` sidecar.
+//! [`check_raw_spec_format`] rejects fragments from an incompatible SDK
+//! before they are decoded. The `thruput` CLI builds contract specs with this
+//! crate.
 
 use std::collections::BTreeMap;
 

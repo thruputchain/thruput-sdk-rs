@@ -1,7 +1,5 @@
-//! The ERC20 pausable extension for Thruput smart contracts.
-//!
-//! [`ERC20Pausable`] lets an authorized pauser stop and resume a token's
-//! balance-changing operations.
+//! The pausable extension to ERC20: [`ERC20Pausable`] lets a pauser stop
+//! every balance-changing operation, with its errors and events.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]

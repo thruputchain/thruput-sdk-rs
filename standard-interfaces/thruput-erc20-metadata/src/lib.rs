@@ -1,5 +1,5 @@
-//! The ERC20 metadata extension for Thruput smart contracts: a token's
-//! name, symbol and decimal places.
+//! The ERC20 metadata extension: [`ERC20Metadata`] sets and reports a token's
+//! name, symbol and decimals.
 
 #![no_std]
 

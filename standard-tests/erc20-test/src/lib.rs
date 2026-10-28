@@ -1,10 +1,11 @@
-//! A shared conformance suite for ERC20 contracts on Thruput.
+//! An ERC20 conformance suite. [`erc20_test_setup`] deploys the contract
+//! under test, and [`erc20_test`] drives it through the ERC20 operations,
+//! checking every result against an in-memory [`Model`]. The model's
+//! expected event log is then compared with what the contract emitted, using
+//! [`check_events`].
 //!
-//! [`erc20_test_setup`] deploys the contract under test, and [`erc20_test`]
-//! runs the suite against it, returning a [`Model`] of the expected state and
-//! event log. [`check_events`] compares that log with the events a
-//! transaction actually emitted. Enable `metadata` to also check the ERC20
-//! metadata extension.
+//! The suite runs inside a contract frame. `thruput-erc20-native-test` runs it
+//! in the native test environment.
 
 #![no_std]
 

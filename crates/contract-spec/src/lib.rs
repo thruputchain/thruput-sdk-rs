@@ -1,21 +1,10 @@
-//! The contract spec model for Thruput contracts.
+//! The contract spec model shared by the macros, the SDK and spec tooling.
 //!
-//! A contract spec describes a contract's interfaces, methods, types, events
-//! and exceptions. This crate provides:
-//!
-//! - const views ([`view`]) that `thruput-sdk`'s macros emit into contract
-//!   binaries, usable without `alloc`;
-//! - the owned spec model, re-exported from `thruput-spec` (feature
-//!   `owned-model`, on by default);
-//! - the spec section names and format version ([`format`]).
-//!
-//! Contract authors normally use this crate through `thruput-sdk`.
-//!
-//! # Features
-//!
-//! - `alloc`: conversions and helpers that need an allocator.
-//! - `owned-model` (default): the owned spec types; implies `alloc`.
-//! - `serde`: `serde` support for the owned spec types.
+//! It defines the traits through which contract types and events describe
+//! themselves ([`ContractTypeSpec`], [`ContractEventSpec`],
+//! [`ContractTypeName`]), zero-copy views of spec fragments, and the raw spec
+//! section's wire-format versioning ([`format`]). With the `owned-model`
+//! feature it also re-exports the owned spec types from `thruput-spec`.
 
 #![no_std]
 
