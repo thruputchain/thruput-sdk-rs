@@ -73,9 +73,12 @@ PY
         install_flags=(--root "${THRUPUT_CLI_ROOT}")
     fi
 
+    # --force: a cached root may hold `thruput` from the old `thruput-cli`
+    # package, which cargo will not overwrite otherwise. The version check
+    # above keeps it from rebuilding a CLI that is already current.
     if [ "$(thruput --version 2>/dev/null | awk '{print $2}')" != "$THRUPUT_CLI_VERSION" ]; then
         cargo install thruput --version "=$THRUPUT_CLI_VERSION" \
-            --locked "${install_flags[@]}"
+            --locked --force "${install_flags[@]}"
     fi
 }
 
