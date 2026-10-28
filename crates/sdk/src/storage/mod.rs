@@ -63,7 +63,6 @@ pub(crate) mod live_guards;
 /// terminal Return there, which is the very hazard the native tracker
 /// exists to catch. No-op stubs keep every call site free of `cfg`, and
 /// compile to nothing — `LiveGuard`/`FrameGuardReset` are `Drop`-less ZSTs.
-/// (Same dual-impl convention as [`crate::rt::trap`].)
 #[cfg(any(doc, target_arch = "riscv32"))]
 pub(crate) mod live_guards {
     pub(crate) struct LiveGuard;

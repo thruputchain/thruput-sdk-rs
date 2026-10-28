@@ -13,7 +13,6 @@ use thruput_sdk::{
     ContractAddress, EmittedEvent, Event, base58_encode, log_event,
 };
 
-/// Log that `account` paused the token.
 /// An event emitted when the token is paused.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct PausedEvent {
@@ -62,7 +61,6 @@ impl fmt::Display for PausedEvent {
 
 // ----------------------------------------------------------------------
 
-/// Log that `account` unpaused the token.
 /// An event emitted when the token is unpaused.
 #[derive(Event, Clone, Debug, PartialEq, Eq)]
 pub struct UnpausedEvent {

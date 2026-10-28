@@ -14,7 +14,7 @@ use xdrs::txs;
 
 /// Backing storage for a mock contract, owned by the [`TestEnvironment`];
 /// interact with it through [`MockContract`] handles.
-pub struct MockContractInner {
+pub(crate) struct MockContractInner {
     // implicitly, this contract is Contract::kMockTest { mock_contract_id : index }
     index: i32,
     hash: SHA256Hash, // sha256(Contract::kMocktest(index))
@@ -47,7 +47,7 @@ fn i32_to_contract(index: i32) -> Contract {
 
 impl MockContract {
     /// Wrap a raw [`MockContractInner`] owned by `env`.
-    pub fn new(
+    pub(crate) fn new(
         inner: *mut MockContractInner,
         env: Rc<TestEnvironment>,
     ) -> Self {
@@ -148,11 +148,6 @@ impl MockContractInner {
             funcs: HashMap::new(),
             unknown: None,
         }
-    }
-
-    /// The contract hash (`sha256(Contract::kMockTest(index))`).
-    pub fn as_hash(&self) -> &SHA256Hash {
-        &self.hash
     }
 
     /// The registered entrypoint for `method`, if any.

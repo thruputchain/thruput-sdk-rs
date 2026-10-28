@@ -89,10 +89,7 @@ pub enum LibraryExn {
 
     #[cfg_attr(
         not(target_arch = "riscv32"),
-        error(
-            "storage keypath exceeds the no-alloc budget; enable the \
-               `alloc` feature or pre-hash oversized keys"
-        )
+        error("storage keypath component is too long to encode")
     )]
     StorageKeypathOverflow = 10,
 

@@ -1,9 +1,6 @@
 //! Routines for reading transaction AuthClaims.
 //!
 //! These routines are thin wrappers around VM syscalls.
-// TODO(geoff): Think about the following questions:
-// 1: is there a better interface in which to wrap these calls?
-// 2: Do we want some runtime-checked "single-use" checks for these authclaims?
 
 use crate::sys::{self, SysResult};
 use core::mem::MaybeUninit;

@@ -1,9 +1,10 @@
 //! Runtime exit (trap)
 
+/// Abort the current invocation with a deterministic error.
+///
+/// Under `dev`, this panics with the mock executor's deterministic error,
+/// which the native test environment reports as a trap.
 #[cfg(feature = "dev")]
-#[allow(dead_code)]
-#[allow(unused)]
-/// Toss a deterministic error for the mock execution environment to catch
 pub fn trap() -> ! {
     use std::panic::panic_any;
     use thruput_native_exec::invoke_error::deterministic_error;
@@ -11,6 +12,7 @@ pub fn trap() -> ! {
     panic_any(deterministic_error())
 }
 
+/// Abort the current invocation with a deterministic error.
 #[cfg(not(feature = "dev"))]
 #[inline(always)]
 pub fn trap() -> ! {

@@ -20,13 +20,6 @@ use thruput_xdr::transaction::*;
 use thruput_xdr::types::*;
 use xdrs::txs;
 
-// TODO(geoff): I cannot figure out how to prevent rust from moving objects
-// without just converting back to raw pointers.
-// Pin<Box<T>> with PhantomPinned still wound up getting moved, somehow.
-// It would be nice to avoid this later of indirection, as that would make passing
-// (or at least seem to make) passing closures in as parameters to test functions
-// much easier.
-
 // When deploying a new contract, hogd accounts for the storage cost of the contract
 // based on its size.  We don't have access to contract size here (because it's not built),
 // so we pick a default (nonzero) value as a placeholder.
@@ -54,7 +47,7 @@ pub fn test_network_hash() -> NetworkHash {
 
 /// The state behind a [`TestEnvironment`]: the FFI database, runtime
 /// context, and registered mock contracts.
-pub struct TestEnvironmentInner {
+pub(crate) struct TestEnvironmentInner {
     pub(crate) db: DBWrapper,
     pub(crate) contract_context: RuntimeContextWrapper,
     mock_contract_index: i32,
