@@ -9,7 +9,7 @@
 //!
 //! The guest build gets the no-op stubs in `storage/mod.rs` instead of this
 //! module, so call sites need no `cfg` and guest artifacts contain none of
-//! this. (Same dual-impl convention as [`crate::rt::trap`].)
+//! this.
 
 use core::cell::Cell;
 

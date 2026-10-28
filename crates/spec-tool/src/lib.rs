@@ -1,3 +1,10 @@
+//! Tools for Thruput contract specs.
+//!
+//! A contract build embeds raw spec fragments in the binary. This crate
+//! parses those fragments ([`raw`]), canonicalizes them into a finalized
+//! [`ContractSpec`], and describes known exception types by selector
+//! ([`describe`]).
+
 use std::collections::BTreeMap;
 
 pub mod describe;

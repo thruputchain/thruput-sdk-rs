@@ -71,7 +71,7 @@ impl Keypath {
     /// any value bytes.
     ///
     /// A single value's encoding is capped at the SDK's fixed encode-buffer
-    /// size; oversized values throw `LibraryExn::StorageKeypathOverflow`.
+    /// size; oversized values throw `LibraryExn::StorageSerialization`.
     ///
     /// Slot identity is the sequence of `child` values from the root: there is
     /// no per-component "structural vs. user-key" tag, so two children of the

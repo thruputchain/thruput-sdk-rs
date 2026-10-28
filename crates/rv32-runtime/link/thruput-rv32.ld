@@ -1,6 +1,6 @@
 /* Thruput RV32 contract linker script.
  *
- * The hogd VM is modified-Harvard: PC indexes an immutable CODE memory; loads
+ * The Thruput VM is modified-Harvard: PC indexes an immutable CODE memory; loads
  * and stores address a separate DATA memory. The two are INDEPENDENT address
  * spaces in the VM, so we lay them out as two MEMORY regions whose virtual
  * addresses deliberately overlap numerically — they can never collide because
@@ -36,7 +36,7 @@
  * lowerer sets it to the lowest data-section VA), so the stack region
  * below the statics is never stored, only zero-filled at instantiation.
  *
- * Layout invariants enforced by the hogd lowerer:
+ * Layout invariants enforced by the contract lowerer:
  *
  *   - .text starts at virtual address 0 (so PC space and VA space match).
  *   - No data section may touch the lowerer's null guard [0, 0x8) — the

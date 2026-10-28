@@ -9,12 +9,8 @@ pub mod semver;
 
 /// Standard signature for a contract method.
 ///
-/// We currently only depend on the method name, but this may change in future versions.
-// TODO(geoff,dobog): in future versions
-// we may consider adding the arguments and return type to the signature
-// as a checksum, if there is a clear way to derive a standardized argument
-// type string at proc-macro runtime.
-//
+/// Only the method name is part of the signature today. Argument and return
+/// types may be added in a future version.
 #[derive(Debug)]
 pub struct NormalizedMethodSignature {
     method_name: String,

@@ -1,3 +1,11 @@
+//! Event types for Thruput smart contracts.
+//!
+//! An event is a list of up to three 32-byte topics followed by an
+//! XDR-encoded payload. Event types implement [`Event`]; [`EmittedEvent`]
+//! is an event as read back from a transaction.
+//!
+//! Contract authors normally derive [`Event`] through `thruput-sdk`.
+
 #![no_std]
 
 mod emitted_event;

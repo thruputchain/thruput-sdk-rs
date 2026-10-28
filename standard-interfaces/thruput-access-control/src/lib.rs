@@ -1,3 +1,9 @@
+//! Role-based access control for Thruput smart contracts, following
+//! OpenZeppelin's `AccessControl`.
+//!
+//! [`AccessControl`] is the interface trait. `thruput-access-control`
+//! provides an embeddable implementation.
+
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 

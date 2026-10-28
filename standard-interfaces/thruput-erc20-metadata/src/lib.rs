@@ -1,3 +1,6 @@
+//! The ERC20 metadata extension for Thruput smart contracts: a token's
+//! name, symbol and decimal places.
+
 #![no_std]
 
 #[cfg(feature = "alloc")]
@@ -25,10 +28,9 @@ pub trait ERC20Metadata {
     /// The token's symbol
     fn symbol(&self) -> Option<Symbol>;
 
-    /// The token's decimal-places
+    /// The token's number of decimal places.
     ///
-    /// This parameter is to be used purely for presentation; it does not
-    /// affect the represenation of any token amounts in the ERC20 contract.
-    ///
+    /// This is for presentation only; it does not affect how token amounts
+    /// are represented in the ERC20 contract.
     fn decimals(&self) -> Option<u32>;
 }

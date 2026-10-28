@@ -61,7 +61,7 @@ fn make_signed_tx(
 
     // Sign the domain-separated, network-bound preimage (ed25519 hashes
     // internally, so no pre-hashing).  This must match the C++ reference,
-    // `hogd::transaction_signature_preimage`.
+    // the node's transaction signature preimage.
     let preimage = transaction_signature_preimage(&test_network_hash(), &tx)
         .expect("failed to encode signature preimage");
     let sig = signing_key.sign(&preimage);

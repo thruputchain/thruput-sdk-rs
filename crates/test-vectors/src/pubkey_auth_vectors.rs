@@ -12,7 +12,7 @@
 //! leaves the transaction hash unchanged.
 //!
 //! [`cases`] is public so the test-ffi tests in this crate can check that
-//! hogd's verifier accepts exactly these signed transactions.
+//! The node's verifier accepts exactly these signed transactions.
 
 use ed25519_dalek::Signer as _;
 use ml_dsa::signature::Keypair as _;
@@ -139,7 +139,7 @@ pub fn test_network_hash() -> NetworkHash {
     ))
 }
 
-/// hogd devnode's network hash: all zero.
+/// The local dev node's network hash: all zero.
 pub fn devnode_network_hash() -> NetworkHash {
     NetworkHash::new(SHA256Hash::new([0u8; 32]))
 }

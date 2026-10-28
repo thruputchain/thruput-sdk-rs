@@ -11,7 +11,7 @@ pub const SP_UNWRITTEN: u32 = u32::MAX;
 
 /// What an rv32 guest did with its stack pointer over one invocation.
 ///
-/// hogd records one of these per rv32 invocation, when the invocation ends,
+/// The test executor records one of these per rv32 invocation, when the invocation ends,
 /// in Debug builds with `HOGD_RV32_STACK_USAGE` on -- which the prebuilt
 /// test_ffi library this crate links is. `sp_initial` is the first value the
 /// guest stored to `sp` (x2): the stack top its `_start` established.

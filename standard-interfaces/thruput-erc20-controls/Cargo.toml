@@ -29,6 +29,6 @@ thruput-sdk = { path = "../../crates/sdk", registry = "thruput", version = "0.57
 doctest = false
 
 [[bin]]
-name = "thruput-erc20-controls-if"
+name = "thruput_erc20_controls_if"
 path = "src/main.rs"
 required-features = ["entrypoints"]

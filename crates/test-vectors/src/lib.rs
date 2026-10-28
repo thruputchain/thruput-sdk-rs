@@ -1,3 +1,10 @@
+//! Cross-language test vectors for Thruput SDK types.
+//!
+//! Each module generates one family of vectors: XDR encodings, entrypoint
+//! ids, domain separators, signed operations and public-key authorization.
+//! SDKs in other languages replay these vectors to check that they agree
+//! with this one.
+
 /// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what
 /// `thruput-sdk` re-exports, so vector payload types can derive their spec
 /// impls instead of hand-writing them.

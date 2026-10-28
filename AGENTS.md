@@ -17,7 +17,7 @@ Read [README.md](README.md) for setup and development commands. Run
 | `crates/sdk/` | Public SDK: calls, exceptions, storage, authentication, and test helpers |
 | `crates/macros/` | Contract, storage, event, and exception macros and code generation |
 | `crates/native-exec/` | Native execution environment and transaction/frame builders |
-| `crates/hogd-sys/` | Native test executor FFI and library acquisition |
+| `crates/thruput-sys/` | Native test executor FFI and library acquisition |
 | `crates/rv32-runtime/` | RV32 guest runtime |
 | `crates/contract-spec/`, `crates/spec-tool/` | Contract specifications and artifact tooling |
 | `crates/event/`, `crates/exn/`, `crates/u256/` | Event, exception, and integer types |

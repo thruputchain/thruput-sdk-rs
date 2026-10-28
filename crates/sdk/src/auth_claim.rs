@@ -1,9 +1,6 @@
 //! Routines for reading transaction AuthClaims.
 //!
 //! These routines are thin wrappers around VM syscalls.
-// TODO(geoff): Think about the following questions:
-// 1: is there a better interface in which to wrap these calls?
-// 2: Do we want some runtime-checked "single-use" checks for these authclaims?
 
 use crate::sys::{self, SysResult};
 use core::mem::MaybeUninit;
@@ -107,8 +104,8 @@ pub fn set_address_required_weight(required_weight: Weight) -> SysResult<()> {
     sys::uninit_WriteAddressRequiredWeight(required_weight)
 }
 
-/// Register `public_key` at `pk_index`. ML-DSA-65 keys need a runtime that
-/// includes hogd #4539; an older runtime, like any runtime given a scheme it
+/// Register `public_key` at `pk_index`. ML-DSA-65 keys need a runtime with
+/// ML-DSA-65 support; an older runtime, like any runtime given a scheme it
 /// does not know, rejects the key with `InvalidSyscallInput`.
 pub fn add_address_public_key(
     pk_index: u32,

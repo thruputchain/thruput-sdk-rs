@@ -91,7 +91,7 @@ This will:
 ### 4. Documentation Builds (docs.rs)
 
 docs.rs builds without network access. When `DOCS_RS` is set, the build
-script copies the checked-in `crates/hogd-sys/docs-rs/bindings.rs` and skips
+script copies the checked-in `crates/thruput-sys/docs-rs/bindings.rs` and skips
 acquiring and linking the library; rustdoc needs neither. Every other build
 method writes its own bindings. The `docs_rs_bindings` test in `thruput-sys`
 fails when the checked-in copy differs from the linux-x86_64 archive's
@@ -112,7 +112,7 @@ The version is managed differently depending on the build path:
 
 ### Prebuilt Download Path (default)
 
-Uses the `TEST_FFI_VERSION` constant in `crates/hogd-sys/build.rs` to
+Uses the `TEST_FFI_VERSION` constant in `crates/thruput-sys/build.rs` to
 determine which release to download. The prebuilt tarball includes both the
 library and a pre-generated `bindings.rs`, so no hogd checkout is needed.
 
@@ -136,7 +136,7 @@ out the correct tag.
 ### Updating the Version
 
 When updating to a new test_ffi version:
-1. Update `TEST_FFI_VERSION` in `crates/hogd-sys/build.rs`
+1. Update `TEST_FFI_VERSION` in `crates/thruput-sys/build.rs`
 2. Update the version in this README
 
 ## Error Handling

@@ -39,6 +39,6 @@ test = false
 # `required-features` keeps a plain `cargo build`/`test` from building this
 # rv32-only, entry-point-less binary.
 [[bin]]
-name = "thruput-erc20-if"
+name = "thruput_erc20_if"
 path = "src/main.rs"
 required-features = ["entrypoints"]

@@ -62,7 +62,7 @@ host-side test build enables `dev`.
   hangs off it: [`TestEnvironment`], [`client_test`], [`test_rv32()`],
   [`declare_mock_contract!`], and the storage-cost helpers. A contract crate
   forwards this from its own `dev` feature. It is the only feature that pulls
-  `thruput-native-exec`, and through it the hogd FFI library, into the
+  `thruput-native-exec`, and through it the test executor FFI library, into the
   dependency graph. That is why it is a feature: crates that only read
   contract specs build `thruput-sdk` without it and never fetch that library.
 - **`logging`** — trace contract calls during native tests. Not implied by
@@ -70,7 +70,7 @@ host-side test build enables `dev`.
 - **`source-build`** — compile the cmake source-build path into
   `thruput-sys`. It does not select that path: `HOGD_FFI_BUILD=1` does, and
   it needs this feature to have something to select. Set both to build the
-  hogd FFI library from source rather than download a prebuilt one, which is
+  test executor FFI library from source rather than download a prebuilt one, which is
   also the only way to build on a platform with no prebuilt binary. Only
   meaningful alongside `dev`.
 

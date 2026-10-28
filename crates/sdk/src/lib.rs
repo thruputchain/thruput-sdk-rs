@@ -181,7 +181,6 @@ mod hex;
 mod invoke_config;
 mod log;
 mod receive_auth_handles;
-mod rt;
 mod serialize;
 
 #[doc(hidden)]
@@ -204,7 +203,6 @@ pub use log::*;
 pub use mintable::{AuthTokenPreimage, Mintable, MintableType};
 pub use re_throw::*;
 pub use receive_auth_handles::*;
-pub use rt::*;
 pub use serialize::*;
 pub use signer::*;
 pub use throw::*;

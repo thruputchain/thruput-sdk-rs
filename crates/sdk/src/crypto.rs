@@ -38,7 +38,7 @@ pub fn verify_signature_ed25519(
 /// a signature of another scheme fails without being verified. ML-DSA-65 is
 /// pure ML-DSA with an empty context, priced at 46,592 gas plus 160 per
 /// 136-byte SHAKE256 block of a 66-byte prefix plus `message`, and needs a
-/// runtime that includes hogd #4541.
+/// runtime with ML-DSA-65 support.
 pub fn verify_signature(
     pk: &PublicKey,
     signature: &Signature,

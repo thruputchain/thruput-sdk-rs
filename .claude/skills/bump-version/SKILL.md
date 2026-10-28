@@ -135,13 +135,13 @@ directly. Both need their pin and their own `Cargo.lock` updated:
 `version-check` scans both, including their lockfiles, so a stale pin here is
 reported like any other rather than waiting to surface at build time.
 
-### 4. `hogd-sys` FFI version (if applicable)
+### 4. `thruput-sys` FFI version (if applicable)
 
-- `crates/hogd-sys/build.rs` — the `TEST_FFI_VERSION` constant (`"0.20.1"` at
+- `crates/thruput-sys/build.rs` — the `TEST_FFI_VERSION` constant (`"0.20.1"` at
   the time of writing). An independent version line: bump it only when the
   test-ffi release changes, not with the workspace version. Not covered by
   `version-check`.
-- `crates/hogd-sys/docs-rs/bindings.rs` — on a `TEST_FFI_VERSION` bump,
+- `crates/thruput-sys/docs-rs/bindings.rs` — on a `TEST_FFI_VERSION` bump,
   replace it with the `bindings.rs` from the new linux-x86_64 archive (on an
   x86_64 Linux host, a build leaves that copy at
   `target/debug/build/thruput-sys-*/out/bindings.rs`). The

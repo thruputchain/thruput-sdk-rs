@@ -20,14 +20,7 @@ use thruput_xdr::transaction::*;
 use thruput_xdr::types::*;
 use xdrs::txs;
 
-// TODO(geoff): I cannot figure out how to prevent rust from moving objects
-// without just converting back to raw pointers.
-// Pin<Box<T>> with PhantomPinned still wound up getting moved, somehow.
-// It would be nice to avoid this later of indirection, as that would make passing
-// (or at least seem to make) passing closures in as parameters to test functions
-// much easier.
-
-// When deploying a new contract, hogd accounts for the storage cost of the contract
+// When deploying a new contract, the test executor accounts for the storage cost of the contract
 // based on its size.  We don't have access to contract size here (because it's not built),
 // so we pick a default (nonzero) value as a placeholder.
 // Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
@@ -54,7 +47,7 @@ pub fn test_network_hash() -> NetworkHash {
 
 /// The state behind a [`TestEnvironment`]: the FFI database, runtime
 /// context, and registered mock contracts.
-pub struct TestEnvironmentInner {
+pub(crate) struct TestEnvironmentInner {
     pub(crate) db: DBWrapper,
     pub(crate) contract_context: RuntimeContextWrapper,
     mock_contract_index: i32,
@@ -64,7 +57,7 @@ pub struct TestEnvironmentInner {
 /// An in-process Thruput instance for testing contracts natively.
 ///
 /// A `TestEnvironment` owns a fresh in-memory database and runtime context
-/// (backed by hogd via FFI). Constructors return a [`TestEnvironmentHandle`];
+/// (backed by the test executor via FFI). Constructors return a [`TestEnvironmentHandle`];
 /// clone the handle to share the environment across helpers.
 ///
 /// - [`TestEnvironment::new`] takes an optional storage cost model;
@@ -155,10 +148,10 @@ impl DBWrapper {
             .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
             .unwrap_or((core::ptr::null(), 0));
 
-        // hogd reads exactly 32 bytes from this pointer (it is not XDR), and
+        // The test executor reads exactly 32 bytes from this pointer (it is not XDR), and
         // rejects a null one. A null network config takes this build's stock
         // genesis values; a non-null one must state a gapless prefix of the
-        // parameter id space, which hogd checks fatally (SIGABRT, no return
+        // parameter id space, which the test executor checks fatally (SIGABRT, no return
         // through the FFI) -- build it with
         // `crate::network_config::NetworkConfigBuilder`, which refuses to
         // produce anything else.
@@ -803,7 +796,7 @@ impl TestEnvironment {
     ///
     /// Creates a MockTransactionHandler, gives the closure a mutable reference,
     /// and always calls try_commit_transaction when the closure returns
-    /// (hogd handles abort internally when the root frame reverted).
+    /// (the test executor handles abort internally when the root frame reverted).
     ///
     /// The transaction has exactly one root frame: a second `tx.call`
     /// inside the closure panics; use a child frame or another `transact`.
@@ -1022,7 +1015,7 @@ mod tests {
         env.setup_grant_storage_tokens(&TEST_ADDR, 1_000_000_000);
         // Any created, deployable contract works: the transact below runs
         // through the mock trampoline regardless of the deployed type, and
-        // native precompiles are banned from redeployment (hogd #3592).
+        // native precompiles are banned from redeployment.
         // A fresh environment hands out mock contract ids from zero.
         let _mock = env.inner.borrow_mut().add_contract();
         let contract = thruput_xdr::contract::Contract::kMockTest {

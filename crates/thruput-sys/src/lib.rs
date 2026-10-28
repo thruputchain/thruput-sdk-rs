@@ -1,10 +1,10 @@
 //! # thruput-sys
 //!
-//! Low-level Rust FFI bindings to the `hogd` test harness runtime.
+//! Low-level Rust FFI bindings to the Thruput native test executor (`test_ffi`).
 //!
 //! This crate is an internal implementation detail exposing C bindings and
 //! constants needed for the higher-level `thruput-sdk` Rust crate. The
-//! contents are auto-generated from the `hogd` C headers via bindgen.
+//! contents are auto-generated from the test executor C headers via bindgen.
 
 // suppress spurious warnings from bindgen
 #![allow(non_camel_case_types)]

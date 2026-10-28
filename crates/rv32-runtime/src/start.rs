@@ -1,6 +1,6 @@
 //! rv32 `_start`: the guest dispatch entry.
 //!
-//! The hogd VM enters every call at PC 0 (`_start`) with the invoked
+//! The Thruput VM enters every call at PC 0 (`_start`) with the invoked
 //! `method_id` split across `a0` (low 32) and `a1` (high 32). `_start` is a
 //! naked shim: it sets `sp` and tail-calls `rv32_dispatch` WITHOUT touching
 //! `a0`/`a1`, so the RISC-V C ABI reassembles them into the `u64` argument for
