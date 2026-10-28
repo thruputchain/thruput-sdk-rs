@@ -1,3 +1,6 @@
+//! The pausable extension to ERC20: [`ERC20Pausable`] lets a pauser stop
+//! every balance-changing operation, with its errors and events.
+
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 

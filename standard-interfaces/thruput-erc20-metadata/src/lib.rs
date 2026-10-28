@@ -1,3 +1,6 @@
+//! The ERC20 metadata extension: [`ERC20Metadata`] sets and reports a token's
+//! name, symbol and decimals.
+
 #![no_std]
 
 #[cfg(feature = "alloc")]

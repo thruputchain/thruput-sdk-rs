@@ -6,7 +6,7 @@ This repository contains the Thruput Rust SDK, its procedural macros, the RV32
 guest runtime, and native test infrastructure.
 
 For contract authoring, start with [Start a contract](README.md#start-a-contract).
-Read [README.md](README.md) for setup and development commands. Run
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 `./scripts/dev.sh` from the repository root. Use the toolchain declared in
 [rust-toolchain.toml](rust-toolchain.toml).
 
@@ -37,7 +37,7 @@ Read [README.md](README.md) for setup and development commands. Run
 - Run focused tests for the changed crate or contract first. For example,
   `./scripts/dev.sh test example-contracts/counter -- --show-output`.
 - Use `./scripts/ci.sh` for full validation. It installs the pinned Thruput
-  CLI, then runs `./scripts/dev.sh ci`. See README prerequisites first.
+  CLI, then runs `./scripts/dev.sh ci`. See CONTRIBUTING.md prerequisites first.
 - Root Cargo commands use `default-members`. Do not replace them with
   `--workspace`: the guest runtime crate requires its own target.
 - Example and integration workspaces have separate manifests and lockfiles.
@@ -77,8 +77,9 @@ Read [README.md](README.md) for setup and development commands. Run
 
 ## Documentation and communication
 
-Use short sentences and consistent technical terms. Keep setup instructions in
-README, API behavior in rustdoc, and regression expectations in tests. Link to
+Use short sentences and consistent technical terms. Keep contract-author
+guidance in README, setup instructions in CONTRIBUTING.md, API behavior in
+rustdoc, and regression expectations in tests. Link to
 these sources instead of copying them into this file. Git history retains old
 plans and review reports.
 

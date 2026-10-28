@@ -1,3 +1,11 @@
+//! The standard ERC20 interface for Thruput contracts: the [`ERC20`] trait,
+//! its errors and events, and the [`ERC20AllowanceExpiry`] extension.
+//!
+//! Further extensions live in their own crates: `thruput-erc20-metadata-if`,
+//! `thruput-erc20-pausable-if`, `thruput-erc20-permit-if` and
+//! `thruput-erc20-controls-if`. `thruput-erc20-test` checks an
+//! implementation against this interface.
+
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 
@@ -21,8 +29,7 @@ pub type Difference = i128;
 /// Nothing in this interface treats it specially any more: mints and burns
 /// are [`MintEvent`] and [`BurnEvent`], not transfers from or to it. It
 /// stays exported for consumers that render or model those events, and
-/// as the address thruputchain/hogd#3871 proposes reserving as "nothing
-/// is here".
+/// as a conventional "nothing is here" address.
 pub const CONTRACT_ADDR_ZERO: &ContractAddress =
     &ContractAddress::new([0; 32]);
 

@@ -1,4 +1,9 @@
-//! Miscellaneous utility functions for contract development
+//! Naming and hashing rules shared by `thruput-macros` and host tooling:
+//! entrypoint and interface IDs, exception selectors, event signatures and
+//! export names, and contract version handling ([`semver`]).
+//!
+//! [`remote`] holds the runtime side of the off-chain proxies that
+//! `thruput-sdk`'s `remote` feature generates.
 
 use sha2::Digest;
 use std::fmt::{self, Display};

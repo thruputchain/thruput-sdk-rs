@@ -16,7 +16,7 @@ const HOGD_REPO_URL: &str = "https://github.com/thruputchain/hogd.git";
 ///
 /// On a bump, replace `docs-rs/bindings.rs` with the `bindings.rs` from the
 /// new linux-x86_64 archive. The `docs_rs_bindings` test fails until you do.
-const TEST_FFI_VERSION: &str = "0.41.0";
+const TEST_FFI_VERSION: &str = "0.42.0";
 
 /// The archive whose `bindings.rs` is checked in as `docs-rs/bindings.rs`.
 const DOCS_RS_ARCHIVE: &str = "libtest_ffi-linux-x86_64.tar.gz";
@@ -35,7 +35,7 @@ const THRUPUT_CLI_VERSION: &str = "0.37.0";
 /// - If `HOGD_SRC` is set but empty/missing, clone there
 /// - Otherwise, clone under the system temporary directory, keyed by OUT_DIR
 ///   and TEST_FFI_VERSION. Keep this independent workspace outside the SDK
-///   configuration tree: its pinned source still uses a different registry alias.
+///   tree, so the SDK's Cargo configuration does not apply to it.
 #[cfg(feature = "source-build")]
 fn ensure_hogd_clone(
     out_dir: &Path,

@@ -1,8 +1,20 @@
-# thruput-native-exec Build Configuration
+# thruput-native-exec
 
-The `thruput-native-exec` crate provides Rust bindings to the hogd test_ffi library,
-linked in through the `thruput-sys` crate. `thruput-sys`'s build script
-obtains the library in one of three ways, selected by environment variables.
+A native execution environment for testing Thruput contracts in-process. Tests
+deploy contracts into an in-memory Thruput instance, run transactions against
+them, and assert on events, return values, exceptions and faults, with no
+guest build. Contract crates normally reach it through `thruput-sdk`'s `dev`
+feature rather than depending on it directly:
+
+```toml
+[dev-dependencies]
+my-contract = { path = ".", features = ["dev"] }  # where `dev` enables thruput-sdk/dev
+```
+
+The executor itself is a native library, the Thruput test FFI, which the
+`thruput-sys` crate binds and links. The rest of this page covers how
+`thruput-sys` obtains that library. Its build script picks one of three ways,
+selected by environment variables.
 
 ## Default Behavior
 
@@ -37,7 +49,10 @@ This will automatically:
 
 Downloads are public and require no authentication or AWS credentials.
 
-### 2. Build from Source (Override)
+### 2. Build from Source (Maintainer Workflow)
+
+This path is for working on the executor itself or for unsupported
+platforms. It needs CMake, a C++ toolchain, libclang and ccache.
 
 Building from source needs two things: the `source-build` cargo feature
 (which makes the `cmake` and `bindgen` build-dependencies available — they
@@ -61,8 +76,10 @@ toggle `HOGD_FFI_BUILD=1` per invocation — with the feature on but the
 environment variable unset, you still get the prebuilt download.
 
 This will:
-- Clone hogd at the matching `test-ffi-v{VERSION}` tag (to `OUT_DIR`, or use
-  `HOGD_SRC` if set), and verify the tag
+- Clone hogd at the matching `test-ffi-v{VERSION}` tag under the system
+  temporary directory, or use the checkout at `HOGD_SRC` if set, and verify
+  the tag. Keep a `HOGD_SRC` checkout outside this SDK tree, so the two
+  Cargo configurations stay separate
 - Generate bindings using bindgen from the hogd header file
 - Build the library using CMake (requires CMake, a C++ toolchain, and ccache)
 
@@ -116,7 +133,7 @@ Uses the `TEST_FFI_VERSION` constant in `crates/hogd-sys/build.rs` to
 determine which release to download. The prebuilt tarball includes both the
 library and a pre-generated `bindings.rs`, so no hogd checkout is needed.
 
-Current version: **0.41.0** (tag: `test-ffi-v0.41.0`)
+Current version: **0.42.0** (tag: `test-ffi-v0.42.0`)
 
 ### Source / Custom-lib-dir Path
 
@@ -126,7 +143,7 @@ following constants:
 - `TEST_FFI_VERSION_MINOR`
 - `TEST_FFI_VERSION_PATCH`
 
-These are combined to form the version string (e.g., `0.17.0`) and used to:
+These are combined to form the version string (e.g., `0.42.0`) and used to:
 1. Cross-check against `TEST_FFI_VERSION` in build.rs (must match)
 2. Verify the hogd checkout is at the correct git tag (`test-ffi-v{VERSION}`)
 

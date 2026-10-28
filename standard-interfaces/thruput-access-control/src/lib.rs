@@ -1,3 +1,11 @@
+//! Role-based access control for Thruput contracts: the [`AccessControl`]
+//! standard interface, following OpenZeppelin's `AccessControl`, with its
+//! errors and events.
+//!
+//! A contract implements the trait with `#[contract]`, or embeds the
+//! implementation in `thruput-access-control`. Callers use the generated
+//! client.
+
 #![cfg_attr(not(feature = "dev"), no_std)]
 #![allow(clippy::result_large_err)]
 
