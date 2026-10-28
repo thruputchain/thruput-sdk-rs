@@ -30,6 +30,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 | `integration_test/` | Integration workspace; `contracts/` is a Git submodule |
 | `standard-interfaces/`, `standard-impls/`, `standard-tests/` | Standard interfaces, reusable implementations, and shared tests |
 | `logging-test/` | Logging build fixture; separate Cargo workspace |
+| `gnaw/` | CI task runner; separate Cargo workspace, run as `cargo gnaw` |
 | `scripts/`, `.github/workflows/` | Development commands and CI/release automation |
 
 ## Validation
@@ -37,7 +38,9 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 - Run focused tests for the changed crate or contract first. For example,
   `./scripts/dev.sh test example-contracts/counter -- --show-output`.
 - Use `./scripts/ci.sh` for full validation. It installs the pinned Thruput
-  CLI, then runs `./scripts/dev.sh ci`. See CONTRIBUTING.md prerequisites first.
+  CLI, then runs `cargo gnaw run ci`. See CONTRIBUTING.md prerequisites first.
+  To run part of CI, name gnaw tasks or groups, such as
+  `cargo gnaw run fixtures:test`.
 - Root Cargo commands use `default-members`. Do not replace them with
   `--workspace`: the guest runtime crate requires its own target.
 - Example and integration workspaces have separate manifests and lockfiles.

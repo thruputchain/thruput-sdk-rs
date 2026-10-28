@@ -117,7 +117,7 @@ jobs:
       # (and across runs, via the Namespace cache below). The dry runs below
       # package thruput-sys once per feature combination, and each instance
       # would otherwise re-download the prebuilt FFI tarball into its own
-      # OUT_DIR. Mirrors ci.yml and sdk_tests.yml.
+      # OUT_DIR. Mirrors ci.yml.
       HOGD_DOWNLOAD_CACHE_DIR: ${{ github.workspace }}/.hogd-ffi-cache
 
     steps:

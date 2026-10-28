@@ -93,16 +93,32 @@ lowered artifacts and specs under `target/thruput/`.
 
 ## Run CI locally
 
-Run the full CI sequence, including documentation, tests, guest builds,
-artifact checks, linting, and formatting:
+CI runs [gnaw](gnaw/src/lib.rs), a task runner in its own workspace. Run the
+full CI sequence, including documentation, tests, guest builds, artifact
+checks, linting, and formatting:
 
 ```sh
 ./scripts/ci.sh
 ```
 
 This installs the pinned CLI if needed and creates a CLI profile if none is
-active, then runs `dev.sh ci`. Without the integration submodule, use
-`SKIP_INTEGRATION=1 ./scripts/ci.sh` and report that coverage was skipped.
+active, then runs `cargo gnaw run ci`. Without the integration submodule, run
+`./scripts/ci.sh quick sdk fixtures` and report that coverage was skipped.
+
+Each CI job runs one gnaw group. Name tasks, groups, or globs to run part of
+it; prerequisites are added unless you pass `--no-deps`:
+
+| Command | Scope |
+| --- | --- |
+| `cargo gnaw list` | Tasks, with what each needs; `--groups` for groups |
+| `cargo gnaw run quick` | Formatting, annotations, version pins, SDK clippy |
+| `cargo gnaw run fixtures:test` | Fixture tests, after the RV32 builds they need |
+| `cargo gnaw run 'fixtures-negative:*' -k` | Negative fixtures, reporting every failure |
+| `cargo gnaw run sdk --dry-run` | The plan, without running it |
+
+Task output goes to `target/gnaw/logs/`. A failure names the step that failed,
+the command it ran, and how to rerun it. For single contracts and other
+development tasks, use `dev.sh`:
 
 | Command | Scope |
 | --- | --- |

@@ -1,0 +1,14 @@
+[package]
+name = "gnaw"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Build, test, and check runner for this repository"
+
+# A standalone workspace: gnaw's dependencies stay out of the SDK lockfile, and
+# the root workspace's members never build it.
+[workspace]
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+indicatif = "0.18"

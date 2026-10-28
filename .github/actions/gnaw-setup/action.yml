@@ -1,0 +1,58 @@
+name: gnaw setup
+description: >-
+  Restores the dependency caches, installs ripgrep, builds gnaw onto PATH, and
+  optionally installs the pinned Thruput CLI. Run after checkout.
+
+inputs:
+  thruput-cli:
+    description: Install the pinned Thruput CLI (needed for rv32 contract builds).
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    # NB: deliberately NOT caching ./target. The Namespace cross-invocation
+    # cache is a network/overlay-backed mount; cargo's many-small-file churn
+    # in target/ stalls on it (the runner sits at ~0-5% CPU on 32 cores —
+    # I/O-wait, not compute). Building target/ on the runner's local disk and
+    # eating a cold compile is faster than an I/O-starved "incremental" build.
+    # We still cache the dependency *sources* (read-mostly, few large files)
+    # so we don't re-fetch every crate from the registry, plus the one-shot
+    # FFI download and the compiled Thruput CLI.
+    - name: Configure Namespace Cache
+      uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ~/.cargo/thruput-cli-source
+          ${{ github.workspace }}/.hogd-ffi-cache
+          ${{ github.workspace }}/.thruput-cli
+
+    # The annotation scan and the rv32 checks in scripts/dev.sh use ripgrep;
+    # the runner image doesn't ship it.
+    - name: Install ripgrep
+      shell: bash
+      run: |
+        if ! command -v rg >/dev/null; then
+          # Ubuntu mirrors can be unavailable from ephemeral runners.
+          # Install the pinned upstream crate with the existing Rust toolchain.
+          cargo install ripgrep --version '=15.1.0' --locked
+        fi
+        rg --version
+
+    # Into ~/.cargo/bin, which is already on PATH. A debug build: gnaw does
+    # little work itself, and this compiles faster.
+    - name: Build gnaw
+      shell: bash
+      run: >-
+        cargo install --locked --debug --path gnaw
+        --target-dir gnaw/target
+        && gnaw --version
+
+    # Installs into THRUPUT_CLI_ROOT, which gnaw puts on PATH for its tasks.
+    - name: Install the pinned Thruput CLI
+      if: inputs.thruput-cli == 'true'
+      shell: bash
+      run: gnaw setup
