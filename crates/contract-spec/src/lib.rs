@@ -1,3 +1,11 @@
+//! The contract spec model shared by the macros, the SDK and spec tooling.
+//!
+//! It defines the traits through which contract types and events describe
+//! themselves ([`ContractTypeSpec`], [`ContractEventSpec`],
+//! [`ContractTypeName`]), zero-copy views of spec fragments, and the raw spec
+//! section's wire-format versioning ([`format`]). With the `owned-model`
+//! feature it also re-exports the owned spec types from `thruput-spec`.
+
 #![no_std]
 
 #[cfg(feature = "alloc")]
