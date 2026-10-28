@@ -133,7 +133,7 @@ Uses the `TEST_FFI_VERSION` constant in `crates/thruput-sys/build.rs` to
 determine which release to download. The prebuilt tarball includes both the
 library and a pre-generated `bindings.rs`, so no hogd checkout is needed.
 
-Current version: **0.42.0** (tag: `test-ffi-v0.42.0`)
+Current version: **0.43.0** (tag: `test-ffi-v0.43.0`)
 
 ### Source / Custom-lib-dir Path
 

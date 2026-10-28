@@ -16,7 +16,7 @@ const HOGD_REPO_URL: &str = "https://github.com/thruputchain/hogd.git";
 ///
 /// On a bump, replace `docs-rs/bindings.rs` with the `bindings.rs` from the
 /// new linux-x86_64 archive. The `docs_rs_bindings` test fails until you do.
-const TEST_FFI_VERSION: &str = "0.42.0";
+const TEST_FFI_VERSION: &str = "0.43.0";
 
 /// The archive whose `bindings.rs` is checked in as `docs-rs/bindings.rs`.
 const DOCS_RS_ARCHIVE: &str = "libtest_ffi-linux-x86_64.tar.gz";
@@ -28,7 +28,7 @@ const DOCS_RS_ARCHIVE: &str = "libtest_ffi-linux-x86_64.tar.gz";
 /// This is hogd's pin (scripts/fetch.sh), independent of the SDK's own
 /// scripts/thruput-cli-version.sh.
 #[cfg(feature = "source-build")]
-const THRUPUT_CLI_VERSION: &str = "0.37.0";
+const THRUPUT_CLI_VERSION: &str = "0.42.0";
 
 /// Clone hogd repository on-demand for build-from-source.
 /// - If `HOGD_SRC` is set and directory exists, use it as-is
@@ -507,7 +507,7 @@ fn run_build_from_source(
 ///   1. cargo fetch -Zbuild-std              in built_contracts/
 ///   2. cargo fetch -Zbuild-std --target …   in built_contracts/
 ///   3. cargo fetch                           in hogd/rust/
-///   4. cargo install thruput-cli
+///   4. cargo install thruput (the CLI, from crates.io)
 #[cfg(feature = "source-build")]
 fn fetch_hogd_rust_deps(
     hogd_path: &Path,
@@ -596,13 +596,13 @@ fn fetch_hogd_rust_deps(
             .map_or(installed_ver.as_str(), |(release, _)| release);
         if installed_release == expected_ver {
             println!(
-                "cargo:warning=thruput-cli {THRUPUT_CLI_VERSION} \
+                "cargo:warning=thruput CLI {THRUPUT_CLI_VERSION} \
                  already installed, skipping",
             );
             false
         } else {
             println!(
-                "cargo:warning=thruput-cli version mismatch \
+                "cargo:warning=thruput CLI version mismatch \
                  (have '{installed_ver}', want '{expected_ver}'), reinstalling",
             );
             true
@@ -613,34 +613,33 @@ fn fetch_hogd_rust_deps(
 
     if needs_install {
         println!(
-            "cargo:warning=Installing thruput-cli to {}...",
+            "cargo:warning=Installing the thruput CLI to {}...",
             cli_root.display()
         );
-        let pkg = format!("thruput-cli@{THRUPUT_CLI_VERSION}");
+        // The CLI is the `thruput` package on crates.io.
+        let pkg = format!("thruput@{THRUPUT_CLI_VERSION}");
         // --locked: build with the CLI's published Cargo.lock. Without it,
         // cargo re-resolves transitive deps to the latest compatible versions,
         // which can pair the CLI's pinned deps with newer registry crates they
         // don't compile against.
+        // --force: a root installed by an older build may hold `thruput` from
+        // the old `thruput-cli` package, which cargo will not overwrite
+        // otherwise. The version check above already skips a current CLI.
         let output = Command::new("cargo")
             .args([
                 "install",
                 "--locked",
+                "--force",
                 "--root",
                 cli_root.to_str().unwrap(),
-                "--registry",
-                "thruput",
                 &pkg,
             ])
-            .env(
-                "CARGO_REGISTRIES_THRUPUT_INDEX",
-                "sparse+https://crates.thruput.network/api/v1/crates/",
-            )
             .env("CARGO_NET_GIT_FETCH_WITH_CLI", "true")
             .output()?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(
-                format!("cargo install thruput-cli failed: {stderr}").into()
+                format!("cargo install thruput failed: {stderr}").into()
             );
         }
     }
