@@ -71,7 +71,7 @@ pub fn abort_transaction_error() -> InvokeError {
 
 thread_local! {
     /// Nested contract-code regions open on this thread; see
-    /// [`PanicHookGuard`], which is the only thing that raises it. the test executor's
+    /// [`PanicHookGuard`], which is the only thing that raises it. hogd's
     /// `MockRuntime` captures its owning handler for the same thread reason
     /// instead of reading the thread-local context slot.
     static PANIC_HOOK_DEPTH: Cell<usize> = const { Cell::new(0) };

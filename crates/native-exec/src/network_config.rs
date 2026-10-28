@@ -9,9 +9,9 @@ use thruput_xdr::network_config::{
 };
 
 /// The configuration a database takes when none is supplied: the stock
-/// genesis values of the test executor build this crate is linked against.
+/// genesis values of the hogd build this crate is linked against.
 ///
-/// Read from the test executor rather than restated here, so it cannot drift from the
+/// Read from hogd rather than restated here, so it cannot drift from the
 /// binary actually executing the tests. The first call creates (and frees) a
 /// throwaway database to ask; the answer is cached for the process.
 ///
@@ -92,12 +92,12 @@ pub fn find_config_param(
 /// [`TestEnvironmentBuilder`](crate::test_environment_builder::TestEnvironmentBuilder),
 /// which builds the configuration and the environment together.
 ///
-/// A setter is only usable against a test executor build that knows its parameter.
+/// A setter is only usable against a hogd build that knows its parameter.
 /// The stock configuration states what that build's genesis states, and
 /// [`build`](Self::build) refuses to leave a gap below a newer parameter,
 /// so the ones protocol 0.35 introduced
 /// ([`with_max_contract_size_bytes`](Self::with_max_contract_size_bytes)
-/// and later) need a test executor built from that protocol or newer.
+/// and later) need a hogd built from that protocol or newer.
 #[derive(Clone, Debug, Default)]
 #[must_use = "a NetworkConfigBuilder does nothing until `build` is called"]
 pub struct NetworkConfigBuilder {
@@ -116,7 +116,7 @@ impl NetworkConfigBuilder {
     ///
     /// Use this to start from a configuration a test already has in hand
     /// (e.g. one read back off another environment). `base` must itself
-    /// state a gapless prefix of the id space, as any configuration the test executor
+    /// state a gapless prefix of the id space, as any configuration hogd
     /// accepts does.
     pub fn with_base(mut self, base: NetworkConfig) -> Self {
         self.base = Some(base);
@@ -240,7 +240,7 @@ impl NetworkConfigBuilder {
 
     /// The configuration: the base with every override applied.
     ///
-    /// Panics rather than hand the test executor a list it would reject: the parameters
+    /// Panics rather than hand hogd a list it would reject: the parameters
     /// must come out a gapless prefix of the id space (ids 0, 1, 2, ...),
     /// which is what gives one configuration one encoding, and hence one
     /// config hash.
@@ -263,7 +263,7 @@ impl NetworkConfigBuilder {
                      {} parameter(s), so this would leave ids {}..{id} \
                      unstated, and the list must be a gapless prefix of \
                      the id space. State the parameters in between too -- \
-                     or, if this test executor build does not know id {id} at all, \
+                     or, if this hogd build does not know id {id} at all, \
                      drop the override.",
                     param.param(),
                     params.len(),
@@ -278,7 +278,7 @@ impl NetworkConfigBuilder {
                 index as i32,
                 "network configuration parameters must be a gapless prefix \
                  of the id space in id order, but position {index} states \
-                 {}. The test executor rejects any other arrangement (fatally, from \
+                 {}. hogd rejects any other arrangement (fatally, from \
                  inside the FFI).",
                 param.param(),
             );
@@ -459,7 +459,7 @@ mod tests {
         assert_eq!(config_params(&built).len(), 2);
     }
 
-    // The test executor fails a gapped list from inside the FFI, taking the whole test
+    // hogd fails a gapped list from inside the FFI, taking the whole test
     // binary with it. Refuse to build one in the first place.
     #[test]
     #[should_panic(expected = "gapless prefix")]

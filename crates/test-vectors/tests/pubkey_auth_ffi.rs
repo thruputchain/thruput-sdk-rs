@@ -1,14 +1,14 @@
-//! The `pubkey-auth` golden vectors, checked against the node's verifier.
+//! The `pubkey-auth` golden vectors, checked against hogd's verifier.
 //!
 //! Every signed transaction `thruput-test-vectors pubkey-auth` emits goes
 //! through the C++ host's auth check (test-ffi), which re-derives the key
 //! hash, the account address and the signature preimage itself and verifies
-//! the Ed25519 or ML-DSA-65 signature with the node's own code. A green run means
-//! the vectors other SDKs replay are transactions the node accepts, not merely
+//! the Ed25519 or ML-DSA-65 signature with hogd's own code. A green run means
+//! the vectors other SDKs replay are transactions hogd accepts, not merely
 //! ones the Rust SDK agrees with itself about.
 //!
 //! The rejection tests break one rule of a valid vector each and pin the
-//! `AuthVerifyErrorCode` the node answers with. They are also the vacuity guard:
+//! `AuthVerifyErrorCode` hogd answers with. They are also the vacuity guard:
 //! they show the positive test would catch a wrong byte.
 
 use thruput_domain_separator::sha2::{
@@ -37,7 +37,7 @@ const MALFORMED: AuthVerifyErrorCode = AuthVerifyErrorCode::kAuthMalformed;
 const BAD_SIGNATURE: AuthVerifyErrorCode =
     AuthVerifyErrorCode::kSignatureVerificationFailed;
 
-/// The node's verdict on `stx` for an address with no registered auth data, the
+/// hogd's verdict on `stx` for an address with no registered auth data, the
 /// case every pubkey account is in.
 fn verify(
     stx: &SignedTransaction,
@@ -68,7 +68,7 @@ fn sign(
     }]
 }
 
-/// Asserts the node's verdict, naming the vector and the mutation on failure.
+/// Asserts hogd's verdict, naming the vector and the mutation on failure.
 fn expect(
     what: &str,
     stx: &SignedTransaction,
@@ -78,7 +78,7 @@ fn expect(
     let got = verify(stx, network);
     assert_eq!(
         got, want,
-        "{what}: the node answered {got:?}, expected {want:?}"
+        "{what}: hogd answered {got:?}, expected {want:?}"
     );
 }
 
@@ -191,8 +191,8 @@ fn mldsa65_rejections() {
 
 /// `pubkey_claim_key` belongs to `kPubkeySignature` claims only. Here the
 /// address has auth data registering the signing key, so the claim is
-/// otherwise valid (the control shows the node accepts it without the key), and
-/// attaching the key is what the node rejects.
+/// otherwise valid (the control shows hogd accepts it without the key), and
+/// attaching the key is what hogd rejects.
 #[test]
 fn pubkey_claim_key_on_source_address_claim() {
     for name in ["ed25519_rfc8032_test1", "mldsa65_seed_00_1f"] {
@@ -265,7 +265,7 @@ fn mldsa65_signature_rejections() {
     expect("all-0xff ML-DSA-65 signature", &s, net, BAD_SIGNATURE);
 }
 
-/// A signature of one scheme for a key of the other is malformed: the node
+/// A signature of one scheme for a key of the other is malformed: hogd
 /// rejects it before any signature check.
 #[test]
 fn scheme_mismatch_rejections() {

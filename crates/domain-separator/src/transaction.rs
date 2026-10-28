@@ -28,7 +28,7 @@ use crate::TRANSACTION;
 ///
 /// The result is signed directly; ed25519 does its own hashing, so there is no
 /// pre-hash here. It must match the C++ validator's
-/// the node's transaction signature preimage byte for byte, or every signature is
+/// `hogd::transaction_signature_preimage` byte for byte, or every signature is
 /// rejected.
 pub fn transaction_signature_preimage(
     network_hash: &NetworkHash,

@@ -34,7 +34,7 @@ fn mldsa65_public(key: &ml_dsa::SigningKey<MlDsa65>) -> MlDsa65PublicKey {
 }
 
 /// Pure ML-DSA-65 with an empty context: the message is prefixed with
-/// `0 || |ctx|`, which is what the node verifies.
+/// `0 || |ctx|`, which is what hogd verifies.
 fn mldsa65_sign(
     key: &ml_dsa::SigningKey<MlDsa65>,
     msg: &[u8],

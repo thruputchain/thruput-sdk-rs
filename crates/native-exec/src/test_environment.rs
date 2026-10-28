@@ -20,7 +20,7 @@ use thruput_xdr::transaction::*;
 use thruput_xdr::types::*;
 use xdrs::txs;
 
-// When deploying a new contract, the test executor accounts for the storage cost of the contract
+// When deploying a new contract, hogd accounts for the storage cost of the contract
 // based on its size.  We don't have access to contract size here (because it's not built),
 // so we pick a default (nonzero) value as a placeholder.
 // Nonzero so that contract tests will expect to at least pay some storage cost when deploying a new contract.
@@ -57,7 +57,7 @@ pub(crate) struct TestEnvironmentInner {
 /// An in-process Thruput instance for testing contracts natively.
 ///
 /// A `TestEnvironment` owns a fresh in-memory database and runtime context
-/// (backed by the test executor via FFI). Constructors return a [`TestEnvironmentHandle`];
+/// (backed by hogd via FFI). Constructors return a [`TestEnvironmentHandle`];
 /// clone the handle to share the environment across helpers.
 ///
 /// - [`TestEnvironment::new`] takes an optional storage cost model;
@@ -148,10 +148,10 @@ impl DBWrapper {
             .map(|vec| (vec.as_ptr(), vec.len().try_into().unwrap()))
             .unwrap_or((core::ptr::null(), 0));
 
-        // The test executor reads exactly 32 bytes from this pointer (it is not XDR), and
+        // hogd reads exactly 32 bytes from this pointer (it is not XDR), and
         // rejects a null one. A null network config takes this build's stock
         // genesis values; a non-null one must state a gapless prefix of the
-        // parameter id space, which the test executor checks fatally (SIGABRT, no return
+        // parameter id space, which hogd checks fatally (SIGABRT, no return
         // through the FFI) -- build it with
         // `crate::network_config::NetworkConfigBuilder`, which refuses to
         // produce anything else.
@@ -796,7 +796,7 @@ impl TestEnvironment {
     ///
     /// Creates a MockTransactionHandler, gives the closure a mutable reference,
     /// and always calls try_commit_transaction when the closure returns
-    /// (the test executor handles abort internally when the root frame reverted).
+    /// (hogd handles abort internally when the root frame reverted).
     ///
     /// The transaction has exactly one root frame: a second `tx.call`
     /// inside the closure panics; use a child frame or another `transact`.

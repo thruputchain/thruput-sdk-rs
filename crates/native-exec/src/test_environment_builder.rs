@@ -32,7 +32,7 @@ use thruput_xdr::types::NetworkHash;
 /// parameters keep their stock values (see
 /// [`stock_network_config`](crate::network_config::stock_network_config)).
 /// A builder with no configuration overrides at all creates its database
-/// exactly as the plain constructors do. A parameter setter needs a test executor
+/// exactly as the plain constructors do. A parameter setter needs a hogd
 /// build that knows the parameter; see [`NetworkConfigBuilder`].
 #[must_use = "a TestEnvironmentBuilder does nothing until `build` is called"]
 pub struct TestEnvironmentBuilder {
@@ -227,7 +227,7 @@ impl TestEnvironmentBuilder {
     /// Create the configured environment.
     pub fn build(self) -> TestEnvironmentHandle {
         // Nothing to configure: create the database the way the plain
-        // constructors do, rather than restating the test executor's own defaults back
+        // constructors do, rather than restating hogd's own defaults back
         // at it (which would also cost a probe for them).
         let network_config = if self.network_config.is_stock() {
             None

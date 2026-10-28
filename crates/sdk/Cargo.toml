@@ -85,7 +85,7 @@ std = [
 # This stays a feature, unlike the diagnostics that were folded into target
 # gates: it does not change what a contract computes, it decides whether the
 # native executor is in the dependency graph at all -- pulling
-# `thruput-native-exec` and through it the test executor FFI library. Host crates
+# `thruput-native-exec` and through it the hogd FFI library. Host crates
 # that only read specs (`spec-tool`, `thruput-erc20-test`, the `*-if` crates) build
 # `thruput-sdk` without it and should not have to fetch a shared object to do
 # so.
@@ -127,7 +127,7 @@ required-features = ["remote"]
 name = "compile_fail_mock"
 required-features = ["dev"]
 
-# RV32 contracts use real syscalls into the node. Host-native builds use the mock
+# RV32 contracts use real syscalls into hogd. Host-native builds use the mock
 # syscall implementation linked through native-exec.
 #
 # `thruput-u256/nightly` rides the same gate: guest builds always run a

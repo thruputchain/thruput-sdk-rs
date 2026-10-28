@@ -2,7 +2,7 @@
 //!
 //! Release contract profiles use `-Cpanic=immediate-abort`, which strips the
 //! panic path entirely. Where the handler is reached we issue `ebreak`, which
-//! the Thruput VM traps as `Trap::kBreakpoint` and the runtime maps to a
+//! the hogd VM traps as `Trap::kBreakpoint` and the runtime maps to a
 //! deterministic failure.
 //!
 // `ebreak` (0x00100073) fails the call immediately, rather than spinning

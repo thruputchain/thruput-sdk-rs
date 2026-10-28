@@ -1,9 +1,9 @@
-//! Lean `memcpy`/`memmove`/`memset` for the Thruput rv32 VM.
+//! Lean `memcpy`/`memmove`/`memset` for the hogd rv32 VM.
 //!
 //! compiler_builtins' generic versions are written for hardware where
 //! unaligned word access traps: memcpy alone is ~500 B, ~340 B of which is a
 //! shift-and-splice path for misaligned sources (plus a 16 B stack frame).
-//! The Thruput VM permits unaligned scalar loads/stores (the contract rustflags
+//! The hogd VM permits unaligned scalar loads/stores (the contract rustflags
 //! set `-C target-feature=+unaligned-scalar-mem`), so word loops here use
 //! `read_unaligned`/`write_unaligned` and need no alignment handling at all:
 //! the hot loop is 5 instructions per 4 bytes at ANY alignment.
