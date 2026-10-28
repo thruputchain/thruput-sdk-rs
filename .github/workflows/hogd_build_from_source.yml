@@ -11,10 +11,6 @@ on:
 
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  # Building hogd from source still takes its Rust crates and the CLI its
-  # contract builds pin from the thruput registry.
-  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
 # No job here uses GITHUB_TOKEN; read is all they need.
 permissions:
