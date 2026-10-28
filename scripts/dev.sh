@@ -569,13 +569,7 @@ check_rv32_contract_spec_artifacts() {
     name_reuse_json="${thruput_dir}/spec_name_reuse.spec.json"
     scheme_keys_json="${thruput_dir}/scheme_keys.spec.json"
 
-    # The format tag comes from the thruput-spec-tool the pinned CLI was built
-    # with, not from this checkout. The pinned CLI is built on SDK 0.57.2,
-    # which predates the tag's rename to thruput_contract_spec_v1, so accept
-    # either tag. Restore the exact
-    # '"format":"thruput_contract_spec_v1"' when THRUPUT_CLI_VERSION moves to
-    # a CLI built on this SDK.
-    assert_file_matches "$free_fn_json" '"format":"(gh|thruput)_contract_spec_v1"' &&
+    assert_file_contains "$free_fn_json" '"format":"thruput_contract_spec_v1"' &&
     assert_file_contains "$free_fn_json" '"name":"_unnamed_interface"' &&
     assert_file_contains "$free_fn_json" '"version":"0.4.0"' &&
 

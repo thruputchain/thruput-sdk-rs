@@ -26,9 +26,6 @@ set -euo pipefail
 
 SDK_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-# Keep registry lookup explicit when building outside the SDK workspace.
-export CARGO_REGISTRIES_THRUPUT_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
-
 if [ "${SKIP_CLI_INSTALL:-0}" != 1 ]; then
     # Same pin and install path as scripts/ci.sh; the helper honors
     # THRUPUT_CLI_ROOT, the Namespace-cached install root the workflow
@@ -73,8 +70,9 @@ fi
 # version requirement, so this keeps testing head across version bumps.
 #
 # The template declares `thruput-sdk` once per target (guest `no_std`, host
-# `std`), so rewrite only the version+registry part of each line and leave
-# the rest — notably the host line's `features = ["std"]` — intact.
+# `std`), so rewrite only the version part of each line (and the
+# `registry = "thruput"` key older CLIs scaffolded) and leave the rest —
+# notably the host line's `features = ["std"]` — intact.
 # Rewriting whole lines would silently drop those features.
 if ! grep -q '^thruput-sdk = ' Cargo.toml; then
     echo "error: no '^thruput-sdk = ' line in the scaffolded Cargo.toml;" >&2
@@ -82,7 +80,7 @@ if ! grep -q '^thruput-sdk = ' Cargo.toml; then
     exit 1
 fi
 sed -i.bak -E \
-    "s|^thruput-sdk = \{ version = \"[^\"]+\", registry = \"thruput\"|thruput-sdk = { path = \"$SDK_DIR/crates/sdk\"|" \
+    "s|^thruput-sdk = \{ version = \"[^\"]+\"(, registry = \"thruput\")?|thruput-sdk = { path = \"$SDK_DIR/crates/sdk\"|" \
     Cargo.toml
 rm Cargo.toml.bak
 # Every inline declaration must now point at this checkout. Assert the path
@@ -109,7 +107,7 @@ import sys
 client = Path(sys.argv[1]) / 'crates/json-rpc/json-rpc-client'
 assert (client / 'Cargo.toml').is_file(), 'pinned RPC client source is missing'
 with Path('.cargo/config.toml').open('a') as config:
-    config.write('\n[patch."sparse+https://crates.thruput.network/api/v1/crates/"]\n')
+    config.write('\n[patch.crates-io]\n')
     config.write(f'thruput-json-rpc-client = {{ path = {json.dumps(str(client))} }}\n')
 PY
 fi

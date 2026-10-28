@@ -14,8 +14,6 @@ on:
   workflow_dispatch:
 
 env:
-  CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-  CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
   # Namespace-cached CLI install root: scaffold-smoke.sh installs the pinned
   # Thruput CLI here once per version bump instead of recompiling it every
   # run. Mirrors ci.yml.

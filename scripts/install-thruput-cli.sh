@@ -7,20 +7,13 @@
 # checking the version, so another build of the same version cannot satisfy
 # the pin. The source checkout is also used by the scaffold smoke test.
 #
-# thruput-cli is published only to the Thruput registry. The SDK's own
-# dependencies all come from crates.io, so no repo config names that registry,
-# and `cargo install` would ignore the repo's .cargo/config.toml anyway: the
-# index arrives via environment config. Keep in sync with
-# scripts/scaffold-smoke.sh and crates/thruput-sys/build.rs. Auth
-# comes from CARGO_REGISTRIES_THRUPUT_TOKEN +
-# CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS in the workflows.
+# The CLI is published to crates.io as `thruput`, so installing it needs no
+# registry configuration or credentials.
 
 install_thruput_cli() {
     local sdk_dir
     sdk_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     . "${sdk_dir}/scripts/thruput-cli-version.sh"
-
-    export CARGO_REGISTRIES_THRUPUT_INDEX="sparse+https://crates.thruput.network/api/v1/crates/"
 
     if [ -n "${THRUPUT_CLI_COMMIT:-}" ]; then
         if [[ ! "$THRUPUT_CLI_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
@@ -81,8 +74,8 @@ PY
     fi
 
     if [ "$(thruput --version 2>/dev/null | awk '{print $2}')" != "$THRUPUT_CLI_VERSION" ]; then
-        cargo install thruput-cli --version "=$THRUPUT_CLI_VERSION" \
-            --registry thruput --locked "${install_flags[@]}"
+        cargo install thruput --version "=$THRUPUT_CLI_VERSION" \
+            --locked "${install_flags[@]}"
     fi
 }
 
