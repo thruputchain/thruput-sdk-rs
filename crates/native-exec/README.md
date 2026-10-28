@@ -52,11 +52,7 @@ Downloads are public and require no authentication or AWS credentials.
 ### 2. Build from Source (Maintainer Workflow)
 
 This path is for working on the executor itself or for unsupported
-platforms. It needs CMake, a C++ toolchain, libclang and ccache. The hogd
-release pinned by `TEST_FFI_VERSION` still names the `thruput` registry under
-the alias `groundhog`, so also set `CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the
-same value as `CARGO_REGISTRIES_THRUPUT_TOKEN`. That goes away with the next
-`TEST_FFI_VERSION` bump: current hogd no longer uses the alias.
+platforms. It needs CMake, a C++ toolchain, libclang and ccache.
 
 Building from source needs two things: the `source-build` cargo feature
 (which makes the `cmake` and `bindgen` build-dependencies available — they
@@ -137,7 +133,7 @@ Uses the `TEST_FFI_VERSION` constant in `crates/hogd-sys/build.rs` to
 determine which release to download. The prebuilt tarball includes both the
 library and a pre-generated `bindings.rs`, so no hogd checkout is needed.
 
-Current version: **0.41.0** (tag: `test-ffi-v0.41.0`)
+Current version: **0.42.0** (tag: `test-ffi-v0.42.0`)
 
 ### Source / Custom-lib-dir Path
 
@@ -147,7 +143,7 @@ following constants:
 - `TEST_FFI_VERSION_MINOR`
 - `TEST_FFI_VERSION_PATCH`
 
-These are combined to form the version string (e.g., `0.41.0`) and used to:
+These are combined to form the version string (e.g., `0.42.0`) and used to:
 1. Cross-check against `TEST_FFI_VERSION` in build.rs (must match)
 2. Verify the hogd checkout is at the correct git tag (`test-ffi-v{VERSION}`)
 
