@@ -46,6 +46,9 @@ version = "0.58.0"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["crates-io"]
+# Tests stay in the repository; published crates carry what consumers build.
+# Anchored, so only each package's top-level tests/ goes, not a src/ module.
+exclude = ["/tests"]
 repository = "https://github.com/thruputchain/thruput-sdk-rs"
 homepage = "https://github.com/thruputchain/thruput-sdk-rs"
 # crates.io allows five of each. Crates whose role differs override these.

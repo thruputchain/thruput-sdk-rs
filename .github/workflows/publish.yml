@@ -165,6 +165,21 @@ jobs:
           fi
           cargo hack --version
 
+      # Tests stay in the repository: [workspace.package] excludes /tests and
+      # every published crate inherits it. A crate that sets its own
+      # `exclude` replaces the inherited one, so check what each would ship.
+      - name: Check published crates leave tests/ out
+        run: |
+          set -euo pipefail
+          status=0
+          for package in $PRIMARY_PACKAGES $INTERFACE_PACKAGES $INTERFACE_DEPENDENT_PACKAGES; do
+            if cargo package --list --locked --package "$package" | grep '^tests/'; then
+              echo "::error::$package would publish its tests/ directory"
+              status=1
+            fi
+          done
+          exit "$status"
+
       - name: Publish dry run
         uses: thruputchain/actions/cargo-publish-dry-run@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         with:

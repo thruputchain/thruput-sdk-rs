@@ -3,6 +3,7 @@ name = "thruput-erc20-test"
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+exclude.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Shared ERC20 conformance test suite for Thruput contracts"
