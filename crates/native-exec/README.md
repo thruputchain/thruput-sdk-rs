@@ -52,10 +52,11 @@ Downloads are public and require no authentication or AWS credentials.
 ### 2. Build from Source (Maintainer Workflow)
 
 This path is for working on the executor itself or for unsupported
-platforms. It needs CMake, a C++ toolchain, libclang and ccache, plus access
-to the private registry that the executor's pinned dependencies use: set
-`CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the same value as
-`CARGO_REGISTRIES_THRUPUT_TOKEN`.
+platforms. It needs CMake, a C++ toolchain, libclang and ccache. The hogd
+release pinned by `TEST_FFI_VERSION` still names the `thruput` registry under
+the alias `groundhog`, so also set `CARGO_REGISTRIES_GROUNDHOG_TOKEN` to the
+same value as `CARGO_REGISTRIES_THRUPUT_TOKEN`. That goes away with the next
+`TEST_FFI_VERSION` bump: current hogd no longer uses the alias.
 
 Building from source needs two things: the `source-build` cargo feature
 (which makes the `cmake` and `bindgen` build-dependencies available — they

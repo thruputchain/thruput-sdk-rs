@@ -12,7 +12,9 @@ on:
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
   CARGO_REGISTRIES_THRUPUT_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
-  # The pinned runtime source still uses its own groundhog registry alias.
+  # The pinned hogd release (TEST_FFI_VERSION) names the thruput registry
+  # under the alias `groundhog`. Drop this with the next TEST_FFI_VERSION
+  # bump: current hogd no longer uses the alias.
   CARGO_REGISTRIES_GROUNDHOG_TOKEN: ${{ secrets.GROUNDHOG_REGISTRY_TOKEN }}
   CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS: cargo:token
 
