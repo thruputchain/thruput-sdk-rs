@@ -3,6 +3,7 @@ name = "thruput-event"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
+exclude.workspace = true
 repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true

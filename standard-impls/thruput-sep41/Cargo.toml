@@ -3,6 +3,7 @@ name = "thruput-sep41"
 version = "0.1.71"
 edition.workspace = true
 publish.workspace = true
+exclude.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "SEP-41 token operations as client code over the Thruput ERC20 interfaces"

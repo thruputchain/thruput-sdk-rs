@@ -3,6 +3,7 @@ name = "thruput-native-exec"
 edition.workspace = true
 version.workspace = true
 publish.workspace = true
+exclude.workspace = true
 repository.workspace = true
 homepage.workspace = true
 keywords = ["thruput", "smart-contracts", "testing", "riscv"]
