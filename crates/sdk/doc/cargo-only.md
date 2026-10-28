@@ -149,11 +149,11 @@ The output is `target/riscv32im-unknown-none-elf/release/hello_contract`, an ELF
 intermediate containing entrypoints and raw specification data. It is not a
 deployable `.rv32a`, and passing native tests does not prove guest execution.
 To produce the lowered artifact and finalized specs, use a compatible Thruput
-CLI; see the root [build instructions](../../../README.md#build-guest-contracts).
+CLI; see [Build guest contracts](../../../CONTRIBUTING.md#build-guest-contracts).
 
 The repository's `scripts/cargo-example-smoke.sh` builds these exact file
 examples in a temporary standalone project. SDK CI runs this check so the guide
 stays aligned with the code.
 
 For storage and tests across transactions, continue with the executable examples
-linked from [Start a contract](../../../README.md#start-a-contract).
+linked from [Test a contract natively](../../../README.md#test-a-contract-natively).
