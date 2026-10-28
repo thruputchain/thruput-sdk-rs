@@ -1,4 +1,9 @@
-//! Miscellaneous utility functions for contract development
+//! Naming and hashing rules shared by `thruput-macros` and host tooling:
+//! entrypoint and interface IDs, exception selectors, event signatures and
+//! export names, and contract version handling ([`semver`]).
+//!
+//! [`remote`] holds the runtime side of the off-chain proxies that
+//! `thruput-sdk`'s `remote` feature generates.
 
 use sha2::Digest;
 use std::fmt::{self, Display};
@@ -9,12 +14,8 @@ pub mod semver;
 
 /// Standard signature for a contract method.
 ///
-/// We currently only depend on the method name, but this may change in future versions.
-// TODO(geoff,dobog): in future versions
-// we may consider adding the arguments and return type to the signature
-// as a checksum, if there is a clear way to derive a standardized argument
-// type string at proc-macro runtime.
-//
+/// Only the method name is part of the signature today. Argument and return
+/// types may be added in a future version.
 #[derive(Debug)]
 pub struct NormalizedMethodSignature {
     method_name: String,

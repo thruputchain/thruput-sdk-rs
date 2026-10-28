@@ -70,7 +70,8 @@ impl FaultString {
         Self::default()
     }
 
-    /// Record `v`'s `Display` form as the message, truncating to `CAP`.
+    /// Record `v`'s `Display` form as the message. A message longer than `CAP`
+    /// is replaced with `<too-big>`.
     #[cfg(not(target_arch = "riscv32"))]
     pub fn via_display<V>(v: &V) -> Self
     where

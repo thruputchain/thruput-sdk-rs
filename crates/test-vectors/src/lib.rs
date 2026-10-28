@@ -1,3 +1,10 @@
+//! Cross-language test vectors for Thruput SDK types, so implementations in
+//! other languages can check they agree with the SDK.
+//!
+//! Each module covers one area: entrypoint IDs, XDR encodings, domain
+//! separators, signed operations and pubkey-account auth. The
+//! `thruput-test-vectors` binary prints a module's vectors, given its name.
+
 /// Paths `#[derive(ContractTypeSpec)]` resolves through, mirroring what
 /// `thruput-sdk` re-exports, so vector payload types can derive their spec
 /// impls instead of hand-writing them.

@@ -23,7 +23,7 @@ default-members = [
     "crates/domain-separator",
     "crates/event",
     "crates/exn",
-    "crates/hogd-sys",
+    "crates/thruput-sys",
     "crates/macros",
     "crates/native-exec",
     "crates/sdk",
@@ -79,7 +79,7 @@ thruput-macros = { path = "crates/macros", version = "=0.57.2" }
 thruput-contract-util = { path = "crates/contract-util" , version = "=0.57.2" }
 thruput-contract-spec = { path = "crates/contract-spec", version = "=0.57.2", default-features = false }
 thruput-native-exec = { path = "crates/native-exec" , version = "=0.57.2" }
-thruput-sys = { path = "crates/hogd-sys" , version = "=0.57.2" }
+thruput-sys = { path = "crates/thruput-sys" , version = "=0.57.2" }
 thruput-storage-cost = { path = "crates/storage-cost" , version = "=0.57.2" }
 thruput-event = { path = "crates/event", version = "=0.57.2" }
 thruput-exn = { path = "crates/exn", version = "=0.57.2" }

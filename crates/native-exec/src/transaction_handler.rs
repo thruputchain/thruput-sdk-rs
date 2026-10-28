@@ -18,11 +18,6 @@ pub struct TransactionHandler {
     handler: *mut c_void,
     _env: Rc<TestEnvironment>,
     stx: SignedTransaction,
-    // cannot outlive the environment.
-
-    // TODO(geoff): we could swap the backing pointer to the db
-    // to be a shared ptr, and have handler hold a reference,
-    // like we do with the mock contract context.
     invoked: bool,
     committed: bool,
     aborted: bool,

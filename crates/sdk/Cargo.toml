@@ -49,7 +49,6 @@ thiserror = { workspace = true }
 # rather than silently linking software SHA-256 into every contract.
 sha2 = { workspace = true, default-features = false, optional = true }
 heapless = { workspace = true }
-linkme = { workspace = true, optional = true }
 
 [dev-dependencies]
 # When running tests, enable recommended development features

@@ -1,3 +1,9 @@
+//! Runs the [`thruput_erc20_test`] conformance suite in the native test
+//! environment. [`test_erc20_contract`] checks a deployed contract's results
+//! and emitted events. [`test_native_token_precompile`] holds the node's
+//! native-token precompile to the same expectations, apart from its
+//! documented divergences.
+
 pub use thruput_erc20_test::*;
 
 use thruput_sdk::hash_ident;
@@ -49,8 +55,7 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// Regression test: the native token precompile behaves like a standard
 /// ERC20 contract for the operations it supports.
 ///
-/// The precompile intentionally diverges from the reference contract (see
-/// hogd's `precompile_native_token.cc`):
+/// The precompile intentionally diverges from the reference contract:
 ///
 /// - `initialize` always faults: the genesis root plays the reference's
 ///   stored contract owner, so there is nothing to initialize. `mint`
@@ -60,12 +65,8 @@ hash_ident! { static SPENDER: ContractAddress; }
 /// - `total_supply` tracks mints; nothing is pre-minted in the
 ///   test environment, so the supply is exactly what this test mints.
 ///
-/// An overdraft `transfer` used to be a third divergence: the balance check
-/// was deferred, so it passed invoke and failed at commit. As of test-ffi
-/// 0.21.0 the precompile throws
-/// [`thruput_erc20_if::ERC20Error::TooLarge`] at invoke time like the
-/// reference contract, so it is asserted the same way the rest of this file
-/// asserts a typed throw: `try_*` plus a match on the error.
+/// An overdraft `transfer` throws [`thruput_erc20_if::ERC20Error::TooLarge`]
+/// at invoke time, like the reference contract.
 ///
 /// Those divergences are asserted here too, so a change on either side
 /// shows up as a regression.

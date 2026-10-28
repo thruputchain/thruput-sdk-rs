@@ -171,7 +171,7 @@ Not yet implemented, in rough order of value:
   release workflow is the same class of error as a missed pin, and is currently
   caught only by noticing it never shipped. `publish-order` already reads those
   lists, so this needs the coverage rule rather than any new parsing.
-- **`ffi-version`** — `crates/hogd-sys/build.rs` carries a `TEST_FFI_VERSION`
+- **`ffi-version`** — `crates/thruput-sys/build.rs` carries a `TEST_FFI_VERSION`
   constant on its own independent version line. Worth at least parsing and
   sanity-checking, though what it should be checked *against* is unclear.
 - **`missing-pin`** — an in-repo dependency of a *published* crate that carries

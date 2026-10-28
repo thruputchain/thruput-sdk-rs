@@ -11,7 +11,7 @@
 # dependencies all come from crates.io, so no repo config names that registry,
 # and `cargo install` would ignore the repo's .cargo/config.toml anyway: the
 # index arrives via environment config. Keep in sync with
-# scripts/scaffold-smoke.sh and crates/hogd-sys/build.rs. Auth
+# scripts/scaffold-smoke.sh and crates/thruput-sys/build.rs. Auth
 # comes from CARGO_REGISTRIES_THRUPUT_TOKEN +
 # CARGO_REGISTRY_GLOBAL_CREDENTIAL_PROVIDERS in the workflows.
 

@@ -5,16 +5,8 @@
 //! the hogd VM traps as `Trap::kBreakpoint` and the runtime maps to a
 //! deterministic failure.
 //!
-// Notes:
-//   - hogd now accepts `ebreak` (0x00100073) as a deterministic-trap
-//     SYSTEM instruction (alongside ECALL). Earlier the VM rejected it
-//     at parse time, so we fell into a tight infinite loop and relied on
-//     gas exhaustion (OOG); `ebreak` is strictly better — it fails
-//     immediately instead of burning the whole gas budget.
-//   - TODO(rv32): route panic info to the host `Abort` syscall so the
-//     host surfaces a structured panic record (panic_code, optional
-//     message) to the runtime trace. That needs a `thruput-xdr`
-//     dep, gated on the `panic_abort_syscall` cargo feature.
+// `ebreak` (0x00100073) fails the call immediately, rather than spinning
+// until the gas budget runs out.
 
 use core::arch::asm;
 

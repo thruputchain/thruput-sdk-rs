@@ -16,7 +16,7 @@ const HOGD_REPO_URL: &str = "https://github.com/thruputchain/hogd.git";
 ///
 /// On a bump, replace `docs-rs/bindings.rs` with the `bindings.rs` from the
 /// new linux-x86_64 archive. The `docs_rs_bindings` test fails until you do.
-const TEST_FFI_VERSION: &str = "0.41.0";
+const TEST_FFI_VERSION: &str = "0.42.0";
 
 /// The archive whose `bindings.rs` is checked in as `docs-rs/bindings.rs`.
 const DOCS_RS_ARCHIVE: &str = "libtest_ffi-linux-x86_64.tar.gz";
@@ -35,7 +35,7 @@ const THRUPUT_CLI_VERSION: &str = "0.37.0";
 /// - If `HOGD_SRC` is set but empty/missing, clone there
 /// - Otherwise, clone under the system temporary directory, keyed by OUT_DIR
 ///   and TEST_FFI_VERSION. Keep this independent workspace outside the SDK
-///   configuration tree: its pinned source still uses a different registry alias.
+///   tree, so the SDK's Cargo configuration does not apply to it.
 #[cfg(feature = "source-build")]
 fn ensure_hogd_clone(
     out_dir: &Path,
@@ -165,7 +165,7 @@ fn download_cache_dir() -> PathBuf {
     let dir: PathBuf = env::var_os("HOGD_DOWNLOAD_CACHE_DIR").map_or_else(
         || {
             PathBuf::from(env::var("OUT_DIR").unwrap())
-                .join("hogd_download_cache")
+                .join("test_ffi_download_cache")
         },
         Into::into,
     );
@@ -208,7 +208,7 @@ fn find_prebuilt_bindings(
              The prebuilt tarball may be from an older version that doesn't include bindings.\n\
              Either:\n\
              - Update to a newer prebuilt tarball that includes bindings.rs, or\n\
-             - Use HOGD_FFI_BUILD=1 to build from source (requires hogd submodule)",
+             - Use HOGD_FFI_BUILD=1 to build from source (requires the `source-build` feature)",
             bindings_src.display()
         )
         .into());
@@ -380,7 +380,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let target = env::var("TARGET").unwrap();
 
     if target.starts_with("riscv32") {
-        return Err(format!("native_exec does not build for {target}").into());
+        return Err(format!("thruput-sys does not build for {target}").into());
     }
 
     println!("cargo:rerun-if-env-changed=HOGD_FFI_BUILD");
@@ -479,7 +479,7 @@ fn run_build_from_source(
             "Version mismatch between hogd header and build.rs constant.\n\
              Header version:   {hogd_ffi_version}\n\
              Constant version: {TEST_FFI_VERSION}\n\
-             Please update TEST_FFI_VERSION in native_exec/build.rs to match the header.",
+             Please update TEST_FFI_VERSION in crates/thruput-sys/build.rs to match the header.",
         )
         .into());
     }
@@ -648,7 +648,7 @@ fn fetch_hogd_rust_deps(
     Ok(())
 }
 
-/// Verify that the hogd submodule has the correct release tag.
+/// Verify that the hogd checkout has the correct release tag.
 #[cfg(feature = "source-build")]
 fn verify_hogd_version(
     hogd_src: &str,
@@ -663,8 +663,8 @@ fn verify_hogd_version(
 
     if !output.status.success() {
         return Err(format!(
-            "hogd submodule is not at a release tag. Expected tag: {expected_tag}\n\
-             Please checkout the correct tag in the hogd submodule:\n\
+            "hogd checkout is not at a release tag. Expected tag: {expected_tag}\n\
+             Please checkout the correct tag in the hogd checkout:\n\
              cd {hogd_src} && git checkout {expected_tag}",
         )
         .into());
@@ -674,7 +674,7 @@ fn verify_hogd_version(
 
     if current_tag != expected_tag {
         return Err(format!(
-            "hogd submodule version mismatch.\n\
+            "hogd checkout version mismatch.\n\
              Expected tag: {expected_tag}\n\
              Current tag:  {current_tag}\n\
              Please checkout the correct tag:\n\
@@ -846,7 +846,7 @@ fn download_and_extract(
     verify_checksum(&archive_path, &checksum_path, &archive_bytes)?;
 
     // Extract the archive
-    let extract_dir = out_dir.join(format!("hogd_lib_{version}"));
+    let extract_dir = out_dir.join(format!("test_ffi_lib_{version}"));
     fs::create_dir_all(&extract_dir)?;
 
     // Shell out to `tar` (present on all supported prebuilt platforms),

@@ -56,7 +56,7 @@ impl<'a> MockInvocationFrameConfig<'a> {
     // The invoked address is a constructor parameter rather than an optional
     // builder step: the test FFI admits mock frames under production's
     // reentrance rule, which refuses an address that already has an active
-    // frame (hogd #3301). A default would make "forgot to set it" the
+    // frame. A default would make "forgot to set it" the
     // reentrant case, and only at run time.
     fn new(
         root_handler: *mut c_void,
@@ -272,7 +272,7 @@ impl MockInvocationFrame {
     /// The address must differ from every frame already open on the stack: the
     /// test FFI admits mock frames under the same reentrance rule production
     /// applies to `Invoke`, so an address that already has an active frame is
-    /// refused (hogd #3301) and `build()` panics unrecoverably. Frames that
+    /// refused and `build()` panics unrecoverably. Frames that
     /// have already finished, and frames in other transactions, do not count —
     /// only the ones open at the same time.
     pub fn open_child_frame(
@@ -828,8 +828,8 @@ mod tests {
 
     // Frames that are open at the same time need distinct invoked_addresses:
     // the test FFI admits mock frames under production's reentrance rule, which
-    // refuses an address that already has an active frame on the stack (hogd
-    // #3301). Addresses may be reused across separate handlers (separate
+    // refuses an address that already has an active frame on the stack.
+    // Addresses may be reused across separate handlers (separate
     // transactions, separate frame stacks) and by sequential frames at the same
     // depth, so these three cover every nesting the tests below build.
     fn root_addr() -> thruput_xdr::types::ContractAddress {

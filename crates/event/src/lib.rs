@@ -1,3 +1,10 @@
+//! Event types for Thruput contracts: the [`Event`] trait that
+//! `#[derive(Event)]` implements, topics ([`Topic`], [`TopicSrc`]), and the
+//! [`EmittedEvent`] and [`TypedEvent`] views of an emitted event.
+//!
+//! Split out of `thruput-sdk` so host-side tooling can decode events without
+//! the SDK. Contracts use the re-exports in `thruput_sdk`.
+
 #![no_std]
 
 mod emitted_event;
