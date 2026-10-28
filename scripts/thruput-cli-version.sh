@@ -5,4 +5,4 @@
 # local CLI differs — CI is authoritative for metrics/artifacts). Bump this
 # version when a compatible thruput-cli release is published. Until then,
 # pin its source so SDK format changes can be tested before the CLI release.
-THRUPUT_CLI_VERSION=0.37.0
+THRUPUT_CLI_VERSION=0.41.0
