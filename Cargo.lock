@@ -48,7 +48,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "bigint-bench"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "bigint-bench-if",
  "thruput-sdk",
@@ -56,7 +56,7 @@ dependencies = [
 
 [[package]]
 name = "bigint-bench-if"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-sdk",
 ]
@@ -541,7 +541,7 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "macros-crate-override-guest"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-contract-spec",
  "thruput-macros",
@@ -1010,7 +1010,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-access-control"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thruput-access-control-if",
  "thruput-sdk",
@@ -1018,7 +1018,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-access-control-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-spec"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "heapless",
  "thruput-spec",
@@ -1037,7 +1037,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-contract-util"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "sha2",
  "syn 3.0.4",
@@ -1047,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-domain-separator"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "hex-literal",
  "sha2",
@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc165-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thruput-sdk",
@@ -1067,7 +1067,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-controls-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1078,7 +1078,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1088,7 +1088,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-metadata-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1099,7 +1099,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-native-test"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1110,7 +1110,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-pausable-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1118,7 +1118,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-permit-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1127,7 +1127,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc20-test"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thiserror",
  "thruput-erc20-if",
@@ -1137,7 +1137,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-erc721-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "heapless",
  "thiserror",
@@ -1147,7 +1147,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-event"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -1155,14 +1155,14 @@ dependencies = [
 
 [[package]]
 name = "thruput-exn"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-xdrs",
 ]
 
 [[package]]
 name = "thruput-macros"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1177,7 +1177,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-native-exec"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "ed25519-dalek",
  "sha2",
@@ -1194,11 +1194,11 @@ dependencies = [
 
 [[package]]
 name = "thruput-rv32-runtime"
-version = "0.57.2"
+version = "0.58.0"
 
 [[package]]
 name = "thruput-sdk"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "ed25519-dalek",
  "heapless",
@@ -1226,7 +1226,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-sep41"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-erc165-if",
@@ -1238,7 +1238,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-signed-op"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thruput-contract-spec",
  "thruput-domain-separator",
@@ -1248,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-signed-op-if"
-version = "0.1.70"
+version = "0.1.71"
 dependencies = [
  "thiserror",
  "thruput-sdk",
@@ -1267,7 +1267,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-spec-tool"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "serde_json",
  "tempfile",
@@ -1285,7 +1285,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-storage-cost"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -1293,7 +1293,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-sys"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "bindgen",
  "cmake",
@@ -1310,7 +1310,7 @@ checksum = "744a0fd0cd9f401de5f6836df80d0681698d16b42557c325652469a1c02e3fc7"
 
 [[package]]
 name = "thruput-test-vectors"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "ed25519-dalek",
  "ml-dsa",
@@ -1339,7 +1339,7 @@ dependencies = [
 
 [[package]]
 name = "thruput-u256"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-contract-spec",
  "thruput-u256",
@@ -1521,7 +1521,7 @@ checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
 
 [[package]]
 name = "vector-tests"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "thruput-sdk",
  "vector-tests",
@@ -1529,7 +1529,7 @@ dependencies = [
 
 [[package]]
 name = "version-check"
-version = "0.57.2"
+version = "0.58.0"
 dependencies = [
  "semver",
  "tempfile",
