@@ -379,12 +379,14 @@ fn fixtures_test(ctx: &mut Ctx) -> Result {
         ctx.step(package.as_str(), |ctx| ctx.run(&cmd))?;
     }
     // The issuer tests run against the native contract above, and against
-    // the rv32 artifact when this variable names it.
+    // the rv32 artifact when these variables name it. The issuer's permit
+    // tests are erc20_permit's suite, which reads the second variable.
     let artifact = ctx.repo.lowered().join("erc20_issuer.rv32a");
     let cmd = ctx
         .cargo(&dir, "test")
         .args(["-p", "erc20_issuer"])
-        .env("ISSUER_TOKEN_RV32_ARTIFACT", artifact);
+        .env("ISSUER_TOKEN_RV32_ARTIFACT", &artifact)
+        .env("ERC20_PERMIT_RV32_ARTIFACT", &artifact);
     ctx.step("erc20_issuer (rv32 artifact)", |ctx| ctx.run(&cmd))
 }
 
