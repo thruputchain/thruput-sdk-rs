@@ -35,6 +35,11 @@ impl Repo {
         self.root.join("example-contracts")
     }
 
+    /// Contracts whose rv32 build must fail.
+    pub fn negative_fixtures(&self) -> PathBuf {
+        self.root.join("negative-contracts")
+    }
+
     pub fn integration(&self) -> PathBuf {
         self.root.join("integration_test")
     }
@@ -92,4 +97,59 @@ pub fn contract_packages(dir: &Path) -> io::Result<Vec<String>> {
     }
     packages.sort();
     Ok(packages)
+}
+
+/// Contract packages in `dir` that declare a `[[bin]]`: each hosts its rv32
+/// bin at `src/main.rs`, and declaring it is what enables the rv32 build.
+///
+/// The `disabled` marker keeps the negative fixtures out, although they
+/// declare bins; the tasks that own them build them by name.
+///
+/// scripts/metrics/sdk_codesizes_rv32*.sh apply the same rules.
+pub fn rv32_packages(dir: &Path) -> io::Result<Vec<String>> {
+    let mut packages = Vec::new();
+    for package in contract_packages(dir)? {
+        if declares_bin(&fs::read_to_string(
+            dir.join(&package).join("Cargo.toml"),
+        )?) {
+            packages.push(package);
+        }
+    }
+    Ok(packages)
+}
+
+/// Contract packages in `dir` with a `src/main.rs` but no `[[bin]]`.
+///
+/// The bin must be explicit. Cargo would discover it without
+/// `required-features`, so a host `cargo test` would link the `#![no_main]`
+/// bin and fail; and [`rv32_packages`] would leave the package out of the
+/// rv32 build, its checks, and the metrics. `autobins = false` turns
+/// discovery off and makes a bare `src/main.rs` inert.
+pub fn undeclared_bins(dir: &Path) -> io::Result<Vec<String>> {
+    let mut packages = Vec::new();
+    for package in contract_packages(dir)? {
+        let path = dir.join(&package);
+        if !path.join("src/main.rs").is_file() {
+            continue;
+        }
+        let manifest = fs::read_to_string(path.join("Cargo.toml"))?;
+        if !declares_bin(&manifest) && !disables_autobins(&manifest) {
+            packages.push(package);
+        }
+    }
+    Ok(packages)
+}
+
+fn declares_bin(manifest: &str) -> bool {
+    manifest
+        .lines()
+        .any(|line| line.trim_start().starts_with("[[bin]]"))
+}
+
+fn disables_autobins(manifest: &str) -> bool {
+    manifest.lines().any(|line| {
+        line.split_once('=').is_some_and(|(key, value)| {
+            key.trim() == "autobins" && value.trim() == "false"
+        })
+    })
 }

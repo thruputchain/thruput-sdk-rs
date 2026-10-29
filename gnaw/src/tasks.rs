@@ -2,14 +2,17 @@
 //!
 //! Registry order is also run order among tasks that are ready at the same
 //! time, so cheap checks that fail often come first.
-//!
-//! The rv32 contract builds and their checks still run through
-//! `scripts/dev.sh`.
 
 use std::path::Path;
 
+use regex::Regex;
+
 use crate::repo::{RV32_TARGET, contract_packages};
-use crate::task::{Ctx, Failure, Lane, Result, Task};
+use crate::rv32::{self, elf_path};
+use crate::task::{
+    Cmd, Ctx, Failure, Lane, Result, Task, notable_lines, strip_ansi,
+};
+use crate::{elf, specs};
 
 pub struct Group {
     pub name: &'static str,
@@ -49,7 +52,12 @@ pub static GROUPS: &[Group] = &[
             "fixtures-negative:domain-collision",
             "fixtures-negative:dup-entrypoint",
             "fixtures-negative:registry-stripped",
+            "fixtures-negative:typedef-conflict",
+            "fixtures-negative:event-signature-conflict",
+            "fixtures-negative:iface-declarer-conflict",
+            "fixtures-negative:missing-entrypoints",
             "fixtures:rv32",
+            "fixtures:specs",
             "fixtures:test",
             "fixtures:exception-stack",
             "lint:fixtures",
@@ -76,19 +84,48 @@ pub static GROUPS: &[Group] = &[
 
 pub static TASKS: &[Task] = &[
     Task::new("fmt", "rustfmt check", fmt).lane(Lane::Free),
-    Task::new("annotations", "No XXX annotations in the source", annotations).lane(Lane::Free),
-    Task::new("cli", "The Thruput CLI is on PATH; warns if it is not the pinned version", cli)
-        .lane(Lane::Free),
+    Task::new(
+        "annotations",
+        "No XXX annotations in the source",
+        annotations,
+    )
+    .lane(Lane::Free),
+    Task::new(
+        "cli",
+        "The Thruput CLI is on PATH; warns if it is not the pinned version",
+        cli,
+    )
+    .lane(Lane::Free),
     Task::new("lint:sdk", "Clippy on the SDK libraries", lint_sdk),
-    Task::new("sdk:rv32", "thruput-sdk builds for the guest target", sdk_rv32),
-    Task::new("sdk:macros-guest", "The macros crate-override fixture builds for the guest", sdk_macros_guest),
-    Task::new("sdk:logging", "logging-test builds for the guest with logging enabled", sdk_logging),
+    Task::new(
+        "sdk:rv32",
+        "thruput-sdk builds for the guest target",
+        sdk_rv32,
+    ),
+    Task::new(
+        "sdk:macros-guest",
+        "The macros crate-override fixture builds for the guest",
+        sdk_macros_guest,
+    ),
+    Task::new(
+        "sdk:logging",
+        "logging-test builds for the guest with logging enabled",
+        sdk_logging,
+    ),
     Task::new("sdk:test", "The SDK test sequence", sdk_test),
     Task::new("sdk:docs", "Workspace rustdoc without warnings", sdk_docs),
-    Task::new("sdk:docsrs", "Each publishable crate documents in its docs.rs configuration", sdk_docsrs)
-        .lane(Lane::Docsrs),
-    Task::new("sdk:cargo-guide", "The Cargo-only guide builds as a standalone consumer", sdk_cargo_guide)
-        .lane(Lane::Free),
+    Task::new(
+        "sdk:docsrs",
+        "Each publishable crate documents in its docs.rs configuration",
+        sdk_docsrs,
+    )
+    .lane(Lane::Docsrs),
+    Task::new(
+        "sdk:cargo-guide",
+        "The Cargo-only guide builds as a standalone consumer",
+        sdk_cargo_guide,
+    )
+    .lane(Lane::Free),
     Task::new(
         "fixtures-negative:domain-collision",
         "Storage domain collisions are detected",
@@ -96,9 +133,10 @@ pub static TASKS: &[Task] = &[
     ),
     Task::new(
         "fixtures-negative:dup-entrypoint",
-        "A host build with duplicate entrypoints fails",
+        "Host and guest builds with duplicate entrypoints fail",
         dup_entrypoint,
-    ),
+    )
+    .needs(&["cli"]),
     // Before fixtures:rv32: this builds complex-storage stripped, into the
     // release directory the rv32 build writes its unstripped ELFs to.
     Task::new(
@@ -108,25 +146,78 @@ pub static TASKS: &[Task] = &[
     ),
     Task::new(
         "fixtures:rv32",
-        "rv32 fixture builds, artifact checks, spec checks, rv32 negative fixtures",
+        "rv32 fixture builds and ELF checks",
         fixtures_rv32,
     )
     .needs(&["cli"])
     .after(&["fixtures-negative:registry-stripped"]),
-    Task::new("fixtures:test", "Each fixture's tests, one package at a time", fixtures_test)
-        .needs(&["fixtures:rv32"]),
+    Task::new(
+        "fixtures-negative:typedef-conflict",
+        "Two shapes for one type id fail the rv32 build",
+        typedef_conflict,
+    )
+    .needs(&["cli"]),
+    Task::new(
+        "fixtures-negative:event-signature-conflict",
+        "Two events with one signature fail the rv32 build",
+        event_signature_conflict,
+    )
+    .needs(&["cli"]),
+    Task::new(
+        "fixtures-negative:iface-declarer-conflict",
+        "Two declarers for one interface key fail the rv32 build",
+        iface_declarer_conflict,
+    )
+    .needs(&["cli"]),
+    Task::new(
+        "fixtures-negative:missing-entrypoints",
+        "The dispatch check rejects a contract with no entrypoints",
+        missing_entrypoints,
+    ),
+    Task::new(
+        "fixtures:specs",
+        "The rv32 fixtures' spec sidecars",
+        fixtures_specs,
+    )
+    .needs(&["fixtures:rv32"])
+    .lane(Lane::Free),
+    Task::new(
+        "fixtures:test",
+        "Each fixture's tests, one package at a time",
+        fixtures_test,
+    )
+    .needs(&["fixtures:rv32"]),
     Task::new(
         "fixtures:exception-stack",
         "Exception handling with a 16 KiB rv32 stack",
         exception_stack,
     )
     .needs(&["cli"]),
-    Task::new("lint:fixtures", "Clippy on each fixture, guest and host", lint_fixtures),
-    Task::new("itc:rv32", "rv32 integration builds and artifact checks", itc_rv32).needs(&["cli"]),
-    Task::new("itc:test", "The integration workspace tests", itc_test).needs(&["itc:rv32"]),
-    Task::new("lint:itc", "Clippy on each integration contract, guest and host", lint_itc),
+    Task::new(
+        "lint:fixtures",
+        "Clippy on each fixture, guest and host",
+        lint_fixtures,
+    ),
+    Task::new(
+        "itc:rv32",
+        "rv32 integration builds and artifact checks",
+        itc_rv32,
+    )
+    .needs(&["cli"]),
+    Task::new("itc:test", "The integration workspace tests", itc_test)
+        .needs(&["itc:rv32"]),
+    Task::new(
+        "lint:itc",
+        "Clippy on each integration contract, guest and host",
+        lint_itc,
+    ),
     // Last: with --unlocked, the other tasks may update lockfiles.
-    Task::new("version-check", "Version pins agree across manifests and lockfiles", version_check).last(),
+    Task::new(
+        "version-check",
+        "Version pins agree across manifests and lockfiles",
+        version_check,
+    )
+    .last(),
 ];
 
 fn fmt(ctx: &mut Ctx) -> Result {
@@ -337,9 +428,158 @@ fn domain_collision(ctx: &mut Ctx) -> Result {
     ctx.run(&cmd)
 }
 
+/// dup_entrypoint_neg has two colliding traits that share a method name, so
+/// both impls get one entrypoint id. Two dispatch records with one id once
+/// passed silently: the runtime's first-match scan routed every call to one
+/// impl, and the host mock let the last registration win. Guard symbols now
+/// carry the id, so both builds must fail with a duplicate symbol. The crate
+/// is outside the workspace and carries a `disabled` marker.
 fn dup_entrypoint(ctx: &mut Ctx) -> Result {
-    let cmd = ctx.script("check-duplicate-entrypoint-detected.sh");
-    ctx.run(&cmd)
+    let dir = ctx.repo.fixtures().join("dup_entrypoint_neg");
+    // The guard is crate-scoped; the scope is hex, for linker safety.
+    const GUARD: &str = "__thruput_entrypoint::Ledger::0.4::clash__crate__\
+                         6475705f656e747279706f696e745f6e6567__302e342e30";
+    let host = ctx.cargo(&dir, "build").args(["--features", "dev"]);
+    ctx.step("host", |ctx| {
+        expect_failure(
+            ctx,
+            &host,
+            "a crate-scoped guard defined twice",
+            |out| {
+                out.lines().any(|l| {
+                    l.contains(GUARD) && l.contains("already defined")
+                })
+            },
+        )
+    })?;
+    let guest = ctx.cmd("thruput", &dir).args([
+        "build",
+        "--no-ui",
+        "-p",
+        "dup_entrypoint_neg",
+    ]);
+    ctx.step("guest", |ctx| {
+        expect_failure(ctx, &guest, "a duplicate symbol", |out| {
+            out.contains("already defined") || out.contains("duplicate symbol")
+        })
+    })
+}
+
+/// typedef_id_collision gives two declarations in one module one spec id
+/// (`Decoy` takes `Colliding`'s through `name = "..."`), with different
+/// shapes, and keeps both reachable. The ELF links, and the spec
+/// canonicalization during lowering must refuse it.
+///
+/// Qualified type names let same-named types coexist (see
+/// typedef_ids_coexist); this pins the half that must not relax: two shapes
+/// claiming one id.
+fn typedef_conflict(ctx: &mut Ctx) -> Result {
+    // The id's crate and version change with every release.
+    negative_rv32_build(
+        ctx,
+        "typedef_id_collision",
+        r"conflicting contract type definitions for .*::Colliding",
+    )
+}
+
+/// event_signature_collision declares one event ident in two of its modules
+/// and emits both: distinct spec ids, one signature (topic 0, all a consumer
+/// sees on the wire).
+fn event_signature_conflict(ctx: &mut Ctx) -> Result {
+    negative_rv32_build(
+        ctx,
+        "event_signature_collision",
+        r"events share an event signature: .*::ledger::Updated .* and .*::vault::Updated",
+    )
+}
+
+/// iface_declarer_collision implements two unrelated `Token` traits. They
+/// share an interface key (name and major version, all the wire carries),
+/// while distinct methods let the entrypoints link. The spec must not
+/// publish one `Token` holding both method sets. (iface_conflict_impl, which
+/// implements one `Token` and only links the other, builds: see
+/// [`specs::SPECS`].)
+fn iface_declarer_conflict(ctx: &mut Ctx) -> Result {
+    negative_rv32_build(
+        ctx,
+        "iface_declarer_collision",
+        r"interface declared by more than one item: Token@.* is declared by both .*::ledger::Token .* and .*::vault::Token",
+    )
+}
+
+/// The rv32 build of a negative-contracts package must fail with output
+/// matching `pattern`.
+fn negative_rv32_build(ctx: &mut Ctx, package: &str, pattern: &str) -> Result {
+    let regex = Regex::new(pattern).expect("valid pattern");
+    let cmd = ctx
+        .cmd("thruput", &ctx.repo.negative_fixtures())
+        .args(["build", "--no-ui", "-p", package]);
+    expect_failure(ctx, &cmd, pattern, |out| regex.is_match(out))
+}
+
+/// missing_contract_macro has no `#[contract]` and registers no entrypoint by
+/// hand, so nothing can call it. Omitting the macro is fine on its own
+/// (raw_iface_dep and test_bytestring write their records by hand); the
+/// guard is on an empty dispatch table. The ELF must link, unstripped for
+/// the bracket symbols, and the dispatch check must reject it. Its linked
+/// interface crate still fills the raw spec section: the shape that once
+/// shipped as an uncallable module with an empty spec.
+fn missing_entrypoints(ctx: &mut Ctx) -> Result {
+    let package = "missing_contract_macro";
+    let cmd = ctx
+        .cargo(&ctx.repo.fixtures(), "build")
+        .args([
+            "-p",
+            package,
+            "-F",
+            "entrypoints",
+            "--release",
+            "--target",
+            RV32_TARGET,
+            "-Zbuild-std=core,alloc",
+            "-Zbuild-std-features=std/optimize_for_size",
+        ])
+        .env("CARGO_PROFILE_RELEASE_STRIP", "false");
+    ctx.step("build", |ctx| ctx.run(&cmd))?;
+    let path = elf_path(ctx.repo, package);
+    let data = std::fs::read(&path).map_err(|e| {
+        Failure::new(format!("reading {}: {e}", ctx.repo.rel(&path).display()))
+    })?;
+    match elf::check_dispatch(&data) {
+        Err(e) if e.contains(elf::EMPTY_DISPATCH_TABLE) => Ok(()),
+        Err(e) => Err(Failure::new(format!(
+            "expected an empty dispatch table, got: {e}"
+        ))
+        .into()),
+        Ok(_) => Err(Failure::new(
+            "the dispatch check accepted an empty dispatch table",
+        )
+        .into()),
+    }
+}
+
+/// Runs `cmd`, which must fail with output that satisfies `expected`.
+fn expect_failure(
+    ctx: &mut Ctx,
+    cmd: &Cmd,
+    what: &str,
+    expected: impl Fn(&str) -> bool,
+) -> Result {
+    let (status, output) = ctx.capture(cmd)?;
+    let output = strip_ansi(&output);
+    let mut failure = if status.success() {
+        Failure::new(format!("expected {what}, but the build succeeded"))
+    } else if expected(&output) {
+        return Ok(());
+    } else {
+        let mut failure = Failure::new(format!(
+            "expected {what}; the build failed otherwise"
+        ));
+        failure.details = notable_lines(&output);
+        failure
+    };
+    failure.command = Some(cmd.display(ctx.repo));
+    Err(failure.into())
 }
 
 fn registry_stripped(ctx: &mut Ctx) -> Result {
@@ -358,18 +598,13 @@ fn registry_stripped(ctx: &mut Ctx) -> Result {
     }
 }
 
-fn dev_sh(ctx: &Ctx, action: &str) -> crate::task::Cmd {
-    let cmd = ctx.script("dev.sh").arg(action);
-    if ctx.opts.locked {
-        cmd
-    } else {
-        cmd.env("CARGO_UNLOCK", "1")
-    }
+fn fixtures_rv32(ctx: &mut Ctx) -> Result {
+    let dir = ctx.repo.fixtures();
+    rv32::build_all(ctx, &dir, &dir)
 }
 
-fn fixtures_rv32(ctx: &mut Ctx) -> Result {
-    let cmd = dev_sh(ctx, "build-examples-rv32");
-    ctx.run(&cmd)
+fn fixtures_specs(ctx: &mut Ctx) -> Result {
+    specs::check(ctx)
 }
 
 fn fixtures_test(ctx: &mut Ctx) -> Result {
@@ -417,8 +652,9 @@ fn lint_fixtures(ctx: &mut Ctx) -> Result {
 
 fn itc_rv32(ctx: &mut Ctx) -> Result {
     require_integration(ctx)?;
-    let cmd = dev_sh(ctx, "build-integration-rv32");
-    ctx.run(&cmd)
+    let (workspace, contracts) =
+        (ctx.repo.integration(), ctx.repo.integration_contracts());
+    rv32::build_all(ctx, &workspace, &contracts)
 }
 
 fn itc_test(ctx: &mut Ctx) -> Result {

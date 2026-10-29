@@ -30,8 +30,7 @@ runs:
           ${{ github.workspace }}/.hogd-ffi-cache
           ${{ github.workspace }}/.thruput-cli
 
-    # The annotation scan and the rv32 checks in scripts/dev.sh use ripgrep;
-    # the runner image doesn't ship it.
+    # The annotation scan uses ripgrep; the runner image doesn't ship it.
     - name: Install ripgrep
       shell: bash
       run: |
