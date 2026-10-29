@@ -20,6 +20,13 @@ pub fn delete_exclusive(key: &StorageKey) {
 /// calling this function for a particular key, the storage location behaves as
 /// if it had never been set.
 ///
+/// One exception: a retrocausal queue whose retained history spans more than
+/// `kMaxRetrocausalQueueBlocksPerDeletion` live block rows cannot be deleted
+/// in one transaction. The syscall returns
+/// `kSyscallErrorCodeRetrocausalQueueTooLargeToDelete` (thrown here; surfaced
+/// as an `Err` by the `sys_result` variants), a handleable resource limit:
+/// consume the queue down in earlier blocks and retry.
+///
 pub fn delete(key: &StorageKey, exclusive: bool) {
     if exclusive {
         delete_exclusive(key)
