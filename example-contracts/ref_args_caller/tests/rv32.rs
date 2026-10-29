@@ -1,7 +1,7 @@
 //! `ref_args_caller` calling `ref_args`, both running as rv32 guests.
 //!
 //! Requires the lowered `ref_args` and `ref_args_caller` artifacts:
-//! `scripts/dev.sh build-examples-rv32` writes them.
+//! `cargo gnaw build ref_args ref_args_caller` writes them.
 
 use ref_args_caller::RefArgsCallerClient;
 use thruput_sdk::*;

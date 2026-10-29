@@ -38,8 +38,8 @@ RV32 examples and run `versioned_impl_caller`'s tests. That contract calls
 both interface versions from inside the guest:
 
 ```sh
-./scripts/dev.sh build-examples-rv32
-cargo test --manifest-path example-contracts/Cargo.toml -p versioned_impl_caller --locked
+cargo gnaw build versioned_impl versioned_impl_caller
+cargo gnaw test versioned_impl_caller
 ```
 
 The regular example CI runs both tests.

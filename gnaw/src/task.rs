@@ -188,6 +188,13 @@ impl Cmd {
         }
     }
 
+    /// `cargo <subcommand>` in `dir`, with `--locked` if `locked`.
+    pub fn cargo(dir: &Path, subcommand: &str, locked: bool) -> Cmd {
+        let cmd = Cmd::new("cargo", dir);
+        let cmd = if locked { cmd.arg("--locked") } else { cmd };
+        cmd.arg(subcommand)
+    }
+
     pub fn arg(mut self, arg: impl Into<OsString>) -> Cmd {
         self.args.push(arg.into());
         self
@@ -204,6 +211,16 @@ impl Cmd {
     pub fn env(mut self, key: &str, value: impl Into<OsString>) -> Cmd {
         self.env.push((key.to_string(), value.into()));
         self
+    }
+
+    /// The command, ready to spawn.
+    pub fn command(&self) -> Command {
+        let mut command = Command::new(&self.program);
+        command.args(&self.args).current_dir(&self.dir);
+        for (key, value) in &self.env {
+            command.env(key, value);
+        }
+        command
     }
 
     /// The command as a shell line, run from the repository root.
@@ -289,13 +306,7 @@ impl<'a> Ctx<'a> {
 
     /// `cargo <subcommand>` in `dir`, with `--locked` unless unlocked.
     pub fn cargo(&self, dir: &Path, subcommand: &str) -> Cmd {
-        let cmd = Cmd::new("cargo", dir);
-        let cmd = if self.opts.locked {
-            cmd.arg("--locked")
-        } else {
-            cmd
-        };
-        cmd.arg(subcommand)
+        Cmd::cargo(dir, subcommand, self.opts.locked)
     }
 
     /// `bash scripts/<name>` from the repository root.
@@ -331,19 +342,14 @@ impl<'a> Ctx<'a> {
     fn spawn(&mut self, cmd: &Cmd, log: bool) -> Result<(ExitStatus, String)> {
         self.log.line(&format!("$ {}", cmd.display(self.repo)));
         let log = log.then_some(&*self.log);
-        let mut command = Command::new(&cmd.program);
+        let mut command = cmd.command();
         command
-            .args(&cmd.args)
-            .current_dir(&cmd.dir)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .env("CARGO_TERM_PROGRESS_WHEN", "never");
         if self.opts.color {
             command.env("CARGO_TERM_COLOR", "always");
-        }
-        for (key, value) in &cmd.env {
-            command.env(key, value);
         }
         let mut child = command.spawn().map_err(|e| {
             let mut failure =

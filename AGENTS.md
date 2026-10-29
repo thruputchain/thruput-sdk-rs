@@ -7,7 +7,7 @@ guest runtime, and native test infrastructure.
 
 For contract authoring, start with [Start a contract](README.md#start-a-contract).
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
-`./scripts/dev.sh` from the repository root. Use the toolchain declared in
+`cargo gnaw` from the repository root. Use the toolchain declared in
 [rust-toolchain.toml](rust-toolchain.toml).
 
 ## Repository map
@@ -36,7 +36,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 ## Validation
 
 - Run focused tests for the changed crate or contract first. For example,
-  `./scripts/dev.sh test example-contracts/counter -- --show-output`.
+  `cargo gnaw test counter -- --show-output`.
 - Use `./scripts/ci.sh` for full validation. It installs the pinned Thruput
   CLI, then runs `cargo gnaw run ci`. See CONTRIBUTING.md prerequisites first.
   To run part of CI, name gnaw tasks or groups, such as
@@ -45,12 +45,13 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
   `--workspace`: the guest runtime crate requires its own target.
 - Example and integration workspaces have separate manifests and lockfiles.
   A root test run does not cover them. Some tests also require built contracts.
-- Run example packages separately, as `test-examples` does. Combining packages
-  can change behavior through Cargo feature unification.
-- `dev.sh` locks dependencies by default. Set `CARGO_UNLOCK` only when an
+- Run example packages separately, as `cargo gnaw test` and the
+  `fixtures:test` task do. Combining packages can change behavior through
+  Cargo feature unification.
+- gnaw locks dependencies by default. Pass `--unlocked` only when an
   intentional dependency update requires it.
-- `./scripts/dev.sh test` runs the SDK test sequence. Use `test-examples` and
-  `test-itc` for the separate contract workspaces.
+- `cargo gnaw run sdk:test` runs the SDK test sequence. Use `fixtures:test`
+  and `itc:test` for the separate contract workspaces.
 - Report which checks ran and any blockers. Documentation-only changes need
   link, command, and diff checks; they do not normally need full CI.
 

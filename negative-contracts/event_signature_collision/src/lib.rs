@@ -20,7 +20,7 @@
 //!
 //! The rv32 pipeline canonicalizes with the pinned CLI's embedded spec-tool,
 //! which carries the rule from CLI 0.19.0-pre.1 on.
-//! `check_rv32_event_signature_conflict_detected` in dev.sh asserts the build
+//! gnaw's `fixtures-negative:event-signature-conflict` task asserts the build
 //! fails with the conflict naming both `Updated` events.
 
 #![cfg_attr(not(feature = "dev"), no_std)]

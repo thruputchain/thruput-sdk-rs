@@ -9,7 +9,7 @@
 //!
 //! Historically this shape — broken contract plus any interface-crate
 //! dependency — shipped silently as an uninvocable module with an empty
-//! spec.  dev.sh's `check_rv32_missing_entrypoints_detected` asserts the
+//! spec.  gnaw's `fixtures-negative:missing-entrypoints` task asserts the
 //! empty-dispatch-table guard fires on it.
 
 #![no_std]

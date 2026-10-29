@@ -681,36 +681,45 @@ fn version_check(ctx: &mut Ctx) -> Result {
     ctx.run(&cmd)
 }
 
-/// Clippy on each contract package in `contracts`, from `workspace`: once for
-/// the guest, where the workspace config supplies the rv32 flags, and once on
-/// the host with `dev`.
+/// Clippy on each contract package in `contracts`, from `workspace`.
 fn lint_contracts(
     ctx: &mut Ctx,
     workspace: &Path,
     contracts: &Path,
 ) -> Result {
     for package in packages(contracts)? {
-        let guest = ctx.cargo(workspace, "clippy").args([
-            "-p",
-            &package,
-            "-F",
-            "entrypoints",
-            "--release",
-            "--target",
-            RV32_TARGET,
-            "-Zbuild-std=core,alloc",
-            "--",
-            "-Dwarnings",
-        ]);
-        let host = ctx
-            .cargo(workspace, "clippy")
-            .args(["-F", "dev", "-p", &package]);
         ctx.step(package.as_str(), |ctx| {
-            ctx.step("guest", |ctx| ctx.run(&guest))?;
-            ctx.step("host", |ctx| ctx.run(&host))
+            lint_contract(ctx, workspace, &package)
         })?;
     }
     Ok(())
+}
+
+/// Clippy on `package`, from `workspace`: once for the guest, where the
+/// workspace config supplies the rv32 flags, and once on the host with
+/// `dev`.
+pub fn lint_contract(
+    ctx: &mut Ctx,
+    workspace: &Path,
+    package: &str,
+) -> Result {
+    let guest = ctx.cargo(workspace, "clippy").args([
+        "-p",
+        package,
+        "-F",
+        "entrypoints",
+        "--release",
+        "--target",
+        RV32_TARGET,
+        "-Zbuild-std=core,alloc",
+        "--",
+        "-Dwarnings",
+    ]);
+    let host = ctx
+        .cargo(workspace, "clippy")
+        .args(["-F", "dev", "-p", package]);
+    ctx.step("guest", |ctx| ctx.run(&guest))?;
+    ctx.step("host", |ctx| ctx.run(&host))
 }
 
 fn packages(dir: &Path) -> Result<Vec<String>> {

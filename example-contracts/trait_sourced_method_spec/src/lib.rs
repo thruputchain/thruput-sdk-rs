@@ -10,7 +10,7 @@
 //! The impl emits method fragments from the trait's metadata. The extracted
 //! RV32 spec must retain the trait's argument names and all three declared
 //! effects, while leaving the unannotated method's effect absent.
-//! `check_rv32_contract_spec_artifacts` checks this after a real build.
+//! gnaw's `fixtures:specs` task checks this after a real build.
 //!
 //! Replaces the guard the deleted `swap` contract carried, which was the
 //! only end-to-end check of this invariant.

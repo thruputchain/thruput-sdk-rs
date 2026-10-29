@@ -20,7 +20,8 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact, built by name from check_rv32_typedef_conflict_detected.
+# The rv32 artifact, built by name from gnaw's
+# fixtures-negative:typedef-conflict task.
 [[bin]]
 name = "typedef_id_collision"
 path = "src/main.rs"

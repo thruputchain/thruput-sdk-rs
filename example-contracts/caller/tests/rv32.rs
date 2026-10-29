@@ -1,7 +1,7 @@
 //! Test one contract calling the other, both running as rv32 guests.
 //!
 //! Requires the lowered `erc20` and `caller` artifacts:
-//! `scripts/dev.sh build-examples-rv32` writes them.
+//! `cargo gnaw build erc20 caller` writes them.
 mod common;
 use caller::CallerClient;
 use common::*;

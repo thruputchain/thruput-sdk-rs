@@ -20,7 +20,8 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact, built by name from check_rv32_iface_declarer_conflict_detected.
+# The rv32 artifact, built by name from gnaw's
+# fixtures-negative:iface-declarer-conflict task.
 [[bin]]
 name = "iface_declarer_collision"
 path = "src/main.rs"

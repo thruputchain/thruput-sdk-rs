@@ -17,7 +17,8 @@
 //!    shapes, both reachable from methods. Same ident, one crate — the case a
 //!    single author can hit alone.
 //!
-//! dev.sh asserts the built spec carries all six ids distinctly.
+//! gnaw's `fixtures:specs` task asserts the built spec carries all six ids
+//! distinctly.
 //!
 //! Both `Config`s deliberately differ in shape: identical shapes would have
 //! merged silently under the old naming, which is the quieter half of the bug

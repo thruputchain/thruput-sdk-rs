@@ -14,7 +14,7 @@
 //!
 //! Both defs must also survive shaking for the conflict to be reachable:
 //! `Colliding` because a retained method takes it, `Decoy` because `export`
-//! makes it a root. dev.sh's `check_rv32_typedef_conflict_detected` asserts
+//! makes it a root. gnaw's `fixtures-negative:typedef-conflict` task asserts
 //! the build fails and names the id.
 
 #![cfg_attr(not(feature = "dev"), no_std)]

@@ -20,7 +20,7 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact, built by the standard rv32 loop in scripts/dev.sh.
+# The rv32 artifact, built by gnaw's fixtures:rv32 task.
 [[bin]]
 name = "iface_conflict_impl"
 path = "src/main.rs"

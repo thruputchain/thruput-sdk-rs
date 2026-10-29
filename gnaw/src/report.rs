@@ -313,7 +313,13 @@ fn print_summary(results: &[TaskResult], elapsed: Duration, repo: &Repo) {
         if let Outcome::Failed(failure) = &result.outcome {
             println!(
                 "{}",
-                diagnosis(result.id, failure, result.log.as_deref(), repo)
+                diagnosis(
+                    result.id,
+                    failure,
+                    result.log.as_deref(),
+                    &format!("cargo gnaw run {} --no-deps", result.id),
+                    repo,
+                )
             );
         }
     }
@@ -334,10 +340,22 @@ fn print_summary(results: &[TaskResult], elapsed: Duration, repo: &Repo) {
     }
 }
 
+/// Prints how a command run outside the task graph failed.
+pub fn print_failure(
+    label: &str,
+    failure: &Failure,
+    log: &Path,
+    rerun: &str,
+    repo: &Repo,
+) {
+    println!("\n{}", diagnosis(label, failure, Some(log), rerun, repo));
+}
+
 fn diagnosis(
     id: &str,
     failure: &Failure,
     log: Option<&Path>,
+    rerun: &str,
     repo: &Repo,
 ) -> String {
     let mut text =
@@ -351,7 +369,7 @@ fn diagnosis(
     if let Some(log) = log {
         let _ = writeln!(text, "    log:   {}", repo.rel(log).display());
     }
-    let _ = writeln!(text, "    rerun: cargo gnaw run {id} --no-deps");
+    let _ = writeln!(text, "    rerun: {rerun}");
     text
 }
 
@@ -380,7 +398,13 @@ fn write_step_summary(path: &Path, results: &[TaskResult], repo: &Repo) {
             let _ = write!(
                 md,
                 "\n```\n{}```\n",
-                diagnosis(result.id, failure, result.log.as_deref(), repo)
+                diagnosis(
+                    result.id,
+                    failure,
+                    result.log.as_deref(),
+                    &format!("cargo gnaw run {} --no-deps", result.id),
+                    repo,
+                )
             );
         }
     }

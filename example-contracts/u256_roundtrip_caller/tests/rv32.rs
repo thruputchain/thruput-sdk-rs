@@ -2,7 +2,8 @@
 //! guests.
 //!
 //! Requires the lowered `u256_roundtrip` and `u256_roundtrip_caller`
-//! artifacts: `scripts/dev.sh build-examples-rv32` writes them.
+//! artifacts: `cargo gnaw build u256_roundtrip u256_roundtrip_caller` writes
+//! them.
 
 use thruput_sdk::*;
 use u256_roundtrip_caller::U256RoundtripCallerClient;

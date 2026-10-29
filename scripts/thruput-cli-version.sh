@@ -1,7 +1,7 @@
 # Pinned Thruput CLI version and optional source commit.
 #
-# Single source of truth: sourced by scripts/ci.sh (which installs exactly
-# this version before dev.sh ci) and by scripts/dev.sh (which warns when the
+# Single source of truth: sourced by scripts/install-thruput-cli.sh (which
+# `cargo gnaw setup` runs) and read by gnaw's `cli` task (which warns when the
 # local CLI differs — CI is authoritative for metrics/artifacts). Bump this
 # version when a compatible release of the CLI (`thruput` on crates.io) is
 # published. Until then, pin its source so SDK format changes can be tested

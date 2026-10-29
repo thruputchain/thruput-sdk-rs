@@ -2,7 +2,8 @@
 //! guests.
 //!
 //! Requires the lowered `versioned_impl` and `versioned_impl_caller`
-//! artifacts: `scripts/dev.sh build-examples-rv32` writes them.
+//! artifacts: `cargo gnaw build versioned_impl versioned_impl_caller`
+//! writes them.
 
 use thruput_sdk::*;
 use versioned_impl_caller::VersionedImplCallerClient;

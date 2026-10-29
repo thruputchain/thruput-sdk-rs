@@ -1,5 +1,5 @@
-//! Requires the lowered `exn_catch` artifact: `scripts/dev.sh
-//! build-examples-rv32` writes it.
+//! Requires the lowered `exn_catch` artifact: `cargo gnaw build exn_catch`
+//! writes it.
 
 // test working directory is example contract directory
 const RV32_PATH: &str = "../../target/thruput/exn_catch.rv32a";

@@ -3,6 +3,7 @@ use std::process::{Command, ExitCode};
 
 use clap::{Parser, Subcommand, ValueEnum};
 
+use gnaw::commands;
 use gnaw::exec::{ExecOptions, execute};
 use gnaw::plan::{Selection, resolve};
 use gnaw::repo::Repo;
@@ -31,6 +32,47 @@ enum Commands {
     /// Install the pinned Thruput CLI and give it a config profile if it has
     /// none. Honors THRUPUT_CLI_ROOT.
     Setup,
+    /// Build contracts for rv32 with the Thruput CLI and check their ELFs.
+    ///
+    /// Artifacts go to target/thruput/.
+    Build(Contracts),
+    /// Run contracts' native tests, one package at a time.
+    Test {
+        #[command(flatten)]
+        contracts: Contracts,
+        /// Arguments for the test binaries, such as `--show-output`.
+        #[arg(last = true)]
+        args: Vec<String>,
+    },
+    /// Run clippy on contracts, for the guest and for the host.
+    Lint(Contracts),
+    /// Show a contract's macro expansion for the guest. Needs cargo-expand.
+    Expand {
+        contract: String,
+        /// More `cargo expand` arguments, such as an item path.
+        #[arg(last = true)]
+        args: Vec<String>,
+    },
+    /// Show a contract's guest dependency tree.
+    Tree {
+        contract: String,
+        #[arg(long)]
+        unlocked: bool,
+        /// More `cargo tree` arguments.
+        #[arg(last = true)]
+        args: Vec<String>,
+    },
+}
+
+#[derive(clap::Args)]
+struct Contracts {
+    /// Package directories, such as example-contracts/counter, or package
+    /// names.
+    #[arg(required = true, value_name = "CONTRACT")]
+    contracts: Vec<String>,
+    /// Let cargo update lockfiles (omit --locked).
+    #[arg(long)]
+    unlocked: bool,
 }
 
 #[derive(clap::Args)]
@@ -92,6 +134,40 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Commands::Setup => setup(&repo),
+        Commands::Build(c) => with_contracts(&repo, &c.contracts, |cs| {
+            commands::build(&repo, cs, !c.unlocked)
+        }),
+        Commands::Test { contracts: c, args } => {
+            with_contracts(&repo, &c.contracts, |cs| {
+                commands::test(&repo, cs, &args, !c.unlocked)
+            })
+        }
+        Commands::Lint(c) => with_contracts(&repo, &c.contracts, |cs| {
+            commands::lint(&repo, cs, !c.unlocked)
+        }),
+        Commands::Expand { contract, args } => {
+            with_contracts(&repo, &[contract], |cs| {
+                commands::expand(&repo, &cs[0], &args)
+            })
+        }
+        Commands::Tree {
+            contract,
+            unlocked,
+            args,
+        } => with_contracts(&repo, &[contract], |cs| {
+            commands::tree(&repo, &cs[0], &args, !unlocked)
+        }),
+    }
+}
+
+fn with_contracts(
+    repo: &Repo,
+    specs: &[String],
+    run: impl FnOnce(&[gnaw::contract::Contract]) -> ExitCode,
+) -> ExitCode {
+    match commands::contracts(repo, specs) {
+        Some(contracts) => run(&contracts),
+        None => ExitCode::FAILURE,
     }
 }
 

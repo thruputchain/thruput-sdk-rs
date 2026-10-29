@@ -10,8 +10,8 @@
 //! B's candidate looked like a second, disagreeing description of the one
 //! interface. Each fragment now names its declarer (the trait's spec id), so
 //! B's candidate is shaken like any unimplemented interface and the spec
-//! describes A's `Token`, emits and all. dev.sh's
-//! `check_rv32_contract_spec_artifacts` asserts that. Implementing *both*
+//! describes A's `Token`, emits and all. gnaw's `fixtures:specs` task
+//! asserts that. Implementing *both*
 //! traits is still refused — see `negative-contracts/iface_declarer_collision`.
 
 #![cfg_attr(not(feature = "dev"), no_std)]

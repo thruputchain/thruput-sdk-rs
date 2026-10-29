@@ -1,4 +1,3 @@
-/scripts/dev.sh
 /integration_test/contracts
 /gnaw/src/tasks.rs
 # mktemp templates

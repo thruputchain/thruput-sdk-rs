@@ -5,7 +5,7 @@ set -euo pipefail
 # .text is the stored code image; .rodata + .data form the stored initial
 # data image (data_image); .bss is VM-zeroed (not stored) and reported for
 # context. file is the raw size of the ELF as CI builds it — UNSTRIPPED
-# since 2026-07-09 (dev.sh build_rv32 sets CARGO_PROFILE_RELEASE_STRIP=false
+# since 2026-07-09 (gnaw's rv32 build sets CARGO_PROFILE_RELEASE_STRIP=false
 # so the symbol checks can run), so it includes the symtab and is a loose
 # upper bound, not an on-chain number; comparisons across that boundary see
 # a one-time step. The section-based fields are unaffected by stripping.
@@ -65,7 +65,7 @@ emit_row() {
     name=$1
     elf="$TARGET_DIR/$name"
     if [ ! -f "$elf" ] || [ ! -x "$elf" ]; then
-        echo "Expected rv32 contract ELF missing: $elf (build with scripts/dev.sh build-examples-rv32 / build-integration-rv32)" >&2
+        echo "Expected rv32 contract ELF missing: $elf (build with cargo gnaw run metrics-inputs)" >&2
         exit 1
     fi
     text=$(section_size "$elf" .text)
@@ -76,7 +76,7 @@ emit_row() {
     echo "$name text=$text rodata=$rodata data=$data bss=$bss data_image=$((rodata + data)) file=$file"
 }
 
-# example-contracts rv32 discovery, mirroring dev.sh ls_rv32_packages (keep
+# example-contracts rv32 discovery, mirroring gnaw's rv32_packages (keep
 # the rules in sync): contract dirs minus the `disabled` marker, narrowed to
 # packages declaring a [[bin]]. Bin name = underscored package name.
 found=0
@@ -92,7 +92,7 @@ done
 
 # No duplicate-name guard here: a cross-workspace name collision reads the same ELF twice (identical rows); sdk_codesizes_rv32_lowered.sh is the collision tripwire (it exits 1).
 #
-# integration_test rv32 discovery, mirroring dev.sh ls_itc_rv32_packages
+# integration_test rv32 discovery, mirroring gnaw's rv32_packages
 # (keep the rules in sync): contract dirs minus the `disabled` marker,
 # narrowed to packages declaring a [[bin]] (the rv32 wrapper bin is the
 # enablement signal; raw contracts with hand-written entrypoints have no bin

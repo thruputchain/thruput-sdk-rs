@@ -6,8 +6,8 @@
 //! rv32 interpreter, so the guest-side calldata decode, typed return
 //! encode, and storage syscalls are the ones a deployed contract executes.
 //!
-//! Requires the lowered `u256_roundtrip` artifact: `scripts/dev.sh
-//! build-examples-rv32` writes it.
+//! Requires the lowered `u256_roundtrip` artifact: `cargo gnaw build
+//! u256_roundtrip` writes it.
 
 use thruput_sdk::*;
 use u256_roundtrip::U256RoundtripClient;

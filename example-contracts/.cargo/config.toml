@@ -18,11 +18,11 @@ rustflags = [
 # Flag set matches hogd/built_contracts/.cargo/config.toml (the production
 # rv32 build) plus `+relax`, `--icf=all`, and `--relax-gp` (measured wins).
 #
-# Requires -Zbuild-std=core,alloc on the command line (scripts/dev.sh
-# passes it, like hogd's build_risc.sh): panic=immediate-abort and the
+# Requires -Zbuild-std=core,alloc on the command line (gnaw passes it,
+# like hogd's build_risc.sh): panic=immediate-abort and the
 # target features below are incompatible with the prebuilt core. A bare
 # `cargo build --target riscv32im-unknown-none-elf` from this directory
-# will therefore error; build via `scripts/dev.sh build-examples-rv32`.
+# will therefore error; build via `cargo gnaw build <contract>`.
 # ([unstable] build-std must NOT go in this file: it would also apply to
 # host `cargo test` runs from this cwd, which fail without --target.)
 [target.riscv32im-unknown-none-elf]

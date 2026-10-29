@@ -1,5 +1,5 @@
-//! Requires the lowered `exceptions` artifact: `scripts/dev.sh
-//! build-examples-rv32` writes it.
+//! Requires the lowered `exceptions` artifact: `cargo gnaw build exceptions`
+//! writes it.
 
 // test working directory is example contract directory
 const RV32_PATH: &str = "../../target/thruput/exceptions.rv32a";

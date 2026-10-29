@@ -14,9 +14,9 @@
 //! one candidate — so the build succeeds and v2's def is shaken as the
 //! unreachable thing it always was.
 //!
-//! dev.sh asserts the resulting spec carries v1's id and not v2's. The
-//! collision that must still fail is a genuine one — two defs claiming a
-//! single id — and lives in `typedef_id_collision`.
+//! `cargo gnaw run fixtures:specs` asserts the resulting spec carries v1's id
+//! and not v2's. The collision that must still fail is a genuine one — two
+//! defs claiming a single id — and lives in `typedef_id_collision`.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 

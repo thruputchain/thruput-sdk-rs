@@ -20,7 +20,8 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact, built by name from check_rv32_typedef_conflict_detected.
+# The rv32 artifact, built by name from gnaw's
+# fixtures-negative:event-signature-conflict task.
 [[bin]]
 name = "event_signature_collision"
 path = "src/main.rs"

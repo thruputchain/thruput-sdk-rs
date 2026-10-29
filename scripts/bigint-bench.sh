@@ -100,7 +100,7 @@ command -v thruput > /dev/null || {
     exit 1
 }
 
-# Matches scripts/dev.sh: --locked unless CARGO_UNLOCK is set non-empty.
+# --locked unless CARGO_UNLOCK is set non-empty.
 LOCKED="--locked"
 [ -z "${CARGO_UNLOCK:-}" ] || LOCKED=""
 
@@ -143,8 +143,8 @@ for backend in $BACKENDS; do
 
         echo "=== BUILD(rv32) ${backend}.${op}  [-F ${features}]" >&2
 
-        # build-std goes through as trailing cargo args, like scripts/dev.sh
-        # build_rv32 and hogd's build_risc.sh: the rv32 rustflags use
+        # build-std goes through as trailing cargo args, like gnaw's rv32
+        # build and hogd's build_risc.sh: the rv32 rustflags use
         # panic=immediate-abort and target features the prebuilt core lacks.
         #
         # `-F` after the CLI's own flags is additive, and the CLI passes

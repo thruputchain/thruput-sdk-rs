@@ -100,8 +100,7 @@ exclude = [
     # Negative duplicate-entrypoint fixture: its HOST build now fails at
     # codegen on the crate-scoped guard symbols (that is the point), so it
     # cannot be a member of a workspace whose host build must succeed.
-    # Exercised by scripts/check-duplicate-entrypoint-detected.sh (host) and
-    # check_rv32_duplicate_entrypoint_detected in scripts/dev.sh (guest).
+    # Exercised by gnaw's fixtures-negative:dup-entrypoint task.
     "dup_entrypoint_neg",
 ]
 

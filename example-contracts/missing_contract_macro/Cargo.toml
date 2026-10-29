@@ -20,9 +20,9 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. The directory deliberately lacks a `-rv32` suffix so the
-# wrapper glob in scripts/dev.sh never builds it expecting success; the
-# negative check builds it by name. Same shape as dup_entrypoint_neg.
+# The rv32 artifact. The `disabled` marker keeps the fixture builds from
+# building it expecting success; the negative check builds it by name. Same
+# shape as dup_entrypoint_neg.
 [[bin]]
 name = "missing_contract_macro"
 path = "src/main.rs"

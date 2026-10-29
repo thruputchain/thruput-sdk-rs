@@ -43,13 +43,16 @@ git submodule update --init --recursive
 ## Run a native contract test
 
 The [counter contract](example-contracts/counter/src/implementation.rs) is a
-small fixture for learning the test flow:
+small fixture for learning the test flow. From the repository root:
 
 ```sh
-./scripts/dev.sh test example-contracts/counter -- --show-output
+cargo gnaw test counter -- --show-output
 ```
 
-This runs native tests, including increment, decrement, and underflow checks,
+[gnaw](gnaw/src/lib.rs) is this repository's task runner, in its own
+workspace; the `cargo gnaw` alias builds and runs it. Name a contract by its
+package name or its directory, such as `example-contracts/counter`. This runs
+native tests, including increment, decrement, and underflow checks,
 without building a guest binary. The
 [contract manifest](example-contracts/counter/Cargo.toml) enables native test
 support through its development dependency.
@@ -77,25 +80,33 @@ have not selected one, create a local profile:
 thruput config new sdk-local --network local --use --global --quiet
 ```
 
-For artifact checks, install `llvm-readelf` or `readelf`, an ELF-capable `nm`
-(such as `llvm-nm`), and `rg` (ripgrep). The scripts also use standard Unix
-utilities, including `realpath` and `strings`.
+`cargo gnaw setup` does both steps: it installs the pin and creates a profile
+if none is active.
+
+Build contracts by name or directory, or every fixture or integration
+contract:
 
 ```sh
-./scripts/dev.sh build-examples-rv32
-./scripts/dev.sh build-integration-rv32
+cargo gnaw build counter fibonacci
+cargo gnaw run fixtures:rv32
+cargo gnaw run itc:rv32
 ```
 
-The second command needs the integration submodule. Builds use the flags in
+The last command needs the integration submodule. Builds use the flags in
 [the example workspace config](example-contracts/.cargo/config.toml) and its
 [integration counterpart](integration_test/.cargo/config.toml), and write
-lowered artifacts and specs under `target/thruput/`.
+lowered artifacts and specs under `target/thruput/`. Each build also checks
+the linked ELF: the dispatch table, the runtime's `memcpy` override, and that
+no source paths are embedded.
+
+Some CI checks need more tools: `rg` (ripgrep) for the annotation check, and
+`strings` for the storage-registry check. The benchmark and metrics scripts
+need `llvm-readelf` or `readelf`.
 
 ## Run CI locally
 
-CI runs [gnaw](gnaw/src/lib.rs), a task runner in its own workspace. Run the
-full CI sequence, including documentation, tests, guest builds, artifact
-checks, linting, and formatting:
+CI runs gnaw tasks. Run the full CI sequence, including documentation, tests,
+guest builds, artifact checks, linting, and formatting:
 
 ```sh
 ./scripts/ci.sh
@@ -117,23 +128,31 @@ it; prerequisites are added unless you pass `--no-deps`:
 | `cargo gnaw run sdk --dry-run` | The plan, without running it |
 
 Task output goes to `target/gnaw/logs/`. A failure names the step that failed,
-the command it ran, and how to rerun it. For single contracts and other
-development tasks, use `dev.sh`:
+the command it ran, and how to rerun it. Pass `--unlocked` to let cargo update
+lockfiles.
+
+For single contracts, gnaw adds the flags guest builds need:
 
 | Command | Scope |
 | --- | --- |
-| `./scripts/dev.sh test` | SDK test sequence |
-| `./scripts/dev.sh test example-contracts/counter` | One contract's native tests |
-| `./scripts/dev.sh test-examples` | Enabled example packages, tested separately |
-| `./scripts/dev.sh test-itc` | Integration workspace tests |
-| `./scripts/dev.sh lint` | SDK and contract lint checks |
-| `./scripts/dev.sh build-docs` | Rustdoc for the workspace |
-| `./scripts/check-docsrs.sh` | Each published crate's docs, built as docs.rs builds them |
-| `./scripts/dev.sh expand example-contracts/counter` | Macro expansion; requires `cargo-expand` |
-| `./scripts/dev.sh bigint-bench-test` | Host checks for arithmetic benchmark backends |
-| `./scripts/dev.sh bigint-bench -o 'div sqrt'` | RV32 size and gas comparison for selected operations |
+| `cargo gnaw test <contract>... [-- <test args>]` | Native tests, one package at a time |
+| `cargo gnaw build <contract>...` | RV32 build and ELF checks |
+| `cargo gnaw lint <contract>...` | Guest and host clippy |
+| `cargo gnaw expand <contract>` | Guest macro expansion; requires `cargo-expand` |
+| `cargo gnaw tree <contract>` | Guest dependency tree |
 
-The full `bigint-bench` sweep takes minutes and is separate from CI. Some
+Other development commands:
+
+| Command | Scope |
+| --- | --- |
+| `cargo gnaw run sdk:test` | SDK test sequence |
+| `cargo gnaw run lint` | SDK and contract lint checks |
+| `cargo doc --no-deps -F dev --open` | Rustdoc for the workspace |
+| `./scripts/check-docsrs.sh` | Each published crate's docs, built as docs.rs builds them |
+| `cargo gnaw test bigint-bench-contract` | Host checks for arithmetic benchmark backends |
+| `./scripts/bigint-bench.sh -o 'div sqrt'` | RV32 size and gas comparison for selected operations |
+
+The full `bigint-bench.sh` sweep takes minutes and is separate from CI. Some
 contract tests need built RV32 artifacts; full CI orders the build and test
 steps. The root, example, integration, negative-contract, and logging
 workspaces are separate. Root Cargo commands use `default-members` to exclude
