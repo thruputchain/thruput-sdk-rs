@@ -32,7 +32,7 @@ multi_root_collision = { path = ".", features = ["dev"] }
 # A deliberate storage-domain collision. Built only by
 # scripts/check-domain-collision-detected.sh, where its generated
 # storage-domain uniqueness test must fail. It is its own excluded workspace:
-# building it with `-F entrypoints` from the example-contracts workspace fails
+# building it with `-F entrypoints` from the fixtures workspace fails
 # ("features for packages outside of workspace").
 [package.metadata.gnaw]
 kind = "negative"

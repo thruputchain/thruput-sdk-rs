@@ -236,7 +236,7 @@ jobs:
         uses: thruputchain/actions/cargo-publish-dry-run@3e0d08d054591a349331ab57fe72197d6ccc0cf3
         env:
           # The workspace no longer carries rv32 target rustflags (the single
-          # rv32 config lives in example-contracts/.cargo/config.toml).
+          # rv32 config lives in fixtures/.cargo/config.toml).
           # The rv32-only spec-carrier bin built by the rv32 powerset below
           # only needs to LINK, so it gets the minimal link flags here. NOTE:
           # cargo JOINS env target-rustflags with config-defined ones (measured

@@ -42,7 +42,7 @@ git submodule update --init --recursive
 
 ## Run a native contract test
 
-The [counter contract](example-contracts/counter/src/implementation.rs) is a
+The [counter contract](fixtures/counter/src/implementation.rs) is a
 small fixture for learning the test flow. From the repository root:
 
 ```sh
@@ -51,10 +51,10 @@ cargo gnaw test counter -- --show-output
 
 [gnaw](gnaw/src/lib.rs) is this repository's task runner, in its own
 workspace; the `cargo gnaw` alias builds and runs it. Name a contract by its
-package name or its directory, such as `example-contracts/counter`. This runs
+package name or its directory, such as `fixtures/counter`. This runs
 native tests, including increment, decrement, and underflow checks,
 without building a guest binary. The
-[contract manifest](example-contracts/counter/Cargo.toml) enables native test
+[contract manifest](fixtures/counter/Cargo.toml) enables native test
 support through its development dependency.
 
 ## Build guest contracts
@@ -93,7 +93,7 @@ cargo gnaw run itc:rv32
 ```
 
 The last command needs the integration submodule. Builds use the flags in
-[the example workspace config](example-contracts/.cargo/config.toml) and its
+[the fixtures workspace config](fixtures/.cargo/config.toml) and its
 [integration counterpart](integration_test/.cargo/config.toml), and write
 lowered artifacts and specs under `target/thruput/`. Each build also checks
 the linked ELF: the dispatch table, the runtime's `memcpy` override, and that
@@ -154,7 +154,7 @@ Other development commands:
 
 The full `bigint-bench.sh` sweep takes minutes and is separate from CI. Some
 contract tests need built RV32 artifacts; full CI orders the build and test
-steps. The root, example, integration, negative-contract, and logging
+steps. The root, fixtures, integration, negative fixtures, and logging
 workspaces are separate. Root Cargo commands use `default-members` to exclude
 the guest-only runtime from host builds.
 

@@ -32,12 +32,12 @@ impl Repo {
 
     /// Contracts that build and run.
     pub fn fixtures(&self) -> PathBuf {
-        self.root.join("example-contracts")
+        self.root.join("fixtures")
     }
 
     /// Contracts whose rv32 build must fail.
     pub fn negative_fixtures(&self) -> PathBuf {
-        self.root.join("negative-contracts")
+        self.root.join("fixtures-negative")
     }
 
     pub fn integration(&self) -> PathBuf {

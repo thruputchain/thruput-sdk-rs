@@ -4,7 +4,7 @@
 //! "riscv32")`, so the host test (`crates/macros/tests/crate_override.rs`,
 //! which pins the derived fragment and its wire bytes) never compiles it.
 //! Every other consumer of that code path reaches it through `::thruput_sdk`,
-//! which the example and integration rv32 builds cover — but nothing else
+//! which the fixture and integration rv32 builds cover — but nothing else
 //! builds a crate that resolves the macro's paths through a shim instead.
 //!
 //! This package exists to be built for rv32: gnaw's `sdk:macros-guest` task

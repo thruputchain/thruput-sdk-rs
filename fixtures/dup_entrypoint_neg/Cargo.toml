@@ -13,7 +13,7 @@ edition = "2024"
 
 # Stand-alone workspace root: this fixture's HOST build fails at codegen on
 # the crate-scoped duplicate-entrypoint guard symbols (deliberately), so it
-# is excluded from the example-contracts workspace, whose host build must
+# is excluded from the fixtures workspace, whose host build must
 # succeed. See [package.metadata.gnaw] for the checks that own it.
 [workspace]
 

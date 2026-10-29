@@ -25,8 +25,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 | `crates/contract-util/`, `crates/domain-separator/` | Shared macro utilities and domain hashing |
 | `crates/bigint-bench/`, `crates/bigint-bench-if/` | Integer arithmetic benchmarks |
 | `crates/test-vectors/`, `crates/version-check/` | Shared test vectors and release consistency checks |
-| `example-contracts/` | Internal contract test corpus; separate Cargo workspace |
-| `negative-contracts/` | Compile-fail guest fixtures; separate Cargo workspace |
+| `fixtures/` | Internal contract test corpus; separate Cargo workspace |
+| `fixtures-negative/` | Compile-fail guest fixtures; separate Cargo workspace |
 | `integration_test/` | Integration workspace; `contracts/` is a Git submodule |
 | `standard-interfaces/`, `standard-impls/`, `standard-tests/` | Standard interfaces, reusable implementations, and shared tests |
 | `logging-test/` | Logging build fixture; separate Cargo workspace |
@@ -43,7 +43,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
   `cargo gnaw run fixtures:test`.
 - Root Cargo commands use `default-members`. Do not replace them with
   `--workspace`: the guest runtime crate requires its own target.
-- Example and integration workspaces have separate manifests and lockfiles.
+- Fixture and integration workspaces have separate manifests and lockfiles.
   A root test run does not cover them. Some tests also require built contracts.
 - Run example packages separately, as `cargo gnaw test` and the
   `fixtures:test` task do. Combining packages can change behavior through
@@ -70,8 +70,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
   operations commute.
 - Contract release builds disable overflow checks. Use checked arithmetic for
   amounts; native tests alone do not establish guest overflow behavior.
-- Keep RV32 flags in the leaf workspace configs. The example, integration, and
-  negative-contract workspaces' configs must stay synchronized. Adding the same
+- Keep RV32 flags in the leaf workspace configs. The fixtures, integration, and
+  negative fixtures workspaces' configs must stay synchronized. Adding the same
   flags at the root duplicates linker arguments through Cargo config merging.
 - For version changes, follow [Cargo.toml](Cargo.toml) and
   [crates/version-check/README.md](crates/version-check/README.md), including

@@ -30,7 +30,7 @@ parent `Cargo.lock`.
 From the repository root, run the native test:
 
 ```sh
-cargo test --manifest-path example-contracts/Cargo.toml -p versioned_impl --locked
+cargo test --manifest-path fixtures/Cargo.toml -p versioned_impl --locked
 ```
 
 To exercise the same calls between two deployed RV32 contracts, build the

@@ -507,7 +507,7 @@ fn iface_declarer_conflict(ctx: &mut Ctx) -> Result {
     )
 }
 
-/// The rv32 build of a negative-contracts package must fail with output
+/// The rv32 build of a fixtures-negative package must fail with output
 /// matching `pattern`.
 fn negative_rv32_build(ctx: &mut Ctx, package: &str, pattern: &str) -> Result {
     let regex = Regex::new(pattern).expect("valid pattern");

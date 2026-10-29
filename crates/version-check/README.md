@@ -12,9 +12,9 @@ lockfiles:
 | Workspace | Lockfile | In root workspace? |
 | --- | --- | --- |
 | `Cargo.toml` | `Cargo.lock` | — |
-| `example-contracts/` | own | no |
-| `example-contracts/cross_crate_collision/` | own | no |
-| `example-contracts/multi_root_collision/` | own | no |
+| `fixtures/` | own | no |
+| `fixtures/cross_crate_collision/` | own | no |
+| `fixtures/multi_root_collision/` | own | no |
 | `integration_test/` | own | no |
 | `logging-test/` | own | no |
 

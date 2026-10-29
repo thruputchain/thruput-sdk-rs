@@ -28,7 +28,7 @@ set -euo pipefail
 
 SDK_DIR="$(realpath ".")"
 TARGET_DIR="$(realpath "target")"
-CONTRACTS_DIR="${SDK_DIR}/example-contracts"
+CONTRACTS_DIR="${SDK_DIR}/fixtures"
 RV32_RELEASE="${TARGET_DIR}/riscv32im-unknown-none-elf/release"
 LOWERED="${TARGET_DIR}/thruput"
 OUT_DIR="${TARGET_DIR}/bigint-bench"
@@ -50,7 +50,7 @@ backend_feature() {
 }
 
 # The operation menu. Keep in sync with the `op-*` features in
-# example-contracts/bigint-bench-contract/Cargo.toml and the `kernels!` table in
+# fixtures/bigint-bench-contract/Cargo.toml and the `kernels!` table in
 # its src/kernel.rs -- a name here that has no matching feature fails the build
 # loudly (cargo rejects an unknown `-F`), which is the intended behaviour.
 #

@@ -17,7 +17,7 @@ set -euo pipefail
 #   artifact       = full .rv32a artifact size        (artifact_bytes)
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <Thruput artifact dir> [example contracts dir] [itc contracts dir]" >&2
+  echo "Usage: $0 <Thruput artifact dir> [fixtures dir] [itc contracts dir]" >&2
   exit 1
 fi
 
@@ -28,7 +28,7 @@ ARTIFACT_DIR=$1
 # hold stale artifacts from renamed or removed contracts. None of those may
 # emit a row into the append-only history, and a missing sidecar for a
 # current contract must fail loudly.
-CONTRACTS_DIR=${2:-example-contracts}
+CONTRACTS_DIR=${2:-fixtures}
 ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
 
 json_int() {

@@ -6,7 +6,7 @@ becomes admin, and the supplied address becomes minter. See the
 [Stellar integration notes](stellar-integration.md) for policy and
 bridge boundaries. SEP-41 callers use `SEP41View` over this token.
 
-Run from `example-contracts/`:
+Run from `fixtures/`:
 
 ```sh
 cargo test -p erc20_issuer --locked

@@ -119,7 +119,7 @@ Separate workspaces with their own `[workspace.dependencies]`. Update **every**
 `=X.Y.Z` pin pointing at this repo, not just `thruput-sdk` — both currently pin several
 in-repo crates plus the standard interfaces:
 
-- `example-contracts/Cargo.toml`
+- `fixtures/Cargo.toml`
 - `integration_test/Cargo.toml`
 - `logging-test/Cargo.toml`
 
@@ -128,8 +128,8 @@ in-repo crates plus the standard interfaces:
 Not members of any workspace, so nothing resolves them until you build them
 directly. Both need their pin and their own `Cargo.lock` updated:
 
-- `example-contracts/multi_root_collision` — one manifest + its own `Cargo.lock`
-- `example-contracts/cross_crate_collision` — one pin in that workspace root's
+- `fixtures/multi_root_collision` — one manifest + its own `Cargo.lock`
+- `fixtures/cross_crate_collision` — one pin in that workspace root's
   `[workspace.dependencies]` (members inherit it) + its own `Cargo.lock`
 
 `version-check` scans both, including their lockfiles, so a stale pin here is
@@ -155,9 +155,9 @@ the count `version-check` prints over the list below, which has drifted before.
 
 ```bash
 cargo update --workspace                                                          # root
-cargo update --manifest-path example-contracts/Cargo.toml --workspace
-cargo update --manifest-path example-contracts/cross_crate_collision/Cargo.toml --workspace
-cargo update --manifest-path example-contracts/multi_root_collision/Cargo.toml --workspace
+cargo update --manifest-path fixtures/Cargo.toml --workspace
+cargo update --manifest-path fixtures/cross_crate_collision/Cargo.toml --workspace
+cargo update --manifest-path fixtures/multi_root_collision/Cargo.toml --workspace
 cargo update --manifest-path integration_test/Cargo.toml --workspace
 cargo update --manifest-path logging-test/Cargo.toml --workspace
 ```

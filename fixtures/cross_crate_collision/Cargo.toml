@@ -19,7 +19,7 @@ thruput-sdk = { path = "../../crates/sdk", version = "=0.58.0" }
 # A deliberate cross-crate storage-domain collision. Built only by
 # scripts/check-domain-collision-detected.sh, where the wrapper's
 # storage-domain uniqueness test must fail. It is its own excluded workspace:
-# building it with `-F entrypoints` from the example-contracts workspace fails
+# building it with `-F entrypoints` from the fixtures workspace fails
 # ("features for packages outside of workspace").
 [workspace.metadata.gnaw]
 kind = "negative"

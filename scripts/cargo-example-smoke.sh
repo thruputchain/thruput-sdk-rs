@@ -32,7 +32,7 @@ PY
 
 cd "$WORK_DIR"
 cargo test
-cargo --config "$SDK_DIR/example-contracts/.cargo/config.toml" build \
+cargo --config "$SDK_DIR/fixtures/.cargo/config.toml" build \
     --release --target riscv32im-unknown-none-elf \
     --no-default-features --features entrypoints --bin hello_contract \
     -Zbuild-std=core,alloc --target-dir target

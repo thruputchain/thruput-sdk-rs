@@ -11,7 +11,7 @@ set -euo pipefail
 # a one-time step. The section-based fields are unaffected by stripping.
 #
 # Input rows come from `cargo gnaw packages --rv32`: the rv32 contracts in
-# example-contracts and integration_test/contracts. Run from the repository
+# fixtures and integration_test/contracts. Run from the repository
 # root. The output format is append-only metric history: do not reorder or
 # rename fields.
 #
@@ -19,7 +19,7 @@ set -euo pipefail
 #   <name> text=<B> rodata=<B> data=<B> bss=<B> data_image=<B> file=<B>
 
 if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <elf directory> [contracts dir] [itc contracts dir]" >&2
+  echo "Usage: $0 <elf directory> [fixtures dir] [itc contracts dir]" >&2
   exit 1
 fi
 
@@ -29,7 +29,7 @@ TARGET_DIR=$1
 # can hold stale ELFs from renamed or removed contracts. None of those may
 # emit a row into the append-only history, and a missing build for a current
 # contract must fail loudly.
-CONTRACTS_DIR=${2:-example-contracts}
+CONTRACTS_DIR=${2:-fixtures}
 ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
 
 # GNU readelf (Ubuntu CI runner) parses rv32 ELFs; llvm-readelf's default

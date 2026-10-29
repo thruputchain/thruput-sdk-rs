@@ -1,6 +1,6 @@
 [package]
 name = "imported_error_type"
-description = "A shared contract error type library for example-contracts"
+description = "A shared contract error type library for the fixtures"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

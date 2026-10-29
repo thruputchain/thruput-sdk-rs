@@ -12,7 +12,7 @@ use thruput_sdk::{
     deploy_contract, get_current_address,
 };
 
-// These paths only work for the example-contracts directory
+// These paths only work for the fixtures directory
 // that is hosted in the SDK package.
 //
 const ERC20_PATH: &str = "../../target/thruput/erc20.rv32a";

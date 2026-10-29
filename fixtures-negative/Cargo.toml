@@ -6,12 +6,12 @@ members = [
     "iface_declarer_collision",
 ]
 
-# Contract fixtures that must FAIL, kept out of example-contracts because that
+# Contract fixtures that must FAIL, kept out of fixtures/ because that
 # workspace is for contracts that build and run. Each fixture here builds on
 # the host — what must fail is a later stage (spec canonicalization, the rv32
 # link), so the check that owns a fixture builds it by name and asserts the
 # error. A fixture whose HOST build must fail cannot be a member here; make it
-# a standalone workspace root instead, as example-contracts/dup_entrypoint_neg
+# a standalone workspace root instead, as fixtures/dup_entrypoint_neg
 # is.
 [workspace.package]
 version = "0.4.0"

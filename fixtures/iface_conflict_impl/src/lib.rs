@@ -12,7 +12,7 @@
 //! B's candidate is shaken like any unimplemented interface and the spec
 //! describes A's `Token`, emits and all. gnaw's `fixtures:specs` task
 //! asserts that. Implementing *both*
-//! traits is still refused — see `negative-contracts/iface_declarer_collision`.
+//! traits is still refused — see `fixtures-negative/iface_declarer_collision`.
 
 #![cfg_attr(not(feature = "dev"), no_std)]
 

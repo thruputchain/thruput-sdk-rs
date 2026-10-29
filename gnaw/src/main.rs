@@ -61,7 +61,7 @@ enum Commands {
         /// Only the packages built for rv32: those that declare a `[[bin]]`.
         #[arg(long)]
         rv32: bool,
-        /// Contract directories. Default: example-contracts and
+        /// Contract directories. Default: fixtures and
         /// integration_test/contracts.
         #[arg(value_name = "DIR")]
         dirs: Vec<std::path::PathBuf>,
@@ -79,7 +79,7 @@ enum Commands {
 
 #[derive(clap::Args)]
 struct Contracts {
-    /// Package directories, such as example-contracts/counter, or package
+    /// Package directories, such as fixtures/counter, or package
     /// names.
     #[arg(required = true, value_name = "CONTRACT")]
     contracts: Vec<String>,

@@ -1,6 +1,6 @@
 # Layered on by `thruput build`, which resolves this path relative to the
 # WORKSPACE ROOT — so it belongs here beside config.toml, not in a member's
-# own .cargo/. (example-contracts/.cargo/contract.toml serves its members the
+# own .cargo/. (fixtures/.cargo/contract.toml serves its members the
 # same way. dup_entrypoint_neg keeps its copy inside the package only because
 # that package IS its own workspace root, so the two locations coincide there
 # — it is not evidence for the package-relative rule.)

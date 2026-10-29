@@ -3,7 +3,7 @@
 //! Within one `#[contract]` block a collision is a macro-expansion error,
 //! and any `cargo build` of a crate with colliding blocks fails at codegen
 //! on the crate-scoped guard symbols (see
-//! `example-contracts/dup_entrypoint_neg`). This test covers the layer
+//! `fixtures/dup_entrypoint_neg`). This test covers the layer
 //! underneath both: hand-written mock registrations that reuse a dispatch
 //! ID must panic at test setup rather than silently shadowing the earlier
 //! method, which is what an on-chain first-match dispatch would never do.

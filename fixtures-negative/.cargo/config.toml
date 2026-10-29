@@ -5,11 +5,11 @@ rustflags = [
     ]
 
 # A synced copy of the CANONICAL [target.riscv32im-unknown-none-elf] rustflags
-# in example-contracts/.cargo/config.toml. That file is the source of truth;
+# in fixtures/.cargo/config.toml. That file is the source of truth;
 # integration_test/.cargo/config.toml carries the other copy (edit all three).
 #
 # This directory needs its own because it is a separate config chain: these
-# fixtures must NOT live under example-contracts, which is for contracts that
+# fixtures must NOT live under fixtures, which is for contracts that
 # build and run, and cargo only walks configs from the cwd upward.
 # NEVER add this section to the workspace-root .cargo/config.toml or any
 # other config on the same discovery chain: cargo JOINS target-rustflags

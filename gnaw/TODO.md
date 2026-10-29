@@ -38,9 +38,6 @@ Share package discovery between tasks instead of scanning per task.
 
 - Fix or delete the packages of the `disabled` kind. None says why it was
   set aside.
-- Rename `example-contracts/` to `fixtures/` and `negative-contracts/` to
-  `fixtures-negative/`, in a separate change. gnaw keeps the paths in
-  `src/repo.rs`; several scripts and many comments still hard-code them.
 
 ## Metrics
 

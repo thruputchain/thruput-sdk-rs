@@ -31,11 +31,11 @@ check_collision_detected() {
 
 # Within-crate: two roots sharing a domain in one crate (generated lib test).
 check_collision_detected \
-    "${SCRIPT_DIR}/../example-contracts/multi_root_collision" \
+    "${SCRIPT_DIR}/../fixtures/multi_root_collision" \
     "cargo test --features dev"
 
 # Cross-crate: two contract crates linked into one bin-wrapper; caught by the
 # wrapper's thruput_sdk::storage_domain_uniqueness_test!() aggregation test.
 check_collision_detected \
-    "${SCRIPT_DIR}/../example-contracts/cross_crate_collision/wrapper" \
+    "${SCRIPT_DIR}/../fixtures/cross_crate_collision/wrapper" \
     "cargo test"

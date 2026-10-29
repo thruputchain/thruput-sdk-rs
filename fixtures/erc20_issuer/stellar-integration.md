@@ -1,6 +1,6 @@
 # Stellar asset reference token
 
-`example-contracts/erc20_issuer` uses Thruput ERC20 with optional issuer
+`fixtures/erc20_issuer` uses Thruput ERC20 with optional issuer
 controls. [SEP-0041](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0041.md)
 informs the issuer behavior; this is not the Soroban ABI.
 

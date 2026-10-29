@@ -1,6 +1,6 @@
 /target/
 /integration_test/target/
-/example-contracts/target/
+/fixtures/target/
 /gnaw/target/
 /tmp/
 /hogd/
