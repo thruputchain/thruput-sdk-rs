@@ -378,17 +378,32 @@ fn fixtures_test(ctx: &mut Ctx) -> Result {
         let cmd = ctx.cargo(&dir, "test").args(["-p", &package]);
         ctx.step(package.as_str(), |ctx| ctx.run(&cmd))?;
     }
-    // The issuer tests run against the native contract above, and against
-    // the rv32 artifact when these variables name it. The issuer's permit
-    // tests are erc20_permit's suite, which reads the second variable.
-    let artifact = ctx.repo.lowered().join("erc20_issuer.rv32a");
-    let cmd = ctx
-        .cargo(&dir, "test")
-        .args(["-p", "erc20_issuer"])
-        .env("ISSUER_TOKEN_RV32_ARTIFACT", &artifact)
-        .env("ERC20_PERMIT_RV32_ARTIFACT", &artifact);
-    ctx.step("erc20_issuer (rv32 artifact)", |ctx| ctx.run(&cmd))
+    // These packages' tests ran against the native contract above; run them
+    // again against the rv32 artifact the variables name.
+    for &(package, vars) in RV32_ARTIFACT_TESTS {
+        let artifact = ctx.repo.lowered().join(format!("{package}.rv32a"));
+        let mut cmd = ctx.cargo(&dir, "test").args(["-p", package]);
+        for var in vars {
+            cmd = cmd.env(var, &artifact);
+        }
+        let step = format!("{package} (rv32 artifact)");
+        ctx.step(step, |ctx| ctx.run(&cmd))?;
+    }
+    Ok(())
 }
+
+/// Fixture packages whose tests use their contract's rv32 artifact when the
+/// listed variables name it, and the native contract otherwise. Tests that
+/// always use an artifact (`tests/rv32.rs`) need no entry.
+const RV32_ARTIFACT_TESTS: &[(&str, &[&str])] = &[
+    ("erc20", &["ERC20_RV32_ARTIFACT"]),
+    ("erc20_permit", &["ERC20_PERMIT_RV32_ARTIFACT"]),
+    // The issuer's permit tests are erc20_permit's suite.
+    (
+        "erc20_issuer",
+        &["ISSUER_TOKEN_RV32_ARTIFACT", "ERC20_PERMIT_RV32_ARTIFACT"],
+    ),
+];
 
 fn exception_stack(ctx: &mut Ctx) -> Result {
     let cmd = ctx.script("check-exception-stack.sh");
