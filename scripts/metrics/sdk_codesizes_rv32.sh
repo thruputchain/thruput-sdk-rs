@@ -10,27 +10,36 @@ set -euo pipefail
 # upper bound, not an on-chain number; comparisons across that boundary see
 # a one-time step. The section-based fields are unaffected by stripping.
 #
-# Input rows come from `cargo gnaw packages --rv32`: the rv32 contracts in
-# fixtures and integration_test/contracts. Run from the repository
-# root. The output format is append-only metric history: do not reorder or
-# rename fields.
+# Input rows come from the package lists that gnaw's rv32 build tasks write
+# (target/gnaw/rv32-packages/). The output format is append-only metric
+# history: do not reorder or rename fields.
 #
 # Output format (one line per contract ELF):
 #   <name> text=<B> rodata=<B> data=<B> bss=<B> data_image=<B> file=<B>
 
-if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <elf directory> [fixtures dir] [itc contracts dir]" >&2
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 <elf directory> [package list]..." >&2
   exit 1
 fi
 
 TARGET_DIR=$1
-# The metric input set is derived from the source tree, NOT from globbing
-# the ELF dir: the release dir is shared with root-workspace rv32 builds and
-# can hold stale ELFs from renamed or removed contracts. None of those may
-# emit a row into the append-only history, and a missing build for a current
-# contract must fail loudly.
-CONTRACTS_DIR=${2:-fixtures}
-ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
+# The metric input set is the packages the rv32 build tasks built, as those
+# tasks list them, NOT from globbing the ELF dir: the release dir is shared
+# with root-workspace rv32 builds and can hold stale ELFs from renamed or
+# removed contracts. None of those may emit a row into the append-only
+# history, and a missing build for a listed contract must fail loudly.
+if [ $# -gt 1 ]; then
+    LISTS=("${@:2}")
+else
+    LISTS=(target/gnaw/rv32-packages/fixtures.txt
+        target/gnaw/rv32-packages/integration.txt)
+fi
+for list in "${LISTS[@]}"; do
+    [ -f "$list" ] || {
+        echo "rv32 package list missing: $list (build with cargo gnaw run metrics-inputs)" >&2
+        exit 1
+    }
+done
 
 # GNU readelf (Ubuntu CI runner) parses rv32 ELFs; llvm-readelf's default
 # GNU output style matches. READELF env overrides.
@@ -74,12 +83,10 @@ emit_row() {
     echo "$name text=$text rodata=$rodata data=$data bss=$bss data_image=$((rodata + data)) file=$file"
 }
 
-# The rv32 contracts the fixture and integration tasks build: gnaw's
-# discovery, from the source tree. Bin name = underscored package name.
-# No duplicate-name guard here: a cross-workspace name collision reads the
-# same ELF twice (identical rows); sdk_codesizes_rv32_lowered.sh is the
-# collision tripwire (it exits 1).
-packages=$(cargo gnaw packages --rv32 "$CONTRACTS_DIR" "$ITC_CONTRACTS_DIR")
+# Bin name = underscored package name. No duplicate-name guard here: a
+# cross-workspace name collision reads the same ELF twice (identical rows);
+# sdk_codesizes_rv32_lowered.sh is the collision tripwire (it exits 1).
+packages=$(cat "${LISTS[@]}")
 found=0
 for name in $packages; do
     found=1
@@ -87,6 +94,6 @@ for name in $packages; do
 done
 
 if [ "$found" -eq 0 ]; then
-    echo "No rv32 contracts found ($CONTRACTS_DIR, $ITC_CONTRACTS_DIR)" >&2
+    echo "No rv32 contracts listed (${LISTS[*]})" >&2
     exit 1
 fi

@@ -16,20 +16,30 @@ set -euo pipefail
 #   memory         = total VM memory reservation      (memory_bytes)
 #   artifact       = full .rv32a artifact size        (artifact_bytes)
 
-if [ $# -lt 1 ] || [ $# -gt 3 ]; then
-  echo "Usage: $0 <Thruput artifact dir> [fixtures dir] [itc contracts dir]" >&2
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 <Thruput artifact dir> [package list]..." >&2
   exit 1
 fi
 
 ARTIFACT_DIR=$1
-# The metric input set is derived from the source tree (`cargo gnaw packages
-# --rv32`, run from the repository root), NOT from globbing the artifact
-# dir: target/thruput/ is shared across both contract workspaces and can
-# hold stale artifacts from renamed or removed contracts. None of those may
-# emit a row into the append-only history, and a missing sidecar for a
-# current contract must fail loudly.
-CONTRACTS_DIR=${2:-fixtures}
-ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
+# The metric input set is the packages the rv32 build tasks built, as those
+# tasks list them, NOT from globbing the artifact dir: target/thruput/ is
+# shared across both contract workspaces and can hold stale artifacts from
+# renamed or removed contracts. None of those may emit a row into the
+# append-only history, and a missing sidecar for a listed contract must fail
+# loudly.
+if [ $# -gt 1 ]; then
+    LISTS=("${@:2}")
+else
+    LISTS=(target/gnaw/rv32-packages/fixtures.txt
+        target/gnaw/rv32-packages/integration.txt)
+fi
+for list in "${LISTS[@]}"; do
+    [ -f "$list" ] || {
+        echo "rv32 package list missing: $list (build with cargo gnaw run metrics-inputs)" >&2
+        exit 1
+    }
+done
 
 json_int() {
     # Integer field $2 from sidecar $1. The sidecar is generated with
@@ -63,13 +73,12 @@ emit_row() {
     echo "$name code=$code initial_memory=$initial_memory memory=$memory artifact=$artifact"
 }
 
-# The rv32 contracts the fixture and integration tasks build: gnaw's
-# discovery, from the source tree. Name = underscored package name.
-names=$(cargo gnaw packages --rv32 "$CONTRACTS_DIR" "$ITC_CONTRACTS_DIR")
+# Name = underscored package name.
+names=$(cat "${LISTS[@]}")
 names=${names//-/_}
 
 if [ -z "$names" ]; then
-    echo "No rv32 contracts found ($CONTRACTS_DIR, $ITC_CONTRACTS_DIR)" >&2
+    echo "No rv32 contracts listed (${LISTS[*]})" >&2
     exit 1
 fi
 

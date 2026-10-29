@@ -64,8 +64,25 @@ pub fn check_elf(ctx: &mut Ctx, package: &str) -> Result {
     Ok(())
 }
 
-/// Builds every rv32 contract in `contracts`, from `workspace`.
-pub fn build_all(ctx: &mut Ctx, workspace: &Path, contracts: &Path) -> Result {
+/// Builds every rv32 contract in `contracts`, from `workspace`. On success,
+/// lists them in `<list>.txt` under [`Repo::rv32_package_lists`].
+pub fn build_all(
+    ctx: &mut Ctx,
+    workspace: &Path,
+    contracts: &Path,
+    list: &str,
+) -> Result {
+    let list = ctx.repo.rv32_package_lists().join(format!("{list}.txt"));
+    let writing = |e: std::io::Error| -> Stop {
+        Failure::new(format!("writing {}: {e}", list.display())).into()
+    };
+    // A failed build leaves no list to pair with its partial artifacts.
+    match std::fs::remove_file(&list) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+            return Err(writing(e));
+        }
+        _ => {}
+    }
     let listing = |e: std::io::Error| -> Stop {
         Failure::new(format!("listing {}: {e}", contracts.display())).into()
     };
@@ -93,5 +110,8 @@ pub fn build_all(ctx: &mut Ctx, workspace: &Path, contracts: &Path) -> Result {
     for package in &packages {
         ctx.step(package.as_str(), |ctx| build(ctx, workspace, package))?;
     }
-    Ok(())
+    std::fs::create_dir_all(ctx.repo.rv32_package_lists()).map_err(writing)?;
+    let mut contents = packages.join("\n");
+    contents.push('\n');
+    std::fs::write(&list, contents).map_err(writing)
 }

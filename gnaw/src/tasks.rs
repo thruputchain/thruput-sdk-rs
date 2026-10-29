@@ -600,7 +600,7 @@ fn registry_stripped(ctx: &mut Ctx) -> Result {
 
 fn fixtures_rv32(ctx: &mut Ctx) -> Result {
     let dir = ctx.repo.fixtures();
-    rv32::build_all(ctx, &dir, &dir)
+    rv32::build_all(ctx, &dir, &dir, "fixtures")
 }
 
 fn fixtures_specs(ctx: &mut Ctx) -> Result {
@@ -648,7 +648,7 @@ fn itc_rv32(ctx: &mut Ctx) -> Result {
     require_integration(ctx)?;
     let (workspace, contracts) =
         (ctx.repo.integration(), ctx.repo.integration_contracts());
-    rv32::build_all(ctx, &workspace, &contracts)
+    rv32::build_all(ctx, &workspace, &contracts, "integration")
 }
 
 fn itc_test(ctx: &mut Ctx) -> Result {

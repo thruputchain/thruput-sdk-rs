@@ -71,6 +71,13 @@ impl Repo {
         self.target().join("gnaw/logs")
     }
 
+    /// The packages each rv32 build task built, in `<task>.txt`, one name
+    /// per line. CI uploads them with the artifacts for
+    /// scripts/metrics/sdk_codesizes_rv32*.sh.
+    pub fn rv32_package_lists(&self) -> PathBuf {
+        self.target().join("gnaw/rv32-packages")
+    }
+
     /// `path` relative to the repository root, for display.
     pub fn rel<'a>(&self, path: &'a Path) -> &'a Path {
         path.strip_prefix(&self.root).unwrap_or(path)
@@ -244,8 +251,8 @@ pub fn contract_packages(dir: &Path) -> io::Result<Vec<String>> {
 /// Negative fixtures declare bins, but are not [`Kind::Contract`]; the tasks
 /// that own them build them by name.
 ///
-/// scripts/metrics/sdk_codesizes_rv32*.sh read this list through
-/// `cargo gnaw packages --rv32`.
+/// scripts/metrics/sdk_codesizes_rv32*.sh read the lists the rv32 build
+/// tasks write from this: see [`Repo::rv32_package_lists`].
 pub fn rv32_packages(dir: &Path) -> io::Result<Vec<String>> {
     let mut packages = Vec::new();
     for package in contract_packages(dir)? {
