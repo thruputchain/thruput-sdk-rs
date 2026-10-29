@@ -1,9 +1,0 @@
-Negative fixture: every build of this crate must FAIL with a duplicate
-entrypoint-ID symbol (two colliding traits sharing a method name). The host
-build fails at codegen on the crate-scoped guard symbols, so the crate is
-excluded from the example-contracts workspace (its own standalone workspace
-root, like multi_root_collision). Exercised by
-scripts/check-duplicate-entrypoint-detected.sh (host cargo build) and
-check_rv32_duplicate_entrypoint_detected in scripts/dev.sh (guest build),
-not the standard build loops. The directory name has no -rv32 suffix on
-purpose, so the rv32 wrapper glob does not pick it up.

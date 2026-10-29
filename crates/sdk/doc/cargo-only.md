@@ -122,7 +122,7 @@ cargo test
 Build the RV32 ELF using the SDK's maintained target configuration:
 
 ```sh
-cargo --config ../thruput-sdk-rs/example-contracts/.cargo/config.toml build \
+cargo --config ../thruput-sdk-rs/fixtures/.cargo/config.toml build \
   --release --target riscv32im-unknown-none-elf \
   --no-default-features --features entrypoints --bin hello_contract \
   -Zbuild-std=core,alloc --target-dir target

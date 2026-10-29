@@ -1,0 +1,34 @@
+[package]
+name = "typedef_id_collision"
+description = "Negative spec fixture: two defs claim one spec id, so canonicalization must still fail"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact, built by name from gnaw's
+# fixtures-negative:typedef-conflict task.
+[[bin]]
+name = "typedef_id_collision"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+
+[dev-dependencies]
+typedef_id_collision = { path = ".", features = ["dev"] }

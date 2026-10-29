@@ -8,7 +8,7 @@ SDK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STACK_TARGET="${SDK_DIR}/target/exception-stack"
 command -v thruput >/dev/null || { echo 'thruput must be on PATH' >&2; exit 1; }
 
-cd "${SDK_DIR}/example-contracts"
+cd "${SDK_DIR}/fixtures"
 thruput build --no-ui -p exn_catch --stack-size 16K \
     --target-dir "$STACK_TARGET" -- --locked -Zbuild-std=core,alloc
 

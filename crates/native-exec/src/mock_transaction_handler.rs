@@ -330,7 +330,7 @@ impl MockInvocationFrame {
         if err != FFIErrorCode::None {
             // An InvokeError payload, not a plain panic!: consumers assert
             // on the Unrecoverable payload (see
-            // example-contracts/storage_errors).
+            // fixtures/storage_errors).
             eprintln!("failed to close mock invocation frame: {:?}", err);
             panic_any(crate::invoke_error::unrecoverable_error());
         }

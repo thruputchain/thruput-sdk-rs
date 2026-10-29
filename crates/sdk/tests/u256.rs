@@ -8,7 +8,7 @@
 //!
 //! These tests run the contract side as a host closure. The same paths
 //! through a real compiled artifact are covered by
-//! `example-contracts/u256_roundtrip/tests/rv32.rs`.
+//! `fixtures/u256_roundtrip/tests/rv32.rs`.
 
 use thruput_sdk::contract::ContractEntrypointID;
 use thruput_sdk::storage::{Keypath, Value};

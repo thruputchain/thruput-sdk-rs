@@ -1,0 +1,42 @@
+[package]
+name = "missing_contract_macro"
+description = "Negative fixture: a contract crate that forgot #[contract], so it registers no entrypoints at all and cannot be invoked"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev", "iface_conflict_if_a/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. The `negative` kind keeps the fixture builds from
+# building it expecting success; the negative check builds it by name. Same
+# shape as dup_entrypoint_neg.
+[[bin]]
+name = "missing_contract_macro"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+iface_conflict_if_a = { path = "../iface_conflict_if_a" }
+
+[dev-dependencies]
+missing_contract_macro = { path = ".", features = ["dev"] }
+
+# The crate links but registers no entrypoints, so its rv32 dispatch table is
+# empty and nothing can invoke it. gnaw's fixtures-negative:missing-entrypoints
+# task builds it by name and checks for that.
+[package.metadata.gnaw]
+kind = "negative"

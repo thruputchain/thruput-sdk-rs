@@ -35,7 +35,7 @@ xdrs = { workspace = true }
 # Side effect: feature unification means every `cargo test -p thruput-u256`
 # builds the lib with `std` + `fmt`, and `--no-default-features` is silently a
 # no-op for tests -- the no-feature guest config is only ever *compiled*, never
-# tested. `test_package` in scripts/dev.sh keeps a
+# tested. gnaw's `sdk:test` task keeps a
 # `cargo check --no-default-features` alongside the tests so that config
 # cannot rot unnoticed.
 thruput-u256 = { path = ".", features = ["std", "fmt", "nightly"] }

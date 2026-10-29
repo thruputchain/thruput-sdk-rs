@@ -1,0 +1,41 @@
+[package]
+name = "dup_entrypoint_neg"
+description = "Negative fixture: two colliding traits with the same method name — the duplicate entrypoint ID must fail every build (host cargo build and the rv32 link)"
+version = "0.4.0"
+authors = ["Thruput Team"]
+license = "Apache-2.0"
+publish = false
+repository = "https://github.com/thruputchain/thruput-sdk-rs"
+homepage = "https://github.com/thruputchain/thruput-sdk-rs"
+keywords = ["thruput"]
+categories = ["blockchain"]
+edition = "2024"
+
+# Stand-alone workspace root: this fixture's HOST build fails at codegen on
+# the crate-scoped duplicate-entrypoint guard symbols (deliberately), so it
+# is excluded from the fixtures workspace, whose host build must
+# succeed. See [package.metadata.gnaw] for the checks that own it.
+[workspace]
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[[bin]]
+name = "dup_entrypoint_neg"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { path = "../../crates/sdk", version = "=0.58.0" }
+
+# Every build must fail with a duplicate entrypoint-ID symbol: two colliding
+# traits share a method name. gnaw's fixtures-negative:dup-entrypoint task
+# builds it for host and guest by name and checks for that.
+[package.metadata.gnaw]
+kind = "negative"

@@ -1,0 +1,28 @@
+[package]
+name = "phantom_method_if_b"
+description = "Interface crate B for the phantom-method shaking example: an unrelated trait Ledger with method steal, colliding with A's on the interface key"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[dependencies]
+thruput-sdk = { workspace = true }
+
+# An interface library; phantom_method_impl builds it.
+[package.metadata.gnaw]
+kind = "library"

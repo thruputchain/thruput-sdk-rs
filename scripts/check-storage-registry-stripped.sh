@@ -31,9 +31,9 @@ PKG="${1:-complex-storage}"
 BIN_NAME="${PKG//-/_}"
 RV32_TARGET="riscv32im-unknown-none-elf"
 
-EXAMPLE_CONTRACTS_DIR="${SDK_DIR}/example-contracts"
-# example-contracts/.cargo/config.toml sets target-dir = "../target" so artifacts
-# land in the SDK-level target directory, not example-contracts/target/.
+FIXTURES_DIR="${SDK_DIR}/fixtures"
+# fixtures/.cargo/config.toml sets target-dir = "../target" so artifacts
+# land in the SDK-level target directory, not fixtures/target/.
 ARTIFACT="${SDK_DIR}/target/${RV32_TARGET}/release/${BIN_NAME}"
 
 # --- SKIP path (exit 0) is reserved EXCLUSIVELY for an unconfirmable toolchain ---
@@ -61,9 +61,9 @@ if ! command -v rustup >/dev/null 2>&1; then
 fi
 
 # rustup resolves rust-toolchain.toml by walking up from the build dir, so the
-# pin can live at the SDK root or in example-contracts. Prefer the nearest.
-if [ -f "${EXAMPLE_CONTRACTS_DIR}/rust-toolchain.toml" ]; then
-    TOOLCHAIN_FILE="${EXAMPLE_CONTRACTS_DIR}/rust-toolchain.toml"
+# pin can live at the SDK root or in fixtures/. Prefer the nearest.
+if [ -f "${FIXTURES_DIR}/rust-toolchain.toml" ]; then
+    TOOLCHAIN_FILE="${FIXTURES_DIR}/rust-toolchain.toml"
 elif [ -f "${SDK_DIR}/rust-toolchain.toml" ]; then
     TOOLCHAIN_FILE="${SDK_DIR}/rust-toolchain.toml"
 else
@@ -97,12 +97,12 @@ fi
 
 # Build the ELF with plain cargo rather than through the Thruput CLI: this
 # check only needs the linked guest binary, not the lowered artifact, so it
-# stays runnable without the CLI installed. example-contracts/.cargo/config.toml
+# stays runnable without the CLI installed. fixtures/.cargo/config.toml
 # supplies the rv32 rustflags; build-std goes on the command line (it must not
 # live in [unstable] there — it would break host `cargo test` from that cwd).
 echo "Building $PKG for $RV32_TARGET ..."
 (
-    cd "$EXAMPLE_CONTRACTS_DIR" &&
+    cd "$FIXTURES_DIR" &&
     cargo build -p "$PKG" -F entrypoints --release \
         --target "$RV32_TARGET" \
         -Zbuild-std=core,alloc \

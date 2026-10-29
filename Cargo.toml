@@ -65,9 +65,9 @@ thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls
 #
 # Additionally, these independent workspaces need updating to the new
 # SDK and interface versions:
-#    example-contracts/
-#    example-contracts/multi_root_collision/
-#    example-contracts/cross_crate_collision/ (3 manifests: alpha, beta, wrapper)
+#    fixtures/
+#    fixtures/multi_root_collision/
+#    fixtures/cross_crate_collision/ (3 manifests: alpha, beta, wrapper)
 #    integration_test/
 #
 # When the workspace package version (or thruput-xdr) undergoes a

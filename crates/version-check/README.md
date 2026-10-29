@@ -12,9 +12,9 @@ lockfiles:
 | Workspace | Lockfile | In root workspace? |
 | --- | --- | --- |
 | `Cargo.toml` | `Cargo.lock` | — |
-| `example-contracts/` | own | no |
-| `example-contracts/cross_crate_collision/` | own | no |
-| `example-contracts/multi_root_collision/` | own | no |
+| `fixtures/` | own | no |
+| `fixtures/cross_crate_collision/` | own | no |
+| `fixtures/multi_root_collision/` | own | no |
 | `integration_test/` | own | no |
 | `logging-test/` | own | no |
 
@@ -51,8 +51,8 @@ Like the submodule handling, the narrowed scope is stated rather than implied:
 version-check: 118 manifests, lockfiles ignored (--ignore-lockfiles)
 ```
 
-`scripts/dev.sh` runs the checker without the flag, and does so *after* the
-lockfiles have been updated, so CI always runs the full check.
+`gnaw` runs the checker without the flag, and does so *after* its other tasks,
+which may update lockfiles under `--unlocked`, so CI always runs the full check.
 
 ## Scope: submodules are scanned when checked out
 
@@ -61,15 +61,16 @@ if they are populated and skipped if they are not. A submodule is treated as
 absent when its directory is missing, empty, or holds nothing but its own `.git`
 gitlink.
 
-This matters because **`ci.yml` initializes submodules and `sdk_tests.yml` does
-not**, so coverage genuinely differs between workflows:
+This matters because **the `integration` job in `ci.yml` initializes submodules
+and the `quick` job does not**, and both run the checker, so coverage genuinely
+differs between jobs:
 
 ```
-version-check: 118 manifests, 6 lockfiles      # local, ci.yml
+version-check: 118 manifests, 6 lockfiles      # local, integration job
   submodules scanned: integration_test/contracts
 all pins agree
 
-version-check: 83 manifests, 6 lockfiles       # sdk_tests
+version-check: 83 manifests, 6 lockfiles       # quick job
   submodules not checked out, so not scanned: integration_test/contracts
 all pins agree
 ```
@@ -84,7 +85,7 @@ One subtlety makes this work. An exception scoped inside a submodule matches no
 pin site when that submodule is absent — which looks exactly like an exception
 whose underlying problem has been fixed. Reporting it as stale is wrong, and it
 is precisely how the first version of this crate failed: green locally, red in
-`sdk_tests`, for a reason that had nothing to do with any pin.
+the job without the submodule, for a reason that had nothing to do with any pin.
 
 So `Repo::is_unscanned` distinguishes the two, and the stale-exception check
 stays silent about scopes that were never scanned. The check still fires

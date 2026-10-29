@@ -1,5 +1,0 @@
-Negative fixture: the crate links, but registers no entrypoints at all, so
-its rv32 dispatch table is empty and nothing can invoke it. Exercised by
-check_rv32_missing_entrypoints_detected in scripts/dev.sh, which builds it
-by name; the directory deliberately lacks a `-rv32` suffix so the wrapper
-glob never builds it expecting success.
