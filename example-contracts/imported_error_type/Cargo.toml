@@ -21,3 +21,7 @@ test = false
 
 [dependencies]
 thruput-sdk = { workspace = true }
+
+# A shared error type; imported_error_callee builds it.
+[package.metadata.gnaw]
+kind = "library"

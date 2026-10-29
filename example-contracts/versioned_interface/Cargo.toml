@@ -16,3 +16,7 @@ test = false
 
 [dependencies]
 thruput-sdk = { workspace = true }
+
+# An interface library; versioned_impl builds and tests it.
+[package.metadata.gnaw]
+kind = "library"

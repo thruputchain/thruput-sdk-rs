@@ -7,7 +7,7 @@ use std::path::Path;
 
 use regex::Regex;
 
-use crate::repo::{RV32_TARGET, contract_packages};
+use crate::repo::{Fixture, RV32_TARGET, contract_packages};
 use crate::rv32::{self, elf_path};
 use crate::task::{
     Cmd, Ctx, Failure, Lane, Result, Task, notable_lines, strip_ansi,
@@ -433,7 +433,7 @@ fn domain_collision(ctx: &mut Ctx) -> Result {
 /// passed silently: the runtime's first-match scan routed every call to one
 /// impl, and the host mock let the last registration win. Guard symbols now
 /// carry the id, so both builds must fail with a duplicate symbol. The crate
-/// is outside the workspace and carries a `disabled` marker.
+/// is outside the workspace and its kind is `negative`.
 fn dup_entrypoint(ctx: &mut Ctx) -> Result {
     let dir = ctx.repo.fixtures().join("dup_entrypoint_neg");
     // The guard is crate-scoped; the scope is hex, for linker safety.
@@ -609,16 +609,23 @@ fn fixtures_specs(ctx: &mut Ctx) -> Result {
 
 fn fixtures_test(ctx: &mut Ctx) -> Result {
     let dir = ctx.repo.fixtures();
-    for package in packages(&dir)? {
-        let cmd = ctx.cargo(&dir, "test").args(["-p", &package]);
+    let packages = packages(&dir)?;
+    for package in &packages {
+        let cmd = ctx.cargo(&dir, "test").args(["-p", package]);
         ctx.step(package.as_str(), |ctx| ctx.run(&cmd))?;
     }
-    // These packages' tests ran against the native contract above; run them
-    // again against the rv32 artifact the variables name.
-    for &(package, vars) in RV32_ARTIFACT_TESTS {
+    // Some packages' tests, run against the native contract above, can also
+    // run against the rv32 artifact: see `Fixture::rv32_artifact_vars`.
+    for package in &packages {
+        let vars = Fixture::read(&dir.join(package))
+            .map_err(|e| Failure::new(e.to_string()))?
+            .rv32_artifact_vars;
+        if vars.is_empty() {
+            continue;
+        }
         let artifact = ctx.repo.lowered().join(format!("{package}.rv32a"));
         let mut cmd = ctx.cargo(&dir, "test").args(["-p", package]);
-        for var in vars {
+        for var in &vars {
             cmd = cmd.env(var, &artifact);
         }
         let step = format!("{package} (rv32 artifact)");
@@ -626,19 +633,6 @@ fn fixtures_test(ctx: &mut Ctx) -> Result {
     }
     Ok(())
 }
-
-/// Fixture packages whose tests use their contract's rv32 artifact when the
-/// listed variables name it, and the native contract otherwise. Tests that
-/// always use an artifact (`tests/rv32.rs`) need no entry.
-const RV32_ARTIFACT_TESTS: &[(&str, &[&str])] = &[
-    ("erc20", &["ERC20_RV32_ARTIFACT"]),
-    ("erc20_permit", &["ERC20_PERMIT_RV32_ARTIFACT"]),
-    // The issuer's permit tests are erc20_permit's suite.
-    (
-        "erc20_issuer",
-        &["ISSUER_TOKEN_RV32_ARTIFACT", "ERC20_PERMIT_RV32_ARTIFACT"],
-    ),
-];
 
 fn exception_stack(ctx: &mut Ctx) -> Result {
     let cmd = ctx.script("check-exception-stack.sh");
@@ -728,7 +722,7 @@ fn packages(dir: &Path) -> Result<Vec<String>> {
     })?;
     if packages.is_empty() {
         return Err(Failure::new(format!(
-            "no enabled contract packages in {}",
+            "no contract packages in {}",
             dir.display()
         ))
         .into());

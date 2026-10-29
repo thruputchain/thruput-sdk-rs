@@ -53,6 +53,19 @@ enum Commands {
         #[arg(last = true)]
         args: Vec<String>,
     },
+    /// List contract packages, one name per line, for scripts.
+    ///
+    /// These are the packages the tasks build, test, and lint: those of the
+    /// `contract` kind (see `[package.metadata.gnaw]`).
+    Packages {
+        /// Only the packages built for rv32: those that declare a `[[bin]]`.
+        #[arg(long)]
+        rv32: bool,
+        /// Contract directories. Default: example-contracts and
+        /// integration_test/contracts.
+        #[arg(value_name = "DIR")]
+        dirs: Vec<std::path::PathBuf>,
+    },
     /// Show a contract's guest dependency tree.
     Tree {
         contract: String,
@@ -149,6 +162,14 @@ fn main() -> ExitCode {
             with_contracts(&repo, &[contract], |cs| {
                 commands::expand(&repo, &cs[0], &args)
             })
+        }
+        Commands::Packages { rv32, dirs } => {
+            let dirs = if dirs.is_empty() {
+                vec![repo.fixtures(), repo.integration_contracts()]
+            } else {
+                dirs
+            };
+            commands::packages(&dirs, rv32)
         }
         Commands::Tree {
             contract,

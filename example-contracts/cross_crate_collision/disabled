@@ -1,5 +1,0 @@
-Deliberate cross-crate-collision fixture (its own excluded workspace). NOT
-part of the contract build/test sweep — building it with `-F entrypoints`
-from the example-contracts workspace fails ("features for packages outside
-of workspace"). Built only by scripts/check-domain-collision-detected.sh,
-where the wrapper's storage-domain uniqueness test is expected to fail.

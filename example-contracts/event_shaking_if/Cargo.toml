@@ -22,3 +22,7 @@ test = false
 
 [dependencies]
 thruput-sdk = { workspace = true }
+
+# An interface library; event_shaking_subset builds it.
+[package.metadata.gnaw]
+kind = "library"

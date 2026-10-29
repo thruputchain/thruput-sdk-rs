@@ -84,8 +84,8 @@ members = [
     "prerelease_version",
     "missing_contract_macro",
     "unknown_method",
-    # Built only by scripts/bigint-bench.sh (34 rv32 variants); carries a
-    # `disabled` marker so the generic contract loops skip it. See its
+    # Built only by scripts/bigint-bench.sh (34 rv32 variants); its
+    # `benchmark` kind keeps gnaw's fixture tasks from building it. See its
     # Cargo.toml.
     "bigint-bench-contract",
 ]

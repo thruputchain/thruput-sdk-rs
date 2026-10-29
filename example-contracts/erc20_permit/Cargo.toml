@@ -43,3 +43,6 @@ permit_wallet = { path = "../permit_wallet", features = ["dev"] }
 thruput-signed-op-if = { workspace = true, features = ["dev"] }
 thruput-domain-separator = { workspace = true, features = ["std"] }
 ed25519-dalek = { workspace = true }
+
+[package.metadata.gnaw]
+rv32-artifact-vars = ["ERC20_PERMIT_RV32_ARTIFACT"]

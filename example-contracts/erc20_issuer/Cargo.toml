@@ -46,3 +46,7 @@ permit_wallet = { path = "../permit_wallet", features = ["dev"] }
 thruput-signed-op-if = { workspace = true, features = ["dev"] }
 thruput-domain-separator = { workspace = true, features = ["std"] }
 ed25519-dalek.workspace = true
+
+[package.metadata.gnaw]
+# The issuer's permit tests are erc20_permit's suite.
+rv32-artifact-vars = ["ISSUER_TOKEN_RV32_ARTIFACT", "ERC20_PERMIT_RV32_ARTIFACT"]

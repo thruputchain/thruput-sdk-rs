@@ -27,3 +27,6 @@ thruput-erc20-if = { workspace = true }
 
 [dev-dependencies]
 simple_wallet_old = { path = ".", features = ["dev"] }
+
+[package.metadata.gnaw]
+kind = "disabled"

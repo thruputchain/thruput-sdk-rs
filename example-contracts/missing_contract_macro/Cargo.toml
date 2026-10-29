@@ -20,7 +20,7 @@ crate-type = ["rlib"]
 doctest = false
 test = false
 
-# The rv32 artifact. The `disabled` marker keeps the fixture builds from
+# The rv32 artifact. The `negative` kind keeps the fixture builds from
 # building it expecting success; the negative check builds it by name. Same
 # shape as dup_entrypoint_neg.
 [[bin]]
@@ -34,3 +34,9 @@ iface_conflict_if_a = { path = "../iface_conflict_if_a" }
 
 [dev-dependencies]
 missing_contract_macro = { path = ".", features = ["dev"] }
+
+# The crate links but registers no entrypoints, so its rv32 dispatch table is
+# empty and nothing can invoke it. gnaw's fixtures-negative:missing-entrypoints
+# task builds it by name and checks for that.
+[package.metadata.gnaw]
+kind = "negative"

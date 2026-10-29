@@ -22,12 +22,12 @@ if [ $# -lt 1 ] || [ $# -gt 3 ]; then
 fi
 
 ARTIFACT_DIR=$1
-# The metric input set is derived from the source tree (example-contracts
-# *-rv32 wrapper packages + auto-discovered integration_test contracts), NOT
-# from globbing the artifact dir: target/thruput/ is shared across both
-# contract workspaces and can hold stale artifacts from renamed or removed
-# contracts — none of those may emit a row into the append-only history,
-# and a missing sidecar for a current contract must fail loudly.
+# The metric input set is derived from the source tree (`cargo gnaw packages
+# --rv32`, run from the repository root), NOT from globbing the artifact
+# dir: target/thruput/ is shared across both contract workspaces and can
+# hold stale artifacts from renamed or removed contracts. None of those may
+# emit a row into the append-only history, and a missing sidecar for a
+# current contract must fail loudly.
 CONTRACTS_DIR=${2:-example-contracts}
 ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
 
@@ -63,33 +63,10 @@ emit_row() {
     echo "$name code=$code initial_memory=$initial_memory memory=$memory artifact=$artifact"
 }
 
-# example-contracts rv32 discovery, mirroring gnaw's rv32_packages (keep
-# the rules in sync): contract dirs minus the `disabled` marker, narrowed to
-# packages declaring a [[bin]]. Bin name = underscored package name.
-names=""
-for pkg_dir in "$CONTRACTS_DIR"/*/; do
-    pkg_dir=${pkg_dir%/}
-    [ -f "$pkg_dir/Cargo.toml" ] || continue
-    [ -f "$pkg_dir/disabled" ] && continue
-    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
-    name=$(basename "$pkg_dir")
-    names="$names ${name//-/_}"
-done
-# integration_test rv32 discovery, mirroring gnaw's rv32_packages
-# (keep the rules in sync): contract dirs minus the `disabled` marker,
-# narrowed to packages declaring a [[bin]] (the rv32 wrapper bin is the
-# enablement signal; raw contracts with hand-written entrypoints have no bin
-# and are excluded
-# by construction).
-for pkg_dir in "$ITC_CONTRACTS_DIR"/*/; do
-    pkg_dir=${pkg_dir%/}
-    [ -f "$pkg_dir/Cargo.toml" ] || continue
-    [ -f "$pkg_dir/disabled" ] && continue
-    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
-    name=$(basename "$pkg_dir")
-    [ "$name" != "target" ] || continue
-    names="$names ${name//-/_}"
-done
+# The rv32 contracts the fixture and integration tasks build: gnaw's
+# discovery, from the source tree. Name = underscored package name.
+names=$(cargo gnaw packages --rv32 "$CONTRACTS_DIR" "$ITC_CONTRACTS_DIR")
+names=${names//-/_}
 
 if [ -z "$names" ]; then
     echo "No rv32 contracts found ($CONTRACTS_DIR, $ITC_CONTRACTS_DIR)" >&2

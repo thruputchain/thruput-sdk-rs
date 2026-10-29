@@ -25,3 +25,6 @@ thruput-sdk = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 rcq_test = { path = ".", features = ["dev"] }
+
+[package.metadata.gnaw]
+kind = "disabled"

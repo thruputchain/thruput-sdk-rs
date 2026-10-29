@@ -14,7 +14,7 @@ edition = "2024"
 # Stand-alone workspace root: this fixture's HOST build fails at codegen on
 # the crate-scoped duplicate-entrypoint guard symbols (deliberately), so it
 # is excluded from the example-contracts workspace, whose host build must
-# succeed. See the `disabled` marker for the checks that own it.
+# succeed. See [package.metadata.gnaw] for the checks that own it.
 [workspace]
 
 [features]
@@ -33,3 +33,9 @@ required-features = ["entrypoints"]
 
 [dependencies]
 thruput-sdk = { path = "../../crates/sdk", version = "=0.58.0" }
+
+# Every build must fail with a duplicate entrypoint-ID symbol: two colliding
+# traits share a method name. gnaw's fixtures-negative:dup-entrypoint task
+# builds it for host and guest by name and checks for that.
+[package.metadata.gnaw]
+kind = "negative"

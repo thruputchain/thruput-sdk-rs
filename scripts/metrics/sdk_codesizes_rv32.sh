@@ -10,10 +10,10 @@ set -euo pipefail
 # upper bound, not an on-chain number; comparisons across that boundary see
 # a one-time step. The section-based fields are unaffected by stripping.
 #
-# Input rows come from two sources (output format unchanged — append-only
-# metric history, do not reorder or rename fields):
-#   1. example-contracts *-rv32 glob (wrapper packages)
-#   2. integration_test/rv32-contracts list file (explicit list, '#' comments)
+# Input rows come from `cargo gnaw packages --rv32`: the rv32 contracts in
+# example-contracts and integration_test/contracts. Run from the repository
+# root. The output format is append-only metric history: do not reorder or
+# rename fields.
 #
 # Output format (one line per contract ELF):
 #   <name> text=<B> rodata=<B> data=<B> bss=<B> data_image=<B> file=<B>
@@ -24,14 +24,12 @@ if [ $# -lt 1 ] || [ $# -gt 3 ]; then
 fi
 
 TARGET_DIR=$1
-# The metric input set is derived from the source tree's *-rv32 wrapper
-# packages, NOT from globbing the ELF dir: the release dir is shared with
-# root-workspace rv32 builds and can hold stale ELFs from renamed/removed
-# wrappers — neither may emit a row into the append-only history, and a
-# missing build for a current wrapper must fail loudly.
+# The metric input set is derived from the source tree, NOT from globbing
+# the ELF dir: the release dir is shared with root-workspace rv32 builds and
+# can hold stale ELFs from renamed or removed contracts. None of those may
+# emit a row into the append-only history, and a missing build for a current
+# contract must fail loudly.
 CONTRACTS_DIR=${2:-example-contracts}
-# integration_test rv32 contracts are not *-rv32 wrapper packages; they are
-# auto-discovered (same source-tree-derived input rationale as above).
 ITC_CONTRACTS_DIR=${3:-integration_test/contracts}
 
 # GNU readelf (Ubuntu CI runner) parses rv32 ELFs; llvm-readelf's default
@@ -76,40 +74,19 @@ emit_row() {
     echo "$name text=$text rodata=$rodata data=$data bss=$bss data_image=$((rodata + data)) file=$file"
 }
 
-# example-contracts rv32 discovery, mirroring gnaw's rv32_packages (keep
-# the rules in sync): contract dirs minus the `disabled` marker, narrowed to
-# packages declaring a [[bin]]. Bin name = underscored package name.
+# The rv32 contracts the fixture and integration tasks build: gnaw's
+# discovery, from the source tree. Bin name = underscored package name.
+# No duplicate-name guard here: a cross-workspace name collision reads the
+# same ELF twice (identical rows); sdk_codesizes_rv32_lowered.sh is the
+# collision tripwire (it exits 1).
+packages=$(cargo gnaw packages --rv32 "$CONTRACTS_DIR" "$ITC_CONTRACTS_DIR")
 found=0
-for pkg_dir in "$CONTRACTS_DIR"/*/; do
-    pkg_dir=${pkg_dir%/}
-    [ -f "$pkg_dir/Cargo.toml" ] || continue
-    [ -f "$pkg_dir/disabled" ] && continue
-    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
-    found=1
-    name=$(basename "$pkg_dir")
-    emit_row "${name//-/_}"
-done
-
-# No duplicate-name guard here: a cross-workspace name collision reads the same ELF twice (identical rows); sdk_codesizes_rv32_lowered.sh is the collision tripwire (it exits 1).
-#
-# integration_test rv32 discovery, mirroring gnaw's rv32_packages
-# (keep the rules in sync): contract dirs minus the `disabled` marker,
-# narrowed to packages declaring a [[bin]] (the rv32 wrapper bin is the
-# enablement signal; raw contracts with hand-written entrypoints have no bin
-# and are excluded
-# by construction).
-for pkg_dir in "$ITC_CONTRACTS_DIR"/*/; do
-    pkg_dir=${pkg_dir%/}
-    [ -f "$pkg_dir/Cargo.toml" ] || continue
-    [ -f "$pkg_dir/disabled" ] && continue
-    grep -qE '^[[:space:]]*\[\[bin\]\]' "$pkg_dir/Cargo.toml" || continue
-    name=$(basename "$pkg_dir")
-    [ "$name" != "target" ] || continue
+for name in $packages; do
     found=1
     emit_row "${name//-/_}"
 done
 
 if [ "$found" -eq 0 ]; then
-    echo "No *-rv32 wrapper packages under $CONTRACTS_DIR and no rv32-capable contracts under $ITC_CONTRACTS_DIR" >&2
+    echo "No rv32 contracts found ($CONTRACTS_DIR, $ITC_CONTRACTS_DIR)" >&2
     exit 1
 fi

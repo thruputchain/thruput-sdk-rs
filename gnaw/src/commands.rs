@@ -2,14 +2,16 @@
 //!
 //! `build` and `lint` share the tasks' code and log to
 //! `target/gnaw/logs/<command>.log`. `test`, `expand`, and `tree` hand the
-//! terminal to cargo.
+//! terminal to cargo. `packages` serves scripts that need the tasks'
+//! package discovery.
 
 use std::io::IsTerminal;
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
 use crate::contract::Contract;
-use crate::repo::{RV32_TARGET, Repo};
+use crate::repo::{RV32_TARGET, Repo, contract_packages, rv32_packages};
 use crate::report::print_failure;
 use crate::rv32;
 use crate::task::{Cmd, Ctx, Failure, Log, RunOptions, Stop};
@@ -118,6 +120,27 @@ pub fn tree(
         ])
         .args(args);
     exit_code(passthrough(repo, &cmd))
+}
+
+/// Prints the contract packages in each of `dirs`, one name per line: those
+/// the tasks build, test, and lint, or with `rv32`, those they build for
+/// rv32.
+pub fn packages(dirs: &[PathBuf], rv32: bool) -> ExitCode {
+    for dir in dirs {
+        let found = if rv32 {
+            rv32_packages(dir)
+        } else {
+            contract_packages(dir)
+        };
+        match found {
+            Ok(packages) => packages.iter().for_each(|p| println!("{p}")),
+            Err(e) => {
+                eprintln!("gnaw: listing {}: {e}", dir.display());
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+    ExitCode::SUCCESS
 }
 
 /// Runs `cmd` on this terminal. Says what ran when it fails.

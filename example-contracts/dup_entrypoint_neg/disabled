@@ -1,7 +1,0 @@
-Negative fixture: every build of this crate must FAIL with a duplicate
-entrypoint-ID symbol (two colliding traits sharing a method name). The host
-build fails at codegen on the crate-scoped guard symbols, so the crate is
-excluded from the example-contracts workspace (its own standalone workspace
-root, like multi_root_collision). Exercised by gnaw's
-fixtures-negative:dup-entrypoint task (host and guest builds), not the
-standard build loops, which skip packages carrying this marker.

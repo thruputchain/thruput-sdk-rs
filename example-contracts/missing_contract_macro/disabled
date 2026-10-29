@@ -1,4 +1,0 @@
-Negative fixture: the crate links, but registers no entrypoints at all, so
-its rv32 dispatch table is empty and nothing can invoke it. Exercised by
-gnaw's fixtures-negative:missing-entrypoints task, which builds it by name.
-This marker keeps the fixture builds from building it expecting success.

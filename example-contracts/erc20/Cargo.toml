@@ -44,3 +44,6 @@ thruput-erc20-metadata-if = { workspace = true, optional = true }
 erc20 = { path = ".", features = ["dev", "metadata"] }
 thruput-erc20-native-test = { workspace = true, features = ["metadata"] }
 sha2.workspace = true
+
+[package.metadata.gnaw]
+rv32-artifact-vars = ["ERC20_RV32_ARTIFACT"]

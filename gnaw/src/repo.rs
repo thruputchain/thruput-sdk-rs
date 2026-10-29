@@ -77,8 +77,147 @@ impl Repo {
     }
 }
 
-/// Contract packages in `dir`: subdirectories with a `Cargo.toml` and no
-/// `disabled` marker, sorted. The package name is the directory name.
+/// How gnaw treats a contract package, from the `[package.metadata.gnaw]`
+/// table in its manifest. Both keys are optional:
+///
+/// ```toml
+/// [package.metadata.gnaw]
+/// kind = "library"
+/// rv32-artifact-vars = ["ERC20_RV32_ARTIFACT"]
+/// ```
+///
+/// A virtual manifest, with no `[package]`, uses `[workspace.metadata.gnaw]`.
+/// Each value must fit on one line.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Fixture {
+    pub kind: Kind,
+    /// Variables that make the package's tests use its rv32 artifact instead
+    /// of the native contract. `fixtures:test` runs the tests again with each
+    /// variable naming the artifact. Tests that always use an artifact
+    /// (`tests/rv32.rs`) need none.
+    pub rv32_artifact_vars: Vec<String>,
+}
+
+/// The tasks build, test, and lint only [`Kind::Contract`] packages. The
+/// tasks that own packages of other kinds build them by name.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    /// A contract, built for rv32 when it declares a `[[bin]]`. The default.
+    #[default]
+    Contract,
+    /// An interface, client, or shared-type library with no contract of its
+    /// own. Its dependents build it.
+    Library,
+    /// A package whose build must fail.
+    Negative,
+    /// Built only by scripts/bigint-bench.sh.
+    Benchmark,
+    /// Set aside: nothing builds it.
+    Disabled,
+}
+
+const METADATA_TABLES: [&str; 2] =
+    ["package.metadata.gnaw", "workspace.metadata.gnaw"];
+
+impl Fixture {
+    /// Reads `dir/Cargo.toml`.
+    pub fn read(dir: &Path) -> io::Result<Fixture> {
+        let path = dir.join("Cargo.toml");
+        Fixture::parse(&fs::read_to_string(&path)?).map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("{}: [*.metadata.gnaw]: {e}", path.display()),
+            )
+        })
+    }
+
+    fn parse(manifest: &str) -> Result<Fixture, String> {
+        let mut fixture = Fixture::default();
+        let entries = METADATA_TABLES
+            .into_iter()
+            .flat_map(|table| table_entries(manifest, table));
+        for (key, value) in entries {
+            match key {
+                "kind" => fixture.kind = Kind::parse(string(value)?)?,
+                "rv32-artifact-vars" => {
+                    fixture.rv32_artifact_vars = strings(value)?
+                }
+                _ => return Err(format!("unknown key {key}")),
+            }
+        }
+        Ok(fixture)
+    }
+}
+
+impl Kind {
+    fn parse(name: &str) -> Result<Kind, String> {
+        Ok(match name {
+            "contract" => Kind::Contract,
+            "library" => Kind::Library,
+            "negative" => Kind::Negative,
+            "benchmark" => Kind::Benchmark,
+            "disabled" => Kind::Disabled,
+            _ => return Err(format!("unknown kind {name:?}")),
+        })
+    }
+}
+
+/// The `key = value` lines in a manifest's `[table]`, trimmed. Enough for
+/// the one-line values gnaw reads.
+pub(crate) fn table_entries<'a>(
+    manifest: &'a str,
+    table: &str,
+) -> Vec<(&'a str, &'a str)> {
+    let header = format!("[{table}]");
+    let mut in_table = false;
+    let mut entries = Vec::new();
+    for line in manifest.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_table = line == header;
+        } else if in_table
+            && !line.starts_with('#')
+            && let Some((key, value)) = line.split_once('=')
+        {
+            entries.push((key.trim(), value.trim()));
+        }
+    }
+    entries
+}
+
+/// A quoted string value, without escapes.
+fn string(value: &str) -> Result<&str, String> {
+    value
+        .strip_prefix('"')
+        .and_then(|rest| rest.split_once('"'))
+        .filter(|(_, after)| is_end(after))
+        .map(|(s, _)| s)
+        .ok_or_else(|| format!("expected a string: {value}"))
+}
+
+/// An array of strings.
+fn strings(value: &str) -> Result<Vec<String>, String> {
+    let (items, _) = value
+        .strip_prefix('[')
+        .and_then(|rest| rest.split_once(']'))
+        .filter(|(_, after)| is_end(after))
+        .ok_or_else(|| format!("expected an array on one line: {value}"))?;
+    items
+        .split(',')
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(|item| string(item).map(str::to_string))
+        .collect()
+}
+
+/// Whether `rest` of a line holds at most a comment.
+fn is_end(rest: &str) -> bool {
+    let rest = rest.trim();
+    rest.is_empty() || rest.starts_with('#')
+}
+
+/// Contract packages in `dir`: subdirectories whose `Cargo.toml` has
+/// [`Kind::Contract`], sorted. The package name is the directory name.
 pub fn contract_packages(dir: &Path) -> io::Result<Vec<String>> {
     let mut packages = Vec::new();
     for entry in fs::read_dir(dir)? {
@@ -89,8 +228,8 @@ pub fn contract_packages(dir: &Path) -> io::Result<Vec<String>> {
             .to_string_lossy()
             .into_owned();
         if path.join("Cargo.toml").is_file()
-            && !path.join("disabled").exists()
             && name != "target"
+            && Fixture::read(&path)?.kind == Kind::Contract
         {
             packages.push(name);
         }
@@ -102,10 +241,11 @@ pub fn contract_packages(dir: &Path) -> io::Result<Vec<String>> {
 /// Contract packages in `dir` that declare a `[[bin]]`: each hosts its rv32
 /// bin at `src/main.rs`, and declaring it is what enables the rv32 build.
 ///
-/// The `disabled` marker keeps the negative fixtures out, although they
-/// declare bins; the tasks that own them build them by name.
+/// Negative fixtures declare bins, but are not [`Kind::Contract`]; the tasks
+/// that own them build them by name.
 ///
-/// scripts/metrics/sdk_codesizes_rv32*.sh apply the same rules.
+/// scripts/metrics/sdk_codesizes_rv32*.sh read this list through
+/// `cargo gnaw packages --rv32`.
 pub fn rv32_packages(dir: &Path) -> io::Result<Vec<String>> {
     let mut packages = Vec::new();
     for package in contract_packages(dir)? {
@@ -152,4 +292,62 @@ fn disables_autobins(manifest: &str) -> bool {
             key.trim() == "autobins" && value.trim() == "false"
         })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_the_metadata_table() {
+        let manifest = r#"
+[package]
+name = "erc20"
+kind = "ignored"
+
+[package.metadata.gnaw]
+# A comment.
+kind = "library"  # Another.
+rv32-artifact-vars = ["A", "B",]
+
+[[bin]]
+kind = "ignored"
+"#;
+        assert_eq!(
+            Fixture::parse(manifest).unwrap(),
+            Fixture {
+                kind: Kind::Library,
+                rv32_artifact_vars: vec!["A".into(), "B".into()],
+            }
+        );
+    }
+
+    #[test]
+    fn defaults_to_a_contract() {
+        let fixture = Fixture::parse("[package]\nname = \"x\"\n").unwrap();
+        assert_eq!(fixture, Fixture::default());
+        assert_eq!(fixture.kind, Kind::Contract);
+    }
+
+    #[test]
+    fn reads_a_virtual_manifest() {
+        let manifest = "[workspace]\n\n[workspace.metadata.gnaw]\n\
+                        kind = \"negative\"\n";
+        assert_eq!(Fixture::parse(manifest).unwrap().kind, Kind::Negative);
+    }
+
+    #[test]
+    fn rejects_unknown_and_malformed_entries() {
+        for table in [
+            "kind = \"librray\"",
+            "kind = library",
+            "kinds = \"library\"",
+            "rv32-artifact-vars = \"A\"",
+            "rv32-artifact-vars = [\"A\",",
+            "rv32-artifact-vars = [A]",
+        ] {
+            let manifest = format!("[package.metadata.gnaw]\n{table}\n");
+            assert!(Fixture::parse(&manifest).is_err(), "{table}");
+        }
+    }
 }

@@ -21,3 +21,7 @@ test = false
 
 [dependencies]
 thruput-sdk = { path = "../../crates/sdk" }
+
+# An interface library; versioned_impl builds and tests it.
+[package.metadata.gnaw]
+kind = "library"

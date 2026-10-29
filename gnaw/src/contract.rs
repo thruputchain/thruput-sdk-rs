@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::repo::Repo;
+use crate::repo::{Repo, table_entries};
 
 pub struct Contract {
     pub package: String,
@@ -103,19 +103,10 @@ impl Repo {
 /// The `[package]` name in `dir/Cargo.toml`.
 fn package_name(dir: &Path) -> Option<String> {
     let manifest = fs::read_to_string(dir.join("Cargo.toml")).ok()?;
-    let mut in_package = false;
-    for line in manifest.lines() {
-        let line = line.trim();
-        if line.starts_with('[') {
-            in_package = line == "[package]";
-        } else if in_package
-            && let Some((key, value)) = line.split_once('=')
-            && key.trim() == "name"
-        {
-            return Some(value.trim().trim_matches('"').to_string());
-        }
-    }
-    None
+    table_entries(&manifest, "package")
+        .into_iter()
+        .find(|&(key, _)| key == "name")
+        .map(|(_, value)| value.trim_matches('"').to_string())
 }
 
 fn has_table(manifest: &str, name: &str) -> bool {

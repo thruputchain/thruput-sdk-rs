@@ -80,3 +80,14 @@ op-cmp = []
 op-sqrt = []
 op-bytes = []
 op-bit-len = []
+
+# Built only by scripts/bigint-bench.sh, once per (backend, operation) pair,
+# and only for rv32:
+#
+#     scripts/bigint-bench.sh                  # full rv32 codesize + gas sweep
+#     cargo gnaw test bigint-bench-contract    # host differential test only
+#
+# Its kind keeps the rv32 fixture build and the code-size metrics, which
+# take every contract that declares a [[bin]], from building it.
+[package.metadata.gnaw]
+kind = "benchmark"
