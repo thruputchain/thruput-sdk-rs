@@ -1,0 +1,27 @@
+[package]
+name = "sdk_perf_gas"
+description = "Measures rv32 gas for a fixed workload per example contract (the sdk_perf_gas metric)"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+# A host binary, not a contract: the `disabled` marker keeps it out of the
+# rv32 build loop and the codesize metrics, which would otherwise read this
+# [[bin]] as an rv32 wrapper. scripts/metrics/sdk_perf_gas.sh runs it.
+[[bin]]
+name = "sdk_perf_gas"
+path = "src/main.rs"
+
+[dependencies]
+thruput-sdk = { workspace = true, features = ["dev"] }
+thruput-erc20-test = { workspace = true }
+hasher = { path = "../hasher", features = ["dev"] }
+ref_args_caller = { path = "../ref_args_caller", features = ["dev"] }
+u256_roundtrip_caller = { path = "../u256_roundtrip_caller", features = ["dev"] }
+versioned_impl_caller = { path = "../versioned_impl_caller", features = ["dev"] }

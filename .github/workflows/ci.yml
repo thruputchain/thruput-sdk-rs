@@ -147,7 +147,8 @@ jobs:
 
   # Main pushes only, off the PR critical path. Self-contained: rebuilds the
   # rv32 example artifacts and the full integration block (metrics.sh's
-  # codesize metrics read the rv32 release ELFs and target/thruput).
+  # codesize metrics read the rv32 release ELFs and target/thruput, and
+  # sdk_perf_gas runs the lowered example artifacts there).
   metrics:
     needs: dependency-policy # check deps before building anything
     if: github.ref == 'refs/heads/main'

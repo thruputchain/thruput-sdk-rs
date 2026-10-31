@@ -1,0 +1,6 @@
+Not a contract: a host binary that runs the lowered rv32 example artifacts.
+
+`scripts/dev.sh` skips packages carrying this marker (ls_contract_packages),
+and scripts/metrics/sdk_codesizes_rv32*.sh skip it too, so its host [[bin]] is
+never mistaken for an rv32 wrapper. It is run only by
+scripts/metrics/sdk_perf_gas.sh, after `scripts/dev.sh build-examples-rv32`.
