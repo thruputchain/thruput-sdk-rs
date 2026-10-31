@@ -51,6 +51,7 @@ members = [
     "versioned_interface",
     "versioned_impl",
     "versioned_impl_caller",
+    "sdk_perf_gas",
     "imported_error_type",
     "imported_error_callee",
     "imported_error_caller",
