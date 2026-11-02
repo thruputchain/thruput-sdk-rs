@@ -9,9 +9,6 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-env:
-  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-
 # No job here uses GITHUB_TOKEN; read is all they need.
 permissions:
   contents: read
@@ -32,24 +29,10 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
 
     steps:
-      # persist-credentials: false so the checkout's GITHUB_TOKEN (scoped to
-      # this repo only) can't shadow the App token rewrites below.
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
         with:
           persist-credentials: false
-
-      # The source build clones hogd, which is private, and its submodules,
-      # which are public. A job-local component-reader App token covers hogd;
-      # everything else is fetched anonymously over HTTPS.
-      - name: Configure private sources
-        uses: ./.github/actions/private-sources
-        with:
-          client-id: ${{ vars.COMPONENT_READER_CLIENT_ID }}
-          private-key: ${{ secrets.COMPONENT_READER_PRIVATE_KEY }}
-
-      - name: Initialize submodules
-        run: git submodule update --init --recursive
 
       # Deliberately NOT caching ./target: a cached target lets cargo reuse the
       # previously-built hogd .so and skip the cmake build entirely, so the
