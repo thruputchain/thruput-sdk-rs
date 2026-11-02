@@ -3,7 +3,7 @@
 // the cortex-m-rt pattern: the library exposes the script file; the
 // downstream bin crate's own build.rs (or .cargo/config.toml) is
 // responsible for the `-T` flag and the bare-metal link flags. The
-// example-contracts workspace config shows the expected Cargo flags.
+// fixtures workspace config shows the expected Cargo flags.
 
 fn main() {
     println!("cargo:rerun-if-changed=link/thruput-rv32.ld");

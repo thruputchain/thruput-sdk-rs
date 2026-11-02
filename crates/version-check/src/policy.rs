@@ -173,6 +173,11 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
         reason: "fixture that deliberately carries a fixed version to exercise \
                  the SDK's version-mismatch diagnostics",
     },
+    Named {
+        name: "gnaw",
+        reason: "unpublished repository tool in its own workspace (gnaw/), \
+                 so it cannot inherit the SDK version",
+    },
 ];
 
 /// `crates/*` members deliberately absent from `default-members`.

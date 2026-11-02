@@ -1,0 +1,49 @@
+[package]
+name = "erc20"
+description = "Example ERC20 contract for the Thruput blockchain"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = [
+    "thruput-sdk/dev",
+    "metadata",
+    "thruput-erc20-if/dev",
+    "thruput-erc20-metadata-if/dev",
+    "thruput-erc20-native-test/metadata"
+    ]
+metadata = ["dep:thruput-erc20-metadata-if"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p erc20` derives `--bin erc20` from the
+# package name, so the name here must stay the underscored package name.
+# `required-features` keeps it out of host builds.
+[[bin]]
+name = "erc20"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+thruput-erc20-if = { workspace = true }
+thruput-erc20-metadata-if = { workspace = true, optional = true }
+
+[dev-dependencies]
+erc20 = { path = ".", features = ["dev", "metadata"] }
+thruput-erc20-native-test = { workspace = true, features = ["metadata"] }
+sha2.workspace = true
+
+[package.metadata.gnaw]
+rv32-artifact-vars = ["ERC20_RV32_ARTIFACT"]

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Builds each publishable workspace crate's documentation the way docs.rs
-# does: `DOCS_RS` set, no network needed, and the crate's own
-# [package.metadata.docs.rs] features, target and rustdoc args. The regular
-# doc build (`dev.sh build-docs`) uses `--features=dev` across the workspace,
+# Builds each publishable workspace crate's documentation the way docs.rs does:
+# `DOCS_RS` set, no network needed, and the crate's own
+# [package.metadata.docs.rs] features, target and rustdoc args. The regular doc
+# build (gnaw's `sdk:docs` task) uses `--features=dev` across the workspace,
 # which hides failures in any other configuration.
 #
 # Usage: check-docsrs.sh [package...]   (default: every publishable member)

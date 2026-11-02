@@ -1,2 +1,5 @@
-/scripts/dev.sh
 /integration_test/contracts
+/gnaw/src/tasks.rs
+# mktemp templates
+/scripts/cargo-example-smoke.sh
+/scripts/install-thruput-cli.sh

@@ -50,9 +50,9 @@ fn increment_counter() {
 
 Use `TestEnvironment::transact` for multiple transactions, multiple contracts,
 or frame-level exception and fault assertions. The
-[counter tests](https://github.com/thruputchain/thruput-sdk-rs/blob/main/example-contracts/counter/tests/test.rs)
+[counter tests](https://github.com/thruputchain/thruput-sdk-rs/blob/main/fixtures/counter/tests/test.rs)
 show deployment and error inspection, and the
-[multi-transaction tests](https://github.com/thruputchain/thruput-sdk-rs/blob/main/example-contracts/complex-storage/tests/test.rs)
+[multi-transaction tests](https://github.com/thruputchain/thruput-sdk-rs/blob/main/fixtures/complex-storage/tests/test.rs)
 show persistent state across transactions.
 
 ## Features
@@ -82,7 +82,7 @@ storage guards.
   also the crate-level rustdoc.
 - [thruput-examples](https://github.com/thruputchain/thruput-examples) has
   worked contracts.
-- `example-contracts/` in this repository is the SDK's test corpus. Its
+- `fixtures/` in this repository is the SDK's test corpus. Its
   fixtures exercise SDK behavior and are not audited application templates.
 
 ## Contributing

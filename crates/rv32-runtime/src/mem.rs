@@ -20,9 +20,9 @@
 //! RECURSION GUARD: LLVM's loop-idiom recognition can lower copy/fill loops
 //! back into `memcpy`/`memset` calls — inside these functions that would be
 //! infinite recursion. The crate is `#![no_builtins]` (lib.rs) to forbid
-//! that. CI asserts the override held per contract build (dev.sh
-//! check_rv32_mem_symbols: strong memcpy present, compiler_builtins mem
-//! symbols absent); recursion itself was ruled out by disassembly when
+//! that. CI asserts the override held per contract build (gnaw's
+//! `elf::check_mem_symbols`: no WEAK mem symbol, no compiler_builtins mem
+//! symbols); recursion itself was ruled out by disassembly when
 //! this landed and no_builtins keeps it that way.
 
 use core::mem::MaybeUninit;

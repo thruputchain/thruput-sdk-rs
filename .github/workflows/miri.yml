@@ -4,7 +4,7 @@ name: Miri
 # mem-intrinsic cores and the bump-allocator arithmetic. Deliberately narrow
 # -- this is the raw-pointer code where a provenance or aliasing mistake would
 # be silent on device, not a general test run. The broad suites live in
-# ci.yml / sdk_tests.yml.
+# ci.yml.
 #
 # What this cannot cover: the allocator's `#[global_allocator]` wrapper binds
 # linker-script extern statics (`__heap_base`, `__heap_end`) that Miri has no

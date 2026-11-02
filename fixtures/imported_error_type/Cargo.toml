@@ -1,0 +1,27 @@
+[package]
+name = "imported_error_type"
+description = "A shared contract error type library for the fixtures"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+[dependencies]
+thruput-sdk = { workspace = true }
+
+# A shared error type; imported_error_callee builds it.
+[package.metadata.gnaw]
+kind = "library"

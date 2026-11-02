@@ -1,0 +1,22 @@
+[package]
+name = "versioned_interface"
+description = "A 0.1 interface implemented by a separate 0.2 contract crate"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev"]
+
+[lib]
+doctest = false
+test = false
+
+[dependencies]
+thruput-sdk = { workspace = true }
+
+# An interface library; versioned_impl builds and tests it.
+[package.metadata.gnaw]
+kind = "library"

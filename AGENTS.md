@@ -7,7 +7,7 @@ guest runtime, and native test infrastructure.
 
 For contract authoring, start with [Start a contract](README.md#start-a-contract).
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
-`./scripts/dev.sh` from the repository root. Use the toolchain declared in
+`cargo gnaw` from the repository root. Use the toolchain declared in
 [rust-toolchain.toml](rust-toolchain.toml).
 
 ## Repository map
@@ -25,29 +25,33 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 | `crates/contract-util/`, `crates/domain-separator/` | Shared macro utilities and domain hashing |
 | `crates/bigint-bench/`, `crates/bigint-bench-if/` | Integer arithmetic benchmarks |
 | `crates/test-vectors/`, `crates/version-check/` | Shared test vectors and release consistency checks |
-| `example-contracts/` | Internal contract test corpus; separate Cargo workspace |
-| `negative-contracts/` | Compile-fail guest fixtures; separate Cargo workspace |
+| `fixtures/` | Internal contract test corpus; separate Cargo workspace |
+| `fixtures-negative/` | Compile-fail guest fixtures; separate Cargo workspace |
 | `integration_test/` | Integration workspace; `contracts/` is a Git submodule |
 | `standard-interfaces/`, `standard-impls/`, `standard-tests/` | Standard interfaces, reusable implementations, and shared tests |
 | `logging-test/` | Logging build fixture; separate Cargo workspace |
+| `gnaw/` | CI task runner; separate Cargo workspace, run as `cargo gnaw` |
 | `scripts/`, `.github/workflows/` | Development commands and CI/release automation |
 
 ## Validation
 
 - Run focused tests for the changed crate or contract first. For example,
-  `./scripts/dev.sh test example-contracts/counter -- --show-output`.
+  `cargo gnaw test counter -- --show-output`.
 - Use `./scripts/ci.sh` for full validation. It installs the pinned Thruput
-  CLI, then runs `./scripts/dev.sh ci`. See CONTRIBUTING.md prerequisites first.
+  CLI, then runs `cargo gnaw run ci`. See CONTRIBUTING.md prerequisites first.
+  To run part of CI, name gnaw tasks or groups, such as
+  `cargo gnaw run fixtures:test`.
 - Root Cargo commands use `default-members`. Do not replace them with
   `--workspace`: the guest runtime crate requires its own target.
-- Example and integration workspaces have separate manifests and lockfiles.
+- Fixture and integration workspaces have separate manifests and lockfiles.
   A root test run does not cover them. Some tests also require built contracts.
-- Run example packages separately, as `test-examples` does. Combining packages
-  can change behavior through Cargo feature unification.
-- `dev.sh` locks dependencies by default. Set `CARGO_UNLOCK` only when an
+- Run example packages separately, as `cargo gnaw test` and the
+  `fixtures:test` task do. Combining packages can change behavior through
+  Cargo feature unification.
+- gnaw locks dependencies by default. Pass `--unlocked` only when an
   intentional dependency update requires it.
-- `./scripts/dev.sh test` runs the SDK test sequence. Use `test-examples` and
-  `test-itc` for the separate contract workspaces.
+- `cargo gnaw run sdk:test` runs the SDK test sequence. Use `fixtures:test`
+  and `itc:test` for the separate contract workspaces.
 - Report which checks ran and any blockers. Documentation-only changes need
   link, command, and diff checks; they do not normally need full CI.
 
@@ -66,8 +70,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
   operations commute.
 - Contract release builds disable overflow checks. Use checked arithmetic for
   amounts; native tests alone do not establish guest overflow behavior.
-- Keep RV32 flags in the leaf workspace configs. The example, integration, and
-  negative-contract workspaces' configs must stay synchronized. Adding the same
+- Keep RV32 flags in the leaf workspace configs. The fixtures, integration, and
+  negative fixtures workspaces' configs must stay synchronized. Adding the same
   flags at the root duplicates linker arguments through Cargo config merging.
 - For version changes, follow [Cargo.toml](Cargo.toml) and
   [crates/version-check/README.md](crates/version-check/README.md), including

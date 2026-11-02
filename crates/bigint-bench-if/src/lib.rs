@@ -1,7 +1,7 @@
 //! Interface for the big-integer benchmark contract.
 //!
 //! One entrypoint, one operation per build. The contract that implements this
-//! trait (`example-contracts/bigint-bench-contract`) is compiled once per
+//! trait (`fixtures/bigint-bench-contract`) is compiled once per
 //! (backend, operation) pair, so the artifact under measurement contains
 //! exactly one arithmetic kernel and nothing else.
 //!

@@ -28,7 +28,7 @@ set -euo pipefail
 
 SDK_DIR="$(realpath ".")"
 TARGET_DIR="$(realpath "target")"
-CONTRACTS_DIR="${SDK_DIR}/example-contracts"
+CONTRACTS_DIR="${SDK_DIR}/fixtures"
 RV32_RELEASE="${TARGET_DIR}/riscv32im-unknown-none-elf/release"
 LOWERED="${TARGET_DIR}/thruput"
 OUT_DIR="${TARGET_DIR}/bigint-bench"
@@ -50,7 +50,7 @@ backend_feature() {
 }
 
 # The operation menu. Keep in sync with the `op-*` features in
-# example-contracts/bigint-bench-contract/Cargo.toml and the `kernels!` table in
+# fixtures/bigint-bench-contract/Cargo.toml and the `kernels!` table in
 # its src/kernel.rs -- a name here that has no matching feature fails the build
 # loudly (cargo rejects an unknown `-F`), which is the intended behaviour.
 #
@@ -100,7 +100,7 @@ command -v thruput > /dev/null || {
     exit 1
 }
 
-# Matches scripts/dev.sh: --locked unless CARGO_UNLOCK is set non-empty.
+# --locked unless CARGO_UNLOCK is set non-empty.
 LOCKED="--locked"
 [ -z "${CARGO_UNLOCK:-}" ] || LOCKED=""
 
@@ -143,8 +143,8 @@ for backend in $BACKENDS; do
 
         echo "=== BUILD(rv32) ${backend}.${op}  [-F ${features}]" >&2
 
-        # build-std goes through as trailing cargo args, like scripts/dev.sh
-        # build_rv32 and hogd's build_risc.sh: the rv32 rustflags use
+        # build-std goes through as trailing cargo args, like gnaw's rv32
+        # build and hogd's build_risc.sh: the rv32 rustflags use
         # panic=immediate-abort and target features the prebuilt core lacks.
         #
         # `-F` after the CLI's own flags is additive, and the CLI passes
