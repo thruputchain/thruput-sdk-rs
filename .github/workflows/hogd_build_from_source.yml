@@ -39,23 +39,14 @@ jobs:
         with:
           persist-credentials: false
 
-      # The source build clones hogd and its thruputchain submodules.
-      # A job-local component-reader App token covers every moved repo, legacy
-      # and canonical URLs alike; deploy keys remain only for the cargo git
-      # dependencies still in groundhogchain.
+      # The source build clones hogd, which is private, and its submodules,
+      # which are public. A job-local component-reader App token covers hogd;
+      # everything else is fetched anonymously over HTTPS.
       - name: Configure private sources
         uses: ./.github/actions/private-sources
         with:
-          app-id: ${{ vars.COMPONENT_READER_APP_ID }}
+          client-id: ${{ vars.COMPONENT_READER_CLIENT_ID }}
           private-key: ${{ secrets.COMPONENT_READER_PRIVATE_KEY }}
-          ssh-private-key: |
-            ${{ secrets.SDK_TO_BCS_KEY }}
-            ${{ secrets.SDK_TO_BCS_CPP_KEY }}
-            ${{ secrets.SDK_TO_XDR_COMMON_KEY }}
-            ${{ secrets.SDK_TO_XDRS_KEY }}
-            ${{ secrets.SDK_TO_SERDE_ARRAYS_KEY }}
-            ${{ secrets.SDK_TO_METRICS_HISTORY }}
-            ${{ secrets.SDK_TO_ABORT_RS }}
 
       - name: Initialize submodules
         run: git submodule update --init --recursive
