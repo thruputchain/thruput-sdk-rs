@@ -1,4 +1,4 @@
 # Config for `cargo cooldown-check`.
-# Keep synced with ../cooldown.toml
+# Keep in sync with ../cooldown.toml and cooldown-allowlist.toml.
 
 cooldown_minutes = 21600 # 15 days
