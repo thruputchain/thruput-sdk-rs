@@ -49,6 +49,12 @@ impl Repo {
         self.integration().join("contracts")
     }
 
+    /// Whether the integration contracts submodule is checked out.
+    pub fn integration_present(&self) -> bool {
+        contract_packages(&self.integration_contracts())
+            .is_ok_and(|p| !p.is_empty())
+    }
+
     pub fn logging_test(&self) -> PathBuf {
         self.root.join("logging-test")
     }

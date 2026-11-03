@@ -129,7 +129,8 @@ it; prerequisites are added unless you pass `--no-deps`:
 
 Task output goes to `target/gnaw/logs/`. A failure names the step that failed,
 the command it ran, and how to rerun it. Pass `--unlocked` to let cargo update
-lockfiles.
+lockfiles. Pass `--cooldown` instead to update each lockfile under the
+[cooldown policy](#update-dependencies) first, then run locked.
 
 For single contracts, gnaw adds the flags guest builds need:
 
@@ -189,8 +190,10 @@ every separate workspace links to the root copies. Link them in any new
 workspace. Without the links, both tools skip the policy without a warning.
 Keep [.github/dependabot.yml](.github/dependabot.yml) in sync with the policy.
 
-`cargo gnaw --unlocked` and plain `cargo update` ignore the cooldown. Run
-`cargo cooldown-check` after either changes a lockfile.
+gnaw's `--cooldown` option runs `cargo cooldown` once on each workspace, then
+runs gnaw's cargo commands with `--locked`. gnaw's `--unlocked` option and
+plain `cargo update` ignore the cooldown. Run `cargo cooldown-check` after
+either changes a lockfile.
 
 ## Diagnostics
 

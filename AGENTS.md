@@ -48,8 +48,8 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 - Run example packages separately, as `cargo gnaw test` and the
   `fixtures:test` task do. Combining packages can change behavior through
   Cargo feature unification.
-- gnaw locks dependencies by default. Pass `--unlocked` only when an
-  intentional dependency update requires it.
+- gnaw locks dependencies by default. When an intentional dependency update
+  requires lockfile changes, pass `--cooldown` rather than `--unlocked`.
 - `cargo gnaw run sdk:test` runs the SDK test sequence. Use `fixtures:test`
   and `itc:test` for the separate contract workspaces.
 - Report which checks ran and any blockers. Documentation-only changes need

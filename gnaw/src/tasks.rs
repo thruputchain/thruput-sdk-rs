@@ -732,10 +732,7 @@ fn packages(dir: &Path) -> Result<Vec<String>> {
 
 fn require_integration(ctx: &Ctx) -> Result {
     let dir = ctx.repo.integration_contracts();
-    if contract_packages(&dir)
-        .map(|p| p.is_empty())
-        .unwrap_or(true)
-    {
+    if !ctx.repo.integration_present() {
         return Err(Failure::new(format!(
             "{} has no contracts: run `git submodule update --init --recursive`",
             ctx.repo.rel(&dir).display()
