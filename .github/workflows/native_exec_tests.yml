@@ -31,6 +31,12 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           cache: rust
+          path: ~/.cargo/cooldown-check
+
+      # Before anything builds dependency code.
+      - uses: ./.github/actions/cooldown-check
+        with:
+          directories: .
 
       - name: Build and test thruput-native-exec
         run: cargo test -p thruput-native-exec -- --show-output
@@ -46,6 +52,12 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           cache: rust
+          path: ~/.cargo/cooldown-check
+
+      # Before anything builds dependency code.
+      - uses: ./.github/actions/cooldown-check
+        with:
+          directories: .
 
       - name: Build and test thruput-native-exec
         run: cargo test -p thruput-native-exec -- --show-output
@@ -67,6 +79,12 @@ jobs:
         uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
         with:
           cache: rust
+          path: ~/.cargo/cooldown-check
+
+      # Before anything builds dependency code.
+      - uses: ./.github/actions/cooldown-check
+        with:
+          directories: .
 
       - name: Install latest nightly
         run: rustup toolchain install nightly --profile minimal

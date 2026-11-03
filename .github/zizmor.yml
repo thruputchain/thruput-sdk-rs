@@ -13,6 +13,9 @@ rules:
   self-repository:
     ignore:
       - ci.yml
+      - action.yml # composite actions under .github/actions
       - hogd_build_from_source.yml
+      - miri.yml
+      - native_exec_tests.yml
       - publish.yml
       - yank.yml

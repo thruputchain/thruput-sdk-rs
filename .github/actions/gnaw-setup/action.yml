@@ -55,19 +55,12 @@ runs:
         --target-dir gnaw/target
         && gnaw --version
 
-    # It has no crates.io release, so pin the commit. Into a cached root:
-    # with that commit already there, cargo install skips the build. Linked
-    # into ~/.cargo/bin, which is already on PATH.
+    # Into the cached root above.
     - name: Install cargo-cooldown-check
       if: inputs.cooldown-check == 'true'
-      shell: bash
-      run: |
-        root="$HOME/.cargo/cooldown-check"
-        cargo install --locked --root "$root" \
-          --git https://github.com/NomicFoundation/cargo-cooldown-check \
-          --rev d519cf72eed8dde4301f83298ee08366cf3b1cea
-        ln -sf "$root/bin/cargo-cooldown-check" "$HOME/.cargo/bin/"
-        cargo cooldown-check --help >/dev/null
+      uses: ./.github/actions/cooldown-check
+      with:
+        check: "false"
 
     # Installs into THRUPUT_CLI_ROOT, which gnaw puts on PATH for its tasks.
     - name: Install the pinned Thruput CLI

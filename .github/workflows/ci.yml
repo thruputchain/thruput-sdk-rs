@@ -39,6 +39,30 @@ jobs:
     with:
       runs-on: namespace-profile-hogd-linux-2604
 
+  # Checks every lockfile against the cooldown policy before any job builds
+  # dependency code, which could run a fresh release's build script or proc
+  # macro. gnaw's cooldown-check task checks again at the end.
+  cooldown:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: namespace-profile-hogd-linux-2604
+    steps:
+      - name: Checkout
+        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+
+      # The submodule holds the integration workspace's members.
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
+      - name: Configure Namespace Cache
+        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/cooldown-check
+
+      - uses: ./.github/actions/cooldown-check
+
   workflow-lint:
     permissions:
       contents: read
@@ -51,7 +75,7 @@ jobs:
 
   # Formatting, annotations, version pins, dependency cooldown, and SDK clippy
   quick:
-    needs: dependency-policy # check deps before building anything
+    needs: [dependency-policy, cooldown] # check deps before building anything
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux-2604
     steps:
@@ -67,7 +91,7 @@ jobs:
 
   # SDK tests, guest builds of the SDK and macro fixtures, and documentation.
   sdk:
-    needs: dependency-policy
+    needs: [dependency-policy, cooldown]
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux-2604
     steps:
@@ -82,7 +106,7 @@ jobs:
   # rv32 fixture builds and their artifact and spec checks, fixture tests,
   # negative fixtures, and fixture clippy.
   fixtures:
-    needs: dependency-policy
+    needs: [dependency-policy, cooldown]
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux-2604
     steps:
@@ -122,18 +146,15 @@ jobs:
 
   # The integration contracts: the only job that needs the submodule.
   integration:
-    needs: dependency-policy
+    needs: [dependency-policy, cooldown]
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: namespace-profile-hogd-linux-2604
     steps:
-      # Loaded before checkout so the submodule fetch (an SSH remote) can
-      # authenticate. The submodule has no submodules of its own. The CLI
-      # source key covers a source-pinned Thruput CLI.
-      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+      # Covers a source-pinned Thruput CLI (scripts/thruput-cli-version.sh).
+      - name: Authenticate pinned CLI source
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
-          ssh-private-key: |
-            ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
-            ${{ secrets.SDK_TO_ITC }}
+          ssh-private-key: ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
 
       - name: Checkout
         uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8

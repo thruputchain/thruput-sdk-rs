@@ -44,6 +44,12 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
+            ~/.cargo/cooldown-check
+
+      # Before anything builds dependency code.
+      - uses: ./.github/actions/cooldown-check
+        with:
+          directories: .
 
       # Resolves against rust-toolchain.toml, so Miri matches the pinned
       # nightly the rest of the workspace builds with.
