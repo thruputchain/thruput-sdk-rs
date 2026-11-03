@@ -1,5 +1,6 @@
 # Config for `cargo cooldown`.
-# Keep in sync with .cargo/cooldown.toml and .cargo/cooldown-allowlist.toml
+# Keep in sync with .cargo/cooldown.toml, .cargo/cooldown-allowlist.toml, and
+# the cooldown settings in .github/dependabot.yml.
 
 [cooldown]
 incompatible-publish-age = "deny"
