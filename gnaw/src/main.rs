@@ -272,10 +272,17 @@ fn run(repo: &Repo, args: RunArgs) -> ExitCode {
         return ExitCode::SUCCESS;
     }
     if args.cooldown {
-        let cooled = cooldown::workspaces(repo)
-            .map_err(|e| eprintln!("gnaw: {e}"))
-            .is_ok_and(|workspaces| cooldown::cool(repo, &workspaces));
-        if !cooled {
+        let workspaces = match cooldown::workspaces(repo) {
+            Ok(workspaces) => workspaces,
+            Err(e) => {
+                eprintln!("gnaw: {e}");
+                return ExitCode::FAILURE;
+            }
+        };
+        for reason in &workspaces.left_out {
+            eprintln!("gnaw: not cooling {reason}");
+        }
+        if !cooldown::cool(repo, &workspaces.dirs) {
             return ExitCode::FAILURE;
         }
     }

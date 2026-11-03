@@ -8,6 +8,10 @@ inputs:
     description: Install the pinned Thruput CLI (needed for rv32 contract builds).
     required: false
     default: "false"
+  cooldown-check:
+    description: Install cargo-cooldown-check (needed for the cooldown-check task).
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -49,6 +53,15 @@ runs:
         cargo install --locked --debug --path gnaw
         --target-dir gnaw/target
         && gnaw --version
+
+    # Into ~/.cargo/bin. It has no crates.io release, so pin the commit.
+    - name: Install cargo-cooldown-check
+      if: inputs.cooldown-check == 'true'
+      shell: bash
+      run: >-
+        cargo install --locked
+        --git https://github.com/NomicFoundation/cargo-cooldown-check
+        --rev d519cf72eed8dde4301f83298ee08366cf3b1cea
 
     # Installs into THRUPUT_CLI_ROOT, which gnaw puts on PATH for its tasks.
     - name: Install the pinned Thruput CLI

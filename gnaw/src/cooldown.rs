@@ -1,11 +1,15 @@
-//! `--cooldown`: cool each workspace's lockfile under the repository's
-//! cooldown policy (`cooldown.toml`) before anything else runs.
+//! The repository's cooldown policy: new crate releases must age before a
+//! lockfile takes them (`cooldown.toml`, `.cargo/cooldown*.toml`).
 //!
+//! `--cooldown` cools each workspace's lockfile before anything else runs.
 //! One pass per workspace is enough: a `Cargo.lock` covers the whole
 //! workspace, for every feature and target. Afterwards the lockfiles agree
 //! with the manifests, so the cargo calls that follow run with `--locked` and
 //! fail rather than change a lockfile. Scripts that run cargo without
 //! `--locked` leave a lockfile that already agrees unchanged.
+//!
+//! The `cooldown-check` task checks the committed lockfiles against the
+//! policy without changing them.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -14,11 +18,18 @@ use crate::repo::Repo;
 use crate::task::Cmd;
 use crate::tasks::on_path;
 
+/// The workspaces whose lockfiles Git tracks.
+pub struct Workspaces {
+    /// Workspace roots that can be resolved.
+    pub dirs: Vec<PathBuf>,
+    /// Why a tracked workspace was left out. The integration workspace's
+    /// members live in a submodule, so it is left out when the submodule is
+    /// not checked out.
+    pub left_out: Vec<String>,
+}
+
 /// The workspace roots: the directories of the lockfiles Git tracks.
-///
-/// The integration workspace's members live in a submodule, so it is left
-/// out, with a note, when the submodule is not checked out.
-pub fn workspaces(repo: &Repo) -> Result<Vec<PathBuf>, String> {
+pub fn workspaces(repo: &Repo) -> Result<Workspaces, String> {
     let output = Command::new("git")
         .args(["ls-files", "-z", "--", "*Cargo.lock"])
         .current_dir(&repo.root)
@@ -30,20 +41,23 @@ pub fn workspaces(repo: &Repo) -> Result<Vec<PathBuf>, String> {
             String::from_utf8_lossy(&output.stderr).trim()
         ));
     }
-    let mut workspaces = Vec::new();
+    let mut workspaces = Workspaces {
+        dirs: Vec::new(),
+        left_out: Vec::new(),
+    };
     for path in output.stdout.split(|&b| b == 0).filter(|p| !p.is_empty()) {
         let path = String::from_utf8_lossy(path);
         let dir = repo.root.join(&*path);
         let dir = dir.parent().expect("a lockfile path has a parent");
         if dir == repo.integration() && !repo.integration_present() {
-            eprintln!(
-                "gnaw: not cooling {}: {} is not checked out",
+            workspaces.left_out.push(format!(
+                "{}: {} is not checked out",
                 repo.rel(dir).display(),
                 repo.rel(&repo.integration_contracts()).display()
-            );
+            ));
             continue;
         }
-        workspaces.push(dir.to_path_buf());
+        workspaces.dirs.push(dir.to_path_buf());
     }
     Ok(workspaces)
 }

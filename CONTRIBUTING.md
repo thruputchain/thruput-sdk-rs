@@ -122,7 +122,7 @@ it; prerequisites are added unless you pass `--no-deps`:
 | Command | Scope |
 | --- | --- |
 | `cargo gnaw list` | Tasks, with what each needs; `--groups` for groups |
-| `cargo gnaw run quick` | Formatting, annotations, version pins, SDK clippy |
+| `cargo gnaw run quick` | Formatting, annotations, version pins, dependency cooldown, SDK clippy |
 | `cargo gnaw run fixtures:test` | Fixture tests, after the RV32 builds they need |
 | `cargo gnaw run 'fixtures-negative:*' -k` | Negative fixtures, reporting every failure |
 | `cargo gnaw run sdk --dry-run` | The plan, without running it |
@@ -173,13 +173,17 @@ cargo cooldown update                                       # root workspace
 cargo cooldown update --manifest-path fixtures/Cargo.toml   # another workspace
 ```
 
-It takes the same arguments as `cargo update`. To check existing lockfiles, run
+It takes the same arguments as `cargo update`. To check the committed
+lockfiles, install
 [cargo-cooldown-check](https://github.com/NomicFoundation/cargo-cooldown-check)
-from a workspace root:
+at the commit CI uses, then run the `cooldown-check` task. It runs
+`cargo cooldown-check` in every workspace, and CI runs it in the `quick` and
+`integration` jobs:
 
 ```sh
-cargo install --locked --git https://github.com/NomicFoundation/cargo-cooldown-check
-cargo cooldown-check
+cargo install --locked --git https://github.com/NomicFoundation/cargo-cooldown-check \
+    --rev d519cf72eed8dde4301f83298ee08366cf3b1cea
+cargo gnaw run cooldown-check
 ```
 
 The policy lives in [cooldown.toml](cooldown.toml) for `cargo cooldown`, and in
@@ -192,8 +196,8 @@ Keep [.github/dependabot.yml](.github/dependabot.yml) in sync with the policy.
 
 gnaw's `--cooldown` option runs `cargo cooldown` once on each workspace, then
 runs gnaw's cargo commands with `--locked`. gnaw's `--unlocked` option and
-plain `cargo update` ignore the cooldown. Run `cargo cooldown-check` after
-either changes a lockfile.
+plain `cargo update` ignore the cooldown. Run `cargo gnaw run cooldown-check`
+after either changes a lockfile.
 
 ## Diagnostics
 

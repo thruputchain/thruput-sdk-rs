@@ -272,12 +272,14 @@ mod tests {
             no_deps: false,
         })
         .unwrap();
-        let last = plan
-            .tasks
-            .iter()
-            .find(|p| p.task.id == "version-check")
-            .unwrap();
-        assert_eq!(last.after.len(), plan.tasks.len() - 1);
+        let (last, others): (Vec<_>, Vec<_>) =
+            plan.tasks.iter().partition(|p| p.task.last);
+        let ids: Vec<_> = last.iter().map(|p| p.task.id).collect();
+        assert!(ids.contains(&"version-check"), "{ids:?}");
+        assert!(ids.contains(&"cooldown-check"), "{ids:?}");
+        for p in last {
+            assert_eq!(p.after.len(), others.len(), "{}", p.task.id);
+        }
     }
 
     #[test]
