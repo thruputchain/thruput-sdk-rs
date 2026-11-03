@@ -7,7 +7,7 @@ incompatible-publish-age = "deny"
 lockfile-baseline = "ignore"
 
 [registry]
-global-min-publish-age = "15 days"
+global-min-publish-age = "8 days"
 
 # Security fix for ctutils 0.4.3 and earlier (fixed in 0.4.4).
 # (remove this after 2026 Nov 8)

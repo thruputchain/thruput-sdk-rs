@@ -161,7 +161,8 @@ the guest-only runtime from host builds.
 
 ## Update dependencies
 
-New crate releases must be 15 days old before a lockfile takes them.
+New crate releases must be older than a cooldown period before a lockfile
+takes them.
 First-party `thruput-*` crates are exempt. Dependabot opens weekly update pull
 requests under this cooldown. To update a lockfile yourself, use
 [cargo-cooldown](https://crates.io/crates/cargo-cooldown) instead of

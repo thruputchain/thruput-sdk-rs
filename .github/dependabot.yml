@@ -15,7 +15,7 @@ updates:
       interval: weekly
     # Keep in sync with /cooldown.toml.
     cooldown:
-      default-days: 15
+      default-days: 8
       exclude:
         - "thruput-*" # first-party crates
     open-pull-requests-limit: 9
@@ -27,7 +27,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 15
+      default-days: 8
     open-pull-requests-limit: 3
     groups:
       actions:
