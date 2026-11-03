@@ -154,21 +154,22 @@ reported like any other rather than waiting to surface at build time.
 
 ### 5. Lockfiles
 
-One lockfile per workspace. The tool finds them by walking the tree, so trust
-the count `version-check` prints over the list below, which has drifted before.
-Run `cargo cooldown update --workspace` against each. Use it instead of plain
-`cargo update`, so that any new external crates the bump pulls in obey the
-cooldown policy (see
-[Update dependencies](../../../CONTRIBUTING.md#update-dependencies)):
+One lockfile per workspace. Run `cargo cooldown update --workspace` against
+each. Use it instead of plain `cargo update`, so that any new external crates
+the bump pulls in obey the cooldown policy (see
+[Update dependencies](../../../CONTRIBUTING.md#update-dependencies)).
+
+Don't list the workspaces by hand: a hand-written list has drifted before.
+Loop over the lockfiles Git tracks instead. `integration_test` needs its
+submodule checked out.
 
 ```bash
-cargo cooldown update --workspace                                                          # root
-cargo cooldown update --manifest-path fixtures/Cargo.toml --workspace
-cargo cooldown update --manifest-path fixtures/cross_crate_collision/Cargo.toml --workspace
-cargo cooldown update --manifest-path fixtures/multi_root_collision/Cargo.toml --workspace
-cargo cooldown update --manifest-path integration_test/Cargo.toml --workspace
-cargo cooldown update --manifest-path logging-test/Cargo.toml --workspace
+for lock in $(git ls-files '*Cargo.lock'); do
+    cargo cooldown update --manifest-path "$(dirname "$lock")/Cargo.toml" --workspace || break
+done
 ```
+
+Check that the loop covered as many lockfiles as `version-check` reports.
 
 If `cargo cooldown update` fails with `failed to select a version for the requirement`
 against an in-repo crate, you missed a pin. Prefer running `version-check`
@@ -178,14 +179,14 @@ release is too new, wait for the cooldown or add a reviewed exemption to the
 cooldown config files.
 
 At this point the manifests are edited but the lockfiles are not regenerated, so
-a plain run would report six lockfiles' worth of expected disagreement. Use the
+a plain run would report every lockfile's worth of expected disagreement. Use the
 flag to check just the manifests:
 
 ```bash
 cargo run -p version-check -- --ignore-lockfiles
 ```
 
-Get that clean *before* running the `cargo cooldown update` commands above, then run
+Get that clean *before* running the `cargo cooldown update` loop above, then run
 without the flag afterwards to confirm the lockfiles caught up.
 
 ## Finishing
