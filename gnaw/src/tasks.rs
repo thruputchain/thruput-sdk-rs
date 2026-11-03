@@ -698,6 +698,10 @@ fn version_check(ctx: &mut Ctx) -> Result {
 
 /// `cargo cooldown-check` in each workspace. It reads the lockfile and the
 /// crates.io index, and changes nothing.
+///
+/// The checker runs `cargo metadata` without `--locked`, which re-resolves a
+/// stale lockfile and then checks the result. So a locked `cargo metadata`
+/// runs first, failing on a stale lockfile instead.
 fn cooldown_check(ctx: &mut Ctx) -> Result {
     if !on_path("cargo-cooldown-check") {
         return ctx
@@ -709,6 +713,8 @@ fn cooldown_check(ctx: &mut Ctx) -> Result {
         ctx.warn(format!("not checked: {reason}"));
     }
     for dir in &workspaces.dirs {
+        let metadata =
+            ctx.cargo(dir, "metadata").args(["--format-version", "1"]);
         let cmd = ctx.cmd("cargo", dir).arg("cooldown-check");
         let name = ctx.repo.rel(dir).display().to_string();
         let name = if name.is_empty() {
@@ -716,7 +722,16 @@ fn cooldown_check(ctx: &mut Ctx) -> Result {
         } else {
             name
         };
-        ctx.step(name, |ctx| ctx.run(&cmd))?;
+        ctx.step(name, |ctx| {
+            // Quiet: its stdout is the whole dependency graph as JSON.
+            let (status, output) = ctx.capture_quiet(&metadata)?;
+            if !status.success() {
+                return Err(ctx
+                    .command_failure(&metadata, status, &output)
+                    .into());
+            }
+            ctx.run(&cmd)
+        })?;
     }
     Ok(())
 }
