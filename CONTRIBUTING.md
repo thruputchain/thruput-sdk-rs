@@ -158,6 +158,40 @@ steps. The root, fixtures, integration, negative fixtures, and logging
 workspaces are separate. Root Cargo commands use `default-members` to exclude
 the guest-only runtime from host builds.
 
+## Update dependencies
+
+New crate releases must be 15 days old before a lockfile takes them.
+First-party `thruput-*` crates are exempt. Dependabot opens weekly update pull
+requests under this cooldown. To update a lockfile yourself, use
+[cargo-cooldown](https://crates.io/crates/cargo-cooldown) instead of
+`cargo update`:
+
+```sh
+cargo install cargo-cooldown --version 0.3.5 --locked
+cargo cooldown update                                       # root workspace
+cargo cooldown update --manifest-path fixtures/Cargo.toml   # another workspace
+```
+
+It takes the same arguments as `cargo update`. To check existing lockfiles, run
+[cargo-cooldown-check](https://github.com/NomicFoundation/cargo-cooldown-check)
+from a workspace root:
+
+```sh
+cargo install --locked --git https://github.com/NomicFoundation/cargo-cooldown-check
+cargo cooldown-check
+```
+
+The policy lives in [cooldown.toml](cooldown.toml) for `cargo cooldown`, and in
+[.cargo/cooldown.toml](.cargo/cooldown.toml) and
+[.cargo/cooldown-allowlist.toml](.cargo/cooldown-allowlist.toml) for
+`cargo cooldown-check`. Each tool reads its files from the workspace root, so
+every separate workspace links to the root copies. Link them in any new
+workspace. Without the links, both tools skip the policy without a warning.
+Keep [.github/dependabot.yml](.github/dependabot.yml) in sync with the policy.
+
+`cargo gnaw --unlocked` and plain `cargo update` ignore the cooldown. Run
+`cargo cooldown-check` after either changes a lockfile.
+
 ## Diagnostics
 
 For test diagnostics, set `SDK_TEST_ENABLE_SYSCALL_LOGGING=1` to log syscalls,

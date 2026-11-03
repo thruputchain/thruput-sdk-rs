@@ -21,6 +21,11 @@ cargo run -p version-check -- bump breaking           # semver-incompatible SDK 
 cargo run -p version-check -- bump --protocol 0.21.0  # move protocol-rs
 ```
 
+`bump` regenerates lockfiles with plain `cargo update`, which ignores the
+cooldown policy. Pass `--skip-lockfiles`, then regenerate them with
+`cargo cooldown update` as in [5. Lockfiles](#5-lockfiles), and finish with
+`cargo run -p version-check`.
+
 ## Repairing a workspace a release passed by
 
 `bump` refuses to run on a repository that already disagrees with itself, so it
@@ -151,21 +156,26 @@ reported like any other rather than waiting to surface at build time.
 
 One lockfile per workspace. The tool finds them by walking the tree, so trust
 the count `version-check` prints over the list below, which has drifted before.
-`cargo update --workspace` against each:
+Run `cargo cooldown update --workspace` against each. Use it instead of plain
+`cargo update`, so that any new external crates the bump pulls in obey the
+cooldown policy (see
+[Update dependencies](../../../CONTRIBUTING.md#update-dependencies)):
 
 ```bash
-cargo update --workspace                                                          # root
-cargo update --manifest-path fixtures/Cargo.toml --workspace
-cargo update --manifest-path fixtures/cross_crate_collision/Cargo.toml --workspace
-cargo update --manifest-path fixtures/multi_root_collision/Cargo.toml --workspace
-cargo update --manifest-path integration_test/Cargo.toml --workspace
-cargo update --manifest-path logging-test/Cargo.toml --workspace
+cargo cooldown update --workspace                                                          # root
+cargo cooldown update --manifest-path fixtures/Cargo.toml --workspace
+cargo cooldown update --manifest-path fixtures/cross_crate_collision/Cargo.toml --workspace
+cargo cooldown update --manifest-path fixtures/multi_root_collision/Cargo.toml --workspace
+cargo cooldown update --manifest-path integration_test/Cargo.toml --workspace
+cargo cooldown update --manifest-path logging-test/Cargo.toml --workspace
 ```
 
-If `cargo update` fails with `failed to select a version for the requirement`
+If `cargo cooldown update` fails with `failed to select a version for the requirement`
 against an in-repo crate, you missed a pin. Prefer running `version-check`
 first — it reports every missed pin at once, whereas `cargo update` stops at the
-first one and only for the workspace it is resolving.
+first one and only for the workspace it is resolving. If it fails because a
+release is too new, wait for the cooldown or add a reviewed exemption to the
+cooldown config files.
 
 At this point the manifests are edited but the lockfiles are not regenerated, so
 a plain run would report six lockfiles' worth of expected disagreement. Use the
@@ -175,7 +185,7 @@ flag to check just the manifests:
 cargo run -p version-check -- --ignore-lockfiles
 ```
 
-Get that clean *before* running the `cargo update` commands above, then run
+Get that clean *before* running the `cargo cooldown update` commands above, then run
 without the flag afterwards to confirm the lockfiles caught up.
 
 ## Finishing
