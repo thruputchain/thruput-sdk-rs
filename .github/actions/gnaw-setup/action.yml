@@ -23,7 +23,7 @@ runs:
     # eating a cold compile is faster than an I/O-starved "incremental" build.
     # We still cache the dependency *sources* (read-mostly, few large files)
     # so we don't re-fetch every crate from the registry, plus the one-shot
-    # FFI download and the compiled Thruput CLI.
+    # FFI download, the compiled Thruput CLI, and cargo-cooldown-check.
     - name: Configure Namespace Cache
       uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
       with:
@@ -31,6 +31,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           ~/.cargo/thruput-cli-source
+          ~/.cargo/cooldown-check
           ${{ github.workspace }}/.hogd-ffi-cache
           ${{ github.workspace }}/.thruput-cli
 
@@ -54,14 +55,19 @@ runs:
         --target-dir gnaw/target
         && gnaw --version
 
-    # Into ~/.cargo/bin. It has no crates.io release, so pin the commit.
+    # It has no crates.io release, so pin the commit. Into a cached root:
+    # with that commit already there, cargo install skips the build. Linked
+    # into ~/.cargo/bin, which is already on PATH.
     - name: Install cargo-cooldown-check
       if: inputs.cooldown-check == 'true'
       shell: bash
-      run: >-
-        cargo install --locked
-        --git https://github.com/NomicFoundation/cargo-cooldown-check
-        --rev d519cf72eed8dde4301f83298ee08366cf3b1cea
+      run: |
+        root="$HOME/.cargo/cooldown-check"
+        cargo install --locked --root "$root" \
+          --git https://github.com/NomicFoundation/cargo-cooldown-check \
+          --rev d519cf72eed8dde4301f83298ee08366cf3b1cea
+        ln -sf "$root/bin/cargo-cooldown-check" "$HOME/.cargo/bin/"
+        cargo cooldown-check --help >/dev/null
 
     # Installs into THRUPUT_CLI_ROOT, which gnaw puts on PATH for its tasks.
     - name: Install the pinned Thruput CLI
