@@ -1,0 +1,63 @@
+name: cooldown check
+description: >-
+  Installs the pinned cargo-cooldown-check and, unless check is false, fails if
+  a lockfile takes a crate release newer than the cooldown policy allows. It
+  builds no workspace code, so run it before anything that does. The caller
+  caches ~/.cargo/cooldown-check; with the pinned commit already there, the
+  install skips the build.
+
+inputs:
+  check:
+    description: Check the lockfiles. With "false", only install the tool.
+    required: false
+    default: "true"
+  directories:
+    description: >-
+      Workspace directories to check, one per line. Defaults to every
+      directory with a lockfile Git tracks; integration_test then needs its
+      submodule.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    # It has no crates.io release, so pin the commit. Linked into
+    # ~/.cargo/bin, which is already on PATH.
+    - name: Install cargo-cooldown-check
+      shell: bash
+      run: |
+        root="$HOME/.cargo/cooldown-check"
+        cargo install --locked --root "$root" \
+          --git https://github.com/NomicFoundation/cargo-cooldown-check \
+          --rev d519cf72eed8dde4301f83298ee08366cf3b1cea
+        ln -sf "$root/bin/cargo-cooldown-check" "$HOME/.cargo/bin/"
+        cargo cooldown-check --help >/dev/null
+
+    # cargo cooldown-check runs cargo metadata without --locked, which would
+    # re-resolve a stale lockfile before checking it. cargo metadata --locked
+    # fails on one instead. Neither runs build scripts or proc macros.
+    - name: Check dependency cooldown
+      if: inputs.check == 'true'
+      shell: bash
+      env:
+        DIRECTORIES: ${{ inputs.directories }}
+      run: |
+        if [ -n "$DIRECTORIES" ]; then
+          mapfile -t dirs <<< "$DIRECTORIES"
+        else
+          mapfile -t dirs < <(git ls-files -- '*Cargo.lock' | xargs -n1 dirname)
+        fi
+        status=0
+        for dir in "${dirs[@]}"; do
+          [ -n "$dir" ] || continue
+          echo "::group::$dir"
+          if ! (cd "$dir" &&
+            cargo metadata --locked --format-version 1 >/dev/null &&
+            cargo cooldown-check); then
+            echo "::error::cooldown check failed in $dir"
+            status=1
+          fi
+          echo "::endgroup::"
+        done
+        exit "$status"

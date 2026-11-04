@@ -122,14 +122,15 @@ it; prerequisites are added unless you pass `--no-deps`:
 | Command | Scope |
 | --- | --- |
 | `cargo gnaw list` | Tasks, with what each needs; `--groups` for groups |
-| `cargo gnaw run quick` | Formatting, annotations, version pins, SDK clippy |
+| `cargo gnaw run quick` | Formatting, annotations, version pins, dependency cooldown, SDK clippy |
 | `cargo gnaw run fixtures:test` | Fixture tests, after the RV32 builds they need |
 | `cargo gnaw run 'fixtures-negative:*' -k` | Negative fixtures, reporting every failure |
 | `cargo gnaw run sdk --dry-run` | The plan, without running it |
 
 Task output goes to `target/gnaw/logs/`. A failure names the step that failed,
 the command it ran, and how to rerun it. Pass `--unlocked` to let cargo update
-lockfiles.
+lockfiles. Pass `--cooldown` instead to update each lockfile under the
+[cooldown policy](#update-dependencies) first, then run locked.
 
 For single contracts, gnaw adds the flags guest builds need:
 
@@ -157,6 +158,47 @@ contract tests need built RV32 artifacts; full CI orders the build and test
 steps. The root, fixtures, integration, negative fixtures, and logging
 workspaces are separate. Root Cargo commands use `default-members` to exclude
 the guest-only runtime from host builds.
+
+## Update dependencies
+
+New crate releases must be older than a cooldown period before a lockfile
+takes them.
+First-party `thruput-*` crates are exempt. Dependabot opens weekly update pull
+requests under this cooldown. To update a lockfile yourself, use
+[cargo-cooldown](https://crates.io/crates/cargo-cooldown) instead of
+`cargo update`:
+
+```sh
+cargo install cargo-cooldown --version 0.3.5 --locked
+cargo cooldown update                                       # root workspace
+cargo cooldown update --manifest-path fixtures/Cargo.toml   # another workspace
+```
+
+It takes the same arguments as `cargo update`. To check the committed
+lockfiles, install
+[cargo-cooldown-check](https://github.com/NomicFoundation/cargo-cooldown-check)
+at the commit CI uses, then run the `cooldown-check` task. It runs
+`cargo cooldown-check` in every workspace, and CI runs it in the `quick` and
+`integration` jobs:
+
+```sh
+cargo install --locked --git https://github.com/NomicFoundation/cargo-cooldown-check \
+    --rev d519cf72eed8dde4301f83298ee08366cf3b1cea
+cargo gnaw run cooldown-check
+```
+
+The policy lives in [cooldown.toml](cooldown.toml) for `cargo cooldown`, and in
+[.cargo/cooldown.toml](.cargo/cooldown.toml) and
+[.cargo/cooldown-allowlist.toml](.cargo/cooldown-allowlist.toml) for
+`cargo cooldown-check`. Each tool reads its files from the workspace root, so
+every separate workspace links to the root copies. Link them in any new
+workspace. Without the links, both tools skip the policy without a warning.
+Keep [.github/dependabot.yml](.github/dependabot.yml) in sync with the policy.
+
+gnaw's `--cooldown` option runs `cargo cooldown` once on each workspace, then
+runs gnaw's cargo commands with `--locked`. gnaw's `--unlocked` option and
+plain `cargo update` ignore the cooldown. Run `cargo gnaw run cooldown-check`
+after either changes a lockfile.
 
 ## Diagnostics
 

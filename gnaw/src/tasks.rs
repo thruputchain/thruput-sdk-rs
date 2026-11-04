@@ -29,8 +29,14 @@ pub static GROUPS: &[Group] = &[
     },
     Group {
         name: "quick",
-        about: "Fast checks: formatting, annotations, versions, SDK lint",
-        members: &["fmt", "annotations", "version-check", "lint:sdk"],
+        about: "Fast checks: formatting, annotations, versions, cooldown, SDK lint",
+        members: &[
+            "fmt",
+            "annotations",
+            "version-check",
+            "cooldown-check",
+            "lint:sdk",
+        ],
     },
     Group {
         name: "sdk",
@@ -66,9 +72,16 @@ pub static GROUPS: &[Group] = &[
     Group {
         name: "integration",
         about: "Integration contracts (needs the submodule)",
-        // version-check again: with the submodule checked out, it also
-        // scans the integration manifests, which `quick` cannot see.
-        members: &["itc:rv32", "itc:test", "lint:itc", "version-check"],
+        // version-check and cooldown-check again: with the submodule
+        // checked out, they also cover the integration workspace, which
+        // `quick` cannot see.
+        members: &[
+            "itc:rv32",
+            "itc:test",
+            "lint:itc",
+            "version-check",
+            "cooldown-check",
+        ],
     },
     Group {
         name: "lint",
@@ -217,6 +230,14 @@ pub static TASKS: &[Task] = &[
         "Version pins agree across manifests and lockfiles",
         version_check,
     )
+    .last(),
+    // Last, like version-check: the other tasks may update lockfiles.
+    Task::new(
+        "cooldown-check",
+        "Locked crate releases are old enough for the cooldown policy",
+        cooldown_check,
+    )
+    .lane(Lane::Free)
     .last(),
 ];
 
@@ -675,6 +696,46 @@ fn version_check(ctx: &mut Ctx) -> Result {
     ctx.run(&cmd)
 }
 
+/// `cargo cooldown-check` in each workspace. It reads the lockfile and the
+/// crates.io index, and changes nothing.
+///
+/// The checker runs `cargo metadata` without `--locked`, which re-resolves a
+/// stale lockfile and then checks the result. So a locked `cargo metadata`
+/// runs first, failing on a stale lockfile instead.
+fn cooldown_check(ctx: &mut Ctx) -> Result {
+    if !on_path("cargo-cooldown-check") {
+        return ctx
+            .skip("cargo-cooldown-check is not on PATH; see CONTRIBUTING.md");
+    }
+    let workspaces =
+        crate::cooldown::workspaces(ctx.repo).map_err(Failure::new)?;
+    for reason in &workspaces.left_out {
+        ctx.warn(format!("not checked: {reason}"));
+    }
+    for dir in &workspaces.dirs {
+        let metadata =
+            ctx.cargo(dir, "metadata").args(["--format-version", "1"]);
+        let cmd = ctx.cmd("cargo", dir).arg("cooldown-check");
+        let name = ctx.repo.rel(dir).display().to_string();
+        let name = if name.is_empty() {
+            "root".to_string()
+        } else {
+            name
+        };
+        ctx.step(name, |ctx| {
+            // Quiet: its stdout is the whole dependency graph as JSON.
+            let (status, output) = ctx.capture_quiet(&metadata)?;
+            if !status.success() {
+                return Err(ctx
+                    .command_failure(&metadata, status, &output)
+                    .into());
+            }
+            ctx.run(&cmd)
+        })?;
+    }
+    Ok(())
+}
+
 /// Clippy on each contract package in `contracts`, from `workspace`.
 fn lint_contracts(
     ctx: &mut Ctx,
@@ -732,10 +793,7 @@ fn packages(dir: &Path) -> Result<Vec<String>> {
 
 fn require_integration(ctx: &Ctx) -> Result {
     let dir = ctx.repo.integration_contracts();
-    if contract_packages(&dir)
-        .map(|p| p.is_empty())
-        .unwrap_or(true)
-    {
+    if !ctx.repo.integration_present() {
         return Err(Failure::new(format!(
             "{} has no contracts: run `git submodule update --init --recursive`",
             ctx.repo.rel(&dir).display()

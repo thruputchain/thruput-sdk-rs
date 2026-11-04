@@ -1,37 +1,16 @@
+# Config for `cargo cooldown`.
+# Keep in sync with .cargo/cooldown.toml, .cargo/cooldown-allowlist.toml, and
+# the cooldown settings in .github/dependabot.yml.
+
 [cooldown]
 incompatible-publish-age = "deny"
 lockfile-baseline = "ignore"
 
 [registry]
-global-min-publish-age = "15 days"
-
-# First-party crates that thruputchain/xdrs publishes to crates.io. They were
-# exempt while they came from the thruput registry; keep them exempt.
-[[allow.package]]
-crates = [
-    "thruput-xdrs",
-    "thruput-xdr-common",
-    "thruput-xdr-derive",
-    "thruput-xdr-repr",
-    "thruput-rpc-api",
-    "thruput-rpc-driver",
-]
-min-publish-age = "0"
-
-# First-party crates that thruputchain/thruput-protocol-rs publishes to
-# crates.io. They were exempt while they came from the thruput registry; keep
-# them exempt.
-[[allow.package]]
-crates = [
-    "thruput-spec",
-    "thruput-syscall",
-    "thruput-trace",
-    "thruput-xdr",
-    "thruput-xdr-macros",
-]
-min-publish-age = "0"
+global-min-publish-age = "8 days"
 
 # Security fix for ctutils 0.4.3 and earlier (fixed in 0.4.4).
+# (remove this after 2026 Nov 8)
 [[allow.exact]]
 crate = "ctutils"
 version = "0.4.5"
@@ -40,3 +19,23 @@ version = "0.4.5"
 [[allow.exact]]
 crate = "smallvec"
 version = "1.16.3"
+
+# Exemptions for first-party (thruput-*) crates.
+[[allow.package]]
+crates = [
+    # from thruputchain/xdrs
+    "thruput-xdrs",
+    "thruput-xdr-common",
+    "thruput-xdr-derive",
+    "thruput-xdr-repr",
+    "thruput-rpc-api",
+    "thruput-rpc-driver",
+
+    # from thruputchain/thruput-protocol-rs
+    "thruput-spec",
+    "thruput-syscall",
+    "thruput-trace",
+    "thruput-xdr",
+    "thruput-xdr-macros",
+]
+min-publish-age = "0"

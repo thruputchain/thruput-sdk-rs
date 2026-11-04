@@ -3,13 +3,13 @@ use std::process::{Command, ExitCode};
 
 use clap::{Parser, Subcommand, ValueEnum};
 
-use gnaw::commands;
 use gnaw::exec::{ExecOptions, execute};
 use gnaw::plan::{Selection, resolve};
 use gnaw::repo::Repo;
 use gnaw::report::{Gha, Plain, Renderer, Tty};
 use gnaw::task::{Lane, RunOptions};
 use gnaw::tasks::{GROUPS, TASKS};
+use gnaw::{commands, cooldown};
 
 /// Builds, tests, and checks the Thruput SDK repository.
 #[derive(Parser)]
@@ -69,8 +69,13 @@ enum Commands {
     /// Show a contract's guest dependency tree.
     Tree {
         contract: String,
+        /// Let cargo update lockfiles (omit --locked).
         #[arg(long)]
         unlocked: bool,
+        /// First cool the contract's workspace lockfile through
+        /// `cargo cooldown`; then run cargo with --locked.
+        #[arg(long, conflicts_with = "unlocked")]
+        cooldown: bool,
         /// More `cargo tree` arguments.
         #[arg(last = true)]
         args: Vec<String>,
@@ -86,6 +91,10 @@ struct Contracts {
     /// Let cargo update lockfiles (omit --locked).
     #[arg(long)]
     unlocked: bool,
+    /// First cool each workspace's lockfile through `cargo cooldown`, so it
+    /// obeys the cooldown policy; then run cargo with --locked.
+    #[arg(long, conflicts_with = "unlocked")]
+    cooldown: bool,
 }
 
 #[derive(clap::Args)]
@@ -111,6 +120,10 @@ struct RunArgs {
     /// Let cargo update lockfiles (omit --locked).
     #[arg(long)]
     unlocked: bool,
+    /// First cool each workspace's lockfile through `cargo cooldown`, so it
+    /// obeys the cooldown policy; then run cargo with --locked.
+    #[arg(long, conflicts_with = "unlocked")]
+    cooldown: bool,
     /// Fail tasks that would be skipped because a tool is missing.
     #[arg(long)]
     strict: bool,
@@ -147,19 +160,23 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Commands::Setup => setup(&repo),
-        Commands::Build(c) => with_contracts(&repo, &c.contracts, |cs| {
-            commands::build(&repo, cs, !c.unlocked)
-        }),
+        Commands::Build(c) => {
+            with_contracts(&repo, &c.contracts, c.cooldown, |cs| {
+                commands::build(&repo, cs, !c.unlocked)
+            })
+        }
         Commands::Test { contracts: c, args } => {
-            with_contracts(&repo, &c.contracts, |cs| {
+            with_contracts(&repo, &c.contracts, c.cooldown, |cs| {
                 commands::test(&repo, cs, &args, !c.unlocked)
             })
         }
-        Commands::Lint(c) => with_contracts(&repo, &c.contracts, |cs| {
-            commands::lint(&repo, cs, !c.unlocked)
-        }),
+        Commands::Lint(c) => {
+            with_contracts(&repo, &c.contracts, c.cooldown, |cs| {
+                commands::lint(&repo, cs, !c.unlocked)
+            })
+        }
         Commands::Expand { contract, args } => {
-            with_contracts(&repo, &[contract], |cs| {
+            with_contracts(&repo, &[contract], false, |cs| {
                 commands::expand(&repo, &cs[0], &args)
             })
         }
@@ -174,22 +191,35 @@ fn main() -> ExitCode {
         Commands::Tree {
             contract,
             unlocked,
+            cooldown,
             args,
-        } => with_contracts(&repo, &[contract], |cs| {
+        } => with_contracts(&repo, &[contract], cooldown, |cs| {
             commands::tree(&repo, &cs[0], &args, !unlocked)
         }),
     }
 }
 
+/// Looks up `specs`, then runs `run` on them. With `cooldown`, cools their
+/// workspaces' lockfiles first.
 fn with_contracts(
     repo: &Repo,
     specs: &[String],
+    cooldown: bool,
     run: impl FnOnce(&[gnaw::contract::Contract]) -> ExitCode,
 ) -> ExitCode {
-    match commands::contracts(repo, specs) {
-        Some(contracts) => run(&contracts),
-        None => ExitCode::FAILURE,
+    let Some(contracts) = commands::contracts(repo, specs) else {
+        return ExitCode::FAILURE;
+    };
+    if cooldown {
+        let mut workspaces: Vec<_> =
+            contracts.iter().map(|c| &c.workspace).collect();
+        workspaces.sort();
+        workspaces.dedup();
+        if !cooldown::cool(repo, &workspaces) {
+            return ExitCode::FAILURE;
+        }
     }
+    run(&contracts)
 }
 
 /// The CLI install script puts the CLI under THRUPUT_CLI_ROOT when it is set.
@@ -240,6 +270,21 @@ fn run(repo: &Repo, args: RunArgs) -> ExitCode {
             println!("{}{needs}{lane}", planned.task.id);
         }
         return ExitCode::SUCCESS;
+    }
+    if args.cooldown {
+        let workspaces = match cooldown::workspaces(repo) {
+            Ok(workspaces) => workspaces,
+            Err(e) => {
+                eprintln!("gnaw: {e}");
+                return ExitCode::FAILURE;
+            }
+        };
+        for reason in &workspaces.left_out {
+            eprintln!("gnaw: not cooling {reason}");
+        }
+        if !cooldown::cool(repo, &workspaces.dirs) {
+            return ExitCode::FAILURE;
+        }
     }
 
     let jobs = args.jobs.max(1);

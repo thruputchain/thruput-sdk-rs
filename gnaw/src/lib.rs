@@ -9,6 +9,7 @@
 
 pub mod commands;
 pub mod contract;
+pub mod cooldown;
 pub mod elf;
 pub mod exec;
 pub mod plan;

@@ -1,0 +1,34 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directories:
+      - /
+      - /fixtures
+      - /fixtures-negative
+      - /fixtures/cross_crate_collision
+      - /fixtures/dup_entrypoint_neg
+      - /fixtures/multi_root_collision
+      - /fixtures/versioned_interface_v2
+      - /gnaw
+      - /logging-test
+    schedule:
+      interval: weekly
+    # Keep in sync with /cooldown.toml.
+    cooldown:
+      default-days: 8
+      exclude:
+        - "thruput-*" # first-party crates
+    open-pull-requests-limit: 9
+    groups:
+      rust-dependencies:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 8
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]

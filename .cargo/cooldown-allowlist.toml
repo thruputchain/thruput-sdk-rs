@@ -1,4 +1,6 @@
-# Keep in sync with the [[allow.exact]] entries in ../cooldown.toml.
+# Allowlist for `cargo cooldown-check`.
+# Keep in sync with the [[allow.package]] and [[allow.exact]] entries in
+# ../cooldown.toml. Each [[allow.package]] entry here names one crate.
 
 # Security fix for ctutils 0.4.3 and earlier (fixed in 0.4.4).
 [[allow.exact]]
@@ -9,3 +11,51 @@ version = "0.4.5"
 [[allow.exact]]
 crate = "smallvec"
 version = "1.16.3"
+
+# Remainder are exemptions for first-party (thruput-*) crates.
+
+# from thruputchain/xdrs
+[[allow.package]]
+crate = "thruput-xdrs"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-xdr-common"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-xdr-derive"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-xdr-repr"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-rpc-api"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-rpc-driver"
+minutes = 0
+
+# from thruputchain/thruput-protocol-rs
+[[allow.package]]
+crate = "thruput-spec"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-syscall"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-trace"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-xdr"
+minutes = 0
+
+[[allow.package]]
+crate = "thruput-xdr-macros"
+minutes = 0
