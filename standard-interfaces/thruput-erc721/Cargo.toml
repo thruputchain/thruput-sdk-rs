@@ -1,6 +1,6 @@
 [package]
 name = "thruput-erc721-if"
-version = "0.1.71"
+version = "0.1.72"
 edition.workspace = true
 publish.workspace = true
 exclude.workspace = true
@@ -20,7 +20,7 @@ entrypoints = []
 dev = ["thruput-sdk/dev", "dep:thiserror"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "0.58.0" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.59.0" }
 thiserror = { workspace = true, optional = true }
 heapless = { workspace = true }
 
@@ -28,7 +28,7 @@ heapless = { workspace = true }
 thruput-erc721-if = { path = ".", features = ["dev"] }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "0.58.0", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", version = "0.59.0", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
