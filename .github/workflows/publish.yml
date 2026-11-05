@@ -125,7 +125,7 @@ jobs:
       # integration_test/contracts submodule, the workspace has no git
       # dependencies, and tag pushes go over HTTPS with the job token.
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
         with:
           # Full history and tags: the release checks read the tags, and
           # check out an interface crate's tagged commit to compare it with
@@ -138,7 +138,7 @@ jobs:
       # *sources* (read-mostly, few large files) plus the one-shot FFI download.
       # Mirrors ci.yml.
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
+        uses: namespacelabs/nscloud-cache-action@1124a6f3ce44e5cf84cc22111530961f4d2a15f9 # v1.7.0
         with:
           path: |
             ~/.cargo/registry
@@ -181,7 +181,7 @@ jobs:
           exit "$status"
 
       - name: Publish dry run
-        uses: thruputchain/actions/cargo-publish-dry-run@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-publish-dry-run@085c15757c61dace378749b0f399685888c99a0e
         with:
           registry-name: crates-io
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
@@ -233,7 +233,7 @@ jobs:
         run: rm -rf vendor
 
       - name: Publish dry run (standard interfaces)
-        uses: thruputchain/actions/cargo-publish-dry-run@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-publish-dry-run@085c15757c61dace378749b0f399685888c99a0e
         env:
           # The workspace no longer carries rv32 target rustflags (the single
           # rv32 config lives in fixtures/.cargo/config.toml).
@@ -291,7 +291,7 @@ jobs:
       # HEAD: a new commit needs a workspace version bump.
       - name: Check workspace release
         id: check-workspace
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
@@ -306,7 +306,7 @@ jobs:
       # tagged commit, or delete the stale tag).
       - name: Check thruput-erc20-if release
         id: check-erc20-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-erc20-if
@@ -316,7 +316,7 @@ jobs:
 
       - name: Check thruput-erc20-metadata-if release
         id: check-erc20-metadata-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-erc20-metadata-if
@@ -326,7 +326,7 @@ jobs:
 
       - name: Check thruput-erc20-controls-if release
         id: check-erc20-controls-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-erc20-controls-if
@@ -336,7 +336,7 @@ jobs:
 
       - name: Check thruput-erc20-pausable-if release
         id: check-erc20-pausable-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-erc20-pausable-if
@@ -346,7 +346,7 @@ jobs:
 
       - name: Check thruput-signed-op-if release
         id: check-signed-op-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-signed-op-if
@@ -356,7 +356,7 @@ jobs:
 
       - name: Check thruput-signed-op release
         id: check-signed-op
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-signed-op
@@ -366,7 +366,7 @@ jobs:
 
       - name: Check thruput-erc20-permit-if release
         id: check-erc20-permit-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-erc20-permit-if
@@ -376,7 +376,7 @@ jobs:
 
       - name: Check thruput-erc165-if release
         id: check-erc165-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-erc165-if
@@ -386,7 +386,7 @@ jobs:
 
       - name: Check thruput-erc721-if release
         id: check-erc721-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-erc721-if
@@ -396,7 +396,7 @@ jobs:
 
       - name: Check thruput-sep41 release
         id: check-sep41
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-sep41
@@ -406,7 +406,7 @@ jobs:
 
       - name: Check thruput-access-control-if release
         id: check-access-control-if
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-access-control-if
@@ -416,7 +416,7 @@ jobs:
 
       - name: Check thruput-access-control release
         id: check-access-control
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: check
           packages: thruput-access-control
@@ -429,7 +429,7 @@ jobs:
       - name: Tag workspace release
         if: ${{ inputs.dry_run == false && steps.check-workspace.outputs.release == 'true' }}
         id: tag-workspace
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: ${{ env.PRIMARY_PACKAGES }} ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
           github-token: ${{ github.token }}
@@ -437,7 +437,7 @@ jobs:
       - name: Tag thruput-erc20-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-if.outputs.release == 'true' }}
         id: tag-erc20-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-erc20-if
           tag-prefix: 'thruput-erc20-if-v'
@@ -446,7 +446,7 @@ jobs:
       - name: Tag thruput-erc20-metadata-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-metadata-if.outputs.release == 'true' }}
         id: tag-erc20-metadata-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-erc20-metadata-if
           tag-prefix: 'thruput-erc20-metadata-if-v'
@@ -455,7 +455,7 @@ jobs:
       - name: Tag thruput-erc20-controls-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-controls-if.outputs.release == 'true' }}
         id: tag-erc20-controls-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-erc20-controls-if
           tag-prefix: 'thruput-erc20-controls-if-v'
@@ -464,7 +464,7 @@ jobs:
       - name: Tag thruput-erc20-pausable-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-pausable-if.outputs.release == 'true' }}
         id: tag-erc20-pausable-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-erc20-pausable-if
           tag-prefix: 'thruput-erc20-pausable-if-v'
@@ -473,7 +473,7 @@ jobs:
       - name: Tag thruput-signed-op-if
         if: ${{ inputs.dry_run == false && steps.check-signed-op-if.outputs.release == 'true' }}
         id: tag-signed-op-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-signed-op-if
           tag-prefix: 'thruput-signed-op-if-v'
@@ -482,7 +482,7 @@ jobs:
       - name: Tag thruput-signed-op
         if: ${{ inputs.dry_run == false && steps.check-signed-op.outputs.release == 'true' }}
         id: tag-signed-op
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-signed-op
           tag-prefix: 'thruput-signed-op-v'
@@ -491,7 +491,7 @@ jobs:
       - name: Tag thruput-erc20-permit-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-permit-if.outputs.release == 'true' }}
         id: tag-erc20-permit-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-erc20-permit-if
           tag-prefix: 'thruput-erc20-permit-if-v'
@@ -500,7 +500,7 @@ jobs:
       - name: Tag thruput-erc165-if
         if: ${{ inputs.dry_run == false && steps.check-erc165-if.outputs.release == 'true' }}
         id: tag-erc165-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-erc165-if
           tag-prefix: 'thruput-erc165-if-v'
@@ -509,7 +509,7 @@ jobs:
       - name: Tag thruput-erc721-if
         if: ${{ inputs.dry_run == false && steps.check-erc721-if.outputs.release == 'true' }}
         id: tag-erc721-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-erc721-if
           tag-prefix: 'thruput-erc721-if-v'
@@ -518,7 +518,7 @@ jobs:
       - name: Tag thruput-sep41
         if: ${{ inputs.dry_run == false && steps.check-sep41.outputs.release == 'true' }}
         id: tag-sep41
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-sep41
           tag-prefix: 'thruput-sep41-v'
@@ -527,7 +527,7 @@ jobs:
       - name: Tag thruput-access-control-if
         if: ${{ inputs.dry_run == false && steps.check-access-control-if.outputs.release == 'true' }}
         id: tag-access-control-if
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-access-control-if
           tag-prefix: 'thruput-access-control-if-v'
@@ -536,7 +536,7 @@ jobs:
       - name: Tag thruput-access-control
         if: ${{ inputs.dry_run == false && steps.check-access-control.outputs.release == 'true' }}
         id: tag-access-control
-        uses: thruputchain/actions/cargo-release-tag@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-release-tag@085c15757c61dace378749b0f399685888c99a0e
         with:
           packages: thruput-access-control
           tag-prefix: 'thruput-access-control-v'
@@ -548,7 +548,7 @@ jobs:
       # interface versions must already be published.
       - name: Publish
         if: ${{ inputs.dry_run == false && steps.check-workspace.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: ${{ env.PRIMARY_PACKAGES }}
@@ -563,7 +563,7 @@ jobs:
 
       - name: Publish thruput-erc20-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-erc20-if
@@ -575,7 +575,7 @@ jobs:
 
       - name: Publish thruput-erc20-metadata-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-metadata-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-erc20-metadata-if
@@ -587,7 +587,7 @@ jobs:
 
       - name: Publish thruput-erc20-controls-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-controls-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-erc20-controls-if
@@ -599,7 +599,7 @@ jobs:
 
       - name: Publish thruput-erc20-pausable-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-pausable-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-erc20-pausable-if
@@ -611,7 +611,7 @@ jobs:
 
       - name: Publish thruput-signed-op-if
         if: ${{ inputs.dry_run == false && steps.check-signed-op-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-signed-op-if
@@ -624,7 +624,7 @@ jobs:
       # After thruput-signed-op-if: the component exact-pins it.
       - name: Publish thruput-signed-op
         if: ${{ inputs.dry_run == false && steps.check-signed-op.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-signed-op
@@ -637,7 +637,7 @@ jobs:
       # After thruput-erc20-if: this crate exact-pins it.
       - name: Publish thruput-erc20-permit-if
         if: ${{ inputs.dry_run == false && steps.check-erc20-permit-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-erc20-permit-if
@@ -649,7 +649,7 @@ jobs:
 
       - name: Publish thruput-erc165-if
         if: ${{ inputs.dry_run == false && steps.check-erc165-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-erc165-if
@@ -661,7 +661,7 @@ jobs:
 
       - name: Publish thruput-erc721-if
         if: ${{ inputs.dry_run == false && steps.check-erc721-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-erc721-if
@@ -675,7 +675,7 @@ jobs:
       # this component exact-pins all four.
       - name: Publish thruput-sep41
         if: ${{ inputs.dry_run == false && steps.check-sep41.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-sep41
@@ -687,7 +687,7 @@ jobs:
 
       - name: Publish thruput-access-control-if
         if: ${{ inputs.dry_run == false && steps.check-access-control-if.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-access-control-if
@@ -700,7 +700,7 @@ jobs:
       # After thruput-access-control-if: the component exact-pins it.
       - name: Publish thruput-access-control
         if: ${{ inputs.dry_run == false && steps.check-access-control.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: thruput-access-control
@@ -712,7 +712,7 @@ jobs:
 
       - name: Publish interface-dependent crates
         if: ${{ inputs.dry_run == false && steps.check-workspace.outputs.release == 'true' }}
-        uses: thruputchain/actions/crates-io-publish@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/crates-io-publish@085c15757c61dace378749b0f399685888c99a0e
         with:
           mode: publish
           packages: ${{ env.INTERFACE_DEPENDENT_PACKAGES }}
