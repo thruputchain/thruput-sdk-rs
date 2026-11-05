@@ -1,6 +1,6 @@
 [package]
 name = "thruput-access-control"
-version = "0.1.71"
+version = "0.1.72"
 edition.workspace = true
 publish.workspace = true
 exclude.workspace = true
@@ -16,11 +16,11 @@ categories.workspace = true
 dev = ["thruput-sdk/dev", "thruput-access-control-if/dev"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "0.58.0" }
-thruput-access-control-if = { path = "../../standard-interfaces/thruput-access-control", version = "=0.1.71" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.59.0" }
+thruput-access-control-if = { path = "../../standard-interfaces/thruput-access-control", version = "=0.1.72" }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "0.58.0", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", version = "0.59.0", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
