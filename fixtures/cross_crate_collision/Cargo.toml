@@ -14,7 +14,7 @@ edition = "2024"
 # One pin for the whole fixture: an SDK bump touches this line only, not
 # each member manifest.
 [workspace.dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "=0.59.0" }
+thruput-sdk = { path = "../../crates/sdk", version = "=0.60.0" }
 
 # A deliberate cross-crate storage-domain collision. Built only by
 # scripts/check-domain-collision-detected.sh, where the wrapper's

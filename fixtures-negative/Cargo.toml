@@ -26,4 +26,4 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-thruput-sdk = { path = "../crates/sdk", version = "=0.59.0" }
+thruput-sdk = { path = "../crates/sdk", version = "=0.60.0" }
