@@ -34,6 +34,15 @@ jobs:
         with:
           persist-credentials: false
 
+      # The source build clones a hogd release tag and its submodules, all
+      # public. Tags up to test-ffi-v0.43.0 (and the thruput-go commit they
+      # pin) use SSH submodule URLs, which need a key even for public
+      # repositories. Fetch them anonymously over HTTPS instead.
+      - name: Fetch GitHub sources over HTTPS
+        run: |
+          git config --global --add url.https://github.com/.insteadOf git@github.com:
+          git config --global --add url.https://github.com/.insteadOf ssh://git@github.com/
+
       # Deliberately NOT caching ./target: a cached target lets cargo reuse the
       # previously-built hogd .so and skip the cmake build entirely, so the
       # check goes green in seconds without actually rebuilding from source
