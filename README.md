@@ -1,5 +1,11 @@
 # Thruput Rust SDK
 
+[Website](https://www.thruput.network/) ·
+[Developer docs](https://www.thruput.network/docs/) ·
+[Community discussions](https://github.com/thruputchain/thruput-docs/discussions) ·
+[Discord: #thruput](https://discord.com/channels/897514728459468821/1564948118162898954)
+([join server](https://discord.gg/stellardev))
+
 Write smart contracts in Rust for Thruput's RV32 runtime. The SDK provides
 contract macros, generated clients, persistent storage types, typed exceptions,
 events, and a native test environment.
@@ -14,7 +20,7 @@ cd my-contract
 thruput build
 ```
 
-See [Getting Started](https://docs.thruput.network/start/getting-started/) for
+See [the contract quickstart](https://www.thruput.network/docs/get-started/contract/) for
 installing the CLI and setting up a network. The scaffold supplies the
 manifest, contract library, RV32 binary wrapper, and pinned Rust toolchain.
 Keep its `entrypoints` feature and `src/main.rs` wrapper: they link the
