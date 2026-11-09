@@ -119,9 +119,9 @@ edition = "2024"
 [workspace.dependencies]
 thruput-erc20-controls-if = { path = "../standard-interfaces/thruput-erc20-controls", version = "=0.1.73" }
 thruput-erc165-if = { path = "../standard-interfaces/thruput-erc165", version = "=0.1.73" }
-thruput-sdk = { path = "../crates/sdk", version = "=0.60.0" }
-thruput-contract-util = { path = "../crates/contract-util", version = "=0.60.0" }
-thruput-domain-separator = { path = "../crates/domain-separator", version = "=0.60.0", default-features = false }
+thruput-sdk = { path = "../crates/sdk", version = "=0.60.1" }
+thruput-contract-util = { path = "../crates/contract-util", version = "=0.60.1" }
+thruput-domain-separator = { path = "../crates/domain-separator", version = "=0.60.1", default-features = false }
 
 thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", version = "=0.1.73" }
 thruput-erc20-metadata-if = { path = "../standard-interfaces/thruput-erc20-metadata", version = "=0.1.73" }
@@ -134,8 +134,8 @@ thruput-sep41 = { path = "../standard-impls/thruput-sep41", version = "=0.1.73" 
 thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit", version = "=0.1.73" }
 thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", version = "=0.1.73" }
 
-thruput-erc20-test = { path = "../standard-tests/erc20-test", version = "=0.60.0" }
-thruput-erc20-native-test = { path = "../standard-tests/erc20-native-test", version = "=0.60.0" }
+thruput-erc20-test = { path = "../standard-tests/erc20-test", version = "=0.60.1" }
+thruput-erc20-native-test = { path = "../standard-tests/erc20-native-test", version = "=0.60.1" }
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # From the xdrs repo, published on crates.io as thruput-xdrs

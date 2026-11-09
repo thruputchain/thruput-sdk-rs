@@ -42,7 +42,7 @@ default-members = [
 
 [workspace.package]
 edition = "2024"
-version = "0.60.0"
+version = "0.60.1"
 authors = ["Thruput Team"]
 license = "Apache-2.0"
 publish = ["crates-io"]
@@ -77,20 +77,20 @@ thruput-erc20-controls-if = { path = "standard-interfaces/thruput-erc20-controls
 # previously-published versions will be incompatible with the new
 # SDK.)
 #
-thruput-sdk = { path = "crates/sdk", version = "=0.60.0" }
-thruput-macros = { path = "crates/macros", version = "=0.60.0" }
-thruput-contract-util = { path = "crates/contract-util" , version = "=0.60.0" }
-thruput-contract-spec = { path = "crates/contract-spec", version = "=0.60.0", default-features = false }
-thruput-native-exec = { path = "crates/native-exec" , version = "=0.60.0" }
-thruput-sys = { path = "crates/thruput-sys" , version = "=0.60.0" }
-thruput-storage-cost = { path = "crates/storage-cost" , version = "=0.60.0" }
-thruput-event = { path = "crates/event", version = "=0.60.0" }
-thruput-exn = { path = "crates/exn", version = "=0.60.0" }
-thruput-rv32-runtime = { path = "crates/rv32-runtime", version = "=0.60.0" }
-thruput-spec-tool = { path = "crates/spec-tool", version = "=0.60.0" }
-thruput-domain-separator = { path = "crates/domain-separator", version = "=0.60.0" }
-thruput-test-vectors = { path = "crates/test-vectors", version = "=0.60.0" }
-thruput-u256 = { path = "crates/u256", version = "=0.60.0", default-features = false }
+thruput-sdk = { path = "crates/sdk", version = "=0.60.1" }
+thruput-macros = { path = "crates/macros", version = "=0.60.1" }
+thruput-contract-util = { path = "crates/contract-util" , version = "=0.60.1" }
+thruput-contract-spec = { path = "crates/contract-spec", version = "=0.60.1", default-features = false }
+thruput-native-exec = { path = "crates/native-exec" , version = "=0.60.1" }
+thruput-sys = { path = "crates/thruput-sys" , version = "=0.60.1" }
+thruput-storage-cost = { path = "crates/storage-cost" , version = "=0.60.1" }
+thruput-event = { path = "crates/event", version = "=0.60.1" }
+thruput-exn = { path = "crates/exn", version = "=0.60.1" }
+thruput-rv32-runtime = { path = "crates/rv32-runtime", version = "=0.60.1" }
+thruput-spec-tool = { path = "crates/spec-tool", version = "=0.60.1" }
+thruput-domain-separator = { path = "crates/domain-separator", version = "=0.60.1" }
+thruput-test-vectors = { path = "crates/test-vectors", version = "=0.60.1" }
+thruput-u256 = { path = "crates/u256", version = "=0.60.1", default-features = false }
 # Standard interfaces (also this repository)
 thruput-erc165-if = { path = "standard-interfaces/thruput-erc165", version = "=0.1.73" }
 thruput-erc20-if = { path = "standard-interfaces/thruput-erc20", version = "=0.1.73" }
@@ -105,8 +105,8 @@ thruput-access-control = { path = "standard-impls/thruput-access-control", versi
 thruput-signed-op = { path = "standard-impls/thruput-signed-op", version = "=0.1.73" }
 thruput-sep41 = { path = "standard-impls/thruput-sep41", version = "=0.1.73" }
 # Test-support crates
-thruput-erc20-test = { path = "standard-tests/erc20-test", version = "=0.60.0" }
-thruput-erc20-native-test = { path = "standard-tests/erc20-native-test", version = "=0.60.0" }
+thruput-erc20-test = { path = "standard-tests/erc20-test", version = "=0.60.1" }
+thruput-erc20-native-test = { path = "standard-tests/erc20-native-test", version = "=0.60.1" }
 # Unpublished test crates
 bigint-bench-if = { path = "crates/bigint-bench-if" }
 
