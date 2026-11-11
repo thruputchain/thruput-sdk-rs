@@ -178,6 +178,11 @@ pub const OWN_VERSION_EXCEPTIONS: &[Named] = &[
         reason: "unpublished repository tool in its own workspace (gnaw/), \
                  so it cannot inherit the SDK version",
     },
+    Named {
+        name: "ristretto-msm",
+        reason: "unpublished contract fixture in its own workspace \
+                 (experiments/ristretto-msm/)",
+    },
 ];
 
 /// `crates/*` members deliberately absent from `default-members`.
