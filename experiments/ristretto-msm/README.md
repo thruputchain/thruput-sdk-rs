@@ -14,7 +14,7 @@ After building hogd's `test_ffi` target in `build-msm`, generate its bindings
 from the hogd checkout:
 
 ```sh
-hogd/test_ffi/run_bindgen.sh build-msm/hogd/test_ffi/bindings.rs
+bash hogd/test_ffi/run_bindgen.sh build-msm/hogd/test_ffi/bindings.rs
 export HOGD_FFI_LIB_DIR="$PWD/build-msm/hogd/test_ffi"
 ```
 
