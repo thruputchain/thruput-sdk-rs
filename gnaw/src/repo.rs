@@ -55,10 +55,6 @@ impl Repo {
             .is_ok_and(|p| !p.is_empty())
     }
 
-    pub fn logging_test(&self) -> PathBuf {
-        self.root.join("logging-test")
-    }
-
     pub fn script(&self, name: &str) -> PathBuf {
         self.root.join("scripts").join(name)
     }

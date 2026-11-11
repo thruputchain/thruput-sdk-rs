@@ -6,7 +6,7 @@ repository.  Also automates version-bumping.
 ## Why
 
 Most crates here release in lockstep at one version, but that version is
-transcribed into roughly thirty places spread over six workspaces and six
+transcribed into roughly thirty places spread over five workspaces and five
 lockfiles:
 
 | Workspace | Lockfile | In root workspace? |
@@ -16,7 +16,6 @@ lockfiles:
 | `fixtures/cross_crate_collision/` | own | no |
 | `fixtures/multi_root_collision/` | own | no |
 | `integration_test/` | own | no |
-| `logging-test/` | own | no |
 
 `cargo` will eventually catch a missed pin, but only one at a time, only in the
 workspace it happens to be resolving, and only once you get as far as running
@@ -38,7 +37,7 @@ cargo run -p version-check -- --help
 
 This check is run as part of `scripts/ci.sh`.
 
-`--ignore-lockfiles` skips reading the six lockfiles, so the `lockfile` check has
+`--ignore-lockfiles` skips reading the five lockfiles, so the `lockfile` check has
 nothing to inspect and every other check runs unchanged. It is for the middle of
 a bump: once the manifests are edited but before `cargo update` has been run
 against each workspace, the lockfiles are *expected* to disagree, and
@@ -113,7 +112,7 @@ none short-circuits, so one run tells you everything that needs fixing.
 | `path-target` | Every `path` dependency resolves to a manifest declaring the expected package name. | Catches moved, renamed, and typo'd paths. |
 | `in-repo-source` | A dependency naming an in-repo package reaches it by `path`. | Without a `path` it silently resolves from the registry, so local changes are ignored. |
 | `own-version` | Root-workspace members use `version.workspace = true`, unless excepted. | A new crate with a hardcoded version would drift out of lockstep on the next release. |
-| `lockfile` | Every lockfile agrees with the manifests on in-repo versions, and locks in-repo packages from their path rather than a registry source. | The six lockfiles are the easiest thing to forget; the registry-source case is a `grep`-proof failure. |
+| `lockfile` | Every lockfile agrees with the manifests on in-repo versions, and locks in-repo packages from their path rather than a registry source. | The five lockfiles are the easiest thing to forget; the registry-source case is a `grep`-proof failure. |
 | `default-members` | Non-target-only `crates/*` members appear in `default-members`. | Host-wide `cargo build`/`test`/`doc` build only `default-members`, so an omitted crate is silently untested. |
 | `external-agreement` | Every manifest pinning the same external crate pins it identically. | Probably what we want. (Compares version requirements only, not features.) |
 | `publish-order` | Every in-repo dependency is vendored and published before its dependent in `.github/workflows/publish.yml`. | `cargo package` resolves dev-dependencies too, so a list out of order fails the release itself. The workflow is dispatched by hand, so the first run to exercise a new edge is usually a real release. |
@@ -249,7 +248,7 @@ Writes go through `toml_edit`, preserving comments and formatting.
    unrelated edits.
 3. After the manifests are rewritten, the checks run again with
    `--ignore-lockfiles`, since the lockfiles have not caught up yet.
-4. `cargo update --workspace` runs against each of the six workspace roots —
+4. `cargo update --workspace` runs against each of the five workspace roots —
    themselves discovered, not listed. `--skip-lockfiles` stops before this.
 5. Every check runs once more as the postcondition.
 

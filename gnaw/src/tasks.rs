@@ -45,7 +45,6 @@ pub static GROUPS: &[Group] = &[
             "sdk:test",
             "sdk:rv32",
             "sdk:macros-guest",
-            "sdk:logging",
             "sdk:docs",
             "sdk:docsrs",
             "sdk:cargo-guide",
@@ -66,6 +65,7 @@ pub static GROUPS: &[Group] = &[
             "fixtures:specs",
             "fixtures:test",
             "fixtures:exception-stack",
+            "fixtures:logging",
             "lint:fixtures",
         ],
     },
@@ -119,11 +119,6 @@ pub static TASKS: &[Task] = &[
         "sdk:macros-guest",
         "The macros crate-override fixture builds for the guest",
         sdk_macros_guest,
-    ),
-    Task::new(
-        "sdk:logging",
-        "logging-test builds for the guest with logging enabled",
-        sdk_logging,
     ),
     Task::new("sdk:test", "The SDK test sequence", sdk_test),
     Task::new(
@@ -210,6 +205,11 @@ pub static TASKS: &[Task] = &[
         exception_stack,
     )
     .needs(&["cli"]),
+    Task::new(
+        "fixtures:logging",
+        "A fixture builds with logging enabled, on the host and the guest",
+        fixtures_logging,
+    ),
     Task::new(
         "lint:fixtures",
         "Clippy on each fixture, guest and host",
@@ -362,20 +362,6 @@ fn sdk_macros_guest(ctx: &mut Ctx) -> Result {
     let cmd = ctx.cargo(&ctx.repo.root, "check").args([
         "-p",
         "macros-crate-override-guest",
-        "--target",
-        RV32_TARGET,
-        "-Zbuild-std=core,alloc",
-    ]);
-    ctx.run(&cmd)
-}
-
-/// logging-test enables thruput-sdk/logging, so generated client stubs call
-/// debug_log!. That catches use-after-move bugs that appear only under
-/// feature unification.
-fn sdk_logging(ctx: &mut Ctx) -> Result {
-    let cmd = ctx.cargo(&ctx.repo.logging_test(), "check").args([
-        "-p",
-        "htlc-logging",
         "--target",
         RV32_TARGET,
         "-Zbuild-std=core,alloc",
@@ -669,6 +655,37 @@ fn fixtures_test(ctx: &mut Ctx) -> Result {
         ctx.step(step, |ctx| ctx.run(&cmd))?;
     }
     Ok(())
+}
+
+/// `thruput-sdk/logging` makes generated entrypoints and clients log their
+/// calls. The logging once used a by-value argument after the call had
+/// moved it, which fails to compile only for non-`Copy` arguments and only
+/// on the host: on the guest, `debug_log!` discards its arguments unchecked.
+/// genesis_deployer's client takes `calldata: Vec<u8>` by value, so the host
+/// check catches that regression. The guest check confirms that `logging`
+/// still builds for the RV32 artifact, where it has no effect.
+///
+/// One package at a time, so `logging` does not reach other fixtures
+/// through feature unification.
+fn fixtures_logging(ctx: &mut Ctx) -> Result {
+    let dir = ctx.repo.fixtures();
+    let host = ctx.cargo(&dir, "check").args([
+        "-p",
+        "genesis_deployer",
+        "-F",
+        "dev,thruput-sdk/logging",
+    ]);
+    ctx.step("host", |ctx| ctx.run(&host))?;
+    let guest = ctx.cargo(&dir, "check").args([
+        "-p",
+        "genesis_deployer",
+        "-F",
+        "entrypoints,thruput-sdk/logging",
+        "--target",
+        RV32_TARGET,
+        "-Zbuild-std=core,alloc",
+    ]);
+    ctx.step("guest", |ctx| ctx.run(&guest))
 }
 
 fn exception_stack(ctx: &mut Ctx) -> Result {

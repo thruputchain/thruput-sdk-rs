@@ -70,7 +70,9 @@ host-side test build enables `dev`.
   dependency graph. That is why it is a feature: crates that only read
   contract specs build `thruput-sdk` without it and never fetch that library.
 - **`logging`** — trace contract calls during native tests. Not implied by
-  `dev`; enable it when you want the trace.
+  `dev`; enable it when you want the trace. It has no effect on a guest
+  build and implies no allocation feature, so it can stay enabled for the
+  RV32 artifact.
 - **`source-build`** — compile the cmake source-build path into
   `thruput-sys`. It does not select that path: `HOGD_FFI_BUILD=1` does, and
   it needs this feature to have something to select. Set both to build the

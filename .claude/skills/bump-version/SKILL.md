@@ -126,7 +126,6 @@ in-repo crates plus the standard interfaces:
 
 - `fixtures/Cargo.toml`
 - `integration_test/Cargo.toml`
-- `logging-test/Cargo.toml`
 
 ### Workspace-excluded fixtures (must be updated manually)
 

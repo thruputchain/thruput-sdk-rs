@@ -11,7 +11,6 @@ updates:
       - /fixtures/multi_root_collision
       - /fixtures/versioned_interface_v2
       - /gnaw
-      - /logging-test
     schedule:
       interval: weekly
     # Keep in sync with /cooldown.toml.
