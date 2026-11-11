@@ -8,7 +8,7 @@ Use Thruput CLI 0.44.0 and
 with the MSM host API. Set `HOGD_FFI_LIB_DIR` to a directory
 containing that build's `libtest_ffi` shared library and `bindings.rs`; see
 [native executor setup](../../crates/native-exec/README.md).
-The manifest pins the matching protocol bindings.
+The repository Cargo configuration pins the matching protocol bindings.
 
 After building hogd's `test_ffi` target in `build-msm`, generate its bindings
 from the hogd checkout:

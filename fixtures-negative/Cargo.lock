@@ -592,8 +592,7 @@ dependencies = [
 [[package]]
 name = "thruput-spec"
 version = "0.65.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbcef08a1c4e48faf1460660d6666d65fdc11c13fd8c89f27155edb948e70820"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -619,14 +618,12 @@ dependencies = [
 [[package]]
 name = "thruput-syscall"
 version = "0.65.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab27e61b2ad5ba96bc2add3aded753b9c8f330331be8595cd41fa71ea60985ad"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 
 [[package]]
 name = "thruput-trace"
 version = "0.65.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eadc7c20a739276ddc3532721b466bc29241752b6833b700bd181a7fbeec3969"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "schemars",
  "thruput-xdr",
@@ -645,8 +642,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr"
 version = "0.65.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e96be348e87b183cf4c523e3db6f28ef38c10185a58a4abac031286280fd6255"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "bs58",
  "schemars",
@@ -683,8 +679,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr-macros"
 version = "0.65.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "560070dcf0b1386252b580a6431c174c9bfd3312618b46af3d39eb0ce3988bdf"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "proc-macro2",
  "quote",

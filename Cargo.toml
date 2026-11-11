@@ -129,11 +129,3 @@ sha2 = { version = "0.11.0", default-features = false }
 heapless = { version = "0.9.2" }
 hex-literal = "1.0.0"
 linkme = "0.3"
-
-# Experimental host API bindings; keep this family on one commit.
-[patch.crates-io]
-thruput-xdr = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-xdr-macros = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-syscall = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-spec = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-trace = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }

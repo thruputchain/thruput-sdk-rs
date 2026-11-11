@@ -31,11 +31,3 @@ curve25519-dalek = "4.1.3"
 
 [profile.release]
 trim-paths = "all"
-
-# Experimental host API bindings; keep this family on one commit.
-[patch.crates-io]
-thruput-xdr = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-xdr-macros = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-syscall = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-spec = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
-thruput-trace = { git = "https://github.com/thruputchain/thruput-protocol-rs", rev = "b37ae645296fdd3860b8031e3f96112cce04b800" }
