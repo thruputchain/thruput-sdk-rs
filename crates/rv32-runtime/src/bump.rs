@@ -30,15 +30,9 @@ pub(crate) const MAX_CEILING: usize = isize::MAX as usize + 1;
 /// only takes values this function already checked against `ceiling`. The
 /// linker script ASSERTs the second for the heap end.
 ///
-/// Given that, neither addition below can overflow. `cursor + mask` is at
-/// most `2 * MAX_CEILING - 1`, which is `usize::MAX`. `start` is `cursor`
-/// rounded up to a power-of-two alignment, which divides `MAX_CEILING`, so
-/// `start <= MAX_CEILING`. `Layout` guarantees `size` rounded up to `align`
-/// is at most `isize::MAX`, so `start + size <= usize::MAX`. The additions
-/// are therefore left unchecked: a `checked_add` pair costs code size and an
-/// extra gas-metered branch per allocation to handle a case that cannot
-/// arise. The `debug_assert`s pin the domain for host tests and Miri, and
-/// compile out in release.
+/// Given the domain, `cursor + mask <= usize::MAX` and
+/// `start + size <= usize::MAX`, so both are unchecked to save a branch per
+/// allocation.
 #[inline(always)]
 pub(crate) fn bump(
     cursor: usize,

@@ -51,14 +51,14 @@ host-side test build enables `dev`.
   `no_std`, no allocator, no host dependencies. [`mod@storage`], events,
   exceptions, authorization and the syscall wrappers all work here. Only the
   allocating and host-side APIs need more.
-- **`alloc-api`** — links the [`alloc`] crate, making `Vec`, `String`, and
+- **`alloc-api`**: links the [`alloc`] crate, making `Vec`, `String`, and
   other allocating types usable in contract code and in storage. On a guest,
   the contract supplies the `#[global_allocator]`; see
   [Custom allocator](#custom-allocator). Library crates should enable this
   rather than `alloc`, so that the contract chooses the allocator.
-- **`alloc`** — implies `alloc-api`, and installs the guest runtime's bump
+- **`alloc`**: implies `alloc-api`, and installs the guest runtime's bump
   allocator. See [Allocation](#allocation).
-- **`std`** — implies `alloc-api`. Adds the interfaces that need `std`, owned
+- **`std`**: implies `alloc-api`. Adds the interfaces that need `std`, owned
   (allocating) contract-spec models, and detailed XDR decode errors. Host-only:
   enabling `std` for a `riscv32` build is a hard compile error, as is omitting
   it for a native build.

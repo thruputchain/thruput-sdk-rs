@@ -53,13 +53,8 @@
 //! ]
 //! ```
 //!
-//! The `--defsym` must come before `-Tthruput-rv32.ld` on the link line.
-//! When it comes after, lld still gives the symbol itself the new value, but
-//! the symbols the script derives from it, such as `__stack_top`,
-//! `__heap_base` and `__heap_end`, keep the script's default. The link
-//! succeeds and the override has no effect. Cargo joins rustflags from
-//! several config sources, so check the result in the unstripped ELF, for
-//! example with `readelf -s`, rather than trusting the order in one file.
+//! Cargo joins rustflags from several config sources, so verify the order
+//! took effect: `readelf -s` on the unstripped ELF shows `__stack_top`.
 //!
 //! ## Memory size
 //!
@@ -70,24 +65,17 @@
 //! `thruput build` reads `initial_memory_bytes` under
 //! `[package.metadata.thruput]` in the contract's `Cargo.toml`, passes it
 //! as `--defsym=__memory_size=<bytes>` on the link, and stamps the same value
-//! into the artifact, placing the `--defsym` before the linker script. A
-//! hand-driven build passes the same `--defsym` next to `__stack_size`,
-//! with the same ordering requirement. The linker script `PROVIDE`s the
-//! default, so either definition wins over it.
+//! into the artifact. A hand-driven build passes the same `--defsym`, also
+//! before the linker script. The linker script `PROVIDE`s the default, so
+//! either definition wins over it.
 //!
 //! ## Custom allocator
 //!
 //! `thruput-sdk/alloc` enables this crate's `alloc` feature, which installs
-//! the bump allocator. To experiment with another allocator, enable
-//! `thruput-sdk/alloc-api` instead: it provides the SDK's allocating APIs
-//! without installing an allocator. Declare a `#[global_allocator]` in the
-//! contract's `src/main.rs` bin wrapper. That file builds only for the rv32
-//! artifact, so native tests keep the host allocator, and contracts that
-//! depend on this one do not inherit it. Draw memory from [`heap()`].
-//!
-//! If anything in the dependency graph enables `thruput-sdk/alloc`, the build
-//! fails with two conflicting global allocators. Library crates should
-//! therefore depend on `alloc-api`.
+//! the bump allocator. With `thruput-sdk/alloc-api` instead, the contract
+//! declares its own `#[global_allocator]` in its `src/main.rs` bin wrapper
+//! and draws memory from [`heap()`]. See the SDK guide's "Custom allocator"
+//! section.
 
 #![cfg_attr(not(test), no_std)]
 // Forbid the compiler from introducing calls to builtin functions in this

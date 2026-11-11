@@ -11,11 +11,8 @@
 //! Every other `dealloc` is a no-op, as before. Memory is still reclaimed in
 //! full only when the invocation ends and the VM resets guest memory.
 //!
-//! The address arithmetic is unchecked, as in the runtime's allocator, so
-//! that the two differ only in reclaiming. It cannot overflow: the linker
-//! script ASSERTs that the heap ends at or below 2^31, and `Layout` keeps a
-//! size, rounded up to its alignment, at or below `isize::MAX`. An aligned
-//! heap address plus such a size is therefore at most `usize::MAX`.
+//! Address arithmetic is unchecked, matching the runtime allocator; the
+//! linker script bounds the heap at 2^31.
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::cell::Cell;
