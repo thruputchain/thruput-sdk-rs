@@ -1,15 +1,12 @@
 //! Cryptographic host operations.
 
-pub use ristretto::ristretto255_msm;
-mod ristretto;
-
 pub use crate::types::SHA256Hash;
 
 use crate::re_throw::OrSyscallThrow;
-use crate::sys::{self, SyscallNo};
+use crate::sys::{self, SysErr, SyscallNo};
 use crate::types::{
     CryptographicScheme, Ed25519PublicKey, Ed25519Signature, PublicKey,
-    Signature,
+    Ristretto255Point, Signature,
 };
 
 pub fn sha256(input: &[u8]) -> SHA256Hash {
@@ -19,6 +16,25 @@ pub fn sha256(input: &[u8]) -> SHA256Hash {
         .or_syscall_throw(SyscallNo::kSHA256);
 
     unsafe { out_hash.assume_init() }
+}
+
+/// Experimental API: compute a variable-time Ristretto255 multiscalar multiplication.
+///
+/// Each packed term is 64 bytes: a canonical 32-byte little-endian scalar,
+/// then a canonical 32-byte compressed Ristretto255 point. The runtime
+/// validates every term. Empty input returns the identity. Zero scalars,
+/// identity points, and duplicate points are allowed. The limit is 256 terms.
+///
+/// Does not allocate on the guest heap. Use only for verification data visible
+/// to the executor. Returns an error for malformed input.
+/// Gas exhaustion faults the calling frame.
+pub fn ristretto255_msm(
+    packed_terms: &[u8],
+) -> Result<Ristretto255Point, SysErr> {
+    let mut output = core::mem::MaybeUninit::<Ristretto255Point>::uninit();
+    sys::uninit_Ristretto255Msm(packed_terms, &mut output)?;
+    // SAFETY: a successful syscall initializes the complete output point.
+    Ok(unsafe { output.assume_init() })
 }
 
 pub fn verify_signature_ed25519(
