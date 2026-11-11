@@ -54,6 +54,32 @@ fn rv32_grow_resizes_in_place() {
 }
 
 #[test]
+fn rv32_grow_below_copies_contents() {
+    with_client(|c| {
+        // `a` and `b` take a quarter of the heap; grown `a` takes another
+        // quarter.
+        let eighth = c.heap_bytes() / 8;
+        assert_eq!(c.grow_below(eighth, eighth, eighth), 2 * eighth);
+    });
+}
+
+#[test]
+fn rv32_failed_growth_in_place_keeps_buffer() {
+    with_client(|c| {
+        let heap = c.heap_bytes();
+        assert!(c.grow_fail(heap / 4, heap, false));
+    });
+}
+
+#[test]
+fn rv32_failed_growth_by_copy_keeps_buffer() {
+    with_client(|c| {
+        let heap = c.heap_bytes();
+        assert!(c.grow_fail(heap / 4, heap, true));
+    });
+}
+
+#[test]
 fn rv32_grow_past_heap_fails() {
     with_client(|c| {
         let heap = c.heap_bytes();

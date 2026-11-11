@@ -13,6 +13,8 @@ fn native_methods() {
             assert_eq!(c.heap_bytes(), 0);
             assert_eq!(c.churn(3, 1000), churn_sum(3, 1000));
             assert_eq!(c.grow(1000), grow_sum(1000));
+            assert_eq!(c.grow_below(1000, 1000, 1000), 2000);
+            assert!(!c.grow_fail(1000, 1000, true));
         },
     );
 }
