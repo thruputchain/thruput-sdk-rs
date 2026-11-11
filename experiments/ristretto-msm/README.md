@@ -4,8 +4,8 @@ Checks the experimental host API through native and RV32 contract calls:
 arithmetic, malformed inputs, the term limit and insufficient gas.
 
 Use Thruput CLI 0.44.0 and
-[hogd `86927c6c`](https://github.com/thruputchain/hogd/commit/86927c6c7915618bc0f80474061c80e16cee3f0f)
-built with `HOGD_EXPERIMENTAL_RISTRETTO_MSM=ON`. Set `HOGD_FFI_LIB_DIR` to a directory
+[hogd `b1599b8c`](https://github.com/thruputchain/hogd/commit/b1599b8c39f1b21d7a8baf63e7152eef916261c3)
+with the MSM host API. Set `HOGD_FFI_LIB_DIR` to a directory
 containing that build's `libtest_ffi` shared library and `bindings.rs`; see
 [native executor setup](../../crates/native-exec/README.md).
 The manifest pins the matching protocol bindings.
@@ -27,12 +27,4 @@ cd experiments/ristretto-msm
 "$THRUPUT_CLI" build --target-dir "$CARGO_TARGET_DIR" -- --locked
 export RISTRETTO_MSM_RV32_ARTIFACT="$CARGO_TARGET_DIR/thruput/ristretto_msm.rv32a"
 cargo test --locked --tests
-```
-
-The ignored tests check that a disabled executor returns `NoSyscall`. Point
-`HOGD_FFI_LIB_DIR` at that build, then run:
-
-```sh
-cargo clean -p thruput-sys
-cargo test --locked --tests -- --ignored
 ```

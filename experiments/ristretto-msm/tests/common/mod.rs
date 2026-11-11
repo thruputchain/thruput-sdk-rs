@@ -60,9 +60,7 @@ pub fn arithmetic(client: &RistrettoMsmClient) {
         let before = thruput_sdk::stats::gas_remaining();
         assert_eq!(client.msm(&terms), expected.compress().to_bytes());
         let consumed = before - thruput_sdk::stats::gas_remaining();
-        println!(
-            "provisional gas: msm terms={count}, call plus measurement={consumed}"
-        );
+        println!("gas: msm terms={count}, call plus measurement={consumed}");
     }
     let before = thruput_sdk::stats::gas_remaining();
     assert_eq!(
@@ -71,7 +69,7 @@ pub fn arithmetic(client: &RistrettoMsmClient) {
     );
     let consumed = before - thruput_sdk::stats::gas_remaining();
     println!(
-        "provisional gas: repeated msm terms=256, guest construction plus call plus measurement={consumed}"
+        "gas: repeated msm terms=256, guest construction plus call plus measurement={consumed}"
     );
 }
 
@@ -112,17 +110,8 @@ pub fn malformed(client: &RistrettoMsmClient) {
     );
 }
 
-pub fn disabled(client: &RistrettoMsmClient) {
-    assert_syscall_error(
-        client.try_check_opening(
-            &[0; 32], &[0; 32], &[0; 32], &[0; 32], &[0; 32],
-        ),
-        sys::SyscallErrorCode::kSyscallErrorCodeNoSyscall,
-    );
-}
-
 pub fn insufficient_gas(client: &RistrettoMsmClient) {
-    // Two terms alone cost 56,000 under the provisional experiment tariff.
+    // Two terms alone cost 56,000 gas.
     // Native and guest callers must observe a fault, never a false opening.
     let result = client
         .with_gas_limit(50_000)

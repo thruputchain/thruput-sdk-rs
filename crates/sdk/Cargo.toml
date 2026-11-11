@@ -63,9 +63,6 @@ trybuild = "1"
 version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [features]
-# Requires the experimental host API.
-experimental-ristretto-msm = []
-
 # Enable allocation features
 alloc = [
     "thruput-u256/alloc",

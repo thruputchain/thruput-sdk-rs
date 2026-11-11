@@ -12,7 +12,7 @@ fn run(check: fn(&ristretto_msm::RistrettoMsmClient)) {
 }
 
 #[test]
-fn enabled_arithmetic() {
+fn arithmetic() {
     run(common::arithmetic);
 }
 
@@ -24,10 +24,4 @@ fn malformed_is_error() {
 #[test]
 fn insufficient_gas_is_fault() {
     run(common::insufficient_gas);
-}
-
-#[test]
-#[ignore = "requires an executor built with experimental MSM disabled"]
-fn disabled_is_error() {
-    run(common::disabled);
 }

@@ -23,7 +23,7 @@ entrypoints = []
 dev = ["thruput-sdk/dev"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", features = ["experimental-ristretto-msm"] }
+thruput-sdk = { path = "../../crates/sdk" }
 
 [dev-dependencies]
 ristretto-msm = { path = ".", features = ["dev"] }

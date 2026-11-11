@@ -1,8 +1,6 @@
-//! System functions: hash and signature
+//! Cryptographic host operations.
 
-#[cfg(feature = "experimental-ristretto-msm")]
 pub use ristretto::ristretto255_msm;
-#[cfg(feature = "experimental-ristretto-msm")]
 mod ristretto;
 
 pub use crate::types::SHA256Hash;
