@@ -658,7 +658,7 @@ dependencies = [
 [[package]]
 name = "thruput-spec"
 version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=17dcb7b1978c7f86700b034690d20f411a01cf0a#17dcb7b1978c7f86700b034690d20f411a01cf0a"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "thruput-xdr",
  "thruput-xdrs",
@@ -684,12 +684,12 @@ dependencies = [
 [[package]]
 name = "thruput-syscall"
 version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=17dcb7b1978c7f86700b034690d20f411a01cf0a#17dcb7b1978c7f86700b034690d20f411a01cf0a"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 
 [[package]]
 name = "thruput-trace"
 version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=17dcb7b1978c7f86700b034690d20f411a01cf0a#17dcb7b1978c7f86700b034690d20f411a01cf0a"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "schemars",
  "thruput-xdr",
@@ -708,7 +708,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr"
 version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=17dcb7b1978c7f86700b034690d20f411a01cf0a#17dcb7b1978c7f86700b034690d20f411a01cf0a"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "bs58",
  "schemars",
@@ -745,7 +745,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr-macros"
 version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=17dcb7b1978c7f86700b034690d20f411a01cf0a#17dcb7b1978c7f86700b034690d20f411a01cf0a"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
 dependencies = [
  "proc-macro2",
  "quote",

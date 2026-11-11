@@ -4,7 +4,7 @@ Checks the experimental host API through native and RV32 contract calls:
 arithmetic, malformed inputs, the term limit and insufficient gas.
 
 Use Thruput CLI 0.44.0 and
-[hogd `b1599b8c`](https://github.com/thruputchain/hogd/commit/b1599b8c39f1b21d7a8baf63e7152eef916261c3)
+[hogd `0e1d7662`](https://github.com/thruputchain/hogd/commit/0e1d7662341001783662e9159ebc248ce11611bd)
 with the MSM host API. Set `HOGD_FFI_LIB_DIR` to a directory
 containing that build's `libtest_ffi` shared library and `bindings.rs`; see
 [native executor setup](../../crates/native-exec/README.md).
