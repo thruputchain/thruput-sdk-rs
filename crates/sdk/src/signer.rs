@@ -42,7 +42,7 @@ impl<'r, T> ReadXDR<'r> for Signed<T> {
 }
 
 impl<T> Signed<T> {
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub(crate) fn from_handle(handle: u32) -> Self {
         Self {
             handle,
@@ -83,7 +83,7 @@ impl Signed<Opaque> {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub trait AssumeTokens: Sized {
     /// Destructure the auth tokens returned by a called contract into a
     /// typed tuple, checking the count.
@@ -109,7 +109,7 @@ pub trait AssumeTokens: Sized {
 }
 
 /// Report a returned-token count mismatch as the cross-call decode error.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 fn check_token_count(
     got: usize,
     expected: usize,
@@ -125,7 +125,7 @@ fn check_token_count(
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 macro_rules! impl_assume_tokens {
     () => {
         impl AssumeTokens for () {
@@ -157,74 +157,74 @@ macro_rules! impl_assume_tokens {
     (@count) => { 0 };
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!();
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B, 2: C);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I);
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K, 11: L
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M, 13: N
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M, 13: N, 14: O
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M, 13: N, 14: O, 15: P
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M, 13: N, 14: O, 15: P, 16: Q
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M, 13: N, 14: O, 15: P, 16: Q, 17: R
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M, 13: N, 14: O, 15: P, 16: Q, 17: R, 18: S
 );
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_assume_tokens!(
     0: A, 1: B, 2: C, 3: D, 4: E, 5: F, 6: G, 7: H, 8: I, 9: J, 10: K,
     11: L, 12: M, 13: N, 14: O, 15: P, 16: Q, 17: R, 18: S, 19: T
@@ -244,12 +244,12 @@ impl<T> CollectAuthHandles for Signed<T> {
             u32::MAX,
             "Signed handle not initialized"
         );
-        #[cfg(not(feature = "alloc"))]
+        #[cfg(not(feature = "alloc-api"))]
         match out.push(self.handle) {
             Ok(()) => Ok(()),
             Err(e) => Err(FaultString::from_display(e)),
         }?;
-        #[cfg(feature = "alloc")]
+        #[cfg(feature = "alloc-api")]
         out.push(self.handle);
         Ok(())
     }
@@ -316,7 +316,7 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 use crate::mintable::{AuthTokenPreimage, Mintable};
 
 impl<T: MintableType> MintableType for Signed<T> {
@@ -324,7 +324,7 @@ impl<T: MintableType> MintableType for Signed<T> {
         crate::mintable::AuthTokenPreimage<<T as MintableType>::Preimage>;
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: Mintable> Mintable for Signed<T>
 where
     T::Preimage: crate::xdr::WriteXDR + for<'r> crate::xdr::ReadXDR<'r>,
@@ -354,7 +354,7 @@ where
 /// bytes) throws `AuthTokenError::MintEncodeFailure` instead.
 ///
 /// Aborts the transaction if the `MintAuthToken` syscall fails.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn mint_auth_token<T: Mintable>(
     expiry: thruput_xdr::types::BlockHeight,
     preimage: crate::mintable::AuthTokenPreimage<
@@ -383,7 +383,7 @@ where
 /// Aborts the transaction if the `MintAuthToken` syscall fails.
 ///
 /// [`AuthTokenNode`]: crate::types::AuthTokenNode
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn mint_opaque_auth_token(
     expiry: thruput_xdr::types::BlockHeight,
     encoded_node: &[u8],
@@ -392,7 +392,7 @@ pub fn mint_opaque_auth_token(
 }
 
 /// Shared `MintAuthToken` syscall path for the typed and opaque mint fns.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 fn mint_encoded_node<T>(
     expiry: thruput_xdr::types::BlockHeight,
     encoded_node: &[u8],
@@ -507,7 +507,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     use alloc::vec;
     use core::mem::MaybeUninit;
 
@@ -598,7 +598,7 @@ mod tests {
         assert_eq!(typed.handle(), 42);
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn try_assume_tokens_unit() {
         use crate::signer::AssumeTokens;
@@ -606,7 +606,7 @@ mod tests {
         let () = AssumeTokens::try_assume_tokens(tokens).unwrap();
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn try_assume_tokens_single() {
         use crate::signer::AssumeTokens;
@@ -616,7 +616,7 @@ mod tests {
         assert_eq!(a.handle(), 10);
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn try_assume_tokens_triple() {
         use crate::signer::AssumeTokens;
@@ -632,7 +632,7 @@ mod tests {
         assert_eq!(c.handle(), 30);
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn try_assume_tokens_pair() {
         use crate::signer::AssumeTokens;
@@ -646,7 +646,7 @@ mod tests {
         assert_eq!(b.handle(), 20);
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn try_assume_tokens_too_many_is_decode_error() {
         use crate::exn::CallingError;
@@ -664,7 +664,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn try_assume_tokens_too_few_is_decode_error() {
         use crate::exn::CallingError;
@@ -678,7 +678,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn try_assume_tokens_unit_rejects_nonempty() {
         use crate::exn::CallingError;

@@ -51,10 +51,14 @@ host-side test build enables `dev`.
   `no_std`, no allocator, no host dependencies. [`mod@storage`], events,
   exceptions, authorization and the syscall wrappers all work here. Only the
   allocating and host-side APIs need more.
-- **`alloc`** — links the [`alloc`] crate, making `Vec`, `String`, and other
-  allocating types usable in contract code and in storage. See
-  [Allocation](#allocation) for what backs it on a guest.
-- **`std`** — implies `alloc`. Adds the interfaces that need `std`, owned
+- **`alloc-api`** — links the [`alloc`] crate, making `Vec`, `String`, and
+  other allocating types usable in contract code and in storage. On a guest,
+  the contract supplies the `#[global_allocator]`; see
+  [Custom allocator](#custom-allocator). Library crates should enable this
+  rather than `alloc`, so that the contract chooses the allocator.
+- **`alloc`** — implies `alloc-api`, and installs the guest runtime's bump
+  allocator. See [Allocation](#allocation).
+- **`std`** — implies `alloc-api`. Adds the interfaces that need `std`, owned
   (allocating) contract-spec models, and detailed XDR decode errors. Host-only:
   enabling `std` for a `riscv32` build is a hard compile error, as is omitting
   it for a native build.
@@ -112,9 +116,10 @@ Two things that look like features are keyed on the target instead:
 - **Diagnostics.** The `Display` impls on exception types and the formatting
   they need are host-only. Off a Cargo feature, no dependency can turn them
   on for a deployed contract, so they cannot change what a contract computes.
-- **The guest runtime.** `#[global_allocator]`, `#[panic_handler]`, `_start`
-  and entrypoint dispatch come from `thruput-rv32-runtime`, force-linked on
-  `riscv32` and absent from host builds.
+- **The guest runtime.** `#[panic_handler]`, `_start`, entrypoint dispatch
+  and, under `alloc`, the `#[global_allocator]` come from
+  `thruput-rv32-runtime`, force-linked on `riscv32` and absent from host
+  builds.
 
 # Allocation
 
@@ -140,15 +145,15 @@ source scopes alone do not establish peak stack use.
 | Keep the full exception for later | Ordinary `try_*` retains an owned error; account for its storage. |
 | Dynamic collections or larger working buffers | Enable `alloc` and bound cumulative allocation per invocation. |
 
-The guest allocator does not reclaim dropped values during an invocation.
-SDK call scratch is pooled under `alloc`, but other allocations, including
-owned exceptions and collection growth, can accumulate. Construct large
-buffers directly in heap storage: `Box::new(large_value)` can still create a
-large stack temporary.
+The default guest allocator does not reclaim dropped values during an
+invocation. SDK call scratch is pooled under `alloc-api`, but other
+allocations, including owned exceptions and collection growth, can
+accumulate. Construct large buffers directly in heap storage:
+`Box::new(large_value)` can still create a large stack temporary.
 
-Native tests enable `dev`, which enables `alloc`, and do not establish guest
-stack headroom. Test release RV32 artifacts with maximum inputs, nested calls
-and error paths.
+Native tests enable `dev`, which enables `alloc-api`. They use the host
+allocator and do not establish guest stack headroom. Test release RV32
+artifacts with maximum inputs, nested calls and error paths.
 
 ### Static
 
@@ -165,10 +170,41 @@ With feature `alloc`:
   (`thruput-rv32-runtime`). Allocations are not freed until the current
   contract invocation terminates.
 
+### Custom allocator
+
+To use a different guest allocator, enable `alloc-api` instead of `alloc`. The
+SDK's allocating APIs stay available, but the runtime installs no allocator.
+Declare one in the contract's `src/main.rs` bin wrapper:
+
+```rust,ignore
+#![no_std]
+#![no_main]
+
+extern crate my_contract;
+
+mod allocator;
+
+#[global_allocator]
+static ALLOCATOR: allocator::MyAllocator = allocator::MyAllocator::new();
+```
+
+The bin wrapper builds only for the RV32 artifact. Native tests keep the host
+allocator, and contracts that depend on this one do not inherit it. The
+allocator takes its memory from `thruput_sdk::guest_heap()`, which returns the
+region between the statics and the end of guest memory. The VM resets that
+memory, and any allocator state in statics, for every invocation.
+
+If any crate in the dependency graph enables `thruput-sdk/alloc`, the build
+fails with two conflicting global allocators. If the bin wrapper declares no
+allocator, the build fails with "no global memory allocator found". The
+[`custom_allocator` fixture](https://github.com/thruputchain/thruput-sdk-rs/tree/main/fixtures/custom_allocator)
+has a bump allocator that frees and resizes its most recent allocation in
+place.
+
 Datatypes defined by third-party libraries or by the user may be used in memory
 and in persistent storage, noting that:
 
-- Heap allocation requires feature `alloc`.
+- Heap allocation requires feature `alloc` or `alloc-api`.
 - Persistent storage fields must use SDK storage types or nested structs derived
   with [`Storage`](derive@crate::Storage).
 

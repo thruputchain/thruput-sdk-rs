@@ -24,7 +24,7 @@ mod _ref_impl {
 }
 
 // Guest environment: wrap `RefCell` so it can live in a plain static.
-#[cfg(all(any(doc, target_arch = "riscv32"), feature = "alloc"))]
+#[cfg(all(any(doc, target_arch = "riscv32"), feature = "alloc-api"))]
 mod _ref_impl {
     /// A wrapped [`core::cell::RefCell`] that implements [`Sync`] so it can
     /// be used in statics — the by-reference companion to [`ContractCell`]
@@ -58,7 +58,7 @@ mod _ref_impl {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 #[allow(unused_imports)]
 pub use _ref_impl::*;
 
@@ -73,7 +73,7 @@ pub use _ref_impl::*;
 /// keeps its scratch on the stack — a `MaybeUninit` buffer is free to build,
 /// so there is nothing to cache — and so needs no cell, no borrow flag, and no
 /// re-entrancy fallback at all.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub(crate) trait ContractLocalRef<T> {
     fn with_ref<R>(
         &'static self,

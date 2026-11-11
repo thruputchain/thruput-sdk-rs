@@ -14,7 +14,7 @@ pub use xdrs::{
     WriteXDR, read_xdr, write_xdr,
 };
 
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "alloc-api"))]
 use crate::internal::mu_buf::MUBuf;
 
 /// The single fixed-buffer size for every no-alloc scratch / return / calldata
@@ -30,18 +30,18 @@ pub const SCRATCH_MAX: usize = 4096;
 /// cross-call args,
 /// returns/aborts, events, storage values — everything the SDK encodes or
 /// receives as bytes.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub type ScratchBuf = alloc::vec::Vec<u8>;
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "alloc-api"))]
 pub type ScratchBuf = MUBuf<SCRATCH_MAX>;
 
 /// A fresh scratch buffer. Under `alloc` it pre-reserves `SCRATCH_MAX` so the
 /// reused per-instance scratch never reallocates for in-bounds payloads.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn new_scratch() -> ScratchBuf {
     alloc::vec::Vec::with_capacity(SCRATCH_MAX)
 }
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "alloc-api"))]
 pub fn new_scratch() -> ScratchBuf {
     MUBuf::new()
 }
@@ -53,7 +53,7 @@ pub fn encode_scratch<T>(buf: &mut ScratchBuf, x: &T) -> WriteResult<()>
 where
     T: WriteXDR + ?Sized,
 {
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     {
         buf.clear();
         // `BufWriter` grows the `Vec`; `take`/restore keeps its reserved
@@ -64,7 +64,7 @@ where
         *buf = writer.into();
         result
     }
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(not(feature = "alloc-api"))]
     {
         buf.clear();
         let written = xdrs::cxs::encode_into(x, buf.spare_capacity_mut())?;
@@ -82,7 +82,7 @@ where
 /// `alloc` the returned buffer is the fixed `SCRATCH_MAX` bytes, and a
 /// by-value return is a stack copy the compiler does not reliably elide —
 /// no-alloc guest code must encode in place instead.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn encode_xdr<T>(x: &T) -> WriteResult<ScratchBuf>
 where
     T: WriteXDR + ?Sized,

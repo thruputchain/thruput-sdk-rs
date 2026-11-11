@@ -154,7 +154,7 @@ pub type Calldata = crate::internal::ScratchBuf;
 /// buffer is filled in place, never moved by value. It is heap-allocated
 /// with its exact size, queried up front via `GetCalldataLen`, so calldata
 /// of any length is supported.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 fn fetch_calldata_and_auth_tokens_into(
     calldata: &mut Calldata,
 ) -> SysResult<u32> {
@@ -203,7 +203,7 @@ fn fetch_calldata_and_auth_tokens_into(
 /// [`SCRATCH_MAX`](crate::internal::SCRATCH_MAX)-byte buffer; larger
 /// calldata returns `InvalidSyscallInput` (thrown as a
 /// `LibraryExn::Syscall` for `kGetCalldata`).
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "alloc-api"))]
 fn fetch_calldata_and_auth_tokens_into(
     calldata: &mut Calldata,
 ) -> SysResult<u32> {

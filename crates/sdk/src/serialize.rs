@@ -1,7 +1,7 @@
 // The rest of this vocabulary reaches the crate root through `xdr`.
 pub use xdrs::{ReadXDROwned, WriteResult, WriteXDR, read_xdr, write_xdr};
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn encode_xdr<T>(x: &T) -> WriteResult<alloc::vec::Vec<u8>>
 where
     T: WriteXDR + ?Sized,

@@ -201,7 +201,7 @@ where
         flags,
     )?;
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     return_buf.reserve(outputs.return_buffer_len as usize);
 
     // `fill_return_buf` sets `return_buf`'s length before its own trailing
@@ -334,12 +334,12 @@ fn push_auth_handles(
     buf: &mut AuthHandleBuf,
     ids: core::ops::Range<u32>,
 ) -> Result<(), CallFault> {
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     {
         buf.extend(ids);
         Ok(())
     }
-    #[cfg(not(feature = "alloc"))]
+    #[cfg(not(feature = "alloc-api"))]
     {
         for id in ids {
             buf.push(id).map_err(|_| {
@@ -354,7 +354,7 @@ fn push_auth_handles(
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 use crate::cell::{ContractLocalRef, ContractRefCell};
 
 /// The per-instance call scratch: the shared write buffer and the
@@ -378,7 +378,7 @@ struct CallScratch {
 /// constructing one costs a length store and no `memset`; there is nothing to
 /// cache and nothing a static would save. Nesting is then correct by
 /// construction — no cell, no borrow flag, no re-entrancy fallback.
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "alloc-api"))]
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
@@ -397,7 +397,7 @@ fn with_call_scratch<R>(
 ///
 /// A `f` that never returns (a terminal return, an abort) drops its buffer
 /// rather than returning it to the pool. That is fine: the frame is over.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 fn with_call_scratch<R>(
     f: impl FnOnce(&mut Buf, &mut AuthHandleBuf) -> R,
 ) -> R {
@@ -412,7 +412,7 @@ fn with_call_scratch<R>(
     out
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 crate::contract_local! {
     static SCRATCH_POOL: ContractRefCell<alloc::vec::Vec<CallScratch>> =
         const { ContractRefCell::new(alloc::vec::Vec::new()) };
@@ -420,7 +420,7 @@ crate::contract_local! {
 
 /// Ready a pooled scratch for a fresh use: cleared, and grown to `SCRATCH_MAX`
 /// once so in-bounds payloads never reallocate.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 #[inline]
 fn reset_call_scratch(scratch: &mut CallScratch) {
     scratch.buf.clear();
@@ -478,7 +478,7 @@ mod scratch_tests {
     /// Buffers return to the pool, so sequential uses reuse one rather than
     /// allocating per call (the guest bump allocator never frees).
     #[test]
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     fn sequential_scratch_uses_reuse_one_buffer() {
         let first = with_scratch(|b| {
             b.reserve(crate::internal::SCRATCH_MAX);

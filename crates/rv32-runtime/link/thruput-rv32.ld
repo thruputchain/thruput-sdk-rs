@@ -67,7 +67,10 @@ ENTRY(_start)
  *
  *   "-C", "link-arg=--defsym=__stack_size=0x8000",
  *
- * PROVIDE yields to such an external definition.
+ * PROVIDE yields to such an external definition. The --defsym must come
+ * before -Tthruput-rv32.ld on the link line. After it, lld still sets
+ * __stack_size itself, but __stack_top and everything derived from it keep
+ * the default. See the runtime crate docs.
  */
 PROVIDE(__stack_size = 30K);
 
@@ -84,8 +87,10 @@ PROVIDE(__stack_size = 30K);
  *
  *   "-C", "link-arg=--defsym=__memory_size=0x20000",
  *
- * PROVIDE yields to such an external definition. Only a chain whose
- * max_rv32_memory_bytes admits the value accepts the resulting artifact.
+ * PROVIDE yields to such an external definition. As for __stack_size, the
+ * --defsym must come before -Tthruput-rv32.ld, or __heap_end keeps the
+ * default. Only a chain whose max_rv32_memory_bytes admits the value accepts
+ * the resulting artifact.
  */
 PROVIDE(__memory_size = 64K);
 
@@ -248,6 +253,10 @@ SECTIONS
 }
 
 ASSERT(__heap_base <= __heap_end, "rv32 data sections leave no room for heap");
+/* Allocators add a size of up to 2^31 - 1 to an address in the heap without
+ * an overflow check, which is sound only while the heap ends at or below
+ * 2^31. See MAX_CEILING in rv32-runtime's bump.rs. */
+ASSERT(__heap_end <= 0x80000000, "rv32 heap must end at or below 2 GiB");
 /* _start loads sp from __stack_top with no rounding; the RISC-V ABI
  * requires sp to be 16-byte aligned. */
 ASSERT(__stack_top % 16 == 0, "__stack_top must be 16-byte aligned");

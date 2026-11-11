@@ -63,18 +63,23 @@ trybuild = "1"
 version-mismatch-helper = { path = "tests/version-mismatch-helper" }
 
 [features]
-# Enable allocation features
-alloc = [
+# Allocating APIs plus the guest runtime's bump `#[global_allocator]`.
+alloc = ["alloc-api", "thruput-rv32-runtime/alloc"]
+
+# Allocating APIs only. On rv32 the contract supplies its own
+# `#[global_allocator]`, normally in its `src/main.rs` bin wrapper. Library
+# crates should depend on this rather than `alloc`, so that feature
+# unification leaves the allocator choice to the contract.
+alloc-api = [
     "thruput-u256/alloc",
     "thruput-xdr/alloc",
     "xdrs/alloc",
     "thruput-contract-spec/alloc",
-    "thruput-rv32-runtime/alloc",
 ]
 
 # Include interfaces requiring std
 std = [
-    "alloc",
+    "alloc-api",
     "thruput-u256/std",
     "thruput-xdr/std",
     "thruput-contract-spec/owned-model",

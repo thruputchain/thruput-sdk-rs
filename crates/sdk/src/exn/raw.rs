@@ -28,7 +28,7 @@
 //! [`SCRATCH_MAX`]: crate::internal::SCRATCH_MAX
 
 use crate::exn::Exn;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 use crate::exn::{CallingError, FaultString, LibraryExn};
 use crate::xdr::*;
 use thruput_exn::RawExceptionRef;
@@ -105,9 +105,9 @@ impl RawException {
         let selector = exn.selector();
         let payload_start = exn.payload_start();
         let wire = exn.wire();
-        #[cfg(feature = "alloc")]
+        #[cfg(feature = "alloc-api")]
         let wire = wire.to_vec();
-        #[cfg(not(feature = "alloc"))]
+        #[cfg(not(feature = "alloc-api"))]
         let wire = {
             let mut buf = crate::call::Buf::new();
             if buf.extend_from_slice(wire).is_err() {
@@ -169,7 +169,7 @@ impl RawException {
     }
 
     /// Build from a selector and payload. Test/mock construction.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn new(selector: u64, payload: &[u8]) -> Self {
         let mut wire = crate::internal::encode_xdr(&selector)
             .expect("u64 CXS-encode cannot fail under alloc");
@@ -184,7 +184,7 @@ impl RawException {
 
     /// Parse an abort wire buffer (`[CXS(selector)][payload]`) into an owned
     /// exception. Host tests and mock plumbing.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn from_abort_buf(bytes: &[u8]) -> Result<Self, LibraryExn> {
         let exn = RawExceptionRef::parse(bytes).map_err(|e| {
             LibraryExn::Calling(CallingError::DecodingException(
@@ -214,7 +214,7 @@ impl crate::re_throw::ReThrow for RawException {
     }
 }
 
-#[cfg(all(test, feature = "alloc"))]
+#[cfg(all(test, feature = "alloc-api"))]
 mod tests {
     use super::*;
 

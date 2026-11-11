@@ -119,7 +119,7 @@ impl RefArgElement for &str {}
 
 /// Decoded into a local vector of elements. Byte-string elements borrow
 /// their bytes from calldata; only the list of references is allocated.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<'r, T> RefArg<'r> for [T]
 where
     T: RefArgElement + ReadXDR<'r> + ReceiveAuthHandles,
@@ -162,13 +162,13 @@ impl<const N: usize> OwnedRefArg for heapless::String<N> {}
 impl<const MAX: u32> OwnedRefArg for xdrs::BytesM<MAX> {}
 impl<T> OwnedRefArg for crate::signer::Signed<T> {}
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T, const MAX: u32> OwnedRefArg for xdrs::VecM<T, MAX> {}
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T> OwnedRefArg for alloc::vec::Vec<T> {}
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: ?Sized> OwnedRefArg for alloc::boxed::Box<T> {}
 
 macro_rules! owned_ref_arg_tuple {
