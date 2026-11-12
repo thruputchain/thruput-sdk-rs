@@ -5,8 +5,8 @@ rustflags = [
     ]
 
 # The CANONICAL [target.riscv32im-unknown-none-elf] rustflags.
-# integration_test/.cargo/config.toml and fixtures-negative/.cargo/config.toml
-# carry synced copies (edit all three).
+# integration_test/.cargo/config.toml, fixtures-negative/.cargo/config.toml and
+# experiments/ristretto-msm/.cargo/config.toml carry synced copies (edit all four).
 # NEVER add this section to the workspace-root .cargo/config.toml or any
 # other config on the same discovery chain: cargo JOINS target-rustflags
 # arrays across the chain (cwd upward), and a duplicated

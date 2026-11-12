@@ -3,20 +3,10 @@
 Checks the experimental host API through native and RV32 contract calls:
 arithmetic, malformed inputs, the term limit and insufficient gas.
 
-Use Thruput CLI 0.44.0 and
-[hogd `845f58c8`](https://github.com/thruputchain/hogd/commit/845f58c818ab2adb58368995694933941e82b607)
-with the MSM host API. Set `HOGD_FFI_LIB_DIR` to a directory
-containing that build's `libtest_ffi` shared library and `bindings.rs`; see
-[native executor setup](../../crates/native-exec/README.md).
-The repository Cargo configuration pins the matching protocol bindings.
-
-After building hogd's `test_ffi` target in `build-msm`, generate its bindings
-from the hogd checkout:
-
-```sh
-bash hogd/test_ffi/run_bindgen.sh build-msm/hogd/test_ffi/bindings.rs
-export HOGD_FFI_LIB_DIR="$PWD/build-msm/hogd/test_ffi"
-```
+Use Thruput CLI 0.44.0 and native test FFI 0.44.1, which includes the MSM
+host operation. The SDK downloads the pinned FFI by default; see
+[native executor setup](../../crates/native-exec/README.md) for local builds.
+The SDK pins protocol crates 0.66.0.
 
 From the SDK repository root:
 

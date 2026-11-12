@@ -421,28 +421,3 @@ checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
  "windows-link",
 ]
-
-[[patch.unused]]
-name = "thruput-spec"
-version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
-
-[[patch.unused]]
-name = "thruput-syscall"
-version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
-
-[[patch.unused]]
-name = "thruput-trace"
-version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
-
-[[patch.unused]]
-name = "thruput-xdr"
-version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"
-
-[[patch.unused]]
-name = "thruput-xdr-macros"
-version = "0.65.0"
-source = "git+https://github.com/thruputchain/thruput-protocol-rs?rev=b37ae645296fdd3860b8031e3f96112cce04b800#b37ae645296fdd3860b8031e3f96112cce04b800"

@@ -427,6 +427,10 @@ fn sdk_test(ctx: &mut Ctx) -> Result {
         let cmd = ctx.cargo(&root, args[0]).args(&args[1..]);
         ctx.step(*name, |ctx| ctx.run(&cmd))?;
     }
+    let msm = ctx
+        .cargo(&root.join("experiments/ristretto-msm"), "test")
+        .args(["--test", "native"]);
+    ctx.step("ristretto MSM", |ctx| ctx.run(&msm))?;
     Ok(())
 }
 

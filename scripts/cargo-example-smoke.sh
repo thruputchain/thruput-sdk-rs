@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # Compile the Cargo-only guide as a standalone consumer, with no CLI and no
-# inherited SDK build settings. Keep the guide itself as the fixture; copy only
-# dependency overrides needed to test an unpublished source checkout.
+# inherited SDK build settings. Keep the guide itself as the fixture.
 set -euo pipefail
 
 SDK_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -30,9 +29,6 @@ for name, content in files.items():
     path.write_text(content + '\n')
 shutil.copyfile(sdk / 'rust-toolchain.toml', work / 'rust-toolchain.toml')
 PY
-
-python3 "$SDK_DIR/scripts/consumer-patches.py" \
-    "$SDK_DIR/.cargo/config.toml" "$WORK_DIR/.cargo/config.toml"
 
 cd "$WORK_DIR"
 cargo test

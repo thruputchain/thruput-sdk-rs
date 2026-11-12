@@ -45,9 +45,6 @@ allow-wildcard-paths = true
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
-# Experimental MSM bindings until the protocol crates are released.
-allow-git = ["https://github.com/thruputchain/thruput-protocol-rs"]
-required-git-spec = "rev"
 # crates.io only: the crates publish there, and crates.io rejects a crate
 # that depends on another registry.
 allow-registry = [

@@ -16,7 +16,7 @@ const HOGD_REPO_URL: &str = "https://github.com/thruputchain/hogd.git";
 ///
 /// On a bump, replace `docs-rs/bindings.rs` with the `bindings.rs` from the
 /// new linux-x86_64 archive. The `docs_rs_bindings` test fails until you do.
-const TEST_FFI_VERSION: &str = "0.44.0";
+const TEST_FFI_VERSION: &str = "0.44.1";
 
 /// The archive whose `bindings.rs` is checked in as `docs-rs/bindings.rs`.
 const DOCS_RS_ARCHIVE: &str = "libtest_ffi-linux-x86_64.tar.gz";

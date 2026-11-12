@@ -112,10 +112,6 @@ with Path('.cargo/config.toml').open('a') as config:
 PY
 fi
 
-# Copy source dependency overrides without importing SDK build settings.
-python3 "$SDK_DIR/scripts/consumer-patches.py" \
-    "$SDK_DIR/.cargo/config.toml" "$PWD/.cargo/config.toml"
-
 # Build the contract, exactly as the scaffold's "next steps" suggest. RV32
 # is the CLI's only artifact target, so the build takes no target flag: 0.9.6
 # removed --target along with WASM. The scaffold's own rust-toolchain.toml
