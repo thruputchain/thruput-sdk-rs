@@ -2,7 +2,7 @@ use crate::xdr::*;
 
 use crate::types::AuthTokenNode;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 use crate::types::AuthTokenPayload;
 
 /// Marker trait for types that have a pre-signing (preimage) representation.
@@ -63,7 +63,7 @@ where
 /// Build the [`AuthTokenNode`] tree for `preimage`: the payload is the
 /// encoded `T` (nested `Signed` fields become child nodes), and the node's
 /// consumer is `preimage.consumer`.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn build_auth_token_node<T: Mintable>(
     preimage: AuthTokenPreimage<T::Preimage>,
 ) -> AuthTokenNode
@@ -79,7 +79,7 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
     let buf = crate::internal::encode_xdr(value).unwrap_or_else(|e| {
         crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
@@ -99,7 +99,7 @@ pub fn encode_payload<T: WriteXDR>(value: &T) -> AuthTokenPayload {
     AuthTokenPayload::from(bytes)
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 fn children_to_vecm(
     children: ChildNodeBuf,
 ) -> xdrs::VecM<
@@ -116,7 +116,7 @@ fn children_to_vecm(
     })
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn encode_auth_token_node(node: &AuthTokenNode) -> alloc::vec::Vec<u8> {
     xdrs::txs::encode(node).unwrap_or_else(|e| {
         crate::exn::library_throw(crate::AuthTokenError::MintEncodeFailure(
@@ -186,22 +186,22 @@ impl<const N: usize> MintableType for heapless::Vec<u8, N> {
     type Preimage = Self;
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: MintableType + 'static, const MAX: u32> MintableType for VecM<T, MAX> {
     type Preimage = VecM<T::Preimage, MAX>;
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<const MAX: u32> MintableType for StringM<MAX> {
     type Preimage = StringM<MAX>;
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: MintableType> MintableType for alloc::vec::Vec<T> {
     type Preimage = alloc::vec::Vec<T::Preimage>;
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: MintableType> MintableType for alloc::boxed::Box<T> {
     type Preimage = alloc::boxed::Box<T::Preimage>;
 }
@@ -254,7 +254,7 @@ impl<const MAX: u32> Mintable for BytesM<MAX> {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<const MAX: u32> Mintable for StringM<MAX> {
     fn mint_into_parent(
         preimage: StringM<MAX>,
@@ -298,7 +298,7 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: Mintable + 'static, const MAX: u32> Mintable for VecM<T, MAX>
 where
     T::Preimage: WriteXDR + for<'r> ReadXDR<'r> + 'static,
@@ -330,7 +330,7 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: Mintable> Mintable for alloc::vec::Vec<T>
 where
     T::Preimage: WriteXDR + for<'r> ReadXDR<'r>,
@@ -347,7 +347,7 @@ where
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: Mintable> Mintable for alloc::boxed::Box<T>
 where
     T::Preimage: Sized + WriteXDR + for<'r> ReadXDR<'r>,

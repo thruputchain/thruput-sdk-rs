@@ -10,6 +10,11 @@
 
 use core::alloc::Layout;
 
+/// The highest heap end for which [`bump`]'s unchecked additions cannot
+/// overflow: half the address space, 2 GiB on rv32. The linker script
+/// ASSERTs that `__heap_end` does not exceed it.
+pub(crate) const MAX_CEILING: usize = isize::MAX as usize + 1;
+
 /// Place `layout` at or after `cursor`, keeping the whole allocation below
 /// `ceiling`.
 ///
@@ -20,17 +25,14 @@ use core::alloc::Layout;
 ///
 /// # Domain
 ///
-/// Requires `cursor <= ceiling`, with `ceiling` at most the guest's memory
-/// size. The allocator upholds this by construction: `cursor` starts at
-/// `__heap_base` and thereafter only takes values this function already
-/// checked against `ceiling`.
+/// Requires `cursor <= ceiling <= MAX_CEILING`. The allocator upholds the
+/// first by construction: `cursor` starts at `__heap_base` and thereafter
+/// only takes values this function already checked against `ceiling`. The
+/// linker script ASSERTs the second for the heap end.
 ///
-/// Given that, neither addition below can overflow on a 32-bit target —
-/// `cursor` is at most 64 Ki, `Layout` caps alignment at 2^29, and `size`
-/// rounded up to `align` fits in `isize::MAX`. So they are left unchecked:
-/// a `checked_add` pair costs code size and an extra gas-metered branch per
-/// allocation to handle a case that cannot arise. The `debug_assert` pins
-/// the invariant for host tests and Miri, and compiles out in release.
+/// Given the domain, `cursor + mask <= usize::MAX` and
+/// `start + size <= usize::MAX`, so both are unchecked to save a branch per
+/// allocation.
 #[inline(always)]
 pub(crate) fn bump(
     cursor: usize,
@@ -38,6 +40,7 @@ pub(crate) fn bump(
     layout: Layout,
 ) -> Option<(usize, usize)> {
     debug_assert!(cursor <= ceiling, "cursor escaped the heap");
+    debug_assert!(ceiling <= MAX_CEILING, "heap ends above MAX_CEILING");
     // `Layout` guarantees a nonzero power-of-two alignment, so `align - 1`
     // cannot underflow and is a valid mask.
     let mask = layout.align() - 1;
@@ -99,6 +102,20 @@ mod tests {
         );
         // Alignment far larger than the heap, likewise.
         assert_eq!(bump(1, CEILING, layout(1, 1 << 20)), None);
+    }
+
+    #[test]
+    fn largest_operands_at_max_ceiling_do_not_wrap() {
+        // The edge of the domain: cursor and ceiling at MAX_CEILING. Each
+        // case sums to at most usize::MAX, so an overflow panic in this
+        // debug build would mean the domain argument is wrong.
+        let top = MAX_CEILING;
+        // start + size == usize::MAX: refused, not wrapped.
+        assert_eq!(bump(top, top, layout(isize::MAX as usize, 1)), None);
+        // cursor + mask == usize::MAX with the largest alignment.
+        assert_eq!(bump(top, top, layout(0, top)), Some((top, top)));
+        // Rounding up from just above zero lands exactly on the ceiling.
+        assert_eq!(bump(1, top, layout(0, top)), Some((top, top)));
     }
 
     /// Drive `bump` over a real allocation and use every pointer it yields.

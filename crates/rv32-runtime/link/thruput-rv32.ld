@@ -67,7 +67,8 @@ ENTRY(_start)
  *
  *   "-C", "link-arg=--defsym=__stack_size=0x8000",
  *
- * PROVIDE yields to such an external definition.
+ * PROVIDE yields to such an external definition. Must precede
+ * -Tthruput-rv32.ld; see the runtime crate docs.
  */
 PROVIDE(__stack_size = 30K);
 
@@ -84,7 +85,8 @@ PROVIDE(__stack_size = 30K);
  *
  *   "-C", "link-arg=--defsym=__memory_size=0x20000",
  *
- * PROVIDE yields to such an external definition. Only a chain whose
+ * PROVIDE yields to such an external definition. Must precede
+ * -Tthruput-rv32.ld; see the runtime crate docs. Only a chain whose
  * max_rv32_memory_bytes admits the value accepts the resulting artifact.
  */
 PROVIDE(__memory_size = 64K);
@@ -248,6 +250,8 @@ SECTIONS
 }
 
 ASSERT(__heap_base <= __heap_end, "rv32 data sections leave no room for heap");
+/* Allocators' unchecked arithmetic needs this; see MAX_CEILING in bump.rs. */
+ASSERT(__heap_end <= 0x80000000, "rv32 heap must end at or below 2 GiB");
 /* _start loads sp from __stack_top with no rounding; the RISC-V ABI
  * requires sp to be 16-byte aligned. */
 ASSERT(__stack_top % 16 == 0, "__stack_top must be 16-byte aligned");

@@ -5,7 +5,7 @@ use crate::sys::SyscallNo;
 use crate::sys_result::rcq as rcq_result;
 use crate::types::StorageKey;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 use alloc::boxed::Box;
 
 // Every rcq error below is attributed to `kRetrocausalQueueConsume`, even
@@ -107,7 +107,7 @@ pub(crate) fn retrocausal_queue_try_discard(
         .or_syscall_exn(SyscallNo::kRetrocausalQueueConsume)
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn retrocausal_queue_consume(key: &StorageKey) -> Box<[u8]> {
     use crate::re_throw::OrReThrow;
     retrocausal_queue_try_consume(key).or_re_throw()
@@ -117,14 +117,14 @@ pub fn retrocausal_queue_consume(key: &StorageKey) -> Box<[u8]> {
 /// `Err` instead of aborting (the `try_` law). An empty queue is a
 /// `LibraryExn::Syscall` for which
 /// [`is_storage_missing`](LibraryExn::is_storage_missing) is true.
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn retrocausal_queue_try_consume(
     key: &StorageKey,
 ) -> Result<Box<[u8]>, LibraryExn> {
     retrocausal_queue_try_get(key, false)
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn retrocausal_queue_peek(key: &StorageKey) -> Box<[u8]> {
     use crate::re_throw::OrReThrow;
     retrocausal_queue_try_peek(key).or_re_throw()
@@ -133,7 +133,7 @@ pub fn retrocausal_queue_peek(key: &StorageKey) -> Box<[u8]> {
 /// Peek at the next queue entry as a boxed slice; the `try_`-law
 /// counterpart of [`retrocausal_queue_peek`]. Same error contract as
 /// [`retrocausal_queue_try_consume`].
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub fn retrocausal_queue_try_peek(
     key: &StorageKey,
 ) -> Result<Box<[u8]>, LibraryExn> {
@@ -144,7 +144,7 @@ pub fn retrocausal_queue_try_peek(
 ///
 /// If `peek` is true, the entry will not be consumed.
 ///
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 fn retrocausal_queue_try_get(
     key: &StorageKey,
     peek: bool,

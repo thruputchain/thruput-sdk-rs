@@ -85,7 +85,7 @@ pub(crate) fn retrocausal_queue_read_into(
     buf: &mut ScratchBuf,
 ) -> Result<Option<()>> {
     buf.clear();
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     buf.reserve(thruput_xdr::retrocausal_queue::kQueueEntryMaxLen as usize);
     let mut written_len = MaybeUninit::uninit();
     sys::uninit_RetrocausalQueueConsume(
@@ -123,7 +123,7 @@ pub(crate) fn retrocausal_queue_consume_discard(
 
 /// Get the next queue entry into a boxed slice.
 ///
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub(crate) fn retrocausal_queue_get(
     key: &StorageKey,
     peek: bool,

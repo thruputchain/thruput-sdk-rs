@@ -84,6 +84,7 @@ members = [
     "prerelease_version",
     "missing_contract_macro",
     "unknown_method",
+    "custom_allocator",
     # Built only by scripts/bigint-bench.sh (34 rv32 variants); its
     # `benchmark` kind keeps gnaw's fixture tasks from building it. See its
     # Cargo.toml.

@@ -1,0 +1,38 @@
+[package]
+name = "custom_allocator"
+description = "A contract that supplies its own global allocator"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+dev = ["thruput-sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact. `thruput build -p custom_allocator` derives
+# `--bin custom_allocator` from the package name, so the name here must stay
+# the underscored package name. `required-features` keeps it out of host
+# builds, which is also what keeps its `#[global_allocator]` out of them.
+[[bin]]
+name = "custom_allocator"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+# `alloc-api`, not `alloc`: the SDK's allocating APIs without the runtime's
+# bump allocator. src/main.rs supplies the allocator.
+thruput-sdk = { workspace = true, features = ["alloc-api"] }
+
+[dev-dependencies]
+custom_allocator = { path = ".", features = ["dev"] }

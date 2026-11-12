@@ -76,14 +76,14 @@ impl<T> RCQ<T> {
     }
 
     /// Consume a raw queue entry into a boxed slice.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn consume_raw(&mut self) -> alloc::boxed::Box<[u8]> {
         self.try_consume_raw().or_re_throw()
     }
 
     /// Consume a raw queue entry into a boxed slice, reporting failure as
     /// `Err`.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn try_consume_raw(
         &mut self,
     ) -> Result<alloc::boxed::Box<[u8]>, LibraryExn> {
@@ -106,14 +106,14 @@ impl<T> RCQ<T> {
     }
 
     /// Retrieve a raw queue entry into a boxed slice without consuming it.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn peek_raw(&self) -> alloc::boxed::Box<[u8]> {
         self.try_peek_raw().or_re_throw()
     }
 
     /// Retrieve a raw queue entry into a boxed slice without consuming it,
     /// reporting failure as `Err`.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn try_peek_raw(&self) -> Result<alloc::boxed::Box<[u8]>, LibraryExn> {
         retrocausal_queue_try_peek(self.key())
     }
