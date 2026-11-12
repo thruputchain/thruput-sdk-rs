@@ -244,6 +244,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom_allocator"
+version = "0.4.0"
+dependencies = [
+ "custom_allocator",
+ "thruput-sdk",
+]
+
+[[package]]
 name = "darling"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

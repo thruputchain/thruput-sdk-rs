@@ -351,7 +351,7 @@ macro_rules! __match_exn_arms {
     };
 }
 
-#[cfg(all(test, feature = "alloc"))]
+#[cfg(all(test, feature = "alloc-api"))]
 mod tests {
     use super::*;
     use crate::exn::{FaultInfo, LibraryExn};

@@ -117,7 +117,7 @@ pub(crate) fn bytestring_read_into(
     // Check length first to avoid unsafe initialization of a too-small buffer.
     let len = bytestring_get_len(key)? as usize;
     buf.clear();
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     buf.reserve(len);
     if len > buf.spare_capacity_mut().len() {
         return Ok(None);
@@ -136,7 +136,7 @@ pub(crate) fn bytestring_read_into(
     Ok(Some(()))
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 mod bytestring_get_alloc {
     use super::*;
     use alloc::boxed::Box;
@@ -149,7 +149,7 @@ mod bytestring_get_alloc {
     /// [`sys::SyscallErrorCode::kSyscallErrorCodeInvalidSyscallInput`] if an
     /// item of another type is there.
     ///
-    /// This routine requires feature `alloc`.
+    /// This routine requires feature `alloc-api`, which `alloc` implies.
     ///
     pub fn bytestring_get(key: &StorageKey) -> Result<Box<[u8]>> {
         let len = bytestring_get_len(key)?;
@@ -176,5 +176,5 @@ mod bytestring_get_alloc {
         }
     }
 }
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub use bytestring_get_alloc::*;

@@ -126,7 +126,11 @@ pub static TASKS: &[Task] = &[
         sdk_logging,
     ),
     Task::new("sdk:test", "The SDK test sequence", sdk_test),
-    Task::new("sdk:docs", "Workspace rustdoc without warnings", sdk_docs),
+    Task::new(
+        "sdk:docs",
+        "Workspace rustdoc, and the runtime's on the host, without warnings",
+        sdk_docs,
+    ),
     Task::new(
         "sdk:docsrs",
         "Each publishable crate documents in its docs.rs configuration",
@@ -427,11 +431,19 @@ fn sdk_test(ctx: &mut Ctx) -> Result {
 }
 
 fn sdk_docs(ctx: &mut Ctx) -> Result {
+    let flags = "--deny warnings --cfg docsrs";
     let cmd = ctx
         .cargo(&ctx.repo.root, "doc")
         .args(["--no-deps", "--features=dev"])
-        .env("RUSTDOCFLAGS", "--deny warnings --cfg docsrs");
-    ctx.run(&cmd)
+        .env("RUSTDOCFLAGS", flags);
+    ctx.step("workspace", |ctx| ctx.run(&cmd))?;
+    // The runtime is not a default member and docs.rs documents it for
+    // rv32, so neither covers its host build under `cfg(doc)`.
+    let cmd = ctx
+        .cargo(&ctx.repo.root, "doc")
+        .args(["--no-deps", "-p", "thruput-rv32-runtime"])
+        .env("RUSTDOCFLAGS", flags);
+    ctx.step("rv32-runtime on the host", |ctx| ctx.run(&cmd))
 }
 
 fn sdk_docsrs(ctx: &mut Ctx) -> Result {

@@ -16,7 +16,7 @@ categories.workspace = true
 dev = ["thruput-sdk/dev", "thruput-signed-op-if/dev"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "0.60.0", features = ["alloc"] }
+thruput-sdk = { path = "../../crates/sdk", version = "0.60.0", features = ["alloc-api"] }
 thruput-signed-op-if = { path = "../../standard-interfaces/thruput-signed-op", version = "=0.1.73" }
 thruput-domain-separator = { path = "../../crates/domain-separator", version = "0.60.0", default-features = false, features = ["alloc"] }
 thruput-contract-spec = { path = "../../crates/contract-spec", version = "0.60.0", default-features = false }

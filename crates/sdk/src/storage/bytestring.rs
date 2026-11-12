@@ -75,7 +75,7 @@ impl Bytestring {
     ///
     /// **Aborts** if the key is missing or holds a value of another type. Use
     /// [`try_get`](Self::try_get) to handle those cases gracefully.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn get(&self) -> alloc::boxed::Box<[u8]> {
         bytestring_get(&self.key)
     }
@@ -90,7 +90,7 @@ impl Bytestring {
     /// [`none_if_missing`](crate::exn::NoneIfMissing::none_if_missing) to
     /// treat just that case as an ordinary `None`. A value of another
     /// storage type or any other syscall failure is a `LibraryExn::Syscall`.
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     pub fn try_get(
         &self,
     ) -> Result<alloc::boxed::Box<[u8]>, crate::exn::LibraryExn> {

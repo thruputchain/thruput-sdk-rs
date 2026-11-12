@@ -78,18 +78,20 @@ pub use thruput_u256::{
 /// a signed number of blocks, which needs no import.
 pub use core::time::Duration;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 extern crate alloc;
 
 // Guest targets get their runtime — `#[global_allocator]`, `#[panic_handler]`,
 // and the `_start` entry — from a dedicated runtime crate, the same way a
 // hosted target gets these from std + the system. Force-link it so contracts
-// (and the rv32 bin wrapper) don't have to name it. The
-// `extern crate ... as _` is load-bearing: nothing references these items by
-// name, so without it the runtime would be pruned as an unused dependency,
-// taking the lang items with it.
+// (and the rv32 bin wrapper) don't have to name it.
 #[cfg(target_arch = "riscv32")]
 extern crate thruput_rv32_runtime as _;
+
+// The heap region for a contract that supplies its own `#[global_allocator]`
+// under `alloc-api`. See the "Allocation" section of doc/lib.md.
+#[cfg(target_arch = "riscv32")]
+pub use thruput_rv32_runtime::heap as guest_heap;
 
 // Guest-dispatch plumbing for the `#[contract]` macro on rv32. The macro
 // emits `#[link_section = "thruput_rv32_entrypoints"]` Entrypoint statics;

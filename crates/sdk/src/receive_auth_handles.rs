@@ -81,7 +81,7 @@ impl_receive_noop!(
     crate::types::ContractEntrypointID,
 );
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_receive_noop!(alloc::string::String);
 
 impl<T: ReceiveAuthHandles, const N: usize> ReceiveAuthHandles for [T; N] {
@@ -133,7 +133,7 @@ impl<T: ReceiveAuthHandles> ReceiveAuthHandles for [T] {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: ReceiveAuthHandles, const MAX: u32> ReceiveAuthHandles
     for xdrs::VecM<T, MAX>
 {
@@ -184,7 +184,7 @@ impl<const MAX: usize> ReceiveAuthHandles for heapless::String<MAX> {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles
     for alloc::boxed::Box<T>
 {
@@ -207,7 +207,7 @@ impl<T: ReceiveAuthHandles + ?Sized> ReceiveAuthHandles for &T {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: ReceiveAuthHandles> ReceiveAuthHandles for alloc::vec::Vec<T> {
     #[inline(always)]
     fn receive_auth_handles(
@@ -308,7 +308,7 @@ mod tests {
         assert_eq!(args.3.handle(), 20);
     }
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "alloc-api")]
     #[test]
     fn owned_strings_preserve_signed_handle_order() {
         use crate::{AuthHandleBuf, CollectAuthHandles};

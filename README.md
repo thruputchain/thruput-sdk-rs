@@ -66,6 +66,7 @@ show persistent state across transactions.
 | Feature | Use |
 | --- | --- |
 | `alloc` | Heap allocation in guest builds |
+| `alloc-api` | `alloc` without the default guest allocator; the contract supplies one |
 | `std` | Required for host builds; forbidden on the guest |
 | `dev` | The native test environment |
 | `remote` | Off-chain proxies for calling deployed contracts |

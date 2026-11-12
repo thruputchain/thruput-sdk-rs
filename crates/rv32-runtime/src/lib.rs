@@ -8,7 +8,9 @@
 //!
 //!   - a `_start` entry symbol that the linker can resolve;
 //!   - a `#[panic_handler]`;
-//!   - a `#[global_allocator]` (bump, single guest memory page);
+//!   - a `#[global_allocator]` (bump, single guest memory page), unless the
+//!     contract supplies its own (see [Custom allocator](#custom-allocator));
+//!   - [`heap()`], the guest heap region an allocator draws from;
 //!   - a linker script published via `build.rs` to bin crates that
 //!     depend on this crate.
 //!
@@ -36,17 +38,23 @@
 //! bytes (the lowerer trims the stack region from the stored image), only
 //! address space shared with the heap.
 //!
-//! To override it per contract, add a `--defsym` to the contract's rv32
-//! rustflags (value must be a multiple of 16; the link fails otherwise):
+//! To override it per contract, pass `thruput build --stack-size`. A
+//! hand-driven build adds a `--defsym` to the contract's rv32 rustflags
+//! instead (value must be a multiple of 16; the link fails otherwise):
 //!
 //! ```toml
 //! # .cargo/config.toml
 //! [target.riscv32im-unknown-none-elf]
 //! rustflags = [
-//!     # ... the standard flags ...
+//!     # Before the linker script, or it has no effect:
 //!     "-C", "link-arg=--defsym=__stack_size=0x8000",  # 32K stack
+//!     "-C", "link-arg=-Tthruput-rv32.ld",
+//!     # ... the other standard flags ...
 //! ]
 //! ```
+//!
+//! Cargo joins rustflags from several config sources, so verify the order
+//! took effect: `readelf -s` on the unstripped ELF shows `__stack_top`.
 //!
 //! ## Memory size
 //!
@@ -57,9 +65,17 @@
 //! `thruput build` reads `initial_memory_bytes` under
 //! `[package.metadata.thruput]` in the contract's `Cargo.toml`, passes it
 //! as `--defsym=__memory_size=<bytes>` on the link, and stamps the same value
-//! into the artifact. A hand-driven build passes the same `--defsym` next to
-//! `__stack_size`. The linker script `PROVIDE`s the default, so either
-//! definition wins over it.
+//! into the artifact. A hand-driven build passes the same `--defsym`, also
+//! before the linker script. The linker script `PROVIDE`s the default, so
+//! either definition wins over it.
+//!
+//! ## Custom allocator
+//!
+//! `thruput-sdk/alloc` enables this crate's `alloc` feature, which installs
+//! the bump allocator. With `thruput-sdk/alloc-api` instead, the contract
+//! declares its own `#[global_allocator]` in its `src/main.rs` bin wrapper
+//! and draws memory from [`heap()`]. See the SDK guide's "Custom allocator"
+//! section.
 
 #![cfg_attr(not(test), no_std)]
 // Forbid the compiler from introducing calls to builtin functions in this
@@ -76,6 +92,13 @@ compile_error!(
 // Pure, target-independent — compiled everywhere (host tests included).
 mod dispatch;
 pub use dispatch::{Entrypoint, lookup};
+
+// The heap region, for this crate's allocator and for a contract's own.
+// Also compiled for docs, so the crate docs can link to it.
+#[cfg(any(target_arch = "riscv32", doc))]
+mod heap;
+#[cfg(any(target_arch = "riscv32", doc))]
+pub use heap::heap;
 
 // Allocator gated on `alloc`, matching `thruput-sdk`'s `alloc` feature.
 // rv32-only: it binds linker-script externs and installs a

@@ -1,10 +1,10 @@
 use crate::FaultString;
 
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "alloc-api"))]
 const AUTH_HANDLES_MAX: usize = 64;
-#[cfg(not(feature = "alloc"))]
+#[cfg(not(feature = "alloc-api"))]
 pub type AuthHandleBuf = heapless::Vec<u32, AUTH_HANDLES_MAX>;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub type AuthHandleBuf = alloc::vec::Vec<u32>;
 
 /// Extract the auth-token handles of every [`Signed`](crate::signer::Signed)
@@ -67,7 +67,7 @@ impl_collect_noop!(
     crate::types::ContractEntrypointID,
 );
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl_collect_noop!(alloc::string::String);
 
 impl<T: CollectAuthHandles, const N: usize> CollectAuthHandles for [T; N] {
@@ -119,7 +119,7 @@ impl<T: CollectAuthHandles> CollectAuthHandles for [T] {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: CollectAuthHandles, const MAX: u32> CollectAuthHandles
     for xdrs::VecM<T, MAX>
 {
@@ -167,7 +167,7 @@ impl<const MAX: usize> CollectAuthHandles for heapless::String<MAX> {
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: CollectAuthHandles + ?Sized> CollectAuthHandles
     for alloc::boxed::Box<T>
 {
@@ -180,7 +180,7 @@ impl<T: CollectAuthHandles + ?Sized> CollectAuthHandles
     }
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 impl<T: CollectAuthHandles> CollectAuthHandles for alloc::vec::Vec<T> {
     #[inline(always)]
     fn collect_auth_handles(

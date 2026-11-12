@@ -90,7 +90,7 @@ pub fn bytestring_get_sized<const N: usize>(key: &StorageKey) -> [u8; N] {
     bytes
 }
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 mod bytestring_get_alloc {
     use super::*;
     use alloc::boxed::Box;
@@ -112,5 +112,5 @@ mod bytestring_get_alloc {
         result::bytestring_get(key).or_syscall_exn(SyscallNo::kBytestringGet)
     }
 }
-#[cfg(feature = "alloc")]
+#[cfg(feature = "alloc-api")]
 pub use bytestring_get_alloc::*;
