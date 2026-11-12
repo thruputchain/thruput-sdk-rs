@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Compile the Cargo-only guide as a standalone consumer, with no CLI and no
-# inherited SDK workspace configuration. Keep the guide itself as the fixture.
+# inherited SDK build settings. Keep the guide itself as the fixture.
 set -euo pipefail
 
 SDK_DIR="$(cd "$(dirname "$0")/.." && pwd)"

@@ -1,0 +1,4 @@
+default_profile = "local"
+
+[profile.local]
+network = "local"

@@ -3,6 +3,7 @@ updates:
   - package-ecosystem: cargo
     directories:
       - /
+      - /experiments/ristretto-msm
       - /fixtures
       - /fixtures-negative
       - /fixtures/cross_crate_collision
