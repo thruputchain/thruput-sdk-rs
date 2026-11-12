@@ -3,10 +3,10 @@
 
 use core::ptr::{self, NonNull};
 
-// `__heap_base` is a maximal array so derived pointers carry provenance over
-// any heap size; extern declarations reserve no storage.
+// `__heap_base` is a maximal rv32 array so derived pointers carry provenance
+// over any heap size; extern declarations reserve no storage.
 unsafe extern "C" {
-    static mut __heap_base: [u8; usize::MAX >> 1];
+    static mut __heap_base: [u8; u32::MAX as usize >> 1];
     static __heap_end: u8;
 }
 
