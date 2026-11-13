@@ -671,7 +671,7 @@ fn fixtures_logging(ctx: &mut Ctx) -> Result {
     ctx.step("host", |ctx| ctx.run(&host))?;
     let guest = ctx.cargo(&dir, "check").args([
         "-p",
-        "logging_impl",
+        "custom_allocator",
         "-F",
         "entrypoints,thruput-sdk/logging",
         "--target",
