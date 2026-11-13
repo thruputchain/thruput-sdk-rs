@@ -155,8 +155,8 @@ Other development commands:
 
 The full `bigint-bench.sh` sweep takes minutes and is separate from CI. Some
 contract tests need built RV32 artifacts; full CI orders the build and test
-steps. The root, fixtures, integration, negative fixtures, and logging
-workspaces are separate. Root Cargo commands use `default-members` to exclude
+steps. The root, fixtures, integration, and negative fixtures workspaces are
+separate. Root Cargo commands use `default-members` to exclude
 the guest-only runtime from host builds.
 
 ## Update dependencies

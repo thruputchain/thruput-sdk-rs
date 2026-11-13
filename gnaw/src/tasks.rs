@@ -657,28 +657,21 @@ fn fixtures_test(ctx: &mut Ctx) -> Result {
     Ok(())
 }
 
-/// `thruput-sdk/logging` makes generated entrypoints and clients log their
-/// calls. The logging once used a by-value argument after the call had
-/// moved it, which fails to compile only for non-`Copy` arguments and only
-/// on the host: on the guest, `debug_log!` discards its arguments unchecked.
-/// genesis_deployer's client takes `calldata: Vec<u8>` by value, so the host
-/// check catches that regression. The guest check confirms that `logging`
-/// still builds for the RV32 artifact, where it has no effect.
-///
-/// One package at a time, so `logging` does not reach other fixtures
-/// through feature unification.
+/// The host check guards two past bugs, described in the `logging_if` docs.
+/// The guest check confirms that `logging` builds for RV32, where it has no
+/// effect.
 fn fixtures_logging(ctx: &mut Ctx) -> Result {
     let dir = ctx.repo.fixtures();
     let host = ctx.cargo(&dir, "check").args([
         "-p",
-        "genesis_deployer",
+        "logging_impl",
         "-F",
         "dev,thruput-sdk/logging",
     ]);
     ctx.step("host", |ctx| ctx.run(&host))?;
     let guest = ctx.cargo(&dir, "check").args([
         "-p",
-        "genesis_deployer",
+        "logging_impl",
         "-F",
         "entrypoints,thruput-sdk/logging",
         "--target",
