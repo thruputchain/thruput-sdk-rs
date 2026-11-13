@@ -226,6 +226,16 @@ SECTIONS
     KEEP(*(thruputspecrawv5))
   }
 
+  /* The syscall API version the guest was built against: one 8-byte record
+   * (major, minor; little-endian u32s) that thruput_sdk emits for the lowerer
+   * to stamp into the artifact. (INFO) for the same reason as the spec
+   * fragments above. The name carries the record's layout version: keep it in
+   * sync with the static in thruput_sdk::__rv32. */
+  thruputsyscallapiv0 0 (INFO) :
+  {
+    KEEP(*(thruputsyscallapiv0))
+  }
+
   /DISCARD/ :
   {
     /* Spec anchors are needed while the linker resolves archive members, but
@@ -260,3 +270,7 @@ ASSERT(__stack_top % 16 == 0, "__stack_top must be 16-byte aligned");
  * inside its [0, 8) null guard, so statics at address 0 can never reach a
  * deployable artifact. */
 ASSERT(__stack_size >= 16, "__stack_size must be at least one 16-byte slot");
+
+/* Exactly one record: none means thruput_sdk was not linked in, and more than
+ * one means two versions of it were. */
+ASSERT(SIZEOF(thruputsyscallapiv0) == 8, "expected one syscall API version record (thruputsyscallapiv0); link exactly one thruput-sdk");

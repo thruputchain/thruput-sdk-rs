@@ -118,25 +118,25 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-thruput-erc20-controls-if = { path = "../standard-interfaces/thruput-erc20-controls", version = "=0.1.74" }
-thruput-erc165-if = { path = "../standard-interfaces/thruput-erc165", version = "=0.1.74" }
-thruput-sdk = { path = "../crates/sdk", version = "=0.61.0" }
-thruput-contract-util = { path = "../crates/contract-util", version = "=0.61.0" }
-thruput-domain-separator = { path = "../crates/domain-separator", version = "=0.61.0", default-features = false }
+thruput-erc20-controls-if = { path = "../standard-interfaces/thruput-erc20-controls", version = "=0.1.75" }
+thruput-erc165-if = { path = "../standard-interfaces/thruput-erc165", version = "=0.1.75" }
+thruput-sdk = { path = "../crates/sdk", version = "=0.61.1" }
+thruput-contract-util = { path = "../crates/contract-util", version = "=0.61.1" }
+thruput-domain-separator = { path = "../crates/domain-separator", version = "=0.61.1", default-features = false }
 
-thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", version = "=0.1.74" }
-thruput-erc20-metadata-if = { path = "../standard-interfaces/thruput-erc20-metadata", version = "=0.1.74" }
-thruput-erc20-pausable-if = { path = "../standard-interfaces/thruput-erc20-pausable", version = "=0.1.74" }
-thruput-access-control-if = { path = "../standard-interfaces/thruput-access-control", version = "=0.1.74" }
-thruput-access-control = { path = "../standard-impls/thruput-access-control", version = "=0.1.74" }
-thruput-signed-op-if = { path = "../standard-interfaces/thruput-signed-op", version = "=0.1.74" }
-thruput-signed-op = { path = "../standard-impls/thruput-signed-op", version = "=0.1.74" }
-thruput-sep41 = { path = "../standard-impls/thruput-sep41", version = "=0.1.74" }
-thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit", version = "=0.1.74" }
-thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", version = "=0.1.74" }
+thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", version = "=0.1.75" }
+thruput-erc20-metadata-if = { path = "../standard-interfaces/thruput-erc20-metadata", version = "=0.1.75" }
+thruput-erc20-pausable-if = { path = "../standard-interfaces/thruput-erc20-pausable", version = "=0.1.75" }
+thruput-access-control-if = { path = "../standard-interfaces/thruput-access-control", version = "=0.1.75" }
+thruput-access-control = { path = "../standard-impls/thruput-access-control", version = "=0.1.75" }
+thruput-signed-op-if = { path = "../standard-interfaces/thruput-signed-op", version = "=0.1.75" }
+thruput-signed-op = { path = "../standard-impls/thruput-signed-op", version = "=0.1.75" }
+thruput-sep41 = { path = "../standard-impls/thruput-sep41", version = "=0.1.75" }
+thruput-erc20-permit-if = { path = "../standard-interfaces/thruput-erc20-permit", version = "=0.1.75" }
+thruput-erc721-if = { path = "../standard-interfaces/thruput-erc721", version = "=0.1.75" }
 
-thruput-erc20-test = { path = "../standard-tests/erc20-test", version = "=0.61.0" }
-thruput-erc20-native-test = { path = "../standard-tests/erc20-native-test", version = "=0.61.0" }
+thruput-erc20-test = { path = "../standard-tests/erc20-test", version = "=0.61.1" }
+thruput-erc20-native-test = { path = "../standard-tests/erc20-native-test", version = "=0.61.1" }
 bigint-bench-if = { path = "../crates/bigint-bench-if" }
 
 # From the xdrs repo, published on crates.io as thruput-xdrs

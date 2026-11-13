@@ -32,7 +32,7 @@ path = "src/main.rs"
 required-features = ["entrypoints"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "=0.61.0" }
+thruput-sdk = { path = "../../crates/sdk", version = "=0.61.1" }
 
 # Every build must fail with a duplicate entrypoint-ID symbol: two colliding
 # traits share a method name. gnaw's fixtures-negative:dup-entrypoint task
