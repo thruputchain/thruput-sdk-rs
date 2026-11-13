@@ -93,6 +93,11 @@ extern crate thruput_rv32_runtime as _;
 #[cfg(target_arch = "riscv32")]
 pub use thruput_rv32_runtime::heap as guest_heap;
 
+/// The syscall API version this SDK's bindings implement. A contract built
+/// with it runs on a chain whose syscall API has the same major version and
+/// a minor version at least this one.
+pub use thruput_xdr::{SYSCALL_API_MAJOR, SYSCALL_API_MINOR};
+
 // Guest-dispatch plumbing for the `#[contract]` macro on rv32. The macro
 // emits `#[link_section = "thruput_rv32_entrypoints"]` Entrypoint statics;
 // this re-export gives that generated code a stable path.
@@ -100,6 +105,28 @@ pub use thruput_rv32_runtime::heap as guest_heap;
 #[doc(hidden)]
 pub mod __rv32 {
     pub use thruput_rv32_runtime::Entrypoint;
+
+    /// The syscall API version this guest was built against, for the lowerer
+    /// to stamp into the artifact: major then minor, as little-endian `u32`s.
+    ///
+    /// It is the version of the bindings linked in, not the latest syscall the
+    /// contract happens to call, so a chain admits the artifact only once it
+    /// implements everything this SDK could have called.
+    ///
+    /// The rv32-runtime linker script (link/thruput-rv32.ld) keeps the section
+    /// out of guest memory and fails the link unless it holds exactly one
+    /// record. Keep the section name in sync with it; the name carries the
+    /// record's layout version.
+    #[used]
+    #[unsafe(link_section = "thruputsyscallapiv0")]
+    static SYSCALL_API_VERSION: [u8; 8] = {
+        let major = crate::SYSCALL_API_MAJOR.to_le_bytes();
+        let minor = crate::SYSCALL_API_MINOR.to_le_bytes();
+        [
+            major[0], major[1], major[2], major[3], minor[0], minor[1],
+            minor[2], minor[3],
+        ]
+    };
 
     /// The runtime dispatcher's undefined-method hook: the one definition of
     /// the symbol `thruput-rv32-runtime` tail-calls when no entrypoint

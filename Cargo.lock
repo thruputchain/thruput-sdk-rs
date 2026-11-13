@@ -1257,8 +1257,7 @@ dependencies = [
 [[package]]
 name = "thruput-spec"
 version = "0.66.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6544c84227e8bddd5b5e45e1893b4449821f4a6c3567f360dfb073443f057894"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fadmiring-pasteur-lnhsw3#c1f8c1b1a97a7d97bcf55956d77a97c331851751"
 dependencies = [
  "serde",
  "thruput-xdr",
@@ -1305,8 +1304,7 @@ dependencies = [
 [[package]]
 name = "thruput-syscall"
 version = "0.66.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6ab2c5fc8fc4f3e8404964c7068c5136b829214fe7cff75ba72b126d9f8783d"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fadmiring-pasteur-lnhsw3#c1f8c1b1a97a7d97bcf55956d77a97c331851751"
 
 [[package]]
 name = "thruput-test-vectors"
@@ -1328,8 +1326,7 @@ dependencies = [
 [[package]]
 name = "thruput-trace"
 version = "0.66.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d743d1eb569980fcd8d4c7548d9c06af1006084f9047d64685266ba151f30118"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fadmiring-pasteur-lnhsw3#c1f8c1b1a97a7d97bcf55956d77a97c331851751"
 dependencies = [
  "schemars",
  "thruput-xdr",
@@ -1350,8 +1347,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr"
 version = "0.66.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e66dcce8cae8710a08d02a7b44d74fe194715d185c977dd161433d9cc485d313"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fadmiring-pasteur-lnhsw3#c1f8c1b1a97a7d97bcf55956d77a97c331851751"
 dependencies = [
  "bs58",
  "schemars",
@@ -1389,8 +1385,7 @@ dependencies = [
 [[package]]
 name = "thruput-xdr-macros"
 version = "0.66.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "220b5ff17c77d4b00384bccd28068455fc4854f5879b44c986ad4adb832e3df6"
+source = "git+https://github.com/thruputchain/thruput-protocol-rs?branch=geoph%2Fadmiring-pasteur-lnhsw3#c1f8c1b1a97a7d97bcf55956d77a97c331851751"
 dependencies = [
  "proc-macro2",
  "quote",
