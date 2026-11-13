@@ -29,7 +29,6 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 | `fixtures-negative/` | Compile-fail guest fixtures; separate Cargo workspace |
 | `integration_test/` | Integration workspace; `contracts/` is a Git submodule |
 | `standard-interfaces/`, `standard-impls/`, `standard-tests/` | Standard interfaces, reusable implementations, and shared tests |
-| `logging-test/` | Logging build fixture; separate Cargo workspace |
 | `gnaw/` | CI task runner; separate Cargo workspace, run as `cargo gnaw` |
 | `scripts/`, `.github/workflows/` | Development commands and CI/release automation |
 

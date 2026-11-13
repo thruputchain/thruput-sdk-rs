@@ -117,7 +117,7 @@ remote = ["std", "dep:thruput-contract-util", "thruput-macros/remote"]
 source-build = ["thruput-native-exec?/source-build"]
 
 # Optional diagnostic features (not enabled by "dev")
-logging = ["thruput-macros/logging", "alloc"] # trace contract calls when testing
+logging = ["thruput-macros/logging"] # trace contract calls in native tests; no-op on the guest
 
 [[test]]
 name = "int128"

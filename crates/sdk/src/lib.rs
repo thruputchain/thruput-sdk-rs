@@ -25,6 +25,12 @@ pub extern crate xdrs as __xdrs;
 #[cfg(feature = "std")]
 extern crate std;
 
+// `debug_log!` prints through this path, so it also expands in a `no_std`
+// crate (such as an interface crate without `dev`) on the host.
+#[cfg(feature = "std")]
+#[doc(hidden)]
+pub extern crate std as __std;
+
 pub use thruput_contract_spec as contract_spec;
 #[doc(hidden)]
 pub use thruput_contract_spec as __contract_spec;

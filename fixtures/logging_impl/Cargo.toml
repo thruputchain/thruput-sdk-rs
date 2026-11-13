@@ -1,0 +1,36 @@
+[package]
+name = "logging_impl"
+description = "Contract for gnaw's fixtures:logging check: implements logging_if without forwarding dev to it"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+edition.workspace = true
+
+[features]
+entrypoints = []
+# Deliberately does not forward `dev` to logging_if: fixtures:logging needs
+# that crate to stay `no_std` on the host.
+dev = ["thruput-sdk/dev"]
+
+[lib]
+crate-type = ["rlib"]
+doctest = false
+test = false
+
+# The rv32 artifact, built by gnaw's fixtures:rv32 task.
+[[bin]]
+name = "logging_impl"
+path = "src/main.rs"
+required-features = ["entrypoints"]
+
+[dependencies]
+thruput-sdk = { workspace = true }
+logging_if = { path = "../logging_if" }
+
+[dev-dependencies]
+logging_impl = { path = ".", features = ["dev"] }

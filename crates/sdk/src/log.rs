@@ -17,7 +17,7 @@ pub fn log_str<S: AsRef<str>>(msg: S) {
 #[macro_export]
 macro_rules! debug_log {
     ($($arg:tt)*) => {
-        std::println!($($arg)*);
+        $crate::__std::println!($($arg)*);
     };
 }
 
