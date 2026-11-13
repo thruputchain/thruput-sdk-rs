@@ -47,14 +47,14 @@ jobs:
     runs-on: namespace-profile-hogd-linux-2604
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       # The submodule holds the integration workspace's members.
       - name: Initialize submodules
         run: git submodule update --init --recursive
 
       - name: Configure Namespace Cache
-        uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
+        uses: namespacelabs/nscloud-cache-action@1124a6f3ce44e5cf84cc22111530961f4d2a15f9 # v1.7.0
         with:
           path: |
             ~/.cargo/registry
@@ -66,7 +66,7 @@ jobs:
   workflow-lint:
     permissions:
       contents: read
-    uses: thruputchain/actions/.github/workflows/workflow-lint.yml@f1b1a2cb8c69bab5f24f5f9976d50b6a9ab548fc
+    uses: thruputchain/actions/.github/workflows/workflow-lint.yml@d5d241c3611578714646650d06cded86817e37f9
     with:
       lint-app-id: ${{ vars.PROTOCOL_SYNCHRONIZER_APP_ID }}
       runs-on: ubuntu-24.04
@@ -80,7 +80,7 @@ jobs:
     runs-on: namespace-profile-hogd-linux-2604
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       - uses: ./.github/actions/gnaw-setup
         with:
@@ -96,7 +96,7 @@ jobs:
     runs-on: namespace-profile-hogd-linux-2604
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       - uses: ./.github/actions/gnaw-setup
 
@@ -111,7 +111,7 @@ jobs:
     runs-on: namespace-profile-hogd-linux-2604
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       # Covers a source-pinned Thruput CLI (scripts/thruput-cli-version.sh).
       - name: Authenticate pinned CLI source
@@ -157,7 +157,7 @@ jobs:
           ssh-private-key: ${{ secrets.SDK_TO_GROUNDHOG_RPC }}
 
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       - name: Initialize submodules
         run: git submodule update --init --recursive
@@ -200,7 +200,7 @@ jobs:
             ${{ secrets.SDK_TO_METRICS_HISTORY }}
 
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       # Each tarball holds the build task's package list, which tells the
       # metric scripts which artifacts to read.

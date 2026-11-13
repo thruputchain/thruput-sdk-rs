@@ -81,7 +81,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: namespacelabs/nscloud-checkout-action@def520b6c21233362f09c9ceda4352c51cceca26 # v8
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
         with:
           persist-credentials: false
 
@@ -99,7 +99,7 @@ jobs:
           echo "packages=$packages" >> "$GITHUB_OUTPUT"
 
       - name: Yank
-        uses: thruputchain/actions/cargo-yank@3e0d08d054591a349331ab57fe72197d6ccc0cf3
+        uses: thruputchain/actions/cargo-yank@d5d241c3611578714646650d06cded86817e37f9
         with:
           version: ${{ inputs.version }}
           undo: ${{ inputs.undo }}
