@@ -50,19 +50,19 @@ categories = ["blockchain"]
 edition = "2024"
 
 [workspace.dependencies]
-thruput-sdk = { path = "../crates/sdk" , version = "=0.61.0" }
-thruput-domain-separator = { path = "../crates/domain-separator", version = "=0.61.0", default-features = false }
+thruput-sdk = { path = "../crates/sdk" , version = "=0.61.1" }
+thruput-domain-separator = { path = "../crates/domain-separator", version = "=0.61.1", default-features = false }
 
-thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", version = "=0.1.74" }
+thruput-erc20-if = { path = "../standard-interfaces/thruput-erc20", version = "=0.1.75" }
 
 # Keyed by the packages' former names, which the contracts submodule's
 # itc_erc20 still uses.
-erc20-test = { package = "thruput-erc20-test", path = "../standard-tests/erc20-test", version = "=0.61.0" }
-erc20-native-test = { package = "thruput-erc20-native-test", path = "../standard-tests/erc20-native-test", version = "=0.61.0" }
+erc20-test = { package = "thruput-erc20-test", path = "../standard-tests/erc20-test", version = "=0.61.1" }
+erc20-native-test = { package = "thruput-erc20-native-test", path = "../standard-tests/erc20-native-test", version = "=0.61.1" }
 
 # Dependencies from protocol-rs
-thruput-xdr = { version = "=0.66.0", features = ["xdrs", "syscalls"] }
-thruput-syscall = { version = "=0.66.0" }
+thruput-xdr = { version = "=0.66.1", features = ["xdrs", "syscalls"] }
+thruput-syscall = { version = "=0.66.1" }
 
 # External crates.io dependencies
 sha2 = { version = "0.11.0", default-features = false }
