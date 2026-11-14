@@ -4,9 +4,8 @@
 //! unaligned word access traps: memcpy alone is ~500 B, ~340 B of which is a
 //! shift-and-splice path for misaligned sources (plus a 16 B stack frame).
 //! The hogd VM permits unaligned scalar loads/stores (the contract rustflags
-//! set `-C target-feature=+unaligned-scalar-mem`), so word loops here use
-//! `read_unaligned`/`write_unaligned` and need no alignment handling at all:
-//! the hot loop is 5 instructions per 4 bytes at ANY alignment.
+//! set `-C target-feature=+unaligned-scalar-mem`), so the loops here use
+//! `read_unaligned`/`write_unaligned` and need no alignment handling at all.
 //! (Without `+unaligned-scalar-mem` — e.g. the publish-workflow rlib builds
 //! that use prebuilt core and no contract rustflags — each unaligned word
 //! access byte-expands: still correct, just not the fast path. The flag is
@@ -14,8 +13,17 @@
 //! rustflags.)
 //!
 //! These are strong definitions overriding compiler_builtins' weak symbols
-//! at link time. Gas = 1 per executed instruction on this VM, so the loops
-//! are written for minimal instruction count, not host-CPU tricks.
+//! at link time. Gas follows the instructions executed, so the forward copy
+//! and the fill run eight words per iteration: 19 instructions per 32 bytes
+//! to copy and 10 to fill, where one word per iteration takes 40 and 24.
+//! The loop overhead is what unrolling removes; the loads and stores remain.
+//! In the test executor a load costs 3 gas, a taken branch 2, and a store
+//! or an addition 1, so a block costs 36 gas to copy and 11 to fill. The
+//! `mem_intrinsics` fixture's rv32 test bounds both, and checks every
+//! routine against a byte-at-a-time model.
+//!
+//! Sizes: `memcpy` 176 B, `memset` 128 B, `memmove` 264 B. A contract links
+//! only the ones it calls.
 //!
 //! RECURSION GUARD: LLVM's loop-idiom recognition can lower copy/fill loops
 //! back into `memcpy`/`memset` calls — inside these functions that would be
@@ -34,12 +42,36 @@ use core::mem::MaybeUninit;
 // loop in the wrapper directly; the wrappers are the only exported symbols.
 // ---------------------------------------------------------------------------
 
-/// Strictly ascending word-then-byte copy. The ascending order is a load-
-/// bearing contract: `move_any` delegates overlapping `dst <= src` copies
-/// here, which is only correct because writes never overtake reads. Any
-/// rewrite that reorders writes (unrolling with reordering, a host-memcpy
-/// syscall with unspecified overlap semantics) must first stop `move_any`
-/// from delegating overlaps here.
+/// Bytes per iteration of the unrolled loops: eight words.
+const BLOCK: usize = 32;
+
+/// Copies the word at `off` from `s` to `d`, at any alignment.
+#[inline(always)]
+unsafe fn copy_word(
+    d: *mut MaybeUninit<u8>,
+    s: *const MaybeUninit<u8>,
+    off: usize,
+) {
+    unsafe {
+        // Copies must preserve uninitialized bytes, including struct padding.
+        d.add(off).cast::<MaybeUninit<u32>>().write_unaligned(
+            s.add(off).cast::<MaybeUninit<u32>>().read_unaligned(),
+        );
+    }
+}
+
+/// Strictly ascending copy: 32-byte blocks, then words, then bytes. The
+/// ascending order is a load-bearing contract: `move_any` delegates
+/// overlapping `dst < src` moves here, which is only correct because no
+/// write overtakes a read. That holds inside a block too: each word is
+/// loaded, then stored, lowest first. Any rewrite that reorders writes (a
+/// tail copied early, a host-memcpy syscall with unspecified overlap
+/// semantics) must first stop `move_any` from delegating overlaps here.
+///
+/// Each stage takes its bound from the pointer the stage before it left and
+/// from `n`. Bounds derived from `dst` instead make LLVM carry a second
+/// copy of the destination pointer through the loops, one more instruction
+/// per iteration.
 #[inline(always)]
 unsafe fn copy_forward(
     dst: *mut MaybeUninit<u8>,
@@ -47,18 +79,28 @@ unsafe fn copy_forward(
     n: usize,
 ) {
     unsafe {
-        // Copies must preserve uninitialized bytes, including struct padding.
         let mut d = dst;
         let mut s = src;
-        let word_end = d.add(n & !3);
+        let block_end = d.add(n & !(BLOCK - 1));
+        while d < block_end {
+            copy_word(d, s, 0);
+            copy_word(d, s, 4);
+            copy_word(d, s, 8);
+            copy_word(d, s, 12);
+            copy_word(d, s, 16);
+            copy_word(d, s, 20);
+            copy_word(d, s, 24);
+            copy_word(d, s, 28);
+            d = d.add(BLOCK);
+            s = s.add(BLOCK);
+        }
+        let word_end = d.add(n & (BLOCK - 4));
         while d < word_end {
-            d.cast::<MaybeUninit<u32>>().write_unaligned(
-                s.cast::<MaybeUninit<u32>>().read_unaligned(),
-            );
+            copy_word(d, s, 0);
             d = d.add(4);
             s = s.add(4);
         }
-        let end = dst.add(n);
+        let end = d.add(n & 3);
         while d < end {
             *d = *s;
             d = d.add(1);
@@ -67,7 +109,9 @@ unsafe fn copy_forward(
     }
 }
 
-/// Strictly descending word-then-byte copy, for `dst > src` overlaps.
+/// Strictly descending word-then-byte copy, for moves whose destination
+/// overlaps the source from above. Not unrolled: no contract in this
+/// repository reaches it, and the forward copy takes every other move.
 /// Pointer-bump form (the pointers are the induction variables): the indexed
 /// form costs a 6-insn word loop — LLVM recomputes dst+i and src+i every
 /// iteration instead of decrementing the pointers.
@@ -84,9 +128,7 @@ unsafe fn copy_backward(
         while d > word_stop {
             d = d.sub(4);
             s = s.sub(4);
-            d.cast::<MaybeUninit<u32>>().write_unaligned(
-                s.cast::<MaybeUninit<u32>>().read_unaligned(),
-            );
+            copy_word(d, s, 0);
         }
         while d > dst {
             d = d.sub(1);
@@ -104,29 +146,45 @@ unsafe fn move_any(
     n: usize,
 ) {
     unsafe {
-        if (dst as usize) <= (src as usize) {
-            // Covers dst == src and every forward-safe overlap (ascending
-            // writes never overtake the reads when the source is ahead).
+        // The distance wraps when `dst` is below `src`, to a value no valid
+        // length reaches. So this one comparison takes the forward copy for
+        // every move it is safe for: a destination below the source
+        // (ascending writes never overtake the reads), and a destination at
+        // or past the source's end (disjoint).
+        if (dst as usize).wrapping_sub(src as usize) >= n {
             copy_forward(dst, src, n);
         } else {
-            // dst overlaps src's tail: copy highest bytes first.
+            // dst overlaps src from above: copy highest bytes first.
             copy_backward(dst, src, n);
         }
     }
 }
 
-/// Word-granular fill; the fill byte is already truncated by the caller.
+/// Fill in 32-byte blocks, then words, then bytes; the fill byte is already
+/// truncated by the caller. Bounds follow `copy_forward`.
 #[inline(always)]
 unsafe fn fill(dst: *mut u8, byte: u8, n: usize) {
     unsafe {
         let word = u32::from_ne_bytes([byte; 4]);
         let mut d = dst;
-        let word_end = dst.add(n & !3);
+        let block_end = d.add(n & !(BLOCK - 1));
+        while d < block_end {
+            d.cast::<u32>().write_unaligned(word);
+            d.add(4).cast::<u32>().write_unaligned(word);
+            d.add(8).cast::<u32>().write_unaligned(word);
+            d.add(12).cast::<u32>().write_unaligned(word);
+            d.add(16).cast::<u32>().write_unaligned(word);
+            d.add(20).cast::<u32>().write_unaligned(word);
+            d.add(24).cast::<u32>().write_unaligned(word);
+            d.add(28).cast::<u32>().write_unaligned(word);
+            d = d.add(BLOCK);
+        }
+        let word_end = d.add(n & (BLOCK - 4));
         while d < word_end {
             d.cast::<u32>().write_unaligned(word);
             d = d.add(4);
         }
-        let end = dst.add(n);
+        let end = d.add(n & 3);
         while d < end {
             *d = byte;
             d = d.add(1);
@@ -142,7 +200,7 @@ unsafe fn fill(dst: *mut u8, byte: u8, n: usize) {
 // nightly-2026-07) cross-checks definitions of the runtime mem symbols the
 // standard library relies on and rejects mismatched pointer types.
 
-/// Forward copy, word-granular, any alignment. Hot loop: lw/sw/addi/addi/bltu.
+/// Forward copy, eight words per iteration, any alignment.
 /// C contract: overlapping ranges are the caller's UB; see `copy_forward` for
 /// the internal ascending-order invariant `memmove` relies on.
 #[cfg(target_arch = "riscv32")]
@@ -156,8 +214,8 @@ unsafe extern "C" fn memcpy(
     dst
 }
 
-/// Overlap-safe copy. Forward when `dst` is at or below `src`; backward
-/// (descending, cannot clobber unread source bytes) otherwise.
+/// Overlap-safe copy. Backward (descending, cannot clobber unread source
+/// bytes) when `dst` overlaps `src` from above; forward otherwise.
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn memmove(
@@ -169,7 +227,8 @@ unsafe extern "C" fn memmove(
     dst
 }
 
-/// Word-granular fill, any alignment. C semantics: fill value is `c as u8`.
+/// Fill, eight words per iteration, any alignment. C semantics: fill value
+/// is `c as u8`.
 #[cfg(target_arch = "riscv32")]
 #[unsafe(no_mangle)]
 unsafe extern "C" fn memset(
@@ -185,20 +244,28 @@ unsafe extern "C" fn memset(
 mod tests {
     use super::*;
 
-    /// Every test runs across all seam lengths 0..=9 (covers: empty,
-    /// byte-only, exact word, word+tail, multi-word).
-    const LENS: core::ops::RangeInclusive<usize> = 0..=9;
+    /// The longest length tested: two whole blocks, then every word count
+    /// below a block, then three bytes.
+    const MAX: usize = 3 * BLOCK - 1;
+
+    /// Every test runs across all seam lengths 0..=MAX (covers: empty,
+    /// byte-only, exact word, word+tail, exact block, block+words+tail,
+    /// multi-block).
+    const LENS: core::ops::RangeInclusive<usize> = 0..=MAX;
+
+    /// Overlap distances below, at and above a word and a block.
+    const DISTANCES: [usize; 7] = [1, 2, 3, 4, BLOCK - 1, BLOCK, BLOCK + 1];
 
     // Run under Miri: ordinary execution cannot detect uninitialized reads.
     #[test]
     fn copy_partially_initialized_disjoint() {
         for copy in [copy_forward, copy_backward] {
             for n in LENS {
-                let mut src = [MaybeUninit::<u8>::uninit(); 9];
+                let mut src = [MaybeUninit::<u8>::uninit(); MAX];
                 for i in (1..n).step_by(2) {
                     src[i].write(i as u8);
                 }
-                let mut dst = [MaybeUninit::new(0xCCu8); 11];
+                let mut dst = [MaybeUninit::new(0xCCu8); MAX + 2];
                 unsafe {
                     copy(dst.as_mut_ptr().add(1), src.as_ptr(), n);
                     for i in (1..n).step_by(2) {
@@ -215,23 +282,25 @@ mod tests {
 
     #[test]
     fn move_partially_initialized_overlaps() {
-        for src in 0..=4 {
-            for dst in 0..=4 {
-                for n in LENS {
-                    let mut buf = [MaybeUninit::<u8>::uninit(); 13];
-                    for i in (1..buf.len()).step_by(2) {
-                        buf[i].write(i as u8);
-                    }
-                    let ptr = buf.as_mut_ptr();
-                    unsafe {
-                        move_any(ptr.add(dst), ptr.add(src), n);
-                        for i in 0..n {
-                            if (src + i) % 2 == 1 {
-                                assert_eq!(
-                                    buf[dst + i].assume_init(),
-                                    (src + i) as u8
-                                );
-                            }
+        let offsets = DISTANCES
+            .iter()
+            .flat_map(|&k| [(0, k), (k, 0)])
+            .chain([(0, 0)]);
+        for (src, dst) in offsets {
+            for n in LENS {
+                let mut buf = [MaybeUninit::<u8>::uninit(); MAX + BLOCK + 1];
+                for i in (1..buf.len()).step_by(2) {
+                    buf[i].write(i as u8);
+                }
+                let ptr = buf.as_mut_ptr();
+                unsafe {
+                    move_any(ptr.add(dst), ptr.add(src), n);
+                    for i in 0..n {
+                        if (src + i) % 2 == 1 {
+                            assert_eq!(
+                                buf[dst + i].assume_init(),
+                                (src + i) as u8
+                            );
                         }
                     }
                 }
@@ -242,8 +311,8 @@ mod tests {
     #[test]
     fn copy_forward_disjoint() {
         for n in LENS {
-            let src: Vec<u8> = (10..19).collect();
-            let mut dst = vec![0u8; 9];
+            let src: Vec<u8> = (10..10 + MAX as u8).collect();
+            let mut dst = vec![0u8; MAX];
             unsafe {
                 copy_forward(dst.as_mut_ptr().cast(), src.as_ptr().cast(), n)
             };
@@ -255,8 +324,8 @@ mod tests {
     #[test]
     fn copy_backward_disjoint() {
         for n in LENS {
-            let src: Vec<u8> = (10..19).collect();
-            let mut dst = vec![0u8; 9];
+            let src: Vec<u8> = (10..10 + MAX as u8).collect();
+            let mut dst = vec![0u8; MAX];
             unsafe {
                 copy_backward(dst.as_mut_ptr().cast(), src.as_ptr().cast(), n)
             };
@@ -267,28 +336,51 @@ mod tests {
 
     #[test]
     fn move_any_forward_overlaps_all_distances() {
-        // dst < src overlap: shift a window left by k=1..=4 bytes.
-        for k in 1..=4usize {
+        // dst < src overlap: shift a window left by k bytes.
+        for k in DISTANCES {
             for n in LENS {
-                let mut buf: Vec<u8> = (0..(n + k) as u8).collect();
-                let want: Vec<u8> = buf[k..k + n].to_vec();
+                let before: Vec<u8> = (0..(n + k) as u8).collect();
+                let mut buf = before.clone();
                 let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
                 unsafe { move_any(ptr, ptr.add(k), n) };
-                assert_eq!(&buf[..n], &want[..], "k={k} n={n}");
+                assert_eq!(&buf[..n], &before[k..], "k={k} n={n}");
+                // The move's last k source bytes lie past its destination.
+                assert_eq!(&buf[n..], &before[n..], "k={k} n={n} tail");
             }
         }
     }
 
     #[test]
     fn move_any_backward_overlaps_all_distances() {
-        // dst > src overlap: shift a window right by k=1..=4 bytes.
-        for k in 1..=4usize {
+        // dst > src overlap: shift a window right by k bytes.
+        for k in DISTANCES {
             for n in LENS {
-                let mut buf: Vec<u8> = (0..(n + k) as u8).collect();
-                let want: Vec<u8> = buf[..n].to_vec();
+                let before: Vec<u8> = (0..(n + k) as u8).collect();
+                let mut buf = before.clone();
                 let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
                 unsafe { move_any(ptr.add(k), ptr, n) };
-                assert_eq!(&buf[k..k + n], &want[..], "k={k} n={n}");
+                assert_eq!(&buf[k..], &before[..n], "k={k} n={n}");
+                // The move's first k source bytes lie below its destination.
+                assert_eq!(
+                    &buf[..k.min(n)],
+                    &before[..k.min(n)],
+                    "k={k} n={n}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn move_any_disjoint_on_either_side() {
+        // Source and destination touch but do not overlap, in both orders.
+        for n in LENS {
+            for (src, dst) in [(0, n), (n, 0)] {
+                let before: Vec<u8> = (0..2 * n as u8).collect();
+                let mut buf = before.clone();
+                let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
+                unsafe { move_any(ptr.add(dst), ptr.add(src), n) };
+                assert_eq!(buf[dst..dst + n], before[src..src + n], "n={n}");
+                assert_eq!(buf[src..src + n], before[src..src + n], "n={n}");
             }
         }
     }
@@ -296,7 +388,7 @@ mod tests {
     #[test]
     fn move_any_exact_overlap_is_noop() {
         for n in LENS {
-            let mut buf: Vec<u8> = (0..9).collect();
+            let mut buf: Vec<u8> = (0..MAX as u8).collect();
             let want = buf.clone();
             let ptr = buf.as_mut_ptr().cast::<MaybeUninit<u8>>();
             unsafe { move_any(ptr, ptr, n) };
@@ -307,10 +399,16 @@ mod tests {
     #[test]
     fn fill_all_seams_and_truncation() {
         for n in LENS {
-            let mut dst = vec![0u8; 9];
-            unsafe { fill(dst.as_mut_ptr(), 0xAB, n) };
-            assert!(dst[..n].iter().all(|&b| b == 0xAB), "n={n}");
-            assert!(dst[n..].iter().all(|&b| b == 0), "n={n} wrote past end");
+            // Each alignment relative to a word.
+            for at in 0..4 {
+                let mut dst = vec![0u8; MAX + 4];
+                unsafe { fill(dst.as_mut_ptr().add(at), 0xAB, n) };
+                let (below, rest) = dst.split_at(at);
+                let (filled, above) = rest.split_at(n);
+                assert!(below.iter().all(|&b| b == 0), "n={n} at={at}");
+                assert!(filled.iter().all(|&b| b == 0xAB), "n={n} at={at}");
+                assert!(above.iter().all(|&b| b == 0), "n={n} at={at}");
+            }
         }
         // C semantics: `c as u8` truncation happens in the memset wrapper —
         // mirror the documented contract here.
