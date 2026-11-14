@@ -1,6 +1,6 @@
 [package]
 name = "thruput-erc20-if"
-version = "0.1.75"
+version = "0.1.76"
 edition.workspace = true
 publish.workspace = true
 exclude.workspace = true
@@ -21,7 +21,7 @@ entrypoints = []
 dev = ["thruput-sdk/dev", "dep:thiserror"]
 
 [dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "0.61.1" }
+thruput-sdk = { path = "../../crates/sdk", version = "0.61.2" }
 thiserror = { workspace = true, optional = true }
 thruput-xdr = { workspace = true }
 
@@ -29,7 +29,7 @@ thruput-xdr = { workspace = true }
 thruput-erc20-if = { path = ".", features = ["dev"] }
 
 [target.'cfg(not(target_arch = "riscv32"))'.dependencies]
-thruput-sdk = { path = "../../crates/sdk", version = "0.61.1", features = ["std"] }
+thruput-sdk = { path = "../../crates/sdk", version = "0.61.2", features = ["std"] }
 
 [lib]
 crate-type = ["rlib"]
