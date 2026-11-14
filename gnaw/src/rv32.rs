@@ -43,7 +43,7 @@ pub fn build(ctx: &mut Ctx, workspace: &Path, package: &str) -> Result {
     check_elf(ctx, package)
 }
 
-/// The dispatch, mem-override, and embedded-path checks for `package`.
+/// The dispatch, runtime-override, and embedded-path checks for `package`.
 pub fn check_elf(ctx: &mut Ctx, package: &str) -> Result {
     let path = elf_path(ctx.repo, package);
     let data = std::fs::read(&path).map_err(|e| {
@@ -54,6 +54,7 @@ pub fn check_elf(ctx: &mut Ctx, package: &str) -> Result {
         ctx.warn(format!("{package}: {warning}"));
     }
     elf::check_mem_symbols(&data).map_err(fail)?;
+    elf::check_div_symbols(&data).map_err(fail)?;
     let paths = elf::rs_paths(&data);
     if !paths.is_empty() {
         let mut failure = Failure::new("embedded .rs path strings");

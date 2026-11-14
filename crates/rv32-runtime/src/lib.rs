@@ -122,6 +122,12 @@ mod bump;
 #[cfg(any(target_arch = "riscv32", test))]
 mod mem;
 
+// Strong 64-bit and 128-bit division overrides (rv32), built on the native
+// 32-bit divide. Their bodies also compile for host unit tests; gated like
+// `mem`.
+#[cfg(any(target_arch = "riscv32", test))]
+mod div;
+
 // rv32-only: these define `#[panic_handler]`, naked asm, and linker-script
 // extern statics, none of which can compile on the host.
 #[cfg(target_arch = "riscv32")]

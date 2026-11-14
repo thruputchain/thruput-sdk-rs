@@ -69,11 +69,51 @@ pub fn check_dispatch(data: &[u8]) -> Result<Option<String>, String> {
 /// longer stops the bodies from recursing into themselves. No mem symbols at
 /// all is fine: nothing referenced them, and `--gc-sections` dropped them.
 pub fn check_mem_symbols(data: &[u8]) -> Result<(), String> {
+    check_overrides(
+        data,
+        &["memcpy", "memmove", "memset"],
+        // The current mangling of compiler_builtins' mem helpers.
+        "compiler_builtins3mem",
+    )
+}
+
+/// The rv32 runtime's 64-bit and 128-bit division overrides
+/// (`crates/rv32-runtime/src/div.rs`) won the link.
+///
+/// As for [`check_mem_symbols`]. `compiler_builtins`' fallbacks are correct
+/// but divide a bit at a time, so losing the override would show only as
+/// gas. No division symbols at all is fine: the contract divides nothing
+/// wider than 32 bits.
+pub fn check_div_symbols(data: &[u8]) -> Result<(), String> {
+    check_overrides(
+        data,
+        &[
+            "__udivdi3",
+            "__umoddi3",
+            "__divdi3",
+            "__moddi3",
+            "__udivti3",
+            "__umodti3",
+            "__divti3",
+            "__modti3",
+        ],
+        // The current mangling of compiler_builtins' division helpers.
+        "compiler_builtins3int19specialized_div_rem",
+    )
+}
+
+/// None of `names` is a WEAK definition, and no symbol's name contains
+/// `fallback`, the mangled path of the `compiler_builtins` code that the
+/// runtime's definitions of `names` replace.
+fn check_overrides(
+    data: &[u8],
+    names: &[&str],
+    fallback: &str,
+) -> Result<(), String> {
     let file = parse(data)?;
     for symbol in file.symbols() {
         let Ok(name) = symbol.name() else { continue };
-        let is_mem = matches!(name, "memcpy" | "memmove" | "memset");
-        if is_mem
+        if names.contains(&name)
             && symbol.kind() == SymbolKind::Text
             && symbol.is_definition()
             && symbol.is_weak()
@@ -82,10 +122,9 @@ pub fn check_mem_symbols(data: &[u8]) -> Result<(), String> {
                 "WEAK {name} linked: the compiler_builtins fallback won"
             ));
         }
-        // The current mangling of compiler_builtins' mem helpers.
-        if name.contains("compiler_builtins3mem") {
+        if name.contains(fallback) {
             return Err(format!(
-                "compiler_builtins mem symbol {name} present: the override \
+                "compiler_builtins symbol {name} present: the override \
                  was not applied"
             ));
         }

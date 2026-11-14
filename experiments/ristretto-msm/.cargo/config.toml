@@ -8,6 +8,7 @@ rustflags = [
 [target.riscv32im-unknown-none-elf]
 rustflags = [
     "-C", "target-feature=+unaligned-scalar-mem,+relax",
+    "-C", "llvm-args=-expand-div-rem-bits=128",
     "-C", "link-arg=-Tthruput-rv32.ld",
     "-C", "link-arg=-static",
     "-C", "link-arg=--no-dynamic-linker",

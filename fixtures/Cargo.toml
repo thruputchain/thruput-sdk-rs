@@ -85,6 +85,7 @@ members = [
     "missing_contract_macro",
     "unknown_method",
     "custom_allocator",
+    "int_division",
     "logging_if",
     "logging_impl",
     # Built only by scripts/bigint-bench.sh (34 rv32 variants); its
