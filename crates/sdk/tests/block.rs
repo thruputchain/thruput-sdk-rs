@@ -131,3 +131,30 @@ fn advance_block_at_refuses_to_go_backwards() {
     let now = read_block_timepoint(&env, &address);
     env.advance_block_at(&now - Duration::from_nanos(1));
 }
+
+#[test]
+fn later_blocks_continue_from_a_pinned_timepoint() {
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    let address =
+        thruput_sdk::ContractAddress::named("block_timepoint_continues");
+
+    // Pin three days ahead. A plain advance afterwards neither falls back to
+    // the wall clock, which would move behind the pinned block, nor jumps
+    // again: it continues from the pinned time.
+    const THREE_DAYS: Duration = Duration::from_hours(72);
+    let pinned = &read_block_timepoint(&env, &address) + THREE_DAYS;
+    env.advance_block_at(pinned.clone());
+
+    env.advance_block();
+    let next = read_block_timepoint(&env, &address);
+    assert!(next >= pinned, "{} < {}", *next, *pinned);
+    assert!(
+        next < &pinned + Duration::from_hours(1),
+        "{} jumped past {}",
+        *next,
+        *pinned
+    );
+
+    env.advance_block();
+    assert!(read_block_timepoint(&env, &address) >= next);
+}
