@@ -737,6 +737,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mem_intrinsics"
+version = "0.4.0"
+dependencies = [
+ "mem_intrinsics",
+ "thruput-sdk",
+]
+
+[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
