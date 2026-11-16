@@ -1112,3 +1112,53 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod block_clock_tests {
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    use super::BlockClock;
+
+    const NOW: u64 = 1_760_000_000_000_000_000;
+    const HOUR: u64 = 60 * 60 * 1_000_000_000;
+
+    fn at(nanos: u64) -> SystemTime {
+        UNIX_EPOCH + Duration::from_nanos(nanos)
+    }
+
+    #[test]
+    fn before_any_pin_the_host_reads_the_wall_clock() {
+        assert_eq!(BlockClock::default().next(at(NOW)), None);
+    }
+
+    #[test]
+    fn after_a_pin_blocks_advance_by_the_elapsed_wall_clock_time() {
+        let mut clock = BlockClock::default();
+        clock.pin(NOW + 72 * HOUR, at(NOW));
+
+        // Seven nanoseconds of wall-clock time later, the next block is seven
+        // nanoseconds past the pinned time: it neither freezes nor falls back.
+        assert_eq!(clock.next(at(NOW + 7)), Some(NOW + 72 * HOUR + 7));
+        assert_eq!(clock.next(at(NOW + HOUR)), Some(NOW + 73 * HOUR));
+    }
+
+    #[test]
+    fn a_block_never_moves_behind_the_one_before_it() {
+        let mut clock = BlockClock::default();
+        clock.pin(NOW + HOUR, at(NOW));
+        clock.advanced(NOW + 2 * HOUR);
+
+        // The wall clock implies NOW + HOUR + 5, but the last block was later.
+        assert_eq!(clock.next(at(NOW + 5)), Some(NOW + 2 * HOUR));
+        // Once the clock passes the last block, it leads again.
+        assert_eq!(clock.next(at(NOW + 2 * HOUR)), Some(NOW + 3 * HOUR));
+    }
+
+    #[test]
+    fn a_wall_clock_step_back_keeps_the_last_block() {
+        let mut clock = BlockClock::default();
+        clock.pin(NOW + HOUR, at(NOW));
+
+        assert_eq!(clock.next(at(NOW - HOUR)), Some(NOW + HOUR));
+    }
+}
