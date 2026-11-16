@@ -14,8 +14,12 @@
 //! rustflags.)
 //!
 //! These are strong definitions overriding compiler_builtins' weak symbols
-//! at link time. Gas = 1 per executed instruction on this VM, so the loops
-//! are written for minimal instruction count, not host-CPU tricks.
+//! at link time. Gas follows the instructions executed, so the loops are
+//! written for minimal instruction count, not host-CPU tricks: five per
+//! word to copy and three to fill. In the test executor a load costs 3 gas,
+//! a taken branch 2, and a store or an addition 1, so a word costs 8 gas to
+//! copy and 4 to fill. The `mem_intrinsics` fixture's rv32 test bounds
+//! both, and checks every routine against a byte-at-a-time model.
 //!
 //! RECURSION GUARD: LLVM's loop-idiom recognition can lower copy/fill loops
 //! back into `memcpy`/`memset` calls — inside these functions that would be
@@ -40,6 +44,10 @@ use core::mem::MaybeUninit;
 /// rewrite that reorders writes (unrolling with reordering, a host-memcpy
 /// syscall with unspecified overlap semantics) must first stop `move_any`
 /// from delegating overlaps here.
+///
+/// The byte tail takes its bound from the pointer the word loop left. A
+/// bound from `dst` makes LLVM carry a second copy of the destination
+/// pointer through the word loop: one more instruction per word.
 #[inline(always)]
 unsafe fn copy_forward(
     dst: *mut MaybeUninit<u8>,
@@ -58,7 +66,7 @@ unsafe fn copy_forward(
             d = d.add(4);
             s = s.add(4);
         }
-        let end = dst.add(n);
+        let end = d.add(n & 3);
         while d < end {
             *d = *s;
             d = d.add(1);
@@ -116,6 +124,7 @@ unsafe fn move_any(
 }
 
 /// Word-granular fill; the fill byte is already truncated by the caller.
+/// The byte tail's bound follows `copy_forward`, for the same reason.
 #[inline(always)]
 unsafe fn fill(dst: *mut u8, byte: u8, n: usize) {
     unsafe {
@@ -126,7 +135,7 @@ unsafe fn fill(dst: *mut u8, byte: u8, n: usize) {
             d.cast::<u32>().write_unaligned(word);
             d = d.add(4);
         }
-        let end = dst.add(n);
+        let end = d.add(n & 3);
         while d < end {
             *d = byte;
             d = d.add(1);
