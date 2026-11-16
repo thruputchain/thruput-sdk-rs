@@ -96,8 +96,8 @@ The last command needs the integration submodule. Builds use the flags in
 [the fixtures workspace config](fixtures/.cargo/config.toml) and its
 [integration counterpart](integration_test/.cargo/config.toml), and write
 lowered artifacts and specs under `target/thruput/`. Each build also checks
-the linked ELF: the dispatch table, the runtime's `memcpy` override, and that
-no source paths are embedded.
+the linked ELF: the dispatch table, the runtime's `memcpy` and division
+overrides, and that no source paths are embedded.
 
 Some CI checks need more tools: `rg` (ripgrep) for the annotation check, and
 `strings` for the storage-registry check. The benchmark and metrics scripts
