@@ -138,9 +138,7 @@ fn later_blocks_continue_from_a_pinned_timepoint() {
     let address =
         thruput_sdk::ContractAddress::named("block_timepoint_continues");
 
-    // Pin three days ahead. A plain advance afterwards neither falls back to
-    // the wall clock, which would move behind the pinned block, nor jumps
-    // again: it continues from the pinned time.
+    // Pin three days ahead; a plain advance should continue from there.
     const THREE_DAYS: Duration = Duration::from_hours(72);
     let pinned = &read_block_timepoint(&env, &address) + THREE_DAYS;
     env.advance_block_at(pinned.clone());

@@ -56,13 +56,9 @@ pub(crate) struct TestEnvironmentInner {
     clock: BlockClock,
 }
 
-/// The timepoint of each new block once a test has pinned one.
-///
-/// Until [`TestEnvironmentInner::advance_block_at`] runs, the host stamps each
-/// block from the wall clock. After it, later blocks continue from the pinned
-/// time -- the pinned timepoint plus the wall-clock time elapsed since -- and
-/// never move behind the block before them, as on a local node. Falling back
-/// to the wall clock would move behind a block pinned in the future.
+/// After a pin, blocks continue from the pinned time plus the elapsed
+/// wall-clock time, and never move backwards. Before one, the host uses the
+/// wall clock.
 #[derive(Debug, Default)]
 struct BlockClock {
     pinned: Option<PinnedClock>,
