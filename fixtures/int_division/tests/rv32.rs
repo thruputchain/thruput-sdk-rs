@@ -1,0 +1,85 @@
+//! The rv32 artifact, and with it the runtime's 64-bit
+//! division: results against host arithmetic, and gas per division.
+//!
+//! Requires the lowered `int_division` artifact:
+//! `cargo gnaw build int_division` writes it.
+
+mod common;
+use common::*;
+use int_division::IntDivisionClient;
+use thruput_sdk::*;
+
+// Test working directory is the example contract directory.
+const RV32_PATH: &str = "../../target/thruput/int_division.rv32a";
+
+static NONCE: SHA256Hash = sha256_static!("INT_DIVISION_NONCE");
+
+/// Deploys the artifact and runs `test` against its client.
+fn with_client(
+    test: impl FnOnce(&IntDivisionClient) + std::panic::UnwindSafe,
+) {
+    let contract = load_rv32_contract(RV32_PATH);
+    let env = TestEnvironment::no_cost();
+    let hash = env.setup_create_contract(&contract);
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&NONCE, &hash);
+            test(&IntDivisionClient::new(&addr));
+        })
+    })
+    .assert_success();
+}
+
+#[test]
+fn rv32_op64_matches_host_arithmetic() {
+    with_client(|c| {
+        for kind in KINDS {
+            for a in OPERANDS_64 {
+                for b in OPERANDS_64 {
+                    // `None` is the signed quotient that overflows.
+                    let Some(expected) = op64(kind, a, b) else {
+                        continue;
+                    };
+                    assert_eq!(
+                        c.op64(kind, a, b, 1),
+                        expected,
+                        "kind={kind} a={a:#x} b={b:#x}"
+                    );
+                }
+            }
+        }
+    });
+}
+
+/// Gas for one more division, measured between two round counts. The
+/// figure includes the loop around the division: a few instructions that
+/// move the operands and the result through memory.
+fn gas_per_division(call: impl Fn(u32)) -> u64 {
+    const FEW: u32 = 100;
+    const MANY: u32 = 300;
+    let gas = |rounds: u32| {
+        let before = stats::gas_remaining();
+        call(rounds);
+        before - stats::gas_remaining()
+    };
+    (gas(MANY) - gas(FEW)) / (MANY - FEW) as u64
+}
+
+// The bound is about one and a half times what the runtime's routine
+// costs. compiler_builtins' division takes about 670 gas for these
+// operands.
+
+#[test]
+fn rv32_u64_division_by_two_limbs_is_bounded() {
+    with_client(|c| {
+        let gas = gas_per_division(|rounds| {
+            c.op64(
+                UNSIGNED_QUOTIENT,
+                0xFEDC_BA98_7654_3210,
+                0x1_0000_0001,
+                rounds,
+            );
+        });
+        assert!(gas <= 330, "u64 division: {gas} gas");
+    });
+}

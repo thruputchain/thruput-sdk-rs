@@ -671,6 +671,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "int_division"
+version = "0.4.0"
+dependencies = [
+ "int_division",
+ "thruput-sdk",
+]
+
+[[package]]
 name = "invoke_flags_test"
 version = "0.4.0"
 dependencies = [

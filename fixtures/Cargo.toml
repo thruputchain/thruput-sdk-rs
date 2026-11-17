@@ -85,6 +85,7 @@ members = [
     "missing_contract_macro",
     "unknown_method",
     "custom_allocator",
+    "int_division",
     "mem_intrinsics",
     "logging_if",
     "logging_impl",
