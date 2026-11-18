@@ -8,6 +8,7 @@ use core::ffi::c_void;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use thruput_storage_cost::StorageCostModel;
 use thruput_sys::FFIErrorCode;
 use thruput_trace::ffi_enums::InvokeErrorCode;
@@ -52,6 +53,56 @@ pub(crate) struct TestEnvironmentInner {
     pub(crate) contract_context: RuntimeContextWrapper,
     mock_contract_index: i32,
     contracts: Vec<*mut MockContractInner>, // owns these contracts
+    clock: BlockClock,
+}
+
+/// After a pin, blocks continue from the pinned time plus the elapsed
+/// wall-clock time, and never move backwards. Before one, the host uses the
+/// wall clock.
+#[derive(Debug, Default)]
+struct BlockClock {
+    pinned: Option<PinnedClock>,
+}
+
+#[derive(Debug)]
+struct PinnedClock {
+    offset_nanos: i128,
+    last: u64,
+}
+
+impl BlockClock {
+    /// The timepoint for the next block, or `None` to let the host read the
+    /// wall clock.
+    fn next(&self, now: SystemTime) -> Option<u64> {
+        self.pinned.as_ref().map(|pinned| {
+            let shifted = unix_nanos(now).saturating_add(pinned.offset_nanos);
+            u64::try_from(shifted.max(0))
+                .unwrap_or(u64::MAX)
+                .max(pinned.last)
+        })
+    }
+
+    fn pin(&mut self, timepoint: u64, now: SystemTime) {
+        self.pinned = Some(PinnedClock {
+            offset_nanos: i128::from(timepoint) - unix_nanos(now),
+            last: timepoint,
+        });
+    }
+
+    fn advanced(&mut self, timepoint: u64) {
+        if let Some(pinned) = &mut self.pinned {
+            pinned.last = timepoint;
+        }
+    }
+}
+
+fn unix_nanos(now: SystemTime) -> i128 {
+    match now.duration_since(UNIX_EPOCH) {
+        Ok(since) => i128::try_from(since.as_nanos()).unwrap_or(i128::MAX),
+        Err(before) => {
+            -i128::try_from(before.duration().as_nanos()).unwrap_or(i128::MAX)
+        }
+    }
 }
 
 /// An in-process Thruput instance for testing contracts natively.
@@ -323,6 +374,7 @@ impl TestEnvironmentInner {
             contract_context: RuntimeContextWrapper::new(),
             mock_contract_index: 0,
             contracts: vec![],
+            clock: BlockClock::default(),
         }
     }
 
@@ -451,20 +503,29 @@ impl TestEnvironmentInner {
     /// Only the transactions that were successfully committed will be visible to the next block.
     /// An error may occur if there are any transactions that executed but did not commit or abort.
     ///
-    /// The new block takes its timepoint from the wall clock. Use
-    /// [`TestEnvironmentInner::advance_block_at`] to pin one instead.
+    /// The new block takes its timepoint from the wall clock. After
+    /// [`TestEnvironmentInner::advance_block_at`], it continues from the
+    /// pinned time instead.
     pub fn advance_block(&mut self) {
-        self.advance_block_inner(std::ptr::null())
+        match self.clock.next(SystemTime::now()) {
+            None => self.advance_block_inner(std::ptr::null()),
+            Some(timepoint) => {
+                self.advance_block_inner(&timepoint);
+                self.clock.advanced(timepoint);
+            }
+        }
     }
 
     /// Advances to the next block as [`TestEnvironmentInner::advance_block`]
     /// does, but pins the new block's timepoint rather than reading the clock.
+    /// Later blocks continue from it.
     ///
     /// Blocks only move forward in time: `block_timepoint` must be at or after
     /// the open block's, and the host refuses an earlier one.
     pub fn advance_block_at(&mut self, block_timepoint: TimePoint) {
         let raw: u64 = block_timepoint.into_inner();
-        self.advance_block_inner(&raw)
+        self.advance_block_inner(&raw);
+        self.clock.pin(raw, SystemTime::now());
     }
 
     fn advance_block_inner(&mut self, block_timepoint: *const u64) {
@@ -694,7 +755,8 @@ impl TestEnvironment {
     /// `thruput_sdk::block::get_block_timepoint` reports a plausible
     /// present-day value that moves between blocks. Use `advance_block_at` to
     /// drive contract logic keyed on time -- deadlines, expiry, vesting, rate
-    /// limits.
+    /// limits. After `advance_block_at`, later blocks continue from the pinned
+    /// time instead of falling back to the wall clock.
     ///
     /// The SDK path is a plain code span, not an intra-doc link:
     /// `thruput-sdk` depends on this crate, not the other way round, so there
@@ -705,6 +767,7 @@ impl TestEnvironment {
 
     /// Advance to the next block with its timepoint pinned to
     /// `block_timepoint` (Unix nanoseconds) rather than read from the clock.
+    /// Later blocks continue from it, as on a local node.
     ///
     /// Blocks only move forward in time, so this panics if `block_timepoint`
     /// precedes the current block's. Note the environment opens its first
@@ -1043,5 +1106,55 @@ mod tests {
                 bytestring: b"hello".to_vec().try_into().unwrap(),
             }),
         );
+    }
+}
+
+#[cfg(test)]
+mod block_clock_tests {
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    use super::BlockClock;
+
+    const NOW: u64 = 1_760_000_000_000_000_000;
+    const HOUR: u64 = 60 * 60 * 1_000_000_000;
+
+    fn at(nanos: u64) -> SystemTime {
+        UNIX_EPOCH + Duration::from_nanos(nanos)
+    }
+
+    #[test]
+    fn before_any_pin_the_host_reads_the_wall_clock() {
+        assert_eq!(BlockClock::default().next(at(NOW)), None);
+    }
+
+    #[test]
+    fn after_a_pin_blocks_advance_by_the_elapsed_wall_clock_time() {
+        let mut clock = BlockClock::default();
+        clock.pin(NOW + 72 * HOUR, at(NOW));
+
+        // Seven nanoseconds of wall-clock time later, the next block is seven
+        // nanoseconds past the pinned time: it neither freezes nor falls back.
+        assert_eq!(clock.next(at(NOW + 7)), Some(NOW + 72 * HOUR + 7));
+        assert_eq!(clock.next(at(NOW + HOUR)), Some(NOW + 73 * HOUR));
+    }
+
+    #[test]
+    fn a_block_never_moves_behind_the_one_before_it() {
+        let mut clock = BlockClock::default();
+        clock.pin(NOW + HOUR, at(NOW));
+        clock.advanced(NOW + 2 * HOUR);
+
+        // The wall clock implies NOW + HOUR + 5, but the last block was later.
+        assert_eq!(clock.next(at(NOW + 5)), Some(NOW + 2 * HOUR));
+        // Once the clock passes the last block, it leads again.
+        assert_eq!(clock.next(at(NOW + 2 * HOUR)), Some(NOW + 3 * HOUR));
+    }
+
+    #[test]
+    fn a_wall_clock_step_back_keeps_the_last_block() {
+        let mut clock = BlockClock::default();
+        clock.pin(NOW + HOUR, at(NOW));
+
+        assert_eq!(clock.next(at(NOW - HOUR)), Some(NOW + HOUR));
     }
 }

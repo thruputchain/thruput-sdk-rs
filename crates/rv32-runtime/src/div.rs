@@ -479,6 +479,107 @@ mod tests {
 
     const KINDS: [u32; 4] = [0, REM, SIGNED, SIGNED | REM];
 
+    /// What the host computes, or `None` where the language itself
+    /// refuses: a zero divisor, or the signed quotient that overflows.
+    /// Compiled code never passes those operands to a libcall.
+    fn native(n: u64, d: u64, flags: u32) -> Option<u64> {
+        match (flags & SIGNED != 0, flags & REM != 0) {
+            (false, false) => n.checked_div(d),
+            (false, true) => n.checked_rem(d),
+            (true, false) => {
+                (n as i64).checked_div(d as i64).map(|q| q as u64)
+            }
+            (true, true) => (n as i64).checked_rem(d as i64).map(|r| r as u64),
+        }
+    }
+
+    fn check(n: u64, d: u64) {
+        for flags in KINDS {
+            if let Some(expected) = native(n, d, flags) {
+                assert_eq!(
+                    divrem64(n, d, flags),
+                    expected,
+                    "n={n:#x} d={d:#x} flags={flags}"
+                );
+            }
+        }
+    }
+
+    /// Limb values at the boundaries the routines branch on.
+    const LIMBS: [u32; 8] = [
+        0,
+        1,
+        0xFFFF,
+        0x0001_0000,
+        0x7FFF_FFFF,
+        0x8000_0000,
+        0xFFFF_FFFE,
+        0xFFFF_FFFF,
+    ];
+
+    /// xorshift64: deterministic operands without a dependency.
+    struct Rng(u64);
+
+    impl Rng {
+        /// A value of exactly `bits` significant bits.
+        fn sized(&mut self, bits: u32) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            (self.0 | 1 << 63) >> (64 - bits)
+        }
+    }
+
+    #[test]
+    fn matches_native_at_limb_boundaries() {
+        for n1 in LIMBS {
+            for n0 in LIMBS {
+                for d1 in LIMBS {
+                    for d0 in LIMBS {
+                        check(
+                            (n1 as u64) << 32 | n0 as u64,
+                            (d1 as u64) << 32 | d0 as u64,
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn takes_the_estimate_correction() {
+        // Estimates one and two too large.
+        check(0x1_0000_0000, 0x1_0000_0001);
+        check(0x2_0000_0001, 0x1_0000_0001);
+        check(0x8000_0000_0000_0000, 0x8000_0000_FFFF_FFFF);
+        check(0x8000_0000_0000_0000, 0x8000_0000_0000_0001);
+        check(0xFFFF_FFFE_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
+        // Signed operands at the extremes.
+        check(1 << 63, 1);
+        check(1 << 63, 1 << 63);
+        check(u64::MAX, 1 << 63);
+    }
+
+    // Too slow under Miri: the two tests above cover the same code there.
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn matches_native_at_every_width() {
+        let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+        for n_bits in 1..=64 {
+            for d_bits in 1..=64 {
+                for _ in 0..16 {
+                    let (n, d) = (rng.sized(n_bits), rng.sized(d_bits));
+                    check(n, d);
+                    // Both signs, by magnitude.
+                    check(n.wrapping_neg(), d);
+                    check(n, d.wrapping_neg());
+                }
+            }
+        }
+    }
+
+    // The 128-bit routines.
+
     fn wide(x: u128) -> Wide {
         [
             x as u32,
@@ -495,20 +596,7 @@ mod tests {
             | (x[3] as u128) << 96
     }
 
-    /// What the host computes, or `None` where the language itself
-    /// refuses: a zero divisor, or the signed quotient that overflows.
-    /// Compiled code never passes those operands to a libcall.
-    fn native64(n: u64, d: u64, flags: u32) -> Option<u64> {
-        match (flags & SIGNED != 0, flags & REM != 0) {
-            (false, false) => n.checked_div(d),
-            (false, true) => n.checked_rem(d),
-            (true, false) => {
-                (n as i64).checked_div(d as i64).map(|q| q as u64)
-            }
-            (true, true) => (n as i64).checked_rem(d as i64).map(|r| r as u64),
-        }
-    }
-
+    /// [`native`] for 128-bit operands.
     fn native128(n: u128, d: u128, flags: u32) -> Option<u128> {
         match (flags & SIGNED != 0, flags & REM != 0) {
             (false, false) => n.checked_div(d),
@@ -518,18 +606,6 @@ mod tests {
             }
             (true, true) => {
                 (n as i128).checked_rem(d as i128).map(|r| r as u128)
-            }
-        }
-    }
-
-    fn check64(n: u64, d: u64) {
-        for flags in KINDS {
-            if let Some(expected) = native64(n, d, flags) {
-                assert_eq!(
-                    divrem64(n, d, flags),
-                    expected,
-                    "n={n:#x} d={d:#x} flags={flags}"
-                );
             }
         }
     }
@@ -548,51 +624,27 @@ mod tests {
         }
     }
 
-    /// Limb values at the boundaries the routines branch on.
-    const LIMBS: [u32; 6] =
+    /// Six of [`LIMBS`]: pairing eight limbs takes 1.7 million divisions
+    /// with six values each, and ten times that with eight.
+    const WIDE_LIMBS: [u32; 6] =
         [0, 1, 0x0001_0000, 0x7FFF_FFFF, 0x8000_0000, 0xFFFF_FFFF];
 
-    /// xorshift64: deterministic operands without a dependency.
-    struct Rng(u64);
-
     impl Rng {
-        fn next(&mut self) -> u64 {
-            self.0 ^= self.0 << 13;
-            self.0 ^= self.0 >> 7;
-            self.0 ^= self.0 << 17;
-            self.0
-        }
-
-        /// A value of exactly `bits` significant bits.
-        fn sized(&mut self, bits: u32) -> u128 {
-            let x = (self.next() as u128) << 64 | self.next() as u128;
-            (x | 1 << 127) >> (128 - bits)
+        /// A 128-bit value of exactly `bits` significant bits.
+        fn wide(&mut self, bits: u32) -> u128 {
+            let x = (self.sized(64) as u128) << 64 | self.sized(64) as u128;
+            x >> (128 - bits)
         }
     }
 
-    #[test]
-    fn div64_matches_native_at_limb_boundaries() {
-        for n1 in LIMBS {
-            for n0 in LIMBS {
-                for d1 in LIMBS {
-                    for d0 in LIMBS {
-                        check64(
-                            (n1 as u64) << 32 | n0 as u64,
-                            (d1 as u64) << 32 | d0 as u64,
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    // Too slow under Miri: the next test covers the same code there.
+    // Too slow under Miri: `div128_matches_native_at_sampled_widths`
+    // covers the same code there.
     #[test]
     #[cfg_attr(miri, ignore)]
     fn div128_matches_native_at_limb_boundaries() {
         let mut index = [0usize; 8];
         loop {
-            let limb = |i: usize| LIMBS[index[i]];
+            let limb = |i: usize| WIDE_LIMBS[index[i]];
             check128(
                 join([limb(0), limb(1), limb(2), limb(3)]),
                 join([limb(4), limb(5), limb(6), limb(7)]),
@@ -600,7 +652,7 @@ mod tests {
             let mut i = 0;
             while i < 8 {
                 index[i] += 1;
-                if index[i] < LIMBS.len() {
+                if index[i] < WIDE_LIMBS.len() {
                     break;
                 }
                 index[i] = 0;
@@ -637,54 +689,31 @@ mod tests {
     }
 
     #[test]
-    fn div64_takes_the_estimate_correction() {
-        // Estimates one and two too large.
-        check64(0x1_0000_0000, 0x1_0000_0001);
-        check64(0x2_0000_0001, 0x1_0000_0001);
-        check64(0x8000_0000_0000_0000, 0x8000_0000_FFFF_FFFF);
-        check64(0x8000_0000_0000_0000, 0x8000_0000_0000_0001);
-        check64(0xFFFF_FFFE_FFFF_FFFF, 0xFFFF_FFFF_FFFF_FFFF);
-        // Signed operands at the extremes.
-        check64(1 << 63, 1);
-        check64(1 << 63, 1 << 63);
-        check64(u64::MAX, 1 << 63);
-    }
-
-    #[test]
     #[cfg_attr(miri, ignore)]
-    fn matches_native_at_every_width() {
-        let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+    fn div128_matches_native_at_every_width() {
+        let mut rng = Rng(0x2545_F491_4F6C_DD1D);
         for n_bits in 1..=128 {
             for d_bits in 1..=128 {
                 for _ in 0..4 {
-                    let (n, d) = (rng.sized(n_bits), rng.sized(d_bits));
+                    let (n, d) = (rng.wide(n_bits), rng.wide(d_bits));
                     check128(n, d);
                     // Both signs, by magnitude.
                     check128(n.wrapping_neg(), d);
                     check128(n, d.wrapping_neg());
-                    if n_bits <= 64 && d_bits <= 64 {
-                        check64(n as u64, d as u64);
-                        check64((n as u64).wrapping_neg(), d as u64);
-                        check64(n as u64, (d as u64).wrapping_neg());
-                    }
                 }
             }
         }
     }
 
     #[test]
-    fn matches_native_at_sampled_widths() {
+    fn div128_matches_native_at_sampled_widths() {
         // The width sweep above, thinned for Miri.
-        let mut rng = Rng(0x2545_F491_4F6C_DD1D);
+        let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
         for n_bits in [1, 31, 33, 64, 65, 97, 128] {
             for d_bits in [1, 16, 17, 32, 33, 64, 65, 96, 97, 128] {
-                let (n, d) = (rng.sized(n_bits), rng.sized(d_bits));
+                let (n, d) = (rng.wide(n_bits), rng.wide(d_bits));
                 check128(n, d);
                 check128(n.wrapping_neg(), d.wrapping_neg());
-                if n_bits <= 64 && d_bits <= 64 {
-                    check64(n as u64, d as u64);
-                    check64((n as u64).wrapping_neg(), d as u64);
-                }
             }
         }
     }
