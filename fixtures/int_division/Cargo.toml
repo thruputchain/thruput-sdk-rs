@@ -1,6 +1,6 @@
 [package]
 name = "int_division"
-description = "A contract that divides 64-bit integers"
+description = "A contract that divides 64-bit and 128-bit integers"
 version.workspace = true
 authors.workspace = true
 license.workspace = true

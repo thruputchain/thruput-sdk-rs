@@ -25,6 +25,18 @@ pub fn op64(kind: u32, a: u64, b: u64) -> Option<u64> {
     }
 }
 
+/// What `IntDivision::op128` returns; see [`op64`].
+pub fn op128(kind: u32, a: u128, b: u128) -> Option<u128> {
+    match kind {
+        UNSIGNED_QUOTIENT => a.checked_div(b),
+        UNSIGNED_REMAINDER => a.checked_rem(b),
+        SIGNED_QUOTIENT => {
+            (a as i128).checked_div(b as i128).map(|q| q as u128)
+        }
+        _ => (a as i128).checked_rem(b as i128).map(|r| r as u128),
+    }
+}
+
 /// 64-bit operands at the limb and half-limb boundaries, with both signs.
 pub const OPERANDS_64: [u64; 20] = [
     1,
@@ -47,4 +59,34 @@ pub const OPERANDS_64: [u64; 20] = [
     0xFFFF_FFFF_0000_0000,
     0xFFFF_FFFF_FFFF_FFFE,
     0xFFFF_FFFF_FFFF_FFFF,
+];
+
+/// 128-bit operands at the limb boundaries, with both signs. The pairs
+/// include every correction the 128-bit division can take: an estimate
+/// capped at a limb's maximum, and one that overshoots and is added back.
+pub const OPERANDS_128: [u128; 24] = [
+    1,
+    7,
+    10_000,
+    0xFFFF_FFFF,
+    0x1_0000_0001,
+    1_000_000_000_000_000_000,
+    0xFFFF_FFFF_FFFF_FFFF,
+    1 << 64,
+    (1 << 64) + 1,
+    (1 << 64) + 2,
+    2 << 64,
+    (1 << 95) + 12345,
+    1 << 96,
+    (1 << 96) + 1,
+    (1 << 96) + 2,
+    2 << 96,
+    0x7FFF_FFFF_8000_0000_0000_0000_0000_0000,
+    0x8000_0000_0000_0000_0000_0001,
+    u128::MAX / 3,
+    0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF,
+    1 << 127,
+    (1 << 127) + 1,
+    u128::MAX - 1,
+    u128::MAX,
 ];

@@ -39,4 +39,16 @@ impl IntDivision {
             _ => repeat(rounds, a, b, |a, b| (a as i64 % b as i64) as u64),
         }
     }
+
+    /// [`op64`](Self::op64) for 128-bit operands.
+    pub fn op128(kind: u32, a: u128, b: u128, rounds: u32) -> u128 {
+        match kind {
+            UNSIGNED_QUOTIENT => repeat(rounds, a, b, |a, b| a / b),
+            UNSIGNED_REMAINDER => repeat(rounds, a, b, |a, b| a % b),
+            SIGNED_QUOTIENT => {
+                repeat(rounds, a, b, |a, b| (a as i128 / b as i128) as u128)
+            }
+            _ => repeat(rounds, a, b, |a, b| (a as i128 % b as i128) as u128),
+        }
+    }
 }

@@ -1,4 +1,4 @@
-//! The rv32 artifact, and with it the runtime's 64-bit
+//! The rv32 artifact, and with it the runtime's 64-bit and 128-bit
 //! division: results against host arithmetic, and gas per division.
 //!
 //! Requires the lowered `int_division` artifact:
@@ -51,6 +51,26 @@ fn rv32_op64_matches_host_arithmetic() {
     });
 }
 
+#[test]
+fn rv32_op128_matches_host_arithmetic() {
+    with_client(|c| {
+        for kind in KINDS {
+            for a in OPERANDS_128 {
+                for b in OPERANDS_128 {
+                    let Some(expected) = op128(kind, a, b) else {
+                        continue;
+                    };
+                    assert_eq!(
+                        c.op128(kind, a, b, 1),
+                        expected,
+                        "kind={kind} a={a:#x} b={b:#x}"
+                    );
+                }
+            }
+        }
+    });
+}
+
 /// Gas for one more division, measured between two round counts. The
 /// figure includes the loop around the division: a few instructions that
 /// move the operands and the result through memory.
@@ -65,9 +85,10 @@ fn gas_per_division(call: impl Fn(u32)) -> u64 {
     (gas(MANY) - gas(FEW)) / (MANY - FEW) as u64
 }
 
-// The bound is about one and a half times what the runtime's routine
-// costs. compiler_builtins' division takes about 670 gas for these
-// operands.
+// Each bound is between one and a half and two times what the runtime's
+// routine costs. The code these replaced cost several times the bound:
+// compiler_builtins' 64-bit division takes about 670 gas for the operands
+// below, and LLVM's inline 128-bit division 6,400 to 10,000.
 
 #[test]
 fn rv32_u64_division_by_two_limbs_is_bounded() {
@@ -81,5 +102,70 @@ fn rv32_u64_division_by_two_limbs_is_bounded() {
             );
         });
         assert!(gas <= 330, "u64 division: {gas} gas");
+    });
+}
+
+#[test]
+fn rv32_u128_division_by_a_small_constant_is_bounded() {
+    with_client(|c| {
+        let gas = gas_per_division(|rounds| {
+            c.op128(UNSIGNED_QUOTIENT, u128::MAX / 3, 10_000, rounds);
+        });
+        assert!(gas <= 400, "u128 division by 10,000: {gas} gas");
+    });
+}
+
+#[test]
+fn rv32_u128_division_by_two_limbs_is_bounded() {
+    with_client(|c| {
+        let gas = gas_per_division(|rounds| {
+            c.op128(
+                UNSIGNED_QUOTIENT,
+                u128::MAX / 3,
+                1_000_000_000_000_000_000,
+                rounds,
+            );
+        });
+        assert!(gas <= 1200, "u128 division by 10^18: {gas} gas");
+    });
+}
+
+#[test]
+fn rv32_i128_division_of_positive_amounts_is_bounded() {
+    with_client(|c| {
+        let gas = gas_per_division(|rounds| {
+            c.op128(
+                SIGNED_QUOTIENT,
+                u128::MAX / 3,
+                1_000_000_000_000_000_000,
+                rounds,
+            );
+        });
+        assert!(gas <= 1200, "i128 division by 10^18: {gas} gas");
+    });
+}
+
+#[test]
+fn rv32_zero_divisor_and_overflowing_quotient_still_trap() {
+    with_client(|c| {
+        // The language checks both before it divides, whatever the
+        // profile's `overflow-checks` says, so the routines never see
+        // these operands. The contract profile turns `overflow-checks` off.
+        for kind in KINDS {
+            assert!(c.try_op64(kind, 7, 0, 1).is_err(), "u64 kind={kind}");
+            assert!(c.try_op128(kind, 7, 0, 1).is_err(), "u128 kind={kind}");
+        }
+        for kind in [SIGNED_QUOTIENT, SIGNED_REMAINDER] {
+            assert!(
+                c.try_op64(kind, 1 << 63, u64::MAX, 1).is_err(),
+                "i64 kind={kind}"
+            );
+            assert!(
+                c.try_op128(kind, 1 << 127, u128::MAX, 1).is_err(),
+                "i128 kind={kind}"
+            );
+        }
+        // The contract still answers after each failed call.
+        assert_eq!(c.op64(UNSIGNED_QUOTIENT, 7, 2, 1), 3);
     });
 }

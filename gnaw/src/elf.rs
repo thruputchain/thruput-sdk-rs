@@ -77,7 +77,7 @@ pub fn check_mem_symbols(data: &[u8]) -> Result<(), String> {
     )
 }
 
-/// The rv32 runtime's 64-bit division overrides
+/// The rv32 runtime's 64-bit and 128-bit division overrides
 /// (`crates/rv32-runtime/src/div.rs`) won the link.
 ///
 /// As for [`check_mem_symbols`]. `compiler_builtins`' fallbacks are correct
@@ -87,7 +87,16 @@ pub fn check_mem_symbols(data: &[u8]) -> Result<(), String> {
 pub fn check_div_symbols(data: &[u8]) -> Result<(), String> {
     check_overrides(
         data,
-        &["__udivdi3", "__umoddi3", "__divdi3", "__moddi3"],
+        &[
+            "__udivdi3",
+            "__umoddi3",
+            "__divdi3",
+            "__moddi3",
+            "__udivti3",
+            "__umodti3",
+            "__divti3",
+            "__modti3",
+        ],
         // The current mangling of compiler_builtins' division helpers.
         "compiler_builtins3int19specialized_div_rem",
     )

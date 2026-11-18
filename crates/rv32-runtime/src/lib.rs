@@ -122,7 +122,7 @@ mod bump;
 #[cfg(any(target_arch = "riscv32", test))]
 mod mem;
 
-// Strong 64-bit division overrides (rv32), built on the native
+// Strong 64-bit and 128-bit division overrides (rv32), built on the native
 // 32-bit divide. Their bodies also compile for host unit tests; gated like
 // `mem`.
 #[cfg(any(target_arch = "riscv32", test))]

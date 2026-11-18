@@ -1,4 +1,4 @@
-//! A contract whose methods divide 64-bit integers the caller
+//! A contract whose methods divide 64-bit and 128-bit integers the caller
 //! chooses.
 //!
 //! RV32IM divides 32-bit values natively. Wider divisions call the routines
