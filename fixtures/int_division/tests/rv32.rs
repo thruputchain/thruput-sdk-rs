@@ -144,3 +144,28 @@ fn rv32_i128_division_of_positive_amounts_is_bounded() {
         assert!(gas <= 1200, "i128 division by 10^18: {gas} gas");
     });
 }
+
+#[test]
+fn rv32_zero_divisor_and_overflowing_quotient_still_trap() {
+    with_client(|c| {
+        // The language checks both before it divides, whatever the
+        // profile's `overflow-checks` says, so the routines never see
+        // these operands. The contract profile turns `overflow-checks` off.
+        for kind in KINDS {
+            assert!(c.try_op64(kind, 7, 0, 1).is_err(), "u64 kind={kind}");
+            assert!(c.try_op128(kind, 7, 0, 1).is_err(), "u128 kind={kind}");
+        }
+        for kind in [SIGNED_QUOTIENT, SIGNED_REMAINDER] {
+            assert!(
+                c.try_op64(kind, 1 << 63, u64::MAX, 1).is_err(),
+                "i64 kind={kind}"
+            );
+            assert!(
+                c.try_op128(kind, 1 << 127, u128::MAX, 1).is_err(),
+                "i128 kind={kind}"
+            );
+        }
+        // The contract still answers after each failed call.
+        assert_eq!(c.op64(UNSIGNED_QUOTIENT, 7, 2, 1), 3);
+    });
+}
