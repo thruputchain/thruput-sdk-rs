@@ -660,7 +660,9 @@ fn verify_hogd_version(
     let expected_tag = format!("test-ffi-v{version}");
 
     let output = Command::new("git")
-        .args(["tag", "--points-at", "HEAD"])
+        // --no-column: `column.ui=always` would otherwise put several tags
+        // on one line, even when the output is not a terminal.
+        .args(["tag", "--no-column", "--points-at", "HEAD"])
         .current_dir(hogd_src)
         .output()?;
 
