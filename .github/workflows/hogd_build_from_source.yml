@@ -9,7 +9,8 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-# No job here uses GITHUB_TOKEN; read is all they need.
+# Default for every job. `build` does not use GITHUB_TOKEN; `notify` widens
+# its own token to file the issue.
 permissions:
   contents: read
 
@@ -86,3 +87,26 @@ jobs:
       - name: ccache stats
         if: always()
         run: ccache --show-stats
+
+  # Files an issue labelled `ci-failure` for each failed build on main, for a
+  # scheduled agent to pick up.
+  notify:
+    name: File failure issue
+    needs: build
+    if: failure() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write # create the label and file the issue
+    steps:
+      - name: File issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create ci-failure --force --color b60205 \
+            --description "A CI workflow failed on main"
+          gh issue create --label ci-failure \
+            --title "$WORKFLOW failed on main at ${GITHUB_SHA::7}" \
+            --body "$WORKFLOW failed on main at $GITHUB_SHA: $RUN_URL"
