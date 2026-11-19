@@ -9,7 +9,8 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-# No job here uses GITHUB_TOKEN; read is all they need.
+# Default for every job. `build` does not use GITHUB_TOKEN; `notify` widens
+# its own token to manage the tracking issue.
 permissions:
   contents: read
 
@@ -86,3 +87,163 @@ jobs:
       - name: ccache stats
         if: always()
         run: ccache --show-stats
+
+  # Tracks this check's health on main in one issue labelled `ci-failure`. A
+  # failed run opens the issue, or comments on the open one. The next passing
+  # run closes it. Scheduled agents pick up open `ci-failure` issues, so the
+  # body names the failed job, step, and reproduce command.
+  notify:
+    name: Track main failures in an issue
+    needs: build
+    # always() so this also runs when build fails. The script ignores a
+    # cancelled or skipped build.
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read # list the run's failed jobs and steps
+      issues: write # open, comment on, and close the issue; create the label
+    # One at a time, so two failing runs cannot both open an issue.
+    concurrency:
+      group: ${{ github.workflow }}-ci-failure-issue
+      cancel-in-progress: false
+    # The script is inline under `shell: python` so that actionlint's pyflakes
+    # integration analyses it.
+    steps:
+      - name: Open, update, or close the tracking issue
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          REPRODUCE: >-
+            HOGD_FFI_BUILD=1 CC=clang CXX=clang++
+            cargo build -p thruput-sys --features source-build
+        run: |
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          LABEL = "ci-failure"
+          PER_PAGE = 100
+          PAGE_CAP = 20
+
+          API = os.environ["GITHUB_API_URL"].rstrip("/")
+          SERVER = os.environ["GITHUB_SERVER_URL"]
+          REPO = os.environ["GITHUB_REPOSITORY"]
+          TOKEN = os.environ["GH_TOKEN"]
+          RUN_ID = os.environ["GITHUB_RUN_ID"]
+          ATTEMPT = os.environ["GITHUB_RUN_ATTEMPT"]
+          SHA = os.environ["GITHUB_SHA"]
+          RESULT = os.environ["BUILD_RESULT"]
+          WORKFLOW = os.environ["WORKFLOW_NAME"]
+          TITLE = "{} failing on main".format(WORKFLOW)
+
+          RUN_URL = "{}/{}/actions/runs/{}".format(SERVER, REPO, RUN_ID)
+          COMMIT_URL = "{}/{}/commit/{}".format(SERVER, REPO, SHA)
+
+          def call(path, data=None, method=None):
+              if method is None:
+                  method = "GET" if data is None else "POST"
+              request = urllib.request.Request(
+                  "{}/repos/{}/{}".format(API, REPO, path),
+                  data=None if data is None else json.dumps(data).encode(),
+                  headers={
+                      "Authorization": "Bearer " + TOKEN,
+                      "Accept": "application/vnd.github+json",
+                      "Content-Type": "application/json",
+                  },
+                  method=method,
+              )
+              with urllib.request.urlopen(request) as response:
+                  return json.load(response)
+
+          def find_open_issue():
+              # The label filter keeps this to one page in practice. The title
+              # match lets other workflows share the label. The endpoint also
+              # returns pull requests.
+              for page in range(1, PAGE_CAP + 1):
+                  batch = call(
+                      "issues?state=open&labels={}&per_page={}&page={}".format(
+                          LABEL, PER_PAGE, page
+                      )
+                  )
+                  for issue in batch:
+                      if "pull_request" not in issue and issue["title"] == TITLE:
+                          return issue["number"]
+                  if len(batch) < PER_PAGE:
+                      return None
+              print("::warning::gave up after {} pages; may open a duplicate".format(PAGE_CAP))
+              return None
+
+          def ensure_label():
+              try:
+                  call("labels/" + LABEL)
+              except urllib.error.HTTPError as error:
+                  if error.code != 404:
+                      raise
+                  call("labels", {
+                      "name": LABEL,
+                      "color": "b60205",
+                      "description": "A CI workflow is failing on main",
+                  })
+
+          def failed_jobs():
+              jobs = call(
+                  "actions/runs/{}/attempts/{}/jobs?per_page={}".format(
+                      RUN_ID, ATTEMPT, PER_PAGE
+                  )
+              )["jobs"]
+              lines = []
+              for job in jobs:
+                  if job["conclusion"] != "failure":
+                      continue
+                  steps = [
+                      "`{}`".format(step["name"])
+                      for step in job.get("steps") or []
+                      if step["conclusion"] == "failure"
+                  ]
+                  lines.append("- [{}]({}): {}".format(
+                      job["name"], job["html_url"],
+                      ", ".join(steps) or "no failed step reported",
+                  ))
+              return lines or ["- none reported"]
+
+          existing = find_open_issue()
+
+          if RESULT == "success":
+              if existing is None:
+                  print("Passing, and no open issue to close")
+              else:
+                  print("Closing issue #{}".format(existing))
+                  call("issues/{}/comments".format(existing), {
+                      "body": "Passing again at {} in {}.".format(COMMIT_URL, RUN_URL),
+                  })
+                  call(
+                      "issues/{}".format(existing),
+                      {"state": "closed", "state_reason": "completed"},
+                      "PATCH",
+                  )
+          elif RESULT == "failure":
+              body = (
+                  "`{}` failed on `main` at {}.\n\n"
+                  "Run: {} (attempt {})\n\n"
+                  "Failed jobs and steps:\n{}\n\n"
+                  "Reproduce locally:\n\n"
+                  "    {}\n"
+              ).format(
+                  WORKFLOW, COMMIT_URL, RUN_URL, ATTEMPT,
+                  "\n".join(failed_jobs()), os.environ["REPRODUCE"],
+              )
+              if existing is not None:
+                  print("Commenting on existing issue #{}".format(existing))
+                  call("issues/{}/comments".format(existing), {"body": body})
+              else:
+                  print("Opening new issue")
+                  ensure_label()
+                  body += (
+                      "\nThis issue closes when the workflow next passes on `main`.\n"
+                  )
+                  call("issues", {"title": TITLE, "body": body, "labels": [LABEL]})
+          else:
+              print("build result is '{}'; nothing to do".format(RESULT))
