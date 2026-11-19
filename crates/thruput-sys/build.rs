@@ -647,7 +647,11 @@ fn fetch_hogd_rust_deps(
     Ok(())
 }
 
-/// Verify that the hogd checkout has the correct release tag.
+/// Verify that the hogd checkout is at the expected release tag.
+///
+/// One hogd commit can carry several tags. For example, `test-ffi-v0.44.2`
+/// and `v0.1.34` name the same commit. Accept the checkout when any tag at
+/// HEAD matches: `git describe --exact-match` reports only one of them.
 #[cfg(feature = "source-build")]
 fn verify_hogd_version(
     hogd_src: &str,
@@ -656,11 +660,22 @@ fn verify_hogd_version(
     let expected_tag = format!("test-ffi-v{version}");
 
     let output = Command::new("git")
-        .args(["describe", "--tags", "--exact-match"])
+        .args(["tag", "--points-at", "HEAD"])
         .current_dir(hogd_src)
         .output()?;
 
     if !output.status.success() {
+        return Err(format!(
+            "Failed to list the tags at HEAD in the hogd checkout {hogd_src}:\n{}",
+            String::from_utf8_lossy(&output.stderr).trim(),
+        )
+        .into());
+    }
+
+    let stdout = String::from_utf8(output.stdout)?;
+    let tags: Vec<&str> = stdout.lines().collect();
+
+    if tags.is_empty() {
         return Err(format!(
             "hogd checkout is not at a release tag. Expected tag: {expected_tag}\n\
              Please checkout the correct tag in the hogd checkout:\n\
@@ -669,20 +684,19 @@ fn verify_hogd_version(
         .into());
     }
 
-    let current_tag = String::from_utf8(output.stdout)?.trim().to_string();
-
-    if current_tag != expected_tag {
+    if !tags.contains(&expected_tag.as_str()) {
         return Err(format!(
             "hogd checkout version mismatch.\n\
              Expected tag: {expected_tag}\n\
-             Current tag:  {current_tag}\n\
+             Tags at HEAD: {}\n\
              Please checkout the correct tag:\n\
              cd {hogd_src} && git checkout {expected_tag}",
+            tags.join(", "),
         )
         .into());
     }
 
-    println!("cargo:warning=hogd version verified: {current_tag}");
+    println!("cargo:warning=hogd version verified: {expected_tag}");
     Ok(())
 }
 
