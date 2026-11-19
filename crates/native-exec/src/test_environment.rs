@@ -8,7 +8,7 @@ use core::ffi::c_void;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use thruput_storage_cost::StorageCostModel;
 use thruput_sys::FFIErrorCode;
 use thruput_trace::ffi_enums::InvokeErrorCode;
@@ -59,9 +59,17 @@ pub(crate) struct TestEnvironmentInner {
 /// After a pin, blocks continue from the pinned time plus the elapsed
 /// wall-clock time, and never move backwards. Before one, the host uses the
 /// wall clock.
+///
+/// With a fixed step, a block takes the previous block's timepoint plus the
+/// step instead, as on a local node. The environment cannot read the open
+/// block's timepoint from the host, so the first block after a step is set
+/// with nothing pinned takes the wall clock explicitly, and later blocks
+/// step from it. Each stepped block also realigns the offset, so clearing
+/// the step continues from the last block rather than from the wall clock.
 #[derive(Debug, Default)]
 struct BlockClock {
     pinned: Option<PinnedClock>,
+    step: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -74,12 +82,24 @@ impl BlockClock {
     /// The timepoint for the next block, or `None` to let the host read the
     /// wall clock.
     fn next(&self, now: SystemTime) -> Option<u64> {
-        self.pinned.as_ref().map(|pinned| {
-            let shifted = unix_nanos(now).saturating_add(pinned.offset_nanos);
-            u64::try_from(shifted.max(0))
-                .unwrap_or(u64::MAX)
-                .max(pinned.last)
-        })
+        match (self.step, self.pinned.as_ref()) {
+            (Some(step), Some(pinned)) => {
+                Some(pinned.last.saturating_add(step))
+            }
+            (Some(_), None) => {
+                Some(u64::try_from(unix_nanos(now).max(0)).unwrap_or(u64::MAX))
+            }
+            (None, Some(pinned)) => {
+                let shifted =
+                    unix_nanos(now).saturating_add(pinned.offset_nanos);
+                Some(
+                    u64::try_from(shifted.max(0))
+                        .unwrap_or(u64::MAX)
+                        .max(pinned.last),
+                )
+            }
+            (None, None) => None,
+        }
     }
 
     fn pin(&mut self, timepoint: u64, now: SystemTime) {
@@ -89,8 +109,10 @@ impl BlockClock {
         });
     }
 
-    fn advanced(&mut self, timepoint: u64) {
-        if let Some(pinned) = &mut self.pinned {
+    fn advanced(&mut self, timepoint: u64, now: SystemTime) {
+        if self.step.is_some() {
+            self.pin(timepoint, now);
+        } else if let Some(pinned) = &mut self.pinned {
             pinned.last = timepoint;
         }
     }
@@ -507,13 +529,28 @@ impl TestEnvironmentInner {
     /// [`TestEnvironmentInner::advance_block_at`], it continues from the
     /// pinned time instead.
     pub fn advance_block(&mut self) {
-        match self.clock.next(SystemTime::now()) {
+        let now = SystemTime::now();
+        match self.clock.next(now) {
             None => self.advance_block_inner(std::ptr::null()),
             Some(timepoint) => {
                 self.advance_block_inner(&timepoint);
-                self.clock.advanced(timepoint);
+                self.clock.advanced(timepoint, now);
             }
         }
+    }
+
+    /// Gives blocks from [`TestEnvironmentInner::advance_block`] the previous
+    /// block's timepoint plus `step` instead of the wall clock; `None` follows
+    /// the wall clock again. See
+    /// [`TestEnvironmentHandle::set_block_time_step`].
+    pub fn set_block_time_step(&mut self, step: Option<Duration>) {
+        self.clock.step = step.map(|step| {
+            u64::try_from(step.as_nanos()).unwrap_or_else(|_| {
+                panic!(
+                    "block time step {step:?} does not fit in u64 nanoseconds"
+                )
+            })
+        });
     }
 
     /// Advances to the next block as [`TestEnvironmentInner::advance_block`]
@@ -779,6 +816,25 @@ impl TestEnvironment {
         block_timepoint: TimePoint,
     ) {
         self.inner.borrow_mut().advance_block_at(block_timepoint)
+    }
+
+    /// Give each block from `advance_block` the previous block's timepoint
+    /// plus `step`, instead of the wall clock, as `thruput node
+    /// --block-time-step-ms` and `dev_setBlockTimeStep` do on a local node.
+    /// `Some(Duration::ZERO)` freezes the clock: every block until the next
+    /// `advance_block_at` carries the same timepoint. `None` follows the wall
+    /// clock again, continuing from the last block rather than from today.
+    ///
+    /// `advance_block_at` still pins a block's exact timepoint, and stepping
+    /// continues from it. With nothing pinned yet, the first block after a
+    /// step is set takes the wall clock, and later blocks step from it.
+    ///
+    /// Panics if `step` does not fit in u64 nanoseconds (about 584 years).
+    pub fn set_block_time_step(
+        self: &TestEnvironmentHandle,
+        step: Option<Duration>,
+    ) {
+        self.inner.borrow_mut().set_block_time_step(step)
     }
 
     /// The storage cost model the environment's database is running with.
@@ -1142,7 +1198,7 @@ mod block_clock_tests {
     fn a_block_never_moves_behind_the_one_before_it() {
         let mut clock = BlockClock::default();
         clock.pin(NOW + HOUR, at(NOW));
-        clock.advanced(NOW + 2 * HOUR);
+        clock.advanced(NOW + 2 * HOUR, at(NOW));
 
         // The wall clock implies NOW + HOUR + 5, but the last block was later.
         assert_eq!(clock.next(at(NOW + 5)), Some(NOW + 2 * HOUR));
@@ -1156,5 +1212,59 @@ mod block_clock_tests {
         clock.pin(NOW + HOUR, at(NOW));
 
         assert_eq!(clock.next(at(NOW - HOUR)), Some(NOW + HOUR));
+    }
+
+    fn stepped(step: u64) -> BlockClock {
+        BlockClock {
+            step: Some(step),
+            ..BlockClock::default()
+        }
+    }
+
+    #[test]
+    fn a_step_follows_the_last_block_not_the_wall_clock() {
+        let mut clock = stepped(HOUR);
+        clock.pin(NOW, at(NOW));
+        let next = clock.next(at(NOW + 9 * HOUR)).unwrap();
+        assert_eq!(next, NOW + HOUR);
+        clock.advanced(next, at(NOW + 9 * HOUR));
+        assert_eq!(clock.next(at(NOW + 99 * HOUR)), Some(NOW + 2 * HOUR));
+    }
+
+    #[test]
+    fn a_zero_step_freezes_the_clock() {
+        let mut clock = stepped(0);
+        clock.pin(NOW, at(NOW));
+        for wall in [NOW, NOW + 1, NOW + HOUR] {
+            assert_eq!(clock.next(at(wall)), Some(NOW));
+            clock.advanced(NOW, at(wall));
+        }
+    }
+
+    #[test]
+    fn without_a_pin_a_step_starts_from_an_explicit_wall_clock_reading() {
+        // The host would read the wall clock itself, but then the environment
+        // could not step from that block; it states the reading instead.
+        let mut clock = stepped(0);
+        let first = clock.next(at(NOW)).unwrap();
+        assert_eq!(first, NOW);
+        clock.advanced(first, at(NOW));
+        assert_eq!(clock.next(at(NOW + HOUR)), Some(NOW));
+    }
+
+    #[test]
+    fn clearing_the_step_continues_from_the_last_block() {
+        let mut clock = stepped(0);
+        clock.pin(NOW + 72 * HOUR, at(NOW));
+        clock.advanced(NOW + 72 * HOUR, at(NOW + HOUR));
+        clock.step = None;
+        assert_eq!(clock.next(at(NOW + HOUR + 9)), Some(NOW + 72 * HOUR + 9));
+    }
+
+    #[test]
+    fn a_step_saturates_instead_of_wrapping() {
+        let mut clock = stepped(u64::MAX);
+        clock.pin(NOW, at(NOW));
+        assert_eq!(clock.next(at(NOW)), Some(u64::MAX));
     }
 }
