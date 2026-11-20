@@ -84,11 +84,6 @@ impl DomainSeparatorRepr<'_> {
     }
 }
 
-/// Computes the CXS-encoded size of a [`DomainSeparatorRepr`].
-pub(crate) const fn prefix_size(repr: &DomainSeparatorRepr) -> usize {
-    repr.const_cxs_size()
-}
-
 /// CXS-encodes a [`DomainSeparatorRepr`] into a fixed `[u8; N]`.
 pub(crate) const fn prefix_bytes<const N: usize>(
     repr: &DomainSeparatorRepr,
@@ -98,100 +93,36 @@ pub(crate) const fn prefix_bytes<const N: usize>(
     w.into_bytes()
 }
 
-// --- Separators -------------------------------------------------------------
-//
-// Each separator is three consts: the mirror value, its CXS size, and the
-// encoded bytes. Declaring one by hand is a few lines; if enough of them
-// accumulate to want a macro, note that a `macro_rules!` would force
-// `DomainSeparatorRepr` and the two helpers above to be `pub` again (macros
-// expand at the call site), which is why there isn't one for a single
-// separator.
-
-const PUBKEY_ACCOUNT_NAME: &[u8] = b"PubkeyAccount";
-
-const _: () = ::core::assert!(
-    PUBKEY_ACCOUNT_NAME.len() <= 256,
-    "domain separator name exceeds BytesM<256>"
-);
-
-const PUBKEY_ACCOUNT_REPR: DomainSeparatorRepr<'static> =
-    DomainSeparatorRepr {
-        ext: 0,
-        name: PUBKEY_ACCOUNT_NAME,
-    };
-
-const PUBKEY_ACCOUNT_N: usize = prefix_size(&PUBKEY_ACCOUNT_REPR);
-
-const PUBKEY_ACCOUNT_BYTES: [u8; PUBKEY_ACCOUNT_N] =
-    prefix_bytes::<PUBKEY_ACCOUNT_N>(&PUBKEY_ACCOUNT_REPR);
+// Each invocation owns a static array sized for its encoded name.
+macro_rules! domain_separator {
+    ($name:literal) => {{
+        const REPR: DomainSeparatorRepr<'static> = DomainSeparatorRepr {
+            ext: 0,
+            name: $name,
+        };
+        const _: () = assert!(
+            REPR.name.len() <= 256,
+            "domain separator name exceeds BytesM<256>"
+        );
+        const BYTES: [u8; REPR.const_cxs_size()] = prefix_bytes(&REPR);
+        DomainSeparator::from_cxs_bytes(&BYTES)
+    }};
+}
 
 /// Domain separator for pubkey account address derivation (`"PubkeyAccount"`).
 pub const PUBKEY_ACCOUNT: DomainSeparator =
-    DomainSeparator::from_cxs_bytes(&PUBKEY_ACCOUNT_BYTES);
-
-const PUBLIC_KEY_NAME: &[u8] = b"PublicKey";
-
-const _: () = ::core::assert!(
-    PUBLIC_KEY_NAME.len() <= 256,
-    "domain separator name exceeds BytesM<256>"
-);
-
-const PUBLIC_KEY_REPR: DomainSeparatorRepr<'static> = DomainSeparatorRepr {
-    ext: 0,
-    name: PUBLIC_KEY_NAME,
-};
-
-const PUBLIC_KEY_N: usize = prefix_size(&PUBLIC_KEY_REPR);
-
-const PUBLIC_KEY_BYTES: [u8; PUBLIC_KEY_N] =
-    prefix_bytes::<PUBLIC_KEY_N>(&PUBLIC_KEY_REPR);
+    domain_separator!(b"PubkeyAccount");
 
 /// Domain separator for public key hashes (`"PublicKey"`): a `PublicKeyHash`
 /// is `sha256( cxs(DomainSeparator("PublicKey")) || cxs(PublicKey) )`, so it
 /// commits to the key's scheme as well as its bytes.
-pub const PUBLIC_KEY: DomainSeparator =
-    DomainSeparator::from_cxs_bytes(&PUBLIC_KEY_BYTES);
-
-const TRANSACTION_NAME: &[u8] = b"Transaction";
-
-const _: () = ::core::assert!(
-    TRANSACTION_NAME.len() <= 256,
-    "domain separator name exceeds BytesM<256>"
-);
-
-const TRANSACTION_REPR: DomainSeparatorRepr<'static> = DomainSeparatorRepr {
-    ext: 0,
-    name: TRANSACTION_NAME,
-};
-
-const TRANSACTION_N: usize = prefix_size(&TRANSACTION_REPR);
-
-const TRANSACTION_BYTES: [u8; TRANSACTION_N] =
-    prefix_bytes::<TRANSACTION_N>(&TRANSACTION_REPR);
+pub const PUBLIC_KEY: DomainSeparator = domain_separator!(b"PublicKey");
 
 /// Domain separator for transaction signature preimages (`"Transaction"`).
 ///
 /// Unlike [`PUBKEY_ACCOUNT`] this one prefixes a message that is signed
 /// directly rather than hashed; see `transaction_signature_preimage`.
-pub const TRANSACTION: DomainSeparator =
-    DomainSeparator::from_cxs_bytes(&TRANSACTION_BYTES);
-
-const SIGNED_OP_NAME: &[u8] = b"SignedOp";
-
-const _: () = ::core::assert!(
-    SIGNED_OP_NAME.len() <= 256,
-    "domain separator name exceeds BytesM<256>"
-);
-
-const SIGNED_OP_REPR: DomainSeparatorRepr<'static> = DomainSeparatorRepr {
-    ext: 0,
-    name: SIGNED_OP_NAME,
-};
-
-const SIGNED_OP_N: usize = prefix_size(&SIGNED_OP_REPR);
-
-const SIGNED_OP_BYTES: [u8; SIGNED_OP_N] =
-    prefix_bytes::<SIGNED_OP_N>(&SIGNED_OP_REPR);
+pub const TRANSACTION: DomainSeparator = domain_separator!(b"Transaction");
 
 /// Domain separator for signed operations (`"SignedOp"`); see `SignedOp`.
 ///
@@ -199,8 +130,14 @@ const SIGNED_OP_BYTES: [u8; SIGNED_OP_N] =
 /// validator never sees these bytes, only contracts and clients do. If the
 /// envelope layout ever changes, give the new layout a new name so signatures
 /// made under the old one stop verifying.
-pub const SIGNED_OP: DomainSeparator =
-    DomainSeparator::from_cxs_bytes(&SIGNED_OP_BYTES);
+pub const SIGNED_OP: DomainSeparator = domain_separator!(b"SignedOp");
+
+/// Domain separator for the transaction proposal hash in a consensus value.
+pub const PROPOSAL_TXS: DomainSeparator = domain_separator!(b"ProposalTxs");
+
+/// Domain separator for each parallel batch hash in a transaction proposal.
+pub const PARALLEL_BATCH: DomainSeparator =
+    domain_separator!(b"ParallelBatch");
 
 #[cfg(all(test, feature = "alloc", feature = "sha2"))]
 mod tests {
@@ -208,16 +145,16 @@ mod tests {
 
     #[test]
     fn prefix_matches_real_domain_separator() {
-        // Build the mirror for the same name and encode the REAL type from it;
-        // the const prefix must equal the real CXS encoding.
-        let repr = DomainSeparatorRepr {
-            ext: 0,
-            name: b"PubkeyAccount",
-        };
-        let real = repr.to_domain_separator();
-        let encoded =
-            xdrs::cxs::encode(&real).expect("encode DomainSeparator");
-        assert_eq!(PUBKEY_ACCOUNT.as_bytes(), encoded.as_slice());
+        for (separator, name) in [
+            (&PUBKEY_ACCOUNT, b"PubkeyAccount".as_slice()),
+            (&PROPOSAL_TXS, b"ProposalTxs".as_slice()),
+            (&PARALLEL_BATCH, b"ParallelBatch".as_slice()),
+        ] {
+            let repr = DomainSeparatorRepr { ext: 0, name };
+            let encoded = xdrs::cxs::encode(&repr.to_domain_separator())
+                .expect("encode DomainSeparator");
+            assert_eq!(separator.as_bytes(), encoded.as_slice());
+        }
     }
 
     #[test]
@@ -232,7 +169,14 @@ mod tests {
 
     #[test]
     fn separators_are_distinct() {
-        let all = [&PUBKEY_ACCOUNT, &PUBLIC_KEY, &TRANSACTION, &SIGNED_OP];
+        let all = [
+            &PUBKEY_ACCOUNT,
+            &PUBLIC_KEY,
+            &TRANSACTION,
+            &SIGNED_OP,
+            &PROPOSAL_TXS,
+            &PARALLEL_BATCH,
+        ];
         for (i, a) in all.iter().enumerate() {
             for b in &all[i + 1..] {
                 assert_ne!(a.as_bytes(), b.as_bytes());

@@ -50,7 +50,8 @@ pub use backend::Syscall;
 
 mod separator;
 pub use separator::{
-    DomainSeparator, PUBKEY_ACCOUNT, PUBLIC_KEY, SIGNED_OP, TRANSACTION,
+    DomainSeparator, PARALLEL_BATCH, PROPOSAL_TXS, PUBKEY_ACCOUNT, PUBLIC_KEY,
+    SIGNED_OP, TRANSACTION,
 };
 
 mod preimage;
