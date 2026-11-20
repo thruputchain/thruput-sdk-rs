@@ -9,22 +9,11 @@ lockfile-baseline = "ignore"
 [registry]
 global-min-publish-age = "8 days"
 
-# Security fix for ctutils 0.4.3 and earlier (fixed in 0.4.4).
-# (remove this after 2026 Nov 8)
-[[allow.exact]]
-crate = "ctutils"
-version = "0.4.5"
-
 # Security fix for RUSTSEC-2026-0574 to RUSTSEC-2026-0582 (heapless unsound
 # APIs, fixed in 0.9.4). (remove this after 2026 Nov 26)
 [[allow.exact]]
 crate = "heapless"
 version = "0.9.4"
-
-# Grandfathered version (remove this after 2026 Nov 9)
-[[allow.exact]]
-crate = "smallvec"
-version = "1.16.3"
 
 # Exemptions for first-party (thruput-*) crates.
 [[allow.package]]
