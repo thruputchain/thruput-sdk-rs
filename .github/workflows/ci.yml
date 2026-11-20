@@ -162,6 +162,10 @@ jobs:
       - name: Initialize submodules
         run: git submodule update --init --recursive
 
+      # Before the long steps: a pin to an unmerged contracts branch fails here.
+      - name: Check the contracts pin is on main
+        run: ./scripts/check-contracts-submodule-on-main.sh
+
       - uses: ./.github/actions/gnaw-setup
         with:
           thruput-cli: "true"
