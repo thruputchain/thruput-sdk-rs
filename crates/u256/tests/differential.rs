@@ -806,6 +806,18 @@ fn be_bytes_round_trip_and_match_oracle() {
 }
 
 #[test]
+fn as_limbs_matches_to_limbs() {
+    let mut vals = boundary_values();
+    let mut rng = Rng(0x0f1e_2d3c_4b5a_6978);
+    for _ in 0..200 {
+        vals.push(rng.next_u256(4));
+    }
+    for n in vals {
+        assert_eq!(*n.as_limbs(), n.to_limbs(), "{n:?}");
+    }
+}
+
+#[test]
 fn xdr_round_trips() {
     let mut vals = boundary_values();
     let mut rng = Rng(0xfedc_ba98_7654_3210);

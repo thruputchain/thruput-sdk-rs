@@ -491,6 +491,7 @@ The SDK provides convenient wrappers around Thruput syscalls:
 - [`get_caller`], [`get_current_address`], [`contract_abort`],
   [`contract_revert`]: frame context and exit routines
 - [`crypto`]: hash and signature operations
+- [`math`]: wide-integer arithmetic carried out by the runtime (experimental)
 - [`Hasher`]: incremental hashing
 - Key-value storage primitives, re-exported at the crate root:
   - [`delete`], [`delete_exclusive`]: remove entries
