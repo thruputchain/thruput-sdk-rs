@@ -4,6 +4,20 @@ pub trait ContractClient {
     const INTERFACE_ID: crate::InterfaceId;
 
     fn new(address: &crate::types::ContractAddress) -> Self;
+
+    /// A client for the contract at a typed address that lists this client,
+    /// with the default invocation configuration.
+    ///
+    /// `S` and `I` are inferred from the address. An address that does not
+    /// list this client is a compile error.
+    #[inline(always)]
+    fn at<S, I>(address: &super::Address<S>) -> Self
+    where
+        Self: Sized,
+        S: super::Provides<Self, I>,
+    {
+        Self::new(address.address())
+    }
 }
 
 /// Classify a borrowed exception during a generated call.
