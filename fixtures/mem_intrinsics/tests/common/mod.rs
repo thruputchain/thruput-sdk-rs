@@ -46,8 +46,8 @@ pub fn fill(len: u32, dst: u32, byte: u32) -> u64 {
 }
 
 /// Lengths that cross every boundary the runtime routines branch on: empty,
-/// bytes only, whole words, and words with each byte remainder, up to
-/// several hundred bytes.
+/// bytes only, each word count below a 32-byte block, and several blocks
+/// with each remainder.
 pub fn lengths() -> impl Iterator<Item = u32> {
     (0..=100).chain([127, 128, 129, 255, 256, 257, 400])
 }
