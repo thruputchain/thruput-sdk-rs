@@ -199,6 +199,7 @@ pub mod crypto;
 pub mod event;
 pub mod exn;
 pub mod interface_table;
+pub mod math;
 pub mod signer;
 pub mod stats;
 pub mod types;
