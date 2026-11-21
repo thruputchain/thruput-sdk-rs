@@ -157,6 +157,16 @@ impl U256 {
         self.limbs
     }
 
+    /// Borrows the limbs, least-significant-first.
+    ///
+    /// For code that reads the value where it lies, such as a host operation
+    /// handed a pointer to it, which [`to_limbs`](Self::to_limbs) would make
+    /// a copy for.
+    #[inline]
+    pub const fn as_limbs(&self) -> &[u32; LIMBS] {
+        &self.limbs
+    }
+
     /// Returns `true` if this is zero.
     #[inline]
     pub const fn is_zero(self) -> bool {
