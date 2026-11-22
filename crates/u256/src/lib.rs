@@ -16,6 +16,12 @@
 //! bytes of rv32 text and its `integer_sqrt` to 12,732 -- together over a third
 //! of the 64 KiB artifact code cap.
 //!
+//! One operation leaves the crate. In a contract [`U256::integer_sqrt`] is the
+//! runtime's `U256Sqrt` host operation, at a flat price, where the routine
+//! here cost a contract about 25,000 gas a call. So the square roots are the
+//! only methods on these types that are not `const fn`, and on riscv32 this
+//! crate depends on the syscall bindings.
+//!
 //! Both types behave like the primitives on overflow: the operators wrap when
 //! `overflow-checks` is off (as every contract profile sets it) and panic when
 //! it is on. Use [`U256::checked_add`] and friends where it matters.
@@ -155,16 +161,6 @@ impl U256 {
     #[inline]
     pub const fn to_limbs(self) -> [u32; LIMBS] {
         self.limbs
-    }
-
-    /// Borrows the limbs, least-significant-first.
-    ///
-    /// For code that reads the value where it lies, such as a host operation
-    /// handed a pointer to it, which [`to_limbs`](Self::to_limbs) would make
-    /// a copy for.
-    #[inline]
-    pub const fn as_limbs(&self) -> &[u32; LIMBS] {
-        &self.limbs
     }
 
     /// Returns `true` if this is zero.

@@ -1342,6 +1342,7 @@ version = "0.62.0"
 dependencies = [
  "thruput-contract-spec",
  "thruput-u256",
+ "thruput-xdr",
  "thruput-xdrs",
  "uint",
 ]

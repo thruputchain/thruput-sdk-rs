@@ -481,6 +481,11 @@ Beyond that, [`U256`] and [`I256`] carry OpenZeppelin's `Math.sol` and
 [`Rounding`] direction — so a Solidity port has the same vocabulary. Every
 fallible one ships as a `checked_` form beside the panicking one.
 
+The square roots are the exception to "arithmetic": in a contract
+`integer_sqrt` and `sqrt_rounding` ask the runtime for the root, through the
+experimental `U256Sqrt` host operation. They cost a flat price whatever the
+value, are not `const fn`, and need a runtime that implements syscall API 1.2.
+
 # System functions
 
 The SDK provides convenient wrappers around Thruput syscalls:
@@ -491,7 +496,6 @@ The SDK provides convenient wrappers around Thruput syscalls:
 - [`get_caller`], [`get_current_address`], [`contract_abort`],
   [`contract_revert`]: frame context and exit routines
 - [`crypto`]: hash and signature operations
-- [`math`]: wide-integer arithmetic carried out by the runtime (experimental)
 - [`Hasher`]: incremental hashing
 - Key-value storage primitives, re-exported at the crate root:
   - [`delete`], [`delete_exclusive`]: remove entries

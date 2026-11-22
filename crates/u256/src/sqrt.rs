@@ -1,39 +1,85 @@
 //! Integer square root.
+//!
+//! A contract takes it from the runtime: `U256Sqrt` is a host operation with
+//! a flat price, where the routine below costs a contract tens of thousands
+//! of gas and about two kilobytes of text. Every other target computes it
+//! here.
 
 use crate::U256;
 
 impl U256 {
     /// The largest `r` such that `r * r <= self`.
     ///
-    /// Digit-by-digit (binary restoring): shifts, comparisons and subtractions,
-    /// no division. Newton's method costs a full 256-bit divide per iteration
-    /// that LLVM inlines into the loop -- `uint`'s Newton-based version
-    /// measured 12,732 bytes of rv32 text, for a square root.
-    pub const fn integer_sqrt(self) -> Self {
-        let len = self.bit_len();
-        if len <= 1 {
-            // 0 and 1 are their own square roots.
-            return self;
+    /// On `riscv32`, which is to say in a contract, this is the runtime's
+    /// experimental `U256Sqrt` host operation. It needs a runtime that
+    /// implements syscall API 1.2. On any other target the root is computed
+    /// in software. The two return the same root for every value.
+    ///
+    /// Not a `const fn`, unlike the rest of this type: a host operation
+    /// cannot run at compile time.
+    ///
+    /// # Panics
+    ///
+    /// In a contract, if the host operation fails.
+    pub fn integer_sqrt(self) -> Self {
+        #[cfg(target_arch = "riscv32")]
+        {
+            host_sqrt(self)
         }
-
-        let mut x = self;
-        let mut res = Self::ZERO;
-
-        // The largest power of four not exceeding `self`: `1 << 2k` for the
-        // largest even `2k <= bit_len - 1`.
-        let mut bit = Self::ONE.wrapping_shl((len - 1) & !1);
-
-        while !bit.is_zero() {
-            let t = res.wrapping_add(bit);
-            if x.const_ge(t) {
-                x = x.wrapping_sub(t);
-                res = res.wrapping_shr(1).wrapping_add(bit);
-            } else {
-                res = res.wrapping_shr(1);
-            }
-            bit = bit.wrapping_shr(2);
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            software_sqrt(self)
         }
-
-        res
     }
+}
+
+/// The root, from the runtime.
+#[cfg(target_arch = "riscv32")]
+fn host_sqrt(value: U256) -> U256 {
+    // The host reads 32 bytes, least significant first: the limbs in the
+    // order they are stored, each least significant byte first.
+    //
+    // Borrowing the limbs as those bytes, which needs `unsafe`, was measured
+    // against this copy in the `sqrt` bench kernel and compiled to the same
+    // code: the value arrives by value, and its one trip to memory is this.
+    let mut bytes = [0u8; 32];
+    for (chunk, limb) in bytes.chunks_exact_mut(4).zip(value.limbs) {
+        chunk.copy_from_slice(&limb.to_le_bytes());
+    }
+    match thruput_xdr::syscalls::U256Sqrt(&bytes) {
+        Ok(root) => U256::from_u128(root),
+        Err(_) => panic!("U256Sqrt failed"),
+    }
+}
+
+/// The root, digit by digit (binary restoring): shifts, comparisons and
+/// subtractions, no division. It was written to be small in a contract, and
+/// now runs only where no runtime is there to ask.
+#[cfg(not(target_arch = "riscv32"))]
+const fn software_sqrt(value: U256) -> U256 {
+    let len = value.bit_len();
+    if len <= 1 {
+        // 0 and 1 are their own square roots.
+        return value;
+    }
+
+    let mut x = value;
+    let mut res = U256::ZERO;
+
+    // The largest power of four not exceeding `value`: `1 << 2k` for the
+    // largest even `2k <= bit_len - 1`.
+    let mut bit = U256::ONE.wrapping_shl((len - 1) & !1);
+
+    while !bit.is_zero() {
+        let t = res.wrapping_add(bit);
+        if x.const_ge(t) {
+            x = x.wrapping_sub(t);
+            res = res.wrapping_shr(1).wrapping_add(bit);
+        } else {
+            res = res.wrapping_shr(1);
+        }
+        bit = bit.wrapping_shr(2);
+    }
+
+    res
 }

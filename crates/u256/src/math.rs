@@ -19,7 +19,8 @@
 //! One name differs: `Math.sqrt` is [`integer_sqrt`](U256::integer_sqrt), the
 //! spelling this crate shipped with, plus
 //! [`sqrt_rounding`](U256::sqrt_rounding) for the variant that takes a
-//! direction.
+//! direction. In a contract neither is computed here: the root is the
+//! runtime's `U256Sqrt` host operation, so those two are not `const fn`.
 //!
 //! # 512-bit values
 //!
@@ -760,8 +761,12 @@ impl U256 {
 
     /// The integer square root, following `rounding`. `Math.sqrt` with a
     /// rounding argument.
+    ///
+    /// Not a `const fn`, and it panics where
+    /// [`integer_sqrt`](Self::integer_sqrt) does: in a contract the root is
+    /// the runtime's.
     #[inline]
-    pub const fn sqrt_rounding(self, rounding: Rounding) -> Self {
+    pub fn sqrt_rounding(self, rounding: Rounding) -> Self {
         let r = self.integer_sqrt();
         // `r <= 2^128 - 1`, so `r * r` cannot overflow and `r + 1` cannot
         // either.

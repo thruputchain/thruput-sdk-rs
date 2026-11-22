@@ -636,6 +636,7 @@ name = "thruput-u256"
 version = "0.62.0"
 dependencies = [
  "thruput-contract-spec",
+ "thruput-xdr",
  "thruput-xdrs",
 ]
 
