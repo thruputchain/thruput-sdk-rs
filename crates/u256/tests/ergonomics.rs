@@ -11,8 +11,6 @@
 //!
 //! See the crate-level docs and the `arith.rs` shift impls for the reasoning.
 
-mod runtime_model;
-
 use thruput_u256::U256;
 
 // `From::from` is not a const fn, so this line only builds against the

@@ -99,9 +99,9 @@ pub(crate) fn dec_digits<'a>(
     }
 
     // Nine digits at a time: 10^9 is the largest power of ten fitting in a
-    // u32, so each step is one division rather than nine.
+    // u32, so each step is one `div_rem_small` rather than nine.
     while !v.is_zero() {
-        let (q, r) = div_rem_billion(v);
+        let (q, r) = v.div_rem_small(1_000_000_000);
         v = q;
         let mut r = r;
         // The leading chunk emits only its significant digits; every other
@@ -127,22 +127,6 @@ pub(crate) fn dec_digits<'a>(
     }
 
     core::str::from_utf8(&buf[pos..]).expect("decimal digits are ASCII")
-}
-
-/// `v / 10^9` and `v % 10^9`, limb by limb. Formatting runs on the host, where
-/// a division through the runtime has no transaction to run in, so this one
-/// divides natively.
-#[cfg(feature = "fmt")]
-fn div_rem_billion(v: U256) -> (U256, u32) {
-    const BILLION: u64 = 1_000_000_000;
-    let mut limbs = v.limbs;
-    let mut rem = 0u64;
-    for limb in limbs.iter_mut().rev() {
-        let cur = (rem << 32) | u64::from(*limb);
-        *limb = (cur / BILLION) as u32;
-        rem = cur % BILLION;
-    }
-    (U256::from_limbs(limbs), rem as u32)
 }
 
 #[cfg(feature = "fmt")]

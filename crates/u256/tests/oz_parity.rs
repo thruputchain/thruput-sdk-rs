@@ -22,7 +22,9 @@
 //! difference is a language-level one, not something a library function
 //! decides.
 
-mod runtime_model;
+mod native;
+
+use native::native;
 
 use thruput_u256::{I256, Rounding, U256};
 
@@ -52,13 +54,15 @@ fn try_family_reports_rather_than_reverting() {
 /// way to write this function and silently wrong.
 #[test]
 fn ceil_div_rejects_a_zero_divisor_even_for_a_zero_dividend() {
-    assert_eq!(U256::ZERO.checked_ceil_div(U256::ZERO), None);
-    assert_eq!(U256::ONE.checked_ceil_div(U256::ZERO), None);
-    assert_eq!(U256::ZERO.checked_ceil_div(U256::ONE), Some(U256::ZERO));
-    // Rounds toward infinity, so any remainder costs a whole unit.
-    assert_eq!(U256::ONE.ceil_div(U256::from(2)), U256::ONE);
-    assert_eq!(U256::from(4).ceil_div(U256::from(2)), U256::from(2));
-    assert_eq!(U256::from(5).ceil_div(U256::from(2)), U256::from(3));
+    native(|| {
+        assert_eq!(U256::ZERO.checked_ceil_div(U256::ZERO), None);
+        assert_eq!(U256::ONE.checked_ceil_div(U256::ZERO), None);
+        assert_eq!(U256::ZERO.checked_ceil_div(U256::ONE), Some(U256::ZERO));
+        // Rounds toward infinity, so any remainder costs a whole unit.
+        assert_eq!(U256::ONE.ceil_div(U256::from(2)), U256::ONE);
+        assert_eq!(U256::from(4).ceil_div(U256::from(2)), U256::from(2));
+        assert_eq!(U256::from(5).ceil_div(U256::from(2)), U256::from(3));
+    });
 }
 
 /// `Math.mulDiv` panics on a zero denominator and on a quotient that will not
@@ -66,34 +70,39 @@ fn ceil_div_rejects_a_zero_divisor_even_for_a_zero_dividend() {
 /// floor quotient just fit.
 #[test]
 fn mul_div_boundaries() {
-    assert_eq!(
-        U256::checked_mul_div(U256::ONE, U256::ONE, U256::ZERO),
-        None
-    );
-    assert_eq!(
-        U256::checked_mul_div(U256::ZERO, U256::ZERO, U256::ONE),
-        Some(U256::ZERO)
-    );
-    // `x * y` far past 256 bits, quotient inside it: the case the 512-bit
-    // intermediate exists for.
-    assert_eq!(
-        U256::checked_mul_div(U256::MAX, U256::MAX, U256::MAX),
-        Some(U256::MAX)
-    );
-    // Quotient past 256 bits.
-    assert_eq!(U256::checked_mul_div(U256::MAX, U256::MAX, U256::ONE), None);
+    native(|| {
+        assert_eq!(
+            U256::checked_mul_div(U256::ONE, U256::ONE, U256::ZERO),
+            None
+        );
+        assert_eq!(
+            U256::checked_mul_div(U256::ZERO, U256::ZERO, U256::ONE),
+            Some(U256::ZERO)
+        );
+        // `x * y` far past 256 bits, quotient inside it: the case the 512-bit
+        // intermediate exists for.
+        assert_eq!(
+            U256::checked_mul_div(U256::MAX, U256::MAX, U256::MAX),
+            Some(U256::MAX)
+        );
+        // Quotient past 256 bits.
+        assert_eq!(
+            U256::checked_mul_div(U256::MAX, U256::MAX, U256::ONE),
+            None
+        );
 
-    // OZ computes `mulDiv(...) + toUint(...)`, and that addition is checked,
-    // so a rounding step out of range reverts rather than wrapping.
-    assert_eq!(
-        U256::checked_mul_div_rounding(
-            U256::MAX,
-            U256::MAX,
-            U256::MAX - U256::ONE,
-            Rounding::Ceil
-        ),
-        None
-    );
+        // OZ computes `mulDiv(...) + toUint(...)`, and that addition is checked,
+        // so a rounding step out of range reverts rather than wrapping.
+        assert_eq!(
+            U256::checked_mul_div_rounding(
+                U256::MAX,
+                U256::MAX,
+                U256::MAX - U256::ONE,
+                Rounding::Ceil
+            ),
+            None
+        );
+    });
 }
 
 /// `Math.mulShr`'s rounding term is `mulmod(x, y, 1 << n) > 0`. At `n == 0`
@@ -137,13 +146,15 @@ fn mul_shr_never_rounds_at_a_zero_shift() {
 /// For a non-coprime pair the loop ends with `gcd != 1`, which returns 0.
 #[test]
 fn inv_mod_answers_zero_where_no_inverse_exists() {
-    assert_eq!(U256::inv_mod(U256::from(3), U256::ZERO), U256::ZERO);
-    assert_eq!(U256::inv_mod(U256::from(3), U256::ONE), U256::ZERO);
-    assert_eq!(U256::inv_mod(U256::ZERO, U256::from(7)), U256::ZERO);
-    // 2 and 4 share a factor.
-    assert_eq!(U256::inv_mod(U256::from(2), U256::from(4)), U256::ZERO);
-    // And a real inverse still comes back.
-    assert_eq!(U256::inv_mod(U256::from(3), U256::from(7)), U256::from(5));
+    native(|| {
+        assert_eq!(U256::inv_mod(U256::from(3), U256::ZERO), U256::ZERO);
+        assert_eq!(U256::inv_mod(U256::from(3), U256::ONE), U256::ZERO);
+        assert_eq!(U256::inv_mod(U256::ZERO, U256::from(7)), U256::ZERO);
+        // 2 and 4 share a factor.
+        assert_eq!(U256::inv_mod(U256::from(2), U256::from(4)), U256::ZERO);
+        // And a real inverse still comes back.
+        assert_eq!(U256::inv_mod(U256::from(3), U256::from(7)), U256::from(5));
+    });
 }
 
 /// `Math.invModPrime` is `modExp(a, p - 2, p)` inside an `unchecked` block, so
@@ -155,13 +166,15 @@ fn inv_mod_answers_zero_where_no_inverse_exists() {
 /// on a zero modulus, and that is faithful.
 #[test]
 fn inv_mod_prime_degenerate_moduli_follow_the_wrapping_subtraction() {
-    assert_eq!(U256::inv_mod_prime(U256::from(3), U256::ONE), U256::ZERO);
-    // Where p really is prime, it agrees with the general routine.
-    let p = U256::from(7);
-    assert_eq!(
-        U256::inv_mod_prime(U256::from(3), p),
-        U256::inv_mod(U256::from(3), p)
-    );
+    native(|| {
+        assert_eq!(U256::inv_mod_prime(U256::from(3), U256::ONE), U256::ZERO);
+        // Where p really is prime, it agrees with the general routine.
+        let p = U256::from(7);
+        assert_eq!(
+            U256::inv_mod_prime(U256::from(3), p),
+            U256::inv_mod(U256::from(3), p)
+        );
+    });
 }
 
 #[test]
@@ -190,33 +203,35 @@ fn inv_mod_prime_reverts_on_a_zero_modulus_where_inv_mod_returns_zero() {
 /// zero.
 #[test]
 fn mod_exp_matches_openzeppelin_at_the_edges() {
-    assert_eq!(
-        U256::checked_mod_exp(U256::from(2), U256::from(3), U256::ZERO),
-        None
-    );
-    // Everything is congruent to zero modulo one, `0^0` included.
-    assert_eq!(
-        U256::checked_mod_exp(U256::from(2), U256::from(3), U256::ONE),
-        Some(U256::ZERO)
-    );
-    assert_eq!(
-        U256::checked_mod_exp(U256::ZERO, U256::ZERO, U256::ONE),
-        Some(U256::ZERO)
-    );
-    // `b^0 == 1` for every base, zero included.
-    assert_eq!(
-        U256::checked_mod_exp(U256::ZERO, U256::ZERO, U256::from(7)),
-        Some(U256::ONE)
-    );
-    assert_eq!(
-        U256::checked_mod_exp(U256::from(5), U256::ZERO, U256::from(7)),
-        Some(U256::ONE)
-    );
-    // `0^e == 0` for a nonzero exponent.
-    assert_eq!(
-        U256::checked_mod_exp(U256::ZERO, U256::from(5), U256::from(7)),
-        Some(U256::ZERO)
-    );
+    native(|| {
+        assert_eq!(
+            U256::checked_mod_exp(U256::from(2), U256::from(3), U256::ZERO),
+            None
+        );
+        // Everything is congruent to zero modulo one, `0^0` included.
+        assert_eq!(
+            U256::checked_mod_exp(U256::from(2), U256::from(3), U256::ONE),
+            Some(U256::ZERO)
+        );
+        assert_eq!(
+            U256::checked_mod_exp(U256::ZERO, U256::ZERO, U256::ONE),
+            Some(U256::ZERO)
+        );
+        // `b^0 == 1` for every base, zero included.
+        assert_eq!(
+            U256::checked_mod_exp(U256::ZERO, U256::ZERO, U256::from(7)),
+            Some(U256::ONE)
+        );
+        assert_eq!(
+            U256::checked_mod_exp(U256::from(5), U256::ZERO, U256::from(7)),
+            Some(U256::ONE)
+        );
+        // `0^e == 0` for a nonzero exponent.
+        assert_eq!(
+            U256::checked_mod_exp(U256::ZERO, U256::from(5), U256::from(7)),
+            Some(U256::ZERO)
+        );
+    });
 }
 
 /// `Math.clz` is `x == 0 ? 256 : 255 - log2(x)`. Ours is
@@ -239,34 +254,40 @@ fn leading_zeros_matches_the_clz_formula() {
 /// so the `<` test is false.
 #[test]
 fn logs_and_sqrt_of_zero_never_round_up() {
-    for rounding in [
-        Rounding::Floor,
-        Rounding::Ceil,
-        Rounding::Trunc,
-        Rounding::Expand,
-    ] {
-        assert_eq!(U256::ZERO.log2_rounding(rounding), 0, "{rounding:?}");
-        assert_eq!(U256::ZERO.log10_rounding(rounding), 0, "{rounding:?}");
-        assert_eq!(U256::ZERO.log256_rounding(rounding), 0, "{rounding:?}");
-        assert_eq!(
-            U256::ZERO.sqrt_rounding(rounding),
-            U256::ZERO,
-            "{rounding:?}"
-        );
-        // One is exact in all four, so it never moves either.
-        assert_eq!(U256::ONE.log2_rounding(rounding), 0, "{rounding:?}");
-        assert_eq!(U256::ONE.log10_rounding(rounding), 0, "{rounding:?}");
-        assert_eq!(
-            U256::ONE.sqrt_rounding(rounding),
-            U256::ONE,
-            "{rounding:?}"
-        );
-    }
-    // And the first inexact value in each does move, under the up directions.
-    assert_eq!(U256::from(2).log2_rounding(Rounding::Ceil), 1);
-    assert_eq!(U256::from(3).log2_rounding(Rounding::Ceil), 2);
-    assert_eq!(U256::from(2).log10_rounding(Rounding::Ceil), 1);
-    assert_eq!(U256::from(2).sqrt_rounding(Rounding::Ceil), U256::from(2));
+    native(|| {
+        for rounding in [
+            Rounding::Floor,
+            Rounding::Ceil,
+            Rounding::Trunc,
+            Rounding::Expand,
+        ] {
+            assert_eq!(U256::ZERO.log2_rounding(rounding), 0, "{rounding:?}");
+            assert_eq!(U256::ZERO.log10_rounding(rounding), 0, "{rounding:?}");
+            assert_eq!(
+                U256::ZERO.log256_rounding(rounding),
+                0,
+                "{rounding:?}"
+            );
+            assert_eq!(
+                U256::ZERO.sqrt_rounding(rounding),
+                U256::ZERO,
+                "{rounding:?}"
+            );
+            // One is exact in all four, so it never moves either.
+            assert_eq!(U256::ONE.log2_rounding(rounding), 0, "{rounding:?}");
+            assert_eq!(U256::ONE.log10_rounding(rounding), 0, "{rounding:?}");
+            assert_eq!(
+                U256::ONE.sqrt_rounding(rounding),
+                U256::ONE,
+                "{rounding:?}"
+            );
+        }
+        // And the first inexact value in each does move, under the up directions.
+        assert_eq!(U256::from(2).log2_rounding(Rounding::Ceil), 1);
+        assert_eq!(U256::from(3).log2_rounding(Rounding::Ceil), 2);
+        assert_eq!(U256::from(2).log10_rounding(Rounding::Ceil), 1);
+        assert_eq!(U256::from(2).sqrt_rounding(Rounding::Ceil), U256::from(2));
+    });
 }
 
 /// `Math.average` rounds toward zero; `SignedMath.average` does too, which is

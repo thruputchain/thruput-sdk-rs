@@ -4,32 +4,26 @@
 
 use crate::{LIMBS, U256};
 
-/// `value` as the runtime reads a 256-bit integer: 32 bytes, least significant
-/// first. That is the limbs in the order they are stored, each least
-/// significant byte first.
-///
-/// Borrowing the limbs as those bytes, which needs `unsafe`, was measured
-/// against this copy in the `sqrt` bench kernel and compiled to the same code:
-/// the value arrives by value, and its one trip to memory is this.
+// The runtime reads a 256-bit integer as 32 bytes, least significant first.
+// The limbs are stored least significant first, so on a little-endian target
+// their bytes already are those 32.
+const _: () = assert!(cfg!(target_endian = "little"));
+
+/// `value`'s bytes, as the runtime reads them.
 #[inline]
 pub(crate) fn le_bytes(value: U256) -> [u8; 32] {
-    let mut bytes = [0u8; 32];
-    for (chunk, limb) in
-        bytes.as_chunks_mut::<4>().0.iter_mut().zip(value.limbs)
-    {
-        *chunk = limb.to_le_bytes();
-    }
-    bytes
+    // SAFETY: the two types have the same size, and every bit pattern is
+    // valid for both.
+    unsafe { core::mem::transmute::<[u32; LIMBS], [u8; 32]>(value.limbs) }
 }
 
-/// The value of 32 bytes the runtime wrote, least significant first.
+/// The value of 32 bytes the runtime wrote.
 #[inline]
 pub(crate) fn from_le_bytes(bytes: [u8; 32]) -> U256 {
-    let mut limbs = [0u32; LIMBS];
-    for (limb, chunk) in limbs.iter_mut().zip(bytes.as_chunks::<4>().0) {
-        *limb = u32::from_le_bytes(*chunk);
-    }
-    U256::from_limbs(limbs)
+    // SAFETY: as for `le_bytes`.
+    U256::from_limbs(unsafe {
+        core::mem::transmute::<[u8; 32], [u32; LIMBS]>(bytes)
+    })
 }
 
 /// `x * y` divided by `d`, by the `U256MulDivRem` host operation: the

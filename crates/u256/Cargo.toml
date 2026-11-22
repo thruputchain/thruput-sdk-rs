@@ -55,6 +55,9 @@ uint = { version = "0.10.0", default-features = false }
 xdrs = { workspace = true, features = ["alloc"] }
 # Likewise: the ABI-pinning test names spec types directly.
 thruput-contract-spec = { workspace = true }
+# The native executor answers the host operations every division and square
+# root makes. The tests run their bodies inside one of its transactions.
+thruput-native-exec = { workspace = true }
 
 [features]
 # No default features: this crate is built into contracts, and a guest build

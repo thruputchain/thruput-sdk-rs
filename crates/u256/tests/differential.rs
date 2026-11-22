@@ -11,7 +11,9 @@
 //! including the random sweeps sized to hit Knuth D's add-back correction
 //! (~2/2^32, so it needs volume).
 
-mod runtime_model;
+mod native;
+
+use native::native;
 
 use thruput_u256::{U256, checked_mul_div_u128, mul_div_u128};
 
@@ -382,23 +384,27 @@ fn check_div(n: U256, d: U256) {
 
 #[test]
 fn div_matches_oracle_on_small_values() {
-    for a in 0u64..64 {
-        for b in 1u64..64 {
-            check_div(U256::from_u64(a), U256::from_u64(b));
+    native(|| {
+        for a in 0u64..64 {
+            for b in 1u64..64 {
+                check_div(U256::from_u64(a), U256::from_u64(b));
+            }
         }
-    }
+    });
 }
 
 #[test]
 fn div_matches_oracle_at_boundaries() {
-    let vals = boundary_values();
-    for n in &vals {
-        for d in &vals {
-            if !d.is_zero() {
-                check_div(*n, *d);
+    native(|| {
+        let vals = boundary_values();
+        for n in &vals {
+            for d in &vals {
+                if !d.is_zero() {
+                    check_div(*n, *d);
+                }
             }
         }
-    }
+    });
 }
 
 // Knuth D estimates each quotient limb and corrects when the estimate is too
@@ -407,38 +413,42 @@ fn div_matches_oracle_at_boundaries() {
 // and divisor limb counts.
 #[test]
 fn div_matches_oracle_on_random_inputs() {
-    let mut rng = Rng(0x2545_f491_4f6c_dd1d);
-    for n_limbs in 1..=4 {
-        for d_limbs in 1..=4 {
-            for _ in 0..2000 {
-                let n = rng.next_u256(n_limbs);
-                let d = rng.next_u256(d_limbs);
-                if d.is_zero() {
-                    continue;
+    native(|| {
+        let mut rng = Rng(0x2545_f491_4f6c_dd1d);
+        for n_limbs in 1..=4 {
+            for d_limbs in 1..=4 {
+                for _ in 0..2000 {
+                    let n = rng.next_u256(n_limbs);
+                    let d = rng.next_u256(d_limbs);
+                    if d.is_zero() {
+                        continue;
+                    }
+                    check_div(n, d);
                 }
-                check_div(n, d);
             }
         }
-    }
+    });
 }
 
 // Divisors just under a limb boundary maximise the chance of a bad quotient
 // estimate, which is what drives the add-back path.
 #[test]
 fn div_matches_oracle_on_estimate_worst_cases() {
-    let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
-    for _ in 0..4000 {
-        let top = U256::from_u32(u32::MAX);
-        for shift in [32u32, 64, 96, 128] {
-            let d = top.wrapping_shl(shift)
-                | U256::from_u64(rng.next_u64() & 0xffff);
-            if d.is_zero() {
-                continue;
+    native(|| {
+        let mut rng = Rng(0x9e37_79b9_7f4a_7c15);
+        for _ in 0..4000 {
+            let top = U256::from_u32(u32::MAX);
+            for shift in [32u32, 64, 96, 128] {
+                let d = top.wrapping_shl(shift)
+                    | U256::from_u64(rng.next_u64() & 0xffff);
+                if d.is_zero() {
+                    continue;
+                }
+                let n = rng.next_u256(4);
+                check_div(n, d);
             }
-            let n = rng.next_u256(4);
-            check_div(n, d);
         }
-    }
+    });
 }
 
 // The quotient-digit estimate takes a separate branch when the running
@@ -467,72 +477,79 @@ fn check_div_from_limbs(v: &[u32], r: &[u32], q: u32) {
 
 #[test]
 fn div_matches_oracle_when_the_digit_estimate_is_clamped() {
-    // `r1 < v0` keeps `R` below `v * B`; `r1 + v1` is the partial remainder
-    // the clamp hands to the correction loop, and the big values push it past
-    // `B`, where the correction test is vacuous.
-    for v1 in [0x8000_0000u32, 0x8000_0001, 0xc000_0001, u32::MAX] {
-        for v0 in [1u32, 2, 0x7fff_ffff, 0x8000_0000, u32::MAX] {
-            for r1 in [0, 1, v0 / 2, v0 - 1] {
-                for r0 in [0u32, 1, 0x8000_0000, u32::MAX] {
-                    for q in [1u32, 2, 0x8000_0000, 0xffff_fffe, u32::MAX] {
-                        // Two-limb divisor: R = [r0, r1, v1].
-                        check_div_from_limbs(&[v0, v1], &[r0, r1, v1], q);
+    native(|| {
+        // `r1 < v0` keeps `R` below `v * B`; `r1 + v1` is the partial remainder
+        // the clamp hands to the correction loop, and the big values push it past
+        // `B`, where the correction test is vacuous.
+        for v1 in [0x8000_0000u32, 0x8000_0001, 0xc000_0001, u32::MAX] {
+            for v0 in [1u32, 2, 0x7fff_ffff, 0x8000_0000, u32::MAX] {
+                for r1 in [0, 1, v0 / 2, v0 - 1] {
+                    for r0 in [0u32, 1, 0x8000_0000, u32::MAX] {
+                        for q in [1u32, 2, 0x8000_0000, 0xffff_fffe, u32::MAX]
+                        {
+                            // Two-limb divisor: R = [r0, r1, v1].
+                            check_div_from_limbs(&[v0, v1], &[r0, r1, v1], q);
 
-                        // Three-limb divisor: R = [r0, r1, r2, v1], where
-                        // `r2 < vm` is what keeps `R < v * B`.
-                        check_div_from_limbs(
-                            &[r0, v0, v1],
-                            &[r0, r1, v0 - 1, v1],
-                            q,
-                        );
+                            // Three-limb divisor: R = [r0, r1, r2, v1], where
+                            // `r2 < vm` is what keeps `R < v * B`.
+                            check_div_from_limbs(
+                                &[r0, v0, v1],
+                                &[r0, r1, v0 - 1, v1],
+                                q,
+                            );
+                        }
                     }
                 }
             }
         }
-    }
+    });
 }
 
 #[test]
 fn div_rem_small_matches_general_div() {
-    let mut rng = Rng(0xf00d_f00d_f00d_f00d);
-    for limbs in 1..=4 {
-        for _ in 0..2000 {
-            let n = rng.next_u256(limbs);
-            let d = (rng.next_u64() as u32) | 1;
-            let (q, r) = n.div_rem_small(d);
-            let (eq, er) = n.div_rem(U256::from_u32(d));
-            assert_eq!((q, U256::from_u32(r)), (eq, er), "{n:?} / {d}");
+    native(|| {
+        let mut rng = Rng(0xf00d_f00d_f00d_f00d);
+        for limbs in 1..=4 {
+            for _ in 0..2000 {
+                let n = rng.next_u256(limbs);
+                let d = (rng.next_u64() as u32) | 1;
+                let (q, r) = n.div_rem_small(d);
+                let (eq, er) = n.div_rem(U256::from_u32(d));
+                assert_eq!((q, U256::from_u32(r)), (eq, er), "{n:?} / {d}");
+            }
         }
-    }
-    // Powers of ten, which is what Display drives through this path.
-    for d in [10u32, 1_000, 1_000_000_000] {
-        let n = U256::from(u128::MAX);
-        let (q, r) = n.div_rem_small(d);
-        assert_eq!((q, U256::from_u32(r)), n.div_rem(U256::from_u32(d)));
-    }
+        // Powers of ten, which is what Display drives through this path.
+        for d in [10u32, 1_000, 1_000_000_000] {
+            let n = U256::from(u128::MAX);
+            let (q, r) = n.div_rem_small(d);
+            assert_eq!((q, U256::from_u32(r)), n.div_rem(U256::from_u32(d)));
+        }
+    });
 }
 
 #[test]
 fn div_matches_oracle_on_the_shapes_the_swap_suite_uses() {
-    // mul-then-divide, as in mint_lp / mint_fee / the price accumulator.
-    let cases: [(u128, u128, u128); 5] = [
-        (1, 1, 1),
-        (u128::MAX, u128::MAX, u128::MAX),
-        (i128::MAX as u128, 3, 7),
-        (1_000_000_000, 1_000_000_000, 999_999_937),
-        (u128::MAX, 1, 2),
-    ];
-    for (a, b, c) in cases {
-        check_div(U256::widening_mul_u128(a, b), U256::from(c));
-    }
-    // (a << 112) / b, the UQ112x112 accumulator shape.
-    for (a, b) in [
-        (1u128, 1u128),
-        (i128::MAX as u128, 3),
-        (7, i128::MAX as u128),
-    ] {
-        check_div(U256::from(a).wrapping_shl(112), U256::from(b));
-    }
+    native(|| {
+        // mul-then-divide, as in mint_lp / mint_fee / the price accumulator.
+        let cases: [(u128, u128, u128); 5] = [
+            (1, 1, 1),
+            (u128::MAX, u128::MAX, u128::MAX),
+            (i128::MAX as u128, 3, 7),
+            (1_000_000_000, 1_000_000_000, 999_999_937),
+            (u128::MAX, 1, 2),
+        ];
+        for (a, b, c) in cases {
+            check_div(U256::widening_mul_u128(a, b), U256::from(c));
+        }
+        // (a << 112) / b, the UQ112x112 accumulator shape.
+        for (a, b) in [
+            (1u128, 1u128),
+            (i128::MAX as u128, 3),
+            (7, i128::MAX as u128),
+        ] {
+            check_div(U256::from(a).wrapping_shl(112), U256::from(b));
+        }
+    });
 }
 
 #[test]
@@ -569,62 +586,72 @@ fn check_sqrt(n: U256) {
 
 #[test]
 fn sqrt_matches_oracle_on_small_values() {
-    for i in 0u64..1024 {
-        check_sqrt(U256::from_u64(i));
-    }
+    native(|| {
+        for i in 0u64..1024 {
+            check_sqrt(U256::from_u64(i));
+        }
+    });
 }
 
 #[test]
 fn sqrt_matches_oracle_on_perfect_squares_and_neighbours() {
-    for i in 0u64..512 {
-        let sq = U256::from_u64(i) * U256::from_u64(i);
-        check_sqrt(sq);
-        if !sq.is_zero() {
-            check_sqrt(sq - U256::ONE);
+    native(|| {
+        for i in 0u64..512 {
+            let sq = U256::from_u64(i) * U256::from_u64(i);
+            check_sqrt(sq);
+            if !sq.is_zero() {
+                check_sqrt(sq - U256::ONE);
+            }
+            check_sqrt(sq + U256::ONE);
         }
-        check_sqrt(sq + U256::ONE);
-    }
+    });
 }
 
 #[test]
 fn sqrt_matches_oracle_at_boundaries() {
-    for n in boundary_values() {
-        check_sqrt(n);
-    }
+    native(|| {
+        for n in boundary_values() {
+            check_sqrt(n);
+        }
+    });
 }
 
 #[test]
 fn sqrt_matches_oracle_on_products_of_u128s() {
-    let cases: [(u128, u128); 6] = [
-        (1, 1),
-        (3, 7),
-        (1_000_000, 1_000_000),
-        (u128::MAX, 1),
-        (u128::MAX, u128::MAX),
-        (i128::MAX as u128, i128::MAX as u128),
-    ];
-    for (a, b) in cases {
-        check_sqrt(U256::widening_mul_u128(a, b));
-    }
+    native(|| {
+        let cases: [(u128, u128); 6] = [
+            (1, 1),
+            (3, 7),
+            (1_000_000, 1_000_000),
+            (u128::MAX, 1),
+            (u128::MAX, u128::MAX),
+            (i128::MAX as u128, i128::MAX as u128),
+        ];
+        for (a, b) in cases {
+            check_sqrt(U256::widening_mul_u128(a, b));
+        }
+    });
 }
 
 #[test]
 fn sqrt_result_is_the_true_floor() {
-    let mut rng = Rng(0xc0ff_eec0_ffee_c0ff);
-    let mut vals: Vec<U256> = (0u64..2048)
-        .map(|i| U256::from_u64(i) * U256::from(7) + U256::from(3))
-        .collect();
-    for _ in 0..2000 {
-        vals.push(rng.next_u256(4));
-    }
-    for n in vals {
-        let r = n.integer_sqrt();
-        let (sq, overflow) = r.overflowing_mul(r);
-        assert!(!overflow && sq <= n, "{r:?}^2 > {n:?}");
-        let next = r + U256::ONE;
-        let (next_sq, overflow) = next.overflowing_mul(next);
-        assert!(overflow || next_sq > n, "({r:?}+1)^2 <= {n:?}");
-    }
+    native(|| {
+        let mut rng = Rng(0xc0ff_eec0_ffee_c0ff);
+        let mut vals: Vec<U256> = (0u64..2048)
+            .map(|i| U256::from_u64(i) * U256::from(7) + U256::from(3))
+            .collect();
+        for _ in 0..2000 {
+            vals.push(rng.next_u256(4));
+        }
+        for n in vals {
+            let r = n.integer_sqrt();
+            let (sq, overflow) = r.overflowing_mul(r);
+            assert!(!overflow && sq <= n, "{r:?}^2 > {n:?}");
+            let next = r + U256::ONE;
+            let (next_sq, overflow) = next.overflowing_mul(next);
+            assert!(overflow || next_sq > n, "({r:?}+1)^2 <= {n:?}");
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -633,47 +660,55 @@ fn sqrt_result_is_the_true_floor() {
 
 #[test]
 fn mul_div_u128_is_exact() {
-    let mut rng = Rng(0x3141_5926_5358_9793);
-    let mut cases: Vec<(u128, u128, u128)> = vec![
-        (1, 1, 1),
-        (u128::MAX, u128::MAX, u128::MAX),
-        (i128::MAX as u128, 3, 7),
-        (1_000_000_000, 1_000_000_000, 999_999_937),
-        (0, u128::MAX, 7),
-    ];
-    for _ in 0..5000 {
-        cases.push((rng.next_u128(), rng.next_u128(), rng.next_u128() | 1));
-    }
+    native(|| {
+        let mut rng = Rng(0x3141_5926_5358_9793);
+        let mut cases: Vec<(u128, u128, u128)> = vec![
+            (1, 1, 1),
+            (u128::MAX, u128::MAX, u128::MAX),
+            (i128::MAX as u128, 3, 7),
+            (1_000_000_000, 1_000_000_000, 999_999_937),
+            (0, u128::MAX, 7),
+        ];
+        for _ in 0..5000 {
+            cases.push((
+                rng.next_u128(),
+                rng.next_u128(),
+                rng.next_u128() | 1,
+            ));
+        }
 
-    for (a, b, d) in cases {
-        // The oracle's 256 bits hold `a * b` exactly, so this is the true
-        // quotient -- which may or may not fit back into a u128.
-        let expected = (O::from(a) * O::from(b)) / O::from(d);
-        let fits = expected <= O::from(u128::MAX);
+        for (a, b, d) in cases {
+            // The oracle's 256 bits hold `a * b` exactly, so this is the true
+            // quotient -- which may or may not fit back into a u128.
+            let expected = (O::from(a) * O::from(b)) / O::from(d);
+            let fits = expected <= O::from(u128::MAX);
 
-        assert_eq!(
-            checked_mul_div_u128(a, b, d),
-            fits.then(|| expected.as_u128()),
-            "{a} * {b} / {d}"
-        );
-        if fits {
             assert_eq!(
-                O::from(mul_div_u128(a, b, d)),
-                expected,
+                checked_mul_div_u128(a, b, d),
+                fits.then(|| expected.as_u128()),
                 "{a} * {b} / {d}"
             );
+            if fits {
+                assert_eq!(
+                    O::from(mul_div_u128(a, b, d)),
+                    expected,
+                    "{a} * {b} / {d}"
+                );
+            }
         }
-    }
+    });
 }
 
 #[test]
 fn checked_mul_div_u128_reports_failures() {
-    assert_eq!(checked_mul_div_u128(1, 1, 0), None);
-    // Quotient exceeds u128.
-    assert_eq!(checked_mul_div_u128(u128::MAX, u128::MAX, 1), None);
-    assert_eq!(checked_mul_div_u128(u128::MAX, 2, 1), None);
-    // Exactly representable.
-    assert_eq!(checked_mul_div_u128(u128::MAX, 1, 1), Some(u128::MAX));
+    native(|| {
+        assert_eq!(checked_mul_div_u128(1, 1, 0), None);
+        // Quotient exceeds u128.
+        assert_eq!(checked_mul_div_u128(u128::MAX, u128::MAX, 1), None);
+        assert_eq!(checked_mul_div_u128(u128::MAX, 2, 1), None);
+        // Exactly representable.
+        assert_eq!(checked_mul_div_u128(u128::MAX, 1, 1), Some(u128::MAX));
+    });
 }
 
 #[test]
@@ -685,7 +720,9 @@ fn mul_div_u128_by_zero_panics() {
 #[test]
 #[should_panic(expected = "quotient exceeds u128")]
 fn mul_div_u128_overflow_panics() {
-    let _ = mul_div_u128(u128::MAX, u128::MAX, 1);
+    native(|| {
+        let _ = mul_div_u128(u128::MAX, u128::MAX, 1);
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -733,42 +770,48 @@ fn mul_overflow_panics_under_overflow_checks() {
 
 #[test]
 fn display_matches_oracle() {
-    let mut vals = boundary_values();
-    let mut rng = Rng(0x2718_2818_2845_9045);
-    for _ in 0..2000 {
-        vals.push(rng.next_u256(4));
-    }
-    for n in vals {
-        assert_eq!(format!("{n}"), format!("{}", to_oracle(n)), "{n:?}");
-    }
+    native(|| {
+        let mut vals = boundary_values();
+        let mut rng = Rng(0x2718_2818_2845_9045);
+        for _ in 0..2000 {
+            vals.push(rng.next_u256(4));
+        }
+        for n in vals {
+            assert_eq!(format!("{n}"), format!("{}", to_oracle(n)), "{n:?}");
+        }
+    });
 }
 
 #[test]
 fn from_str_round_trips_display() {
-    let mut vals = boundary_values();
-    let mut rng = Rng(0x1618_0339_8874_9895);
-    for _ in 0..2000 {
-        vals.push(rng.next_u256(4));
-    }
-    for n in vals {
-        let s = format!("{n}");
-        assert_eq!(s.parse::<U256>().unwrap(), n, "{s}");
-    }
+    native(|| {
+        let mut vals = boundary_values();
+        let mut rng = Rng(0x1618_0339_8874_9895);
+        for _ in 0..2000 {
+            vals.push(rng.next_u256(4));
+        }
+        for n in vals {
+            let s = format!("{n}");
+            assert_eq!(s.parse::<U256>().unwrap(), n, "{s}");
+        }
+    });
 }
 
 #[test]
 fn from_str_rejects_bad_input() {
-    use thruput_u256::ParseU256Error;
-    assert_eq!("".parse::<U256>(), Err(ParseU256Error::Empty));
-    assert_eq!("12a".parse::<U256>(), Err(ParseU256Error::InvalidDigit));
-    assert_eq!("-1".parse::<U256>(), Err(ParseU256Error::InvalidDigit));
-    // 10^78, comfortably past the 256-bit maximum of ~1.16 * 10^77. (The
-    // oracle cannot represent 2^256 to build the exact boundary string.)
-    let too_big = format!("1{}", "0".repeat(78));
-    assert_eq!(too_big.parse::<U256>(), Err(ParseU256Error::Overflow));
-    // The maximum itself must still parse.
-    let max = format!("{}", U256::MAX);
-    assert_eq!(max.parse::<U256>(), Ok(U256::MAX));
+    native(|| {
+        use thruput_u256::ParseU256Error;
+        assert_eq!("".parse::<U256>(), Err(ParseU256Error::Empty));
+        assert_eq!("12a".parse::<U256>(), Err(ParseU256Error::InvalidDigit));
+        assert_eq!("-1".parse::<U256>(), Err(ParseU256Error::InvalidDigit));
+        // 10^78, comfortably past the 256-bit maximum of ~1.16 * 10^77. (The
+        // oracle cannot represent 2^256 to build the exact boundary string.)
+        let too_big = format!("1{}", "0".repeat(78));
+        assert_eq!(too_big.parse::<U256>(), Err(ParseU256Error::Overflow));
+        // The maximum itself must still parse.
+        let max = format!("{}", U256::MAX);
+        assert_eq!(max.parse::<U256>(), Ok(U256::MAX));
+    });
 }
 
 #[test]
@@ -849,64 +892,68 @@ fn xdr_encoding_is_big_endian() {
 /// annotation, which stops being true if a second integer `Mul` impl is added.
 #[test]
 fn integer_literals_and_operators_need_no_annotations() {
-    let a = U256::from(5);
+    native(|| {
+        let a = U256::from(5);
 
-    assert_eq!(a * 997, U256::from(4985));
-    assert_eq!(a + U256::ONE, U256::from(6));
-    assert_eq!(a - U256::ONE, U256::from(4));
-    assert_eq!(a << 112, U256::ONE.wrapping_shl(112) * 5);
-    assert_eq!(a >> 1, U256::from(2));
-    assert_eq!(a / U256::from(2), U256::from(2));
-    assert_eq!(a % U256::from(2), U256::ONE);
+        assert_eq!(a * 997, U256::from(4985));
+        assert_eq!(a + U256::ONE, U256::from(6));
+        assert_eq!(a - U256::ONE, U256::from(4));
+        assert_eq!(a << 112, U256::ONE.wrapping_shl(112) * 5);
+        assert_eq!(a >> 1, U256::from(2));
+        assert_eq!(a / U256::from(2), U256::from(2));
+        assert_eq!(a % U256::from(2), U256::ONE);
 
-    // Assign forms, including the u32 rhs.
-    let mut b = a;
-    b += U256::ONE;
-    b *= 2;
-    b -= U256::ONE;
-    assert_eq!(b, U256::from(11));
+        // Assign forms, including the u32 rhs.
+        let mut b = a;
+        b += U256::ONE;
+        b *= 2;
+        b -= U256::ONE;
+        assert_eq!(b, U256::from(11));
 
-    // The shapes the swap suite writes today.
-    let amount_in = 1_000u128;
-    let reserve_out = 5_000u128;
-    let fee = U256::from(amount_in) * 997;
-    let numerator = fee * U256::from(reserve_out);
-    let denominator = U256::from(amount_in) * 1000 + fee;
-    assert!(numerator / denominator > U256::ZERO);
+        // The shapes the swap suite writes today.
+        let amount_in = 1_000u128;
+        let reserve_out = 5_000u128;
+        let fee = U256::from(amount_in) * 997;
+        let numerator = fee * U256::from(reserve_out);
+        let denominator = U256::from(amount_in) * 1000 + fee;
+        assert!(numerator / denominator > U256::ZERO);
+    });
 }
 
 /// Fixed-width hex is the ordinary spelling for a 256-bit word, so ignoring
 /// the width flag would produce malformed output where it matters most.
 #[test]
 fn formatting_honours_width_and_padding_flags() {
-    let n = U256::from(0x1f);
+    native(|| {
+        let n = U256::from(0x1f);
 
-    // Zero-padded fixed width -- the Ethereum-style 32-byte word.
-    assert_eq!(format!("{n:064x}"), format!("{:062}1f", 0));
-    assert_eq!(format!("{n:064x}").len(), 64);
-    assert_eq!(format!("{n:#066x}").len(), 66);
-    assert!(format!("{n:#066x}").starts_with("0x0"));
+        // Zero-padded fixed width -- the Ethereum-style 32-byte word.
+        assert_eq!(format!("{n:064x}"), format!("{:062}1f", 0));
+        assert_eq!(format!("{n:064x}").len(), 64);
+        assert_eq!(format!("{n:#066x}").len(), 66);
+        assert!(format!("{n:#066x}").starts_with("0x0"));
 
-    // Alignment and fill.
-    assert_eq!(format!("{n:>6x}"), "    1f");
-    assert_eq!(format!("{n:<6x}"), "1f    ");
-    assert_eq!(format!("{n:*^6x}"), "**1f**");
-    assert_eq!(format!("{n:06X}"), "00001F");
+        // Alignment and fill.
+        assert_eq!(format!("{n:>6x}"), "    1f");
+        assert_eq!(format!("{n:<6x}"), "1f    ");
+        assert_eq!(format!("{n:*^6x}"), "**1f**");
+        assert_eq!(format!("{n:06X}"), "00001F");
 
-    // Decimal takes the same treatment.
-    assert_eq!(format!("{n:>6}"), "    31");
-    assert_eq!(format!("{n:06}"), "000031");
-    assert_eq!(format!("{n:*^6}"), "**31**");
+        // Decimal takes the same treatment.
+        assert_eq!(format!("{n:>6}"), "    31");
+        assert_eq!(format!("{n:06}"), "000031");
+        assert_eq!(format!("{n:*^6}"), "**31**");
 
-    // Zero is not a special case.
-    assert_eq!(format!("{:04x}", U256::ZERO), "0000");
-    assert_eq!(format!("{:04}", U256::ZERO), "0000");
+        // Zero is not a special case.
+        assert_eq!(format!("{:04x}", U256::ZERO), "0000");
+        assert_eq!(format!("{:04}", U256::ZERO), "0000");
 
-    // And the flagless spellings are unchanged.
-    assert_eq!(format!("{n:x}"), "1f");
-    assert_eq!(format!("{n:#x}"), "0x1f");
-    assert_eq!(format!("{n}"), "31");
+        // And the flagless spellings are unchanged.
+        assert_eq!(format!("{n:x}"), "1f");
+        assert_eq!(format!("{n:#x}"), "0x1f");
+        assert_eq!(format!("{n}"), "31");
 
-    // U256::MAX is exactly 64 hex digits, so width 64 must not pad it.
-    assert_eq!(format!("{:064x}", U256::MAX), "f".repeat(64));
+        // U256::MAX is exactly 64 hex digits, so width 64 must not pad it.
+        assert_eq!(format!("{:064x}", U256::MAX), "f".repeat(64));
+    });
 }

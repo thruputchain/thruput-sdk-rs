@@ -16,7 +16,9 @@
 //! shift-versus-Euclidean-division identity, and the named edges around `MIN`,
 //! where every overflow in the type lives.
 
-mod runtime_model;
+mod native;
+
+use native::native;
 
 use thruput_u256::{I256, ParseI256Error, Rounding, U256};
 
@@ -461,125 +463,140 @@ fn negation_and_absolute_value() {
 
 #[test]
 fn division_matches_i128() {
-    let mut rng = Rng(0x0123_4567_89ab_cdef);
-    let mut pairs: Vec<(i128, i128)> = vec![
-        (7, 2),
-        (-7, 2),
-        (7, -2),
-        (-7, -2),
-        (i128::MIN, -1),
-        (i128::MIN, 1),
-        (i128::MAX, -1),
-        (0, 5),
-        (0, -5),
-        (1, i128::MIN),
-    ];
-    for _ in 0..10_000 {
-        pairs.push((rng.next_i128(), rng.next_i128()));
-        pairs.push((rng.next_i128(), rng.next_i128() >> 100));
-    }
+    native(|| {
+        let mut rng = Rng(0x0123_4567_89ab_cdef);
+        let mut pairs: Vec<(i128, i128)> = vec![
+            (7, 2),
+            (-7, 2),
+            (7, -2),
+            (-7, -2),
+            (i128::MIN, -1),
+            (i128::MIN, 1),
+            (i128::MAX, -1),
+            (0, 5),
+            (0, -5),
+            (1, i128::MIN),
+        ];
+        for _ in 0..10_000 {
+            pairs.push((rng.next_i128(), rng.next_i128()));
+            pairs.push((rng.next_i128(), rng.next_i128() >> 100));
+        }
 
-    for (a, b) in pairs {
-        if b == 0 {
-            continue;
+        for (a, b) in pairs {
+            if b == 0 {
+                continue;
+            }
+            let (x, y) = (I256::from(a), I256::from(b));
+            // The only i128 division that overflows is MIN / -1, which does not
+            // overflow at 256 bits.
+            let expect_q = a.wrapping_div(b);
+            let expect_r = a.wrapping_rem(b);
+            if a == i128::MIN && b == -1 {
+                assert_eq!(x / y, -I256::from(i128::MIN), "{a} / {b}");
+                assert_eq!(x % y, I256::ZERO);
+                continue;
+            }
+            assert_eq!(x / y, I256::from(expect_q), "{a} / {b}");
+            assert_eq!(x % y, I256::from(expect_r), "{a} % {b}");
+            assert_eq!(
+                x.div_rem(y),
+                (I256::from(expect_q), I256::from(expect_r))
+            );
+            assert_eq!(
+                x.div_euclid(y),
+                I256::from(a.div_euclid(b)),
+                "{a}.div_euclid({b})"
+            );
+            assert_eq!(
+                x.rem_euclid(y),
+                I256::from(a.rem_euclid(b)),
+                "{a}.rem_euclid({b})"
+            );
         }
-        let (x, y) = (I256::from(a), I256::from(b));
-        // The only i128 division that overflows is MIN / -1, which does not
-        // overflow at 256 bits.
-        let expect_q = a.wrapping_div(b);
-        let expect_r = a.wrapping_rem(b);
-        if a == i128::MIN && b == -1 {
-            assert_eq!(x / y, -I256::from(i128::MIN), "{a} / {b}");
-            assert_eq!(x % y, I256::ZERO);
-            continue;
-        }
-        assert_eq!(x / y, I256::from(expect_q), "{a} / {b}");
-        assert_eq!(x % y, I256::from(expect_r), "{a} % {b}");
-        assert_eq!(x.div_rem(y), (I256::from(expect_q), I256::from(expect_r)));
-        assert_eq!(
-            x.div_euclid(y),
-            I256::from(a.div_euclid(b)),
-            "{a}.div_euclid({b})"
-        );
-        assert_eq!(
-            x.rem_euclid(y),
-            I256::from(a.rem_euclid(b)),
-            "{a}.rem_euclid({b})"
-        );
-    }
+    });
 }
 
 /// Truncation toward zero, spelled out, because it is the one place a signed
 /// port most often goes wrong.
 #[test]
 fn division_truncates_toward_zero() {
-    let seven = I256::from(7);
-    let two = I256::from(2);
-    assert_eq!(seven / two, I256::from(3));
-    assert_eq!(-seven / two, I256::from(-3));
-    assert_eq!(seven / -two, I256::from(-3));
-    assert_eq!(-seven / -two, I256::from(3));
+    native(|| {
+        let seven = I256::from(7);
+        let two = I256::from(2);
+        assert_eq!(seven / two, I256::from(3));
+        assert_eq!(-seven / two, I256::from(-3));
+        assert_eq!(seven / -two, I256::from(-3));
+        assert_eq!(-seven / -two, I256::from(3));
 
-    // The remainder takes the sign of the dividend.
-    assert_eq!(seven % two, I256::ONE);
-    assert_eq!(-seven % two, I256::MINUS_ONE);
-    assert_eq!(seven % -two, I256::ONE);
-    assert_eq!(-seven % -two, I256::MINUS_ONE);
+        // The remainder takes the sign of the dividend.
+        assert_eq!(seven % two, I256::ONE);
+        assert_eq!(-seven % two, I256::MINUS_ONE);
+        assert_eq!(seven % -two, I256::ONE);
+        assert_eq!(-seven % -two, I256::MINUS_ONE);
 
-    // Euclidean division never leaves a negative remainder.
-    assert_eq!((-seven).div_euclid(two), I256::from(-4));
-    assert_eq!((-seven).rem_euclid(two), I256::ONE);
-    assert_eq!((-seven).div_euclid(-two), I256::from(4));
-    assert_eq!((-seven).rem_euclid(-two), I256::ONE);
+        // Euclidean division never leaves a negative remainder.
+        assert_eq!((-seven).div_euclid(two), I256::from(-4));
+        assert_eq!((-seven).rem_euclid(two), I256::ONE);
+        assert_eq!((-seven).div_euclid(-two), I256::from(4));
+        assert_eq!((-seven).rem_euclid(-two), I256::ONE);
+    });
 }
 
 #[test]
 fn the_division_identity_holds_at_full_width() {
-    let mut rng = Rng(0x4142_1356_2373_0951);
-    let mut vals = boundary_values();
-    for limbs in 1..=4 {
-        for _ in 0..300 {
-            vals.push(rng.next_i256(limbs));
-        }
-    }
-    for a in &vals {
-        for b in vals.iter().take(40) {
-            if b.is_zero() {
-                continue;
-            }
-            let Some((q, r)) = a.checked_div_rem(*b) else {
-                // The only refusal left is MIN / -1.
-                assert_eq!((*a, *b), (I256::MIN, I256::MINUS_ONE));
-                continue;
-            };
-            // `q * b + r == a`, computed wrapping so the identity is testable
-            // even where `q * b` alone would leave the range.
-            assert_eq!(
-                q.wrapping_mul(*b).wrapping_add(r),
-                *a,
-                "{a:?} / {b:?} = {q:?} rem {r:?}"
-            );
-            // |r| < |b|, and r takes the dividend's sign.
-            assert!(r.unsigned_abs() < b.unsigned_abs(), "{a:?} / {b:?}");
-            if !r.is_zero() {
-                assert_eq!(r.is_negative(), a.is_negative(), "{a:?} / {b:?}");
+    native(|| {
+        let mut rng = Rng(0x4142_1356_2373_0951);
+        let mut vals = boundary_values();
+        for limbs in 1..=4 {
+            for _ in 0..300 {
+                vals.push(rng.next_i256(limbs));
             }
         }
-    }
+        for a in &vals {
+            for b in vals.iter().take(40) {
+                if b.is_zero() {
+                    continue;
+                }
+                let Some((q, r)) = a.checked_div_rem(*b) else {
+                    // The only refusal left is MIN / -1.
+                    assert_eq!((*a, *b), (I256::MIN, I256::MINUS_ONE));
+                    continue;
+                };
+                // `q * b + r == a`, computed wrapping so the identity is testable
+                // even where `q * b` alone would leave the range.
+                assert_eq!(
+                    q.wrapping_mul(*b).wrapping_add(r),
+                    *a,
+                    "{a:?} / {b:?} = {q:?} rem {r:?}"
+                );
+                // |r| < |b|, and r takes the dividend's sign.
+                assert!(r.unsigned_abs() < b.unsigned_abs(), "{a:?} / {b:?}");
+                if !r.is_zero() {
+                    assert_eq!(
+                        r.is_negative(),
+                        a.is_negative(),
+                        "{a:?} / {b:?}"
+                    );
+                }
+            }
+        }
+    });
 }
 
 #[test]
 fn min_over_minus_one_is_the_only_division_overflow() {
-    assert_eq!(I256::MIN.checked_div(I256::MINUS_ONE), None);
-    assert_eq!(I256::MIN.checked_rem(I256::MINUS_ONE), None);
-    assert_eq!(I256::MIN.wrapping_div(I256::MINUS_ONE), I256::MIN);
-    assert_eq!(I256::MIN.wrapping_rem(I256::MINUS_ONE), I256::ZERO);
-    // Every other MIN division is fine.
-    assert_eq!(I256::MIN.checked_div(I256::ONE), Some(I256::MIN));
-    assert_eq!(I256::MIN / I256::from(2), I256::MIN.wrapping_shr(1));
-    assert_eq!(I256::MAX.checked_div(I256::MINUS_ONE), Some(-I256::MAX));
-    // A zero divisor is refused whatever the dividend.
-    assert_eq!(I256::ZERO.checked_div(I256::ZERO), None);
+    native(|| {
+        assert_eq!(I256::MIN.checked_div(I256::MINUS_ONE), None);
+        assert_eq!(I256::MIN.checked_rem(I256::MINUS_ONE), None);
+        assert_eq!(I256::MIN.wrapping_div(I256::MINUS_ONE), I256::MIN);
+        assert_eq!(I256::MIN.wrapping_rem(I256::MINUS_ONE), I256::ZERO);
+        // Every other MIN division is fine.
+        assert_eq!(I256::MIN.checked_div(I256::ONE), Some(I256::MIN));
+        assert_eq!(I256::MIN / I256::from(2), I256::MIN.wrapping_shr(1));
+        assert_eq!(I256::MAX.checked_div(I256::MINUS_ONE), Some(-I256::MAX));
+        // A zero divisor is refused whatever the dividend.
+        assert_eq!(I256::ZERO.checked_div(I256::ZERO), None);
+    });
 }
 
 #[test]
@@ -672,32 +689,38 @@ fn shifts_match_i128() {
 /// logical-shift bug breaks immediately.
 #[test]
 fn arithmetic_right_shift_is_floor_division() {
-    let mut rng = Rng(0x2718_2818_2845_9045);
-    let mut vals = boundary_values();
-    for limbs in 1..=4 {
-        for _ in 0..200 {
-            vals.push(rng.next_i256(limbs));
+    native(|| {
+        let mut rng = Rng(0x2718_2818_2845_9045);
+        let mut vals = boundary_values();
+        for limbs in 1..=4 {
+            for _ in 0..200 {
+                vals.push(rng.next_i256(limbs));
+            }
         }
-    }
-    for v in vals {
-        for shift in [0u32, 1, 2, 31, 32, 63, 64, 127, 128, 200, 254] {
-            let divisor = I256::ONE.wrapping_shl(shift);
-            assert_eq!(
-                v.wrapping_shr(shift),
-                v.div_euclid(divisor),
-                "{v:?} >> {shift}"
-            );
+        for v in vals {
+            for shift in [0u32, 1, 2, 31, 32, 63, 64, 127, 128, 200, 254] {
+                let divisor = I256::ONE.wrapping_shl(shift);
+                assert_eq!(
+                    v.wrapping_shr(shift),
+                    v.div_euclid(divisor),
+                    "{v:?} >> {shift}"
+                );
+            }
+            // Shifting a negative value all the way down saturates at -1, never
+            // at 0.
+            if v.is_negative() {
+                assert_eq!(
+                    v.wrapping_shr(255),
+                    I256::MINUS_ONE,
+                    "{v:?} >> 255"
+                );
+            } else {
+                assert_eq!(v.wrapping_shr(255), I256::ZERO, "{v:?} >> 255");
+            }
         }
-        // Shifting a negative value all the way down saturates at -1, never
-        // at 0.
-        if v.is_negative() {
-            assert_eq!(v.wrapping_shr(255), I256::MINUS_ONE, "{v:?} >> 255");
-        } else {
-            assert_eq!(v.wrapping_shr(255), I256::ZERO, "{v:?} >> 255");
-        }
-    }
-    assert_eq!(I256::MINUS_ONE >> 1u32, I256::MINUS_ONE);
-    assert_eq!(I256::MIN >> 255u32, I256::MINUS_ONE);
+        assert_eq!(I256::MINUS_ONE >> 1u32, I256::MINUS_ONE);
+        assert_eq!(I256::MIN >> 255u32, I256::MINUS_ONE);
+    });
 }
 
 #[test]
@@ -728,27 +751,29 @@ fn bitwise_operations_match_i128() {
 
 #[test]
 fn assign_operators_agree_with_their_binary_forms() {
-    let mut v = I256::from(-100);
-    v += I256::from(30);
-    assert_eq!(v, I256::from(-70));
-    v -= I256::from(-70);
-    assert_eq!(v, I256::ZERO);
-    v = I256::from(-9);
-    v *= I256::from(3);
-    assert_eq!(v, I256::from(-27));
-    v /= I256::from(4);
-    assert_eq!(v, I256::from(-6));
-    v %= I256::from(4);
-    assert_eq!(v, I256::from(-2));
-    v <<= 3u32;
-    assert_eq!(v, I256::from(-16));
-    v >>= 2u32;
-    assert_eq!(v, I256::from(-4));
-    v &= I256::from(-3);
-    assert_eq!(v, I256::from(-4) & I256::from(-3));
-    v |= I256::ONE;
-    v ^= I256::ONE;
-    assert_eq!(v, I256::from(-4) & I256::from(-3));
+    native(|| {
+        let mut v = I256::from(-100);
+        v += I256::from(30);
+        assert_eq!(v, I256::from(-70));
+        v -= I256::from(-70);
+        assert_eq!(v, I256::ZERO);
+        v = I256::from(-9);
+        v *= I256::from(3);
+        assert_eq!(v, I256::from(-27));
+        v /= I256::from(4);
+        assert_eq!(v, I256::from(-6));
+        v %= I256::from(4);
+        assert_eq!(v, I256::from(-2));
+        v <<= 3u32;
+        assert_eq!(v, I256::from(-16));
+        v >>= 2u32;
+        assert_eq!(v, I256::from(-4));
+        v &= I256::from(-3);
+        assert_eq!(v, I256::from(-4) & I256::from(-3));
+        v |= I256::ONE;
+        v ^= I256::ONE;
+        assert_eq!(v, I256::from(-4) & I256::from(-3));
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -798,55 +823,71 @@ fn wrapping_forms_wrap_where_the_operators_would_panic() {
 /// pairs directly.
 #[test]
 fn overflowing_forms_report_their_flags() {
-    // Negation and absolute value: MIN is the only overflow.
-    assert_eq!(I256::ZERO.overflowing_neg(), (I256::ZERO, false));
-    assert_eq!(I256::ONE.overflowing_neg(), (I256::MINUS_ONE, false));
-    assert_eq!(I256::MAX.overflowing_neg(), (-I256::MAX, false));
-    assert_eq!(I256::MIN.overflowing_neg(), (I256::MIN, true));
+    native(|| {
+        // Negation and absolute value: MIN is the only overflow.
+        assert_eq!(I256::ZERO.overflowing_neg(), (I256::ZERO, false));
+        assert_eq!(I256::ONE.overflowing_neg(), (I256::MINUS_ONE, false));
+        assert_eq!(I256::MAX.overflowing_neg(), (-I256::MAX, false));
+        assert_eq!(I256::MIN.overflowing_neg(), (I256::MIN, true));
 
-    assert_eq!(I256::MINUS_ONE.overflowing_abs(), (I256::ONE, false));
-    assert_eq!(I256::MAX.overflowing_abs(), (I256::MAX, false));
-    assert_eq!(I256::MIN.overflowing_abs(), (I256::MIN, true));
+        assert_eq!(I256::MINUS_ONE.overflowing_abs(), (I256::ONE, false));
+        assert_eq!(I256::MAX.overflowing_abs(), (I256::MAX, false));
+        assert_eq!(I256::MIN.overflowing_abs(), (I256::MIN, true));
 
-    // Arithmetic shift: the flag reports the mask, not a lost value.
-    assert_eq!(I256::MINUS_ONE.overflowing_shr(0), (I256::MINUS_ONE, false));
-    assert_eq!(I256::MIN.overflowing_shr(255), (I256::MINUS_ONE, false));
-    assert_eq!(I256::ONE.overflowing_shr(256), (I256::ONE, true));
-    assert_eq!(I256::from(8).overflowing_shr(2), (I256::from(2), false));
+        // Arithmetic shift: the flag reports the mask, not a lost value.
+        assert_eq!(
+            I256::MINUS_ONE.overflowing_shr(0),
+            (I256::MINUS_ONE, false)
+        );
+        assert_eq!(I256::MIN.overflowing_shr(255), (I256::MINUS_ONE, false));
+        assert_eq!(I256::ONE.overflowing_shr(256), (I256::ONE, true));
+        assert_eq!(I256::from(8).overflowing_shr(2), (I256::from(2), false));
 
-    // Exponentiation.
-    assert_eq!(I256::from(3).overflowing_pow(0), (I256::ONE, false));
-    assert_eq!(I256::from(-3).overflowing_pow(3), (I256::from(-27), false));
-    assert!(!I256::from(2).overflowing_pow(254).1);
-    assert!(I256::from(2).overflowing_pow(255).1);
-    assert_eq!(I256::from(-2).overflowing_pow(255), (I256::MIN, false));
-    assert!(I256::from(-2).overflowing_pow(256).1);
+        // Exponentiation.
+        assert_eq!(I256::from(3).overflowing_pow(0), (I256::ONE, false));
+        assert_eq!(
+            I256::from(-3).overflowing_pow(3),
+            (I256::from(-27), false)
+        );
+        assert!(!I256::from(2).overflowing_pow(254).1);
+        assert!(I256::from(2).overflowing_pow(255).1);
+        assert_eq!(I256::from(-2).overflowing_pow(255), (I256::MIN, false));
+        assert!(I256::from(-2).overflowing_pow(256).1);
 
-    // Every flag must agree with its `checked_` sibling, across the boundary
-    // values -- that is the invariant the wrappers rely on.
-    for v in boundary_values() {
-        assert_eq!(v.overflowing_neg().1, v.checked_neg().is_none(), "{v:?}");
-        assert_eq!(v.overflowing_abs().1, v.checked_abs().is_none(), "{v:?}");
-        for exp in [0u32, 1, 2, 3, 8] {
+        // Every flag must agree with its `checked_` sibling, across the boundary
+        // values -- that is the invariant the wrappers rely on.
+        for v in boundary_values() {
             assert_eq!(
-                v.overflowing_pow(exp).1,
-                v.checked_pow(exp).is_none(),
-                "{v:?}^{exp}"
+                v.overflowing_neg().1,
+                v.checked_neg().is_none(),
+                "{v:?}"
             );
-        }
-        for n in [0u32, 1, 255, 256, 300] {
-            assert_eq!(v.overflowing_shr(n).1, v.checked_shr(n).is_none());
-            assert_eq!(v.overflowing_shl(n).1, v.checked_shl(n).is_none());
-        }
-        for d in [I256::ONE, I256::MINUS_ONE, I256::from(3), I256::MIN] {
             assert_eq!(
-                v.overflowing_div(d).1,
-                v.checked_div(d).is_none(),
-                "{v:?} / {d:?}"
+                v.overflowing_abs().1,
+                v.checked_abs().is_none(),
+                "{v:?}"
             );
-            assert_eq!(v.overflowing_rem(d).1, v.checked_rem(d).is_none());
+            for exp in [0u32, 1, 2, 3, 8] {
+                assert_eq!(
+                    v.overflowing_pow(exp).1,
+                    v.checked_pow(exp).is_none(),
+                    "{v:?}^{exp}"
+                );
+            }
+            for n in [0u32, 1, 255, 256, 300] {
+                assert_eq!(v.overflowing_shr(n).1, v.checked_shr(n).is_none());
+                assert_eq!(v.overflowing_shl(n).1, v.checked_shl(n).is_none());
+            }
+            for d in [I256::ONE, I256::MINUS_ONE, I256::from(3), I256::MIN] {
+                assert_eq!(
+                    v.overflowing_div(d).1,
+                    v.checked_div(d).is_none(),
+                    "{v:?} / {d:?}"
+                );
+                assert_eq!(v.overflowing_rem(d).1, v.checked_rem(d).is_none());
+            }
         }
-    }
+    });
 }
 
 /// `U256`'s own negation family, added alongside `I256` and equally unasserted
@@ -953,135 +994,145 @@ fn average_rounds_toward_zero_and_never_overflows() {
 
 #[test]
 fn signed_mul_div_matches_the_wide_oracle() {
-    let mut rng = Rng(0xdead_beef_feed_face);
-    let mut sampled = 0usize;
-    for _ in 0..8000 {
-        let x = rng.next_i256(2);
-        let y = rng.next_i256(2);
-        let d = rng.next_i256(2);
-        if d.is_zero() {
-            continue;
-        }
-
-        let negative = (x.is_negative() != y.is_negative()) != d.is_negative();
-        let mag_q = (wide(x.unsigned_abs()) * wide(y.unsigned_abs()))
-            / wide(d.unsigned_abs());
-        let mag_r = (wide(x.unsigned_abs()) * wide(y.unsigned_abs()))
-            % wide(d.unsigned_abs());
-
-        let limit = if negative {
-            wide(U256::ONE << 255u32)
-        } else {
-            wide(I256::MAX.cast_unsigned())
-        };
-        let expect = if mag_q > limit {
-            None
-        } else {
-            let m = narrow(mag_q).unwrap();
-            Some(if negative { m.wrapping_neg() } else { m }.cast_signed())
-        };
-        assert_eq!(
-            I256::checked_mul_div(x, y, d),
-            expect,
-            "mul_div({x:?}, {y:?}, {d:?})"
-        );
-
-        // Rounding: away from zero exactly when the direction says so.
-        if let Some(q) = expect {
-            for rounding in ROUNDINGS {
-                let away = !mag_r.is_zero()
-                    && rounding.rounds_away_from_zero(negative);
-                let want = if away {
-                    if negative {
-                        q.checked_sub(I256::ONE)
-                    } else {
-                        q.checked_add(I256::ONE)
-                    }
-                } else {
-                    Some(q)
-                };
-                assert_eq!(
-                    I256::checked_mul_div_rounding(x, y, d, rounding),
-                    want,
-                    "mul_div({x:?}, {y:?}, {d:?}) {rounding:?}"
-                );
+    native(|| {
+        let mut rng = Rng(0xdead_beef_feed_face);
+        let mut sampled = 0usize;
+        for _ in 0..8000 {
+            let x = rng.next_i256(2);
+            let y = rng.next_i256(2);
+            let d = rng.next_i256(2);
+            if d.is_zero() {
+                continue;
             }
+
+            let negative =
+                (x.is_negative() != y.is_negative()) != d.is_negative();
+            let mag_q = (wide(x.unsigned_abs()) * wide(y.unsigned_abs()))
+                / wide(d.unsigned_abs());
+            let mag_r = (wide(x.unsigned_abs()) * wide(y.unsigned_abs()))
+                % wide(d.unsigned_abs());
+
+            let limit = if negative {
+                wide(U256::ONE << 255u32)
+            } else {
+                wide(I256::MAX.cast_unsigned())
+            };
+            let expect = if mag_q > limit {
+                None
+            } else {
+                let m = narrow(mag_q).unwrap();
+                Some(if negative { m.wrapping_neg() } else { m }.cast_signed())
+            };
+            assert_eq!(
+                I256::checked_mul_div(x, y, d),
+                expect,
+                "mul_div({x:?}, {y:?}, {d:?})"
+            );
+
+            // Rounding: away from zero exactly when the direction says so.
+            if let Some(q) = expect {
+                for rounding in ROUNDINGS {
+                    let away = !mag_r.is_zero()
+                        && rounding.rounds_away_from_zero(negative);
+                    let want = if away {
+                        if negative {
+                            q.checked_sub(I256::ONE)
+                        } else {
+                            q.checked_add(I256::ONE)
+                        }
+                    } else {
+                        Some(q)
+                    };
+                    assert_eq!(
+                        I256::checked_mul_div_rounding(x, y, d, rounding),
+                        want,
+                        "mul_div({x:?}, {y:?}, {d:?}) {rounding:?}"
+                    );
+                }
+            }
+            sampled += 1;
         }
-        sampled += 1;
-    }
-    assert!(sampled > 5000);
+        assert!(sampled > 5000);
+    });
 }
 
 #[test]
 fn signed_mul_div_truncates_and_rounds_by_direction() {
-    let (seven, two) = (I256::from(7), I256::from(2));
-    assert_eq!(I256::mul_div(seven, I256::ONE, two), I256::from(3));
-    assert_eq!(I256::mul_div(-seven, I256::ONE, two), I256::from(-3));
+    native(|| {
+        let (seven, two) = (I256::from(7), I256::from(2));
+        assert_eq!(I256::mul_div(seven, I256::ONE, two), I256::from(3));
+        assert_eq!(I256::mul_div(-seven, I256::ONE, two), I256::from(-3));
 
-    // -7/2 is -3.5: floor is -4, ceil is -3, trunc is -3, expand is -4.
-    for (rounding, want) in [
-        (Rounding::Floor, -4),
-        (Rounding::Ceil, -3),
-        (Rounding::Trunc, -3),
-        (Rounding::Expand, -4),
-    ] {
+        // -7/2 is -3.5: floor is -4, ceil is -3, trunc is -3, expand is -4.
+        for (rounding, want) in [
+            (Rounding::Floor, -4),
+            (Rounding::Ceil, -3),
+            (Rounding::Trunc, -3),
+            (Rounding::Expand, -4),
+        ] {
+            assert_eq!(
+                I256::mul_div_rounding(-seven, I256::ONE, two, rounding),
+                I256::from(want),
+                "{rounding:?}"
+            );
+        }
+        // 7/2 is 3.5: floor 3, ceil 4, trunc 3, expand 4.
+        for (rounding, want) in [
+            (Rounding::Floor, 3),
+            (Rounding::Ceil, 4),
+            (Rounding::Trunc, 3),
+            (Rounding::Expand, 4),
+        ] {
+            assert_eq!(
+                I256::mul_div_rounding(seven, I256::ONE, two, rounding),
+                I256::from(want),
+                "{rounding:?}"
+            );
+        }
+
+        // A magnitude-zero inexact quotient still knows which side it came from.
         assert_eq!(
-            I256::mul_div_rounding(-seven, I256::ONE, two, rounding),
-            I256::from(want),
-            "{rounding:?}"
+            I256::mul_div_rounding(
+                I256::ONE,
+                I256::ONE,
+                I256::from(-3),
+                Rounding::Floor
+            ),
+            I256::MINUS_ONE
         );
-    }
-    // 7/2 is 3.5: floor 3, ceil 4, trunc 3, expand 4.
-    for (rounding, want) in [
-        (Rounding::Floor, 3),
-        (Rounding::Ceil, 4),
-        (Rounding::Trunc, 3),
-        (Rounding::Expand, 4),
-    ] {
         assert_eq!(
-            I256::mul_div_rounding(seven, I256::ONE, two, rounding),
-            I256::from(want),
-            "{rounding:?}"
+            I256::mul_div_rounding(
+                I256::ONE,
+                I256::ONE,
+                I256::from(-3),
+                Rounding::Ceil
+            ),
+            I256::ZERO
         );
-    }
 
-    // A magnitude-zero inexact quotient still knows which side it came from.
-    assert_eq!(
-        I256::mul_div_rounding(
-            I256::ONE,
-            I256::ONE,
-            I256::from(-3),
-            Rounding::Floor
-        ),
-        I256::MINUS_ONE
-    );
-    assert_eq!(
-        I256::mul_div_rounding(
-            I256::ONE,
-            I256::ONE,
-            I256::from(-3),
-            Rounding::Ceil
-        ),
-        I256::ZERO
-    );
-
-    // The intermediate really is 512 bits wide.
-    assert_eq!(I256::mul_div(I256::MAX, I256::MIN, I256::MIN), I256::MAX);
-    assert_eq!(I256::checked_mul_div(I256::MIN, I256::MIN, I256::ONE), None);
-    assert_eq!(
-        I256::checked_mul_div(I256::MIN, I256::ONE, I256::ONE),
-        Some(I256::MIN)
-    );
-    assert_eq!(
-        I256::checked_mul_div(I256::ONE, I256::ONE, I256::ZERO),
-        None
-    );
+        // The intermediate really is 512 bits wide.
+        assert_eq!(I256::mul_div(I256::MAX, I256::MIN, I256::MIN), I256::MAX);
+        assert_eq!(
+            I256::checked_mul_div(I256::MIN, I256::MIN, I256::ONE),
+            None
+        );
+        assert_eq!(
+            I256::checked_mul_div(I256::MIN, I256::ONE, I256::ONE),
+            Some(I256::MIN)
+        );
+        assert_eq!(
+            I256::checked_mul_div(I256::ONE, I256::ONE, I256::ZERO),
+            None
+        );
+    });
 }
 
 #[test]
 #[should_panic(expected = "mul_div quotient out of range for I256")]
 fn signed_mul_div_overflow_panics() {
-    let _ = I256::mul_div(I256::MIN, I256::MINUS_ONE, I256::ONE);
+    native(|| {
+        let _ = I256::mul_div(I256::MIN, I256::MINUS_ONE, I256::ONE);
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -1090,70 +1141,89 @@ fn signed_mul_div_overflow_panics() {
 
 #[test]
 fn display_matches_i128() {
-    let mut rng = Rng(0x2718_2818_2845_9045);
-    let mut vals: Vec<i128> = vec![0, 1, -1, 10, -10, i128::MAX, i128::MIN];
-    for _ in 0..3000 {
-        vals.push(rng.next_i128());
-    }
-    for n in vals {
-        assert_eq!(format!("{}", I256::from(n)), format!("{n}"), "{n}");
-        assert_eq!(format!("{:+}", I256::from(n)), format!("{n:+}"), "{n}");
-    }
+    native(|| {
+        let mut rng = Rng(0x2718_2818_2845_9045);
+        let mut vals: Vec<i128> =
+            vec![0, 1, -1, 10, -10, i128::MAX, i128::MIN];
+        for _ in 0..3000 {
+            vals.push(rng.next_i128());
+        }
+        for n in vals {
+            assert_eq!(format!("{}", I256::from(n)), format!("{n}"), "{n}");
+            assert_eq!(
+                format!("{:+}", I256::from(n)),
+                format!("{n:+}"),
+                "{n}"
+            );
+        }
 
-    // The 256-bit extremes, which no primitive can render.
-    assert_eq!(
-        format!("{}", I256::MAX),
-        "57896044618658097711785492504343953926634992332820282019728792003956564819967"
-    );
-    assert_eq!(
-        format!("{}", I256::MIN),
-        "-57896044618658097711785492504343953926634992332820282019728792003956564819968"
-    );
+        // The 256-bit extremes, which no primitive can render.
+        assert_eq!(
+            format!("{}", I256::MAX),
+            "57896044618658097711785492504343953926634992332820282019728792003956564819967"
+        );
+        assert_eq!(
+            format!("{}", I256::MIN),
+            "-57896044618658097711785492504343953926634992332820282019728792003956564819968"
+        );
+    });
 }
 
 #[test]
 fn from_str_round_trips_display() {
-    let mut rng = Rng(0x1618_0339_8874_9895);
-    let mut vals = boundary_values();
-    for limbs in 1..=4 {
-        for _ in 0..500 {
-            vals.push(rng.next_i256(limbs));
+    native(|| {
+        let mut rng = Rng(0x1618_0339_8874_9895);
+        let mut vals = boundary_values();
+        for limbs in 1..=4 {
+            for _ in 0..500 {
+                vals.push(rng.next_i256(limbs));
+            }
         }
-    }
-    for n in vals {
-        let s = format!("{n}");
-        assert_eq!(s.parse::<I256>(), Ok(n), "{s}");
-    }
-    // A leading `+` is accepted and means nothing.
-    assert_eq!("+42".parse::<I256>(), Ok(I256::from(42)));
-    assert_eq!("-0".parse::<I256>(), Ok(I256::ZERO));
+        for n in vals {
+            let s = format!("{n}");
+            assert_eq!(s.parse::<I256>(), Ok(n), "{s}");
+        }
+        // A leading `+` is accepted and means nothing.
+        assert_eq!("+42".parse::<I256>(), Ok(I256::from(42)));
+        assert_eq!("-0".parse::<I256>(), Ok(I256::ZERO));
+    });
 }
 
 #[test]
 fn from_str_rejects_bad_input() {
-    assert_eq!("".parse::<I256>(), Err(ParseI256Error::Empty));
-    assert_eq!("-".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
-    assert_eq!("+".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
-    assert_eq!("12a".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
-    assert_eq!("1-2".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
-    assert_eq!(" 1".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
+    native(|| {
+        assert_eq!("".parse::<I256>(), Err(ParseI256Error::Empty));
+        assert_eq!("-".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
+        assert_eq!("+".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
+        assert_eq!("12a".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
+        assert_eq!("1-2".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
+        assert_eq!(" 1".parse::<I256>(), Err(ParseI256Error::InvalidDigit));
 
-    // The asymmetric range: MIN parses, MIN - 1 and MAX + 1 do not.
-    assert_eq!(format!("{}", I256::MIN).parse::<I256>(), Ok(I256::MIN));
-    assert_eq!(format!("{}", I256::MAX).parse::<I256>(), Ok(I256::MAX));
-    let max_plus_one = format!("{}", I256::MAX.cast_unsigned() + U256::ONE);
-    assert_eq!(max_plus_one.parse::<I256>(), Err(ParseI256Error::Overflow));
-    let min_minus_one = format!("-{}", I256::MIN.unsigned_abs() + U256::ONE);
-    assert_eq!(min_minus_one.parse::<I256>(), Err(ParseI256Error::Overflow));
-    // But the same magnitude is fine on the negative side only.
-    assert_eq!(
-        format!("-{}", I256::MIN.unsigned_abs()).parse::<I256>(),
-        Ok(I256::MIN)
-    );
-    assert_eq!(
-        format!("{}", I256::MIN.unsigned_abs()).parse::<I256>(),
-        Err(ParseI256Error::Overflow)
-    );
+        // The asymmetric range: MIN parses, MIN - 1 and MAX + 1 do not.
+        assert_eq!(format!("{}", I256::MIN).parse::<I256>(), Ok(I256::MIN));
+        assert_eq!(format!("{}", I256::MAX).parse::<I256>(), Ok(I256::MAX));
+        let max_plus_one =
+            format!("{}", I256::MAX.cast_unsigned() + U256::ONE);
+        assert_eq!(
+            max_plus_one.parse::<I256>(),
+            Err(ParseI256Error::Overflow)
+        );
+        let min_minus_one =
+            format!("-{}", I256::MIN.unsigned_abs() + U256::ONE);
+        assert_eq!(
+            min_minus_one.parse::<I256>(),
+            Err(ParseI256Error::Overflow)
+        );
+        // But the same magnitude is fine on the negative side only.
+        assert_eq!(
+            format!("-{}", I256::MIN.unsigned_abs()).parse::<I256>(),
+            Ok(I256::MIN)
+        );
+        assert_eq!(
+            format!("{}", I256::MIN.unsigned_abs()).parse::<I256>(),
+            Err(ParseI256Error::Overflow)
+        );
+    });
 }
 
 #[test]
@@ -1192,15 +1262,17 @@ fn hex_shows_the_two_complement_bits_and_debug_shows_the_sign() {
 
 #[test]
 fn formatting_honours_width_and_padding_flags() {
-    let n = I256::from(-31);
-    assert_eq!(format!("{n:>6}"), "   -31");
-    assert_eq!(format!("{n:06}"), "-00031");
-    assert_eq!(format!("{n:*^7}"), "**-31**");
-    assert_eq!(format!("{n:+}"), "-31");
-    assert_eq!(format!("{:+}", I256::from(31)), "+31");
-    // Hex pads over the raw bits, which are 64 digits wide for a negative.
-    assert_eq!(format!("{:064x}", I256::from(31)), format!("{:062}1f", 0));
-    assert_eq!(format!("{:064x}", I256::MINUS_ONE).len(), 64);
+    native(|| {
+        let n = I256::from(-31);
+        assert_eq!(format!("{n:>6}"), "   -31");
+        assert_eq!(format!("{n:06}"), "-00031");
+        assert_eq!(format!("{n:*^7}"), "**-31**");
+        assert_eq!(format!("{n:+}"), "-31");
+        assert_eq!(format!("{:+}", I256::from(31)), "+31");
+        // Hex pads over the raw bits, which are 64 digits wide for a negative.
+        assert_eq!(format!("{:064x}", I256::from(31)), format!("{:062}1f", 0));
+        assert_eq!(format!("{:064x}", I256::MINUS_ONE).len(), 64);
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -1278,41 +1350,45 @@ fn xdr_encoding_is_big_endian_two_complement() {
 /// unsigned suite, the point is that this file *compiles*.
 #[test]
 fn integer_literals_and_operators_need_no_annotations() {
-    const FEE: I256 = I256::from(-1000);
-    const SCALE: I256 = I256::from_i64(1_000_000);
+    native(|| {
+        const FEE: I256 = I256::from(-1000);
+        const SCALE: I256 = I256::from_i64(1_000_000);
 
-    assert_eq!(I256::from(-1000), FEE);
-    assert_eq!(SCALE, I256::from(1_000_000));
+        assert_eq!(I256::from(-1000), FEE);
+        assert_eq!(SCALE, I256::from(1_000_000));
 
-    let a = I256::from(-5);
-    assert_eq!(a + I256::ONE, I256::from(-4));
-    assert_eq!(a - I256::ONE, I256::from(-6));
-    assert_eq!(a * I256::from(3), I256::from(-15));
-    assert_eq!(a / I256::from(2), I256::from(-2));
-    assert_eq!(a % I256::from(2), I256::MINUS_ONE);
-    assert_eq!(-a, I256::from(5));
-    // Bare literal shift amounts resolve to `i32`, which the full shift
-    // family covers.
-    assert_eq!(a << 2, I256::from(-20));
-    assert_eq!(a >> 1, I256::from(-3));
-    assert_eq!(a << 2u8, a << 2usize);
+        let a = I256::from(-5);
+        assert_eq!(a + I256::ONE, I256::from(-4));
+        assert_eq!(a - I256::ONE, I256::from(-6));
+        assert_eq!(a * I256::from(3), I256::from(-15));
+        assert_eq!(a / I256::from(2), I256::from(-2));
+        assert_eq!(a % I256::from(2), I256::MINUS_ONE);
+        assert_eq!(-a, I256::from(5));
+        // Bare literal shift amounts resolve to `i32`, which the full shift
+        // family covers.
+        assert_eq!(a << 2, I256::from(-20));
+        assert_eq!(a >> 1, I256::from(-3));
+        assert_eq!(a << 2u8, a << 2usize);
+    });
 }
 
 /// The signed surface is `const fn`, which contracts lean on, except for the
 /// `mul_div` family: a contract takes its quotients from the runtime.
 #[test]
 fn the_signed_surface_is_const_evaluable() {
-    const A: I256 = I256::from(-1_000_000_000_000_000_000);
-    const B: I256 = I256::from(3);
-    const NEG: I256 = A.wrapping_neg();
-    const ABS: U256 = A.unsigned_abs();
-    const AVG: I256 = A.average(B);
-    const SHIFTED: I256 = A.wrapping_shr(4);
-    const CMP: core::cmp::Ordering = A.const_cmp(B);
+    native(|| {
+        const A: I256 = I256::from(-1_000_000_000_000_000_000);
+        const B: I256 = I256::from(3);
+        const NEG: I256 = A.wrapping_neg();
+        const ABS: U256 = A.unsigned_abs();
+        const AVG: I256 = A.average(B);
+        const SHIFTED: I256 = A.wrapping_shr(4);
+        const CMP: core::cmp::Ordering = A.const_cmp(B);
 
-    assert_eq!(NEG, -A);
-    assert_eq!(ABS, U256::from(1_000_000_000_000_000_000));
-    assert_eq!(AVG, A.average(B));
-    assert_eq!(SHIFTED, A.div_euclid(I256::from(16)));
-    assert_eq!(CMP, core::cmp::Ordering::Less);
+        assert_eq!(NEG, -A);
+        assert_eq!(ABS, U256::from(1_000_000_000_000_000_000));
+        assert_eq!(AVG, A.average(B));
+        assert_eq!(SHIFTED, A.div_euclid(I256::from(16)));
+        assert_eq!(CMP, core::cmp::Ordering::Less);
+    });
 }

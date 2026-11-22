@@ -13,7 +13,9 @@
 //!   (`mul_div`, `mul_shr`, `mul_mod`), whose whole point is an intermediate
 //!   that no 256-bit oracle can hold.
 
-mod runtime_model;
+mod native;
+
+use native::native;
 
 use thruput_u256::{Rounding, U256};
 
@@ -152,38 +154,40 @@ fn average_matches_u128_and_never_overflows() {
 
 #[test]
 fn ceil_div_matches_u128() {
-    let mut rng = Rng(0x5555_6666_7777_8888);
-    let mut cases: Vec<(u128, u128)> = vec![
-        (0, 1),
-        (1, 1),
-        (1, 2),
-        (2, 1),
-        (u128::MAX, 1),
-        (u128::MAX, 2),
-    ];
-    for _ in 0..5000 {
-        cases.push((rng.next_u128(), rng.next_u128().max(1)));
-    }
-    for (a, b) in cases {
-        let expect = a.div_ceil(b);
-        assert_eq!(
-            U256::from(a).ceil_div(U256::from(b)),
-            U256::from(expect),
-            "ceil_div({a}, {b})"
-        );
-        assert_eq!(
-            U256::from(a).checked_ceil_div(U256::from(b)),
-            Some(U256::from(expect))
-        );
-    }
+    native(|| {
+        let mut rng = Rng(0x5555_6666_7777_8888);
+        let mut cases: Vec<(u128, u128)> = vec![
+            (0, 1),
+            (1, 1),
+            (1, 2),
+            (2, 1),
+            (u128::MAX, 1),
+            (u128::MAX, 2),
+        ];
+        for _ in 0..5000 {
+            cases.push((rng.next_u128(), rng.next_u128().max(1)));
+        }
+        for (a, b) in cases {
+            let expect = a.div_ceil(b);
+            assert_eq!(
+                U256::from(a).ceil_div(U256::from(b)),
+                U256::from(expect),
+                "ceil_div({a}, {b})"
+            );
+            assert_eq!(
+                U256::from(a).checked_ceil_div(U256::from(b)),
+                Some(U256::from(expect))
+            );
+        }
 
-    // The largest result there is, which the `(a - 1) / b + 1` form must not
-    // overflow past.
-    assert_eq!(U256::MAX.ceil_div(U256::ONE), U256::MAX);
-    assert_eq!(
-        U256::MAX.ceil_div(U256::from(2)),
-        (U256::MAX >> 1u32) + U256::ONE
-    );
+        // The largest result there is, which the `(a - 1) / b + 1` form must not
+        // overflow past.
+        assert_eq!(U256::MAX.ceil_div(U256::ONE), U256::MAX);
+        assert_eq!(
+            U256::MAX.ceil_div(U256::from(2)),
+            (U256::MAX >> 1u32) + U256::ONE
+        );
+    });
 }
 
 #[test]
@@ -202,27 +206,29 @@ fn ceil_div_by_zero_panics() {
 
 #[test]
 fn div_rounding_matches_the_remainder() {
-    let mut rng = Rng(0x9999_aaaa_bbbb_cccc);
-    for _ in 0..2000 {
-        let a = rng.next_u256(4);
-        let b = rng.next_u256(2);
-        if b.is_zero() {
-            continue;
+    native(|| {
+        let mut rng = Rng(0x9999_aaaa_bbbb_cccc);
+        for _ in 0..2000 {
+            let a = rng.next_u256(4);
+            let b = rng.next_u256(2);
+            if b.is_zero() {
+                continue;
+            }
+            let (q, r) = a.div_rem(b);
+            for rounding in ROUNDINGS {
+                let up = rounding.unsigned_rounds_up() && !r.is_zero();
+                assert_eq!(
+                    a.checked_div_rounding(b, rounding),
+                    Some(if up { q + U256::ONE } else { q }),
+                    "{a:?} / {b:?} {rounding:?}"
+                );
+            }
         }
-        let (q, r) = a.div_rem(b);
-        for rounding in ROUNDINGS {
-            let up = rounding.unsigned_rounds_up() && !r.is_zero();
-            assert_eq!(
-                a.checked_div_rounding(b, rounding),
-                Some(if up { q + U256::ONE } else { q }),
-                "{a:?} / {b:?} {rounding:?}"
-            );
-        }
-    }
-    assert_eq!(
-        U256::ONE.checked_div_rounding(U256::ZERO, Rounding::Ceil),
-        None
-    );
+        assert_eq!(
+            U256::ONE.checked_div_rounding(U256::ZERO, Rounding::Ceil),
+            None
+        );
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -250,170 +256,186 @@ fn widening_mul_matches_the_wide_oracle() {
 
 #[test]
 fn mul_div_matches_the_wide_oracle() {
-    let mut rng = Rng(0x2222_3333_4444_5555);
-    let mut checked = 0usize;
-    for x_limbs in 1..=4 {
-        for y_limbs in 1..=4 {
-            for d_limbs in 1..=4 {
-                for _ in 0..300 {
-                    let x = rng.next_u256(x_limbs);
-                    let y = rng.next_u256(y_limbs);
-                    let d = rng.next_u256(d_limbs);
-                    if d.is_zero() {
-                        continue;
+    native(|| {
+        let mut rng = Rng(0x2222_3333_4444_5555);
+        let mut checked = 0usize;
+        for x_limbs in 1..=4 {
+            for y_limbs in 1..=4 {
+                for d_limbs in 1..=4 {
+                    for _ in 0..300 {
+                        let x = rng.next_u256(x_limbs);
+                        let y = rng.next_u256(y_limbs);
+                        let d = rng.next_u256(d_limbs);
+                        if d.is_zero() {
+                            continue;
+                        }
+                        let expect = narrow((wide(x) * wide(y)) / wide(d));
+                        assert_eq!(
+                            U256::checked_mul_div(x, y, d),
+                            expect,
+                            "mul_div({x:?}, {y:?}, {d:?})"
+                        );
+                        checked += 1;
                     }
-                    let expect = narrow((wide(x) * wide(y)) / wide(d));
-                    assert_eq!(
-                        U256::checked_mul_div(x, y, d),
-                        expect,
-                        "mul_div({x:?}, {y:?}, {d:?})"
-                    );
-                    checked += 1;
                 }
             }
         }
-    }
-    // The sweep must actually reach both answers, or it proves nothing.
-    assert!(checked > 10_000);
+        // The sweep must actually reach both answers, or it proves nothing.
+        assert!(checked > 10_000);
+    });
 }
 
 #[test]
 fn mul_div_matches_the_wide_oracle_on_boundaries() {
-    let vals = boundary_values();
-    let mut overflows = 0usize;
-    let mut fits = 0usize;
-    for x in &vals {
-        for y in &vals {
-            for d in vals.iter().take(24) {
-                if d.is_zero() {
-                    assert_eq!(U256::checked_mul_div(*x, *y, *d), None);
-                    continue;
-                }
-                let expect = narrow((wide(*x) * wide(*y)) / wide(*d));
-                assert_eq!(
-                    U256::checked_mul_div(*x, *y, *d),
-                    expect,
-                    "mul_div({x:?}, {y:?}, {d:?})"
-                );
-                if expect.is_some() {
-                    fits += 1;
-                } else {
-                    overflows += 1;
+    native(|| {
+        let vals = boundary_values();
+        let mut overflows = 0usize;
+        let mut fits = 0usize;
+        for x in &vals {
+            for y in &vals {
+                for d in vals.iter().take(24) {
+                    if d.is_zero() {
+                        assert_eq!(U256::checked_mul_div(*x, *y, *d), None);
+                        continue;
+                    }
+                    let expect = narrow((wide(*x) * wide(*y)) / wide(*d));
+                    assert_eq!(
+                        U256::checked_mul_div(*x, *y, *d),
+                        expect,
+                        "mul_div({x:?}, {y:?}, {d:?})"
+                    );
+                    if expect.is_some() {
+                        fits += 1;
+                    } else {
+                        overflows += 1;
+                    }
                 }
             }
         }
-    }
-    assert!(
-        fits > 1000 && overflows > 100,
-        "{fits} fit, {overflows} did not"
-    );
+        assert!(
+            fits > 1000 && overflows > 100,
+            "{fits} fit, {overflows} did not"
+        );
+    });
 }
 
 /// The single-limb divisor takes a different path (chained `div_rem_small`
 /// rather than Knuth D), so it needs its own sweep.
 #[test]
 fn mul_div_by_a_single_limb_divisor_matches_the_wide_oracle() {
-    let mut rng = Rng(0x6666_7777_8888_9999);
-    for _ in 0..5000 {
-        let x = rng.next_u256(4);
-        let y = rng.next_u256(4);
-        let d = U256::from_u32((rng.next_u64() as u32).max(1));
-        assert_eq!(
-            U256::checked_mul_div(x, y, d),
-            narrow((wide(x) * wide(y)) / wide(d)),
-            "mul_div({x:?}, {y:?}, {d:?})"
-        );
-    }
+    native(|| {
+        let mut rng = Rng(0x6666_7777_8888_9999);
+        for _ in 0..5000 {
+            let x = rng.next_u256(4);
+            let y = rng.next_u256(4);
+            let d = U256::from_u32((rng.next_u64() as u32).max(1));
+            assert_eq!(
+                U256::checked_mul_div(x, y, d),
+                narrow((wide(x) * wide(y)) / wide(d)),
+                "mul_div({x:?}, {y:?}, {d:?})"
+            );
+        }
+    });
 }
 
 #[test]
 fn mul_div_agrees_with_the_u128_entry_point() {
-    let mut rng = Rng(0xaaaa_bbbb_cccc_dddd);
-    for _ in 0..5000 {
-        let a = rng.next_u128();
-        let b = rng.next_u128();
-        let d = rng.next_u128().max(1);
-        let via_u128 = thruput_u256::checked_mul_div_u128(a, b, d);
-        let via_u256 =
-            U256::checked_mul_div(U256::from(a), U256::from(b), U256::from(d));
-        // The u128 entry point additionally requires the quotient to fit a
-        // u128; where it does, the two must agree exactly.
-        match via_u128 {
-            Some(v) => assert_eq!(via_u256, Some(U256::from(v))),
-            None => assert!(
-                via_u256.is_none_or(|q| u128::try_from(q).is_err()),
-                "{a} * {b} / {d}"
-            ),
+    native(|| {
+        let mut rng = Rng(0xaaaa_bbbb_cccc_dddd);
+        for _ in 0..5000 {
+            let a = rng.next_u128();
+            let b = rng.next_u128();
+            let d = rng.next_u128().max(1);
+            let via_u128 = thruput_u256::checked_mul_div_u128(a, b, d);
+            let via_u256 = U256::checked_mul_div(
+                U256::from(a),
+                U256::from(b),
+                U256::from(d),
+            );
+            // The u128 entry point additionally requires the quotient to fit a
+            // u128; where it does, the two must agree exactly.
+            match via_u128 {
+                Some(v) => assert_eq!(via_u256, Some(U256::from(v))),
+                None => assert!(
+                    via_u256.is_none_or(|q| u128::try_from(q).is_err()),
+                    "{a} * {b} / {d}"
+                ),
+            }
         }
-    }
+    });
 }
 
 #[test]
 fn mul_div_rounding_matches_the_wide_oracle() {
-    let mut rng = Rng(0xdddd_eeee_ffff_0000);
-    for _ in 0..3000 {
-        let x = rng.next_u256(3);
-        let y = rng.next_u256(3);
-        let d = rng.next_u256(3);
-        if d.is_zero() {
-            continue;
+    native(|| {
+        let mut rng = Rng(0xdddd_eeee_ffff_0000);
+        for _ in 0..3000 {
+            let x = rng.next_u256(3);
+            let y = rng.next_u256(3);
+            let d = rng.next_u256(3);
+            if d.is_zero() {
+                continue;
+            }
+            let product = wide(x) * wide(y);
+            let exact = (product % wide(d)).is_zero();
+            let floor = product / wide(d);
+            for rounding in ROUNDINGS {
+                let up = rounding.unsigned_rounds_up() && !exact;
+                let expect =
+                    narrow(if up { floor + O512::one() } else { floor });
+                assert_eq!(
+                    U256::checked_mul_div_rounding(x, y, d, rounding),
+                    expect,
+                    "mul_div({x:?}, {y:?}, {d:?}) {rounding:?}"
+                );
+            }
         }
-        let product = wide(x) * wide(y);
-        let exact = (product % wide(d)).is_zero();
-        let floor = product / wide(d);
-        for rounding in ROUNDINGS {
-            let up = rounding.unsigned_rounds_up() && !exact;
-            let expect = narrow(if up { floor + O512::one() } else { floor });
-            assert_eq!(
-                U256::checked_mul_div_rounding(x, y, d, rounding),
-                expect,
-                "mul_div({x:?}, {y:?}, {d:?}) {rounding:?}"
-            );
-        }
-    }
+    });
 }
 
 /// Rounding up can push a quotient that just fit out of range again.
 #[test]
 fn mul_div_rounding_up_reports_its_own_overflow() {
-    // MAX * MAX / MAX is exactly MAX -- no rounding, no overflow.
-    assert_eq!(
-        U256::checked_mul_div_rounding(
-            U256::MAX,
-            U256::MAX,
-            U256::MAX,
-            Rounding::Ceil
-        ),
-        Some(U256::MAX)
-    );
-    // One less in the divisor leaves MAX with a remainder, and MAX + 1 is not
-    // representable.
-    let d = U256::MAX - U256::ONE;
-    let (q, r) = {
-        let p = wide(U256::MAX) * wide(U256::MAX);
-        (narrow(p / wide(d)), p % wide(d))
-    };
-    assert_eq!(q, None, "the floor quotient already overflows");
-    assert!(!r.is_zero());
-    assert_eq!(
-        U256::checked_mul_div_rounding(
-            U256::MAX,
-            U256::MAX,
-            d,
-            Rounding::Ceil
-        ),
-        None
-    );
+    native(|| {
+        // MAX * MAX / MAX is exactly MAX -- no rounding, no overflow.
+        assert_eq!(
+            U256::checked_mul_div_rounding(
+                U256::MAX,
+                U256::MAX,
+                U256::MAX,
+                Rounding::Ceil
+            ),
+            Some(U256::MAX)
+        );
+        // One less in the divisor leaves MAX with a remainder, and MAX + 1 is not
+        // representable.
+        let d = U256::MAX - U256::ONE;
+        let (q, r) = {
+            let p = wide(U256::MAX) * wide(U256::MAX);
+            (narrow(p / wide(d)), p % wide(d))
+        };
+        assert_eq!(q, None, "the floor quotient already overflows");
+        assert!(!r.is_zero());
+        assert_eq!(
+            U256::checked_mul_div_rounding(
+                U256::MAX,
+                U256::MAX,
+                d,
+                Rounding::Ceil
+            ),
+            None
+        );
 
-    // A quotient of exactly MAX with a nonzero remainder: floor fits, ceil
-    // does not.
-    let x = U256::MAX;
-    let y = U256::from(2);
-    let d = U256::from(2);
-    assert_eq!(U256::checked_mul_div(x, y, d), Some(U256::MAX));
-    let d = U256::from(2) + U256::ONE;
-    let floor = narrow((wide(x) * wide(y)) / wide(d)).unwrap();
-    assert_eq!(U256::checked_mul_div(x, y, d), Some(floor));
+        // A quotient of exactly MAX with a nonzero remainder: floor fits, ceil
+        // does not.
+        let x = U256::MAX;
+        let y = U256::from(2);
+        let d = U256::from(2);
+        assert_eq!(U256::checked_mul_div(x, y, d), Some(U256::MAX));
+        let d = U256::from(2) + U256::ONE;
+        let floor = narrow((wide(x) * wide(y)) / wide(d)).unwrap();
+        assert_eq!(U256::checked_mul_div(x, y, d), Some(floor));
+    });
 }
 
 #[test]
@@ -425,7 +447,9 @@ fn mul_div_by_zero_panics() {
 #[test]
 #[should_panic(expected = "mul_div quotient exceeds U256")]
 fn mul_div_overflow_panics() {
-    let _ = U256::mul_div(U256::MAX, U256::MAX, U256::ONE);
+    native(|| {
+        let _ = U256::mul_div(U256::MAX, U256::MAX, U256::ONE);
+    });
 }
 
 /// Every fallible operation ships as a `checked_` form and a panicking one.
@@ -433,43 +457,45 @@ fn mul_div_overflow_panics() {
 /// this pins the pairing so the next addition does not repeat it.
 #[test]
 fn panicking_and_checked_forms_agree() {
-    let (a, b, m) = (U256::from(7), U256::from(9), U256::from(5));
-    assert_eq!(
-        U256::add_mod(a, b, m),
-        U256::checked_add_mod(a, b, m).unwrap()
-    );
-    assert_eq!(
-        U256::mul_mod(a, b, m),
-        U256::checked_mul_mod(a, b, m).unwrap()
-    );
-    assert_eq!(a.ceil_div(b), a.checked_ceil_div(b).unwrap());
-    assert_eq!(
-        U256::mul_div(a, b, m),
-        U256::checked_mul_div(a, b, m).unwrap()
-    );
-    for rounding in ROUNDINGS {
+    native(|| {
+        let (a, b, m) = (U256::from(7), U256::from(9), U256::from(5));
         assert_eq!(
-            a.div_rounding(b, rounding),
-            a.checked_div_rounding(b, rounding).unwrap(),
-            "{rounding:?}"
+            U256::add_mod(a, b, m),
+            U256::checked_add_mod(a, b, m).unwrap()
         );
         assert_eq!(
-            U256::mul_div_rounding(a, b, m, rounding),
-            U256::checked_mul_div_rounding(a, b, m, rounding).unwrap()
+            U256::mul_mod(a, b, m),
+            U256::checked_mul_mod(a, b, m).unwrap()
+        );
+        assert_eq!(a.ceil_div(b), a.checked_ceil_div(b).unwrap());
+        assert_eq!(
+            U256::mul_div(a, b, m),
+            U256::checked_mul_div(a, b, m).unwrap()
+        );
+        for rounding in ROUNDINGS {
+            assert_eq!(
+                a.div_rounding(b, rounding),
+                a.checked_div_rounding(b, rounding).unwrap(),
+                "{rounding:?}"
+            );
+            assert_eq!(
+                U256::mul_div_rounding(a, b, m, rounding),
+                U256::checked_mul_div_rounding(a, b, m, rounding).unwrap()
+            );
+            assert_eq!(
+                U256::mul_shr_rounding(a, b, 3, rounding),
+                U256::checked_mul_shr_rounding(a, b, 3, rounding).unwrap()
+            );
+        }
+        assert_eq!(
+            U256::mul_shr(a, b, 3),
+            U256::checked_mul_shr(a, b, 3).unwrap()
         );
         assert_eq!(
-            U256::mul_shr_rounding(a, b, 3, rounding),
-            U256::checked_mul_shr_rounding(a, b, 3, rounding).unwrap()
+            U256::mod_exp(a, b, m),
+            U256::checked_mod_exp(a, b, m).unwrap()
         );
-    }
-    assert_eq!(
-        U256::mul_shr(a, b, 3),
-        U256::checked_mul_shr(a, b, 3).unwrap()
-    );
-    assert_eq!(
-        U256::mod_exp(a, b, m),
-        U256::checked_mod_exp(a, b, m).unwrap()
-    );
+    });
 }
 
 #[test]
@@ -568,44 +594,46 @@ fn mul_shr_edges() {
 
 #[test]
 fn add_mod_and_mul_mod_match_the_wide_oracle() {
-    let mut rng = Rng(0xfeed_beef_cafe_babe);
-    for _ in 0..4000 {
-        let x = rng.next_u256(4);
-        let y = rng.next_u256(4);
-        let m_limbs = 1 + (rng.next_u64() % 4) as usize;
-        let m = rng.next_u256(m_limbs);
-        if m.is_zero() {
-            continue;
+    native(|| {
+        let mut rng = Rng(0xfeed_beef_cafe_babe);
+        for _ in 0..4000 {
+            let x = rng.next_u256(4);
+            let y = rng.next_u256(4);
+            let m_limbs = 1 + (rng.next_u64() % 4) as usize;
+            let m = rng.next_u256(m_limbs);
+            if m.is_zero() {
+                continue;
+            }
+            assert_eq!(
+                U256::checked_mul_mod(x, y, m),
+                narrow((wide(x) * wide(y)) % wide(m)),
+                "mul_mod({x:?}, {y:?}, {m:?})"
+            );
+            assert_eq!(
+                U256::checked_add_mod(x, y, m),
+                narrow((wide(x) + wide(y)) % wide(m)),
+                "add_mod({x:?}, {y:?}, {m:?})"
+            );
         }
-        assert_eq!(
-            U256::checked_mul_mod(x, y, m),
-            narrow((wide(x) * wide(y)) % wide(m)),
-            "mul_mod({x:?}, {y:?}, {m:?})"
-        );
-        assert_eq!(
-            U256::checked_add_mod(x, y, m),
-            narrow((wide(x) + wide(y)) % wide(m)),
-            "add_mod({x:?}, {y:?}, {m:?})"
-        );
-    }
 
-    // The carry case add_mod's conditional subtraction exists for.
-    assert_eq!(
-        U256::checked_add_mod(U256::MAX, U256::MAX, U256::MAX),
-        Some(U256::ZERO)
-    );
-    assert_eq!(
-        U256::checked_add_mod(U256::MAX - U256::ONE, U256::MAX, U256::MAX),
-        Some(U256::MAX - U256::ONE)
-    );
-    assert_eq!(
-        U256::checked_add_mod(U256::ONE, U256::ONE, U256::ZERO),
-        None
-    );
-    assert_eq!(
-        U256::checked_mul_mod(U256::ONE, U256::ONE, U256::ZERO),
-        None
-    );
+        // The carry case add_mod's conditional subtraction exists for.
+        assert_eq!(
+            U256::checked_add_mod(U256::MAX, U256::MAX, U256::MAX),
+            Some(U256::ZERO)
+        );
+        assert_eq!(
+            U256::checked_add_mod(U256::MAX - U256::ONE, U256::MAX, U256::MAX),
+            Some(U256::MAX - U256::ONE)
+        );
+        assert_eq!(
+            U256::checked_add_mod(U256::ONE, U256::ONE, U256::ZERO),
+            None
+        );
+        assert_eq!(
+            U256::checked_mul_mod(U256::ONE, U256::ONE, U256::ZERO),
+            None
+        );
+    });
 }
 
 #[test]
@@ -635,53 +663,61 @@ fn pow_matches_u128() {
 
 #[test]
 fn mod_exp_matches_a_naive_loop() {
-    let mut rng = Rng(0x0bad_f00d_0bad_f00d);
-    for _ in 0..300 {
-        let b = U256::from_u64(rng.next_u64());
-        let e = U256::from_u32((rng.next_u64() % 64) as u32);
-        let m = U256::from_u64(rng.next_u64().max(2));
+    native(|| {
+        let mut rng = Rng(0x0bad_f00d_0bad_f00d);
+        for _ in 0..300 {
+            let b = U256::from_u64(rng.next_u64());
+            let e = U256::from_u32((rng.next_u64() % 64) as u32);
+            let m = U256::from_u64(rng.next_u64().max(2));
 
-        // Repeated multiply-mod, which shares no code with square-and-multiply.
-        let mut expect = U256::ONE % m;
-        let mut i = U256::ZERO;
-        while i < e {
-            expect = U256::mul_mod(expect, b, m);
-            i += U256::ONE;
+            // Repeated multiply-mod, which shares no code with square-and-multiply.
+            let mut expect = U256::ONE % m;
+            let mut i = U256::ZERO;
+            while i < e {
+                expect = U256::mul_mod(expect, b, m);
+                i += U256::ONE;
+            }
+            assert_eq!(
+                U256::checked_mod_exp(b, e, m),
+                Some(expect),
+                "{b:?}^{e:?} mod {m:?}"
+            );
         }
-        assert_eq!(
-            U256::checked_mod_exp(b, e, m),
-            Some(expect),
-            "{b:?}^{e:?} mod {m:?}"
-        );
-    }
 
-    assert_eq!(
-        U256::checked_mod_exp(U256::from(3), U256::ZERO, U256::from(7)),
-        Some(U256::ONE)
-    );
-    assert_eq!(
-        U256::checked_mod_exp(U256::ZERO, U256::ZERO, U256::ONE),
-        Some(U256::ZERO)
-    );
-    assert_eq!(
-        U256::checked_mod_exp(U256::from(2), U256::from(10), U256::from(1000)),
-        Some(U256::from(24))
-    );
-    assert_eq!(
-        U256::checked_mod_exp(U256::ONE, U256::ONE, U256::ZERO),
-        None
-    );
+        assert_eq!(
+            U256::checked_mod_exp(U256::from(3), U256::ZERO, U256::from(7)),
+            Some(U256::ONE)
+        );
+        assert_eq!(
+            U256::checked_mod_exp(U256::ZERO, U256::ZERO, U256::ONE),
+            Some(U256::ZERO)
+        );
+        assert_eq!(
+            U256::checked_mod_exp(
+                U256::from(2),
+                U256::from(10),
+                U256::from(1000)
+            ),
+            Some(U256::from(24))
+        );
+        assert_eq!(
+            U256::checked_mod_exp(U256::ONE, U256::ONE, U256::ZERO),
+            None
+        );
+    });
 }
 
 /// Fermat: `a^(p-1) == 1 (mod p)` for a prime `p` and `a` not a multiple of it.
 #[test]
 fn mod_exp_satisfies_fermats_little_theorem() {
-    // 2^127 - 1, a Mersenne prime, so the exponent is a full 127 bits.
-    let p = (U256::ONE << 127u32) - U256::ONE;
-    for a in [2u32, 3, 5, 7, 1_000_003] {
-        let a = U256::from_u32(a);
-        assert_eq!(U256::mod_exp(a, p - U256::ONE, p), U256::ONE, "{a:?}");
-    }
+    native(|| {
+        // 2^127 - 1, a Mersenne prime, so the exponent is a full 127 bits.
+        let p = (U256::ONE << 127u32) - U256::ONE;
+        for a in [2u32, 3, 5, 7, 1_000_003] {
+            let a = U256::from_u32(a);
+            assert_eq!(U256::mod_exp(a, p - U256::ONE, p), U256::ONE, "{a:?}");
+        }
+    });
 }
 
 /// Euclid, sharing no code with `inv_mod`'s extended form.
@@ -697,61 +733,69 @@ fn gcd(a: U256, b: U256) -> U256 {
 
 #[test]
 fn inv_mod_inverts() {
-    let mut rng = Rng(0xc0ff_ee00_c0ff_ee00);
-    let mut inverted = 0usize;
-    let mut refused = 0usize;
-    for _ in 0..2000 {
-        let n = rng.next_u256(2);
-        if n < U256::from(2) {
-            continue;
+    native(|| {
+        let mut rng = Rng(0xc0ff_ee00_c0ff_ee00);
+        let mut inverted = 0usize;
+        let mut refused = 0usize;
+        for _ in 0..2000 {
+            let n = rng.next_u256(2);
+            if n < U256::from(2) {
+                continue;
+            }
+            let a = rng.next_u256(2);
+            let inv = U256::inv_mod(a, n);
+            if inv.is_zero() {
+                // A refusal must be a real one: `a` and `n` share a factor. (The
+                // inverse is itself zero only for `n == 1`, excluded above.)
+                assert_ne!(
+                    gcd(a, n),
+                    U256::ONE,
+                    "refused an invertible {a:?}"
+                );
+                refused += 1;
+            } else {
+                assert_eq!(
+                    U256::mul_mod(a, inv, n),
+                    U256::ONE,
+                    "{a:?}^-1 mod {n:?}"
+                );
+                assert!(inv < n);
+                inverted += 1;
+            }
         }
-        let a = rng.next_u256(2);
-        let inv = U256::inv_mod(a, n);
-        if inv.is_zero() {
-            // A refusal must be a real one: `a` and `n` share a factor. (The
-            // inverse is itself zero only for `n == 1`, excluded above.)
-            assert_ne!(gcd(a, n), U256::ONE, "refused an invertible {a:?}");
-            refused += 1;
-        } else {
-            assert_eq!(
-                U256::mul_mod(a, inv, n),
-                U256::ONE,
-                "{a:?}^-1 mod {n:?}"
-            );
-            assert!(inv < n);
-            inverted += 1;
-        }
-    }
-    assert!(inverted > 500, "{inverted} inversions");
-    // The sweep is random, so a refusal is rare but should still show up; if
-    // it never does, the refusal path above is untested.
-    assert!(refused > 0, "no non-invertible pair in the sweep");
+        assert!(inverted > 500, "{inverted} inversions");
+        // The sweep is random, so a refusal is rare but should still show up; if
+        // it never does, the refusal path above is untested.
+        assert!(refused > 0, "no non-invertible pair in the sweep");
 
-    // Small cases worked by hand.
-    assert_eq!(U256::inv_mod(U256::from(3), U256::from(7)), U256::from(5));
-    assert_eq!(U256::inv_mod(U256::ONE, U256::from(5)), U256::ONE);
-    // No inverse: a shares a factor with n.
-    assert_eq!(U256::inv_mod(U256::from(2), U256::from(4)), U256::ZERO);
-    assert_eq!(U256::inv_mod(U256::ZERO, U256::from(7)), U256::ZERO);
-    // Degenerate moduli, matching Solidity's answers.
-    assert_eq!(U256::inv_mod(U256::from(3), U256::ZERO), U256::ZERO);
-    assert_eq!(U256::inv_mod(U256::from(3), U256::ONE), U256::ZERO);
+        // Small cases worked by hand.
+        assert_eq!(U256::inv_mod(U256::from(3), U256::from(7)), U256::from(5));
+        assert_eq!(U256::inv_mod(U256::ONE, U256::from(5)), U256::ONE);
+        // No inverse: a shares a factor with n.
+        assert_eq!(U256::inv_mod(U256::from(2), U256::from(4)), U256::ZERO);
+        assert_eq!(U256::inv_mod(U256::ZERO, U256::from(7)), U256::ZERO);
+        // Degenerate moduli, matching Solidity's answers.
+        assert_eq!(U256::inv_mod(U256::from(3), U256::ZERO), U256::ZERO);
+        assert_eq!(U256::inv_mod(U256::from(3), U256::ONE), U256::ZERO);
+    });
 }
 
 #[test]
 fn inv_mod_prime_agrees_with_inv_mod() {
-    // 2^127 - 1.
-    let p = (U256::ONE << 127u32) - U256::ONE;
-    let mut rng = Rng(0x1234_1234_5678_5678);
-    for _ in 0..20 {
-        let a = rng.next_u256(1);
-        if a.is_zero() {
-            continue;
+    native(|| {
+        // 2^127 - 1.
+        let p = (U256::ONE << 127u32) - U256::ONE;
+        let mut rng = Rng(0x1234_1234_5678_5678);
+        for _ in 0..20 {
+            let a = rng.next_u256(1);
+            if a.is_zero() {
+                continue;
+            }
+            let inv = U256::inv_mod_prime(a, p);
+            assert_eq!(inv, U256::inv_mod(a, p), "{a:?}");
+            assert_eq!(U256::mul_mod(a, inv, p), U256::ONE);
         }
-        let inv = U256::inv_mod_prime(a, p);
-        assert_eq!(inv, U256::inv_mod(a, p), "{a:?}");
-        assert_eq!(U256::mul_mod(a, inv, p), U256::ONE);
-    }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -760,158 +804,179 @@ fn inv_mod_prime_agrees_with_inv_mod() {
 
 #[test]
 fn sqrt_rounding_brackets_the_root() {
-    let mut vals = boundary_values();
-    let mut rng = Rng(0x3141_5926_5358_9793);
-    for limbs in 1..=4 {
-        for _ in 0..500 {
-            vals.push(rng.next_u256(limbs));
+    native(|| {
+        let mut vals = boundary_values();
+        let mut rng = Rng(0x3141_5926_5358_9793);
+        for limbs in 1..=4 {
+            for _ in 0..500 {
+                vals.push(rng.next_u256(limbs));
+            }
         }
-    }
-    for n in vals {
-        let floor = n.integer_sqrt();
-        let exact = floor * floor == n;
-        assert_eq!(n.sqrt_rounding(Rounding::Floor), floor, "{n:?}");
-        assert_eq!(n.sqrt_rounding(Rounding::Trunc), floor, "{n:?}");
-        let ceil = if exact { floor } else { floor + U256::ONE };
-        assert_eq!(n.sqrt_rounding(Rounding::Ceil), ceil, "{n:?}");
-        assert_eq!(n.sqrt_rounding(Rounding::Expand), ceil, "{n:?}");
-    }
+        for n in vals {
+            let floor = n.integer_sqrt();
+            let exact = floor * floor == n;
+            assert_eq!(n.sqrt_rounding(Rounding::Floor), floor, "{n:?}");
+            assert_eq!(n.sqrt_rounding(Rounding::Trunc), floor, "{n:?}");
+            let ceil = if exact { floor } else { floor + U256::ONE };
+            assert_eq!(n.sqrt_rounding(Rounding::Ceil), ceil, "{n:?}");
+            assert_eq!(n.sqrt_rounding(Rounding::Expand), ceil, "{n:?}");
+        }
+    });
 }
 
 #[test]
 fn logs_match_u128() {
-    let mut rng = Rng(0x2718_2818_2845_9045);
-    let mut cases: Vec<u128> =
-        vec![0, 1, 2, 9, 10, 11, 99, 100, 101, u128::MAX];
-    for _ in 0..3000 {
-        cases.push(rng.next_u128());
-    }
-    for shift in 0..128u32 {
-        cases.push(1u128 << shift);
-    }
-    for n in cases {
-        let v = U256::from(n);
-        assert_eq!(v.log2(), n.checked_ilog2().unwrap_or(0), "log2({n})");
-        assert_eq!(v.log10(), n.checked_ilog10().unwrap_or(0), "log10({n})");
-        assert_eq!(
-            v.log256(),
-            n.checked_ilog2().map(|b| b / 8).unwrap_or(0),
-            "log256({n})"
-        );
-    }
+    native(|| {
+        let mut rng = Rng(0x2718_2818_2845_9045);
+        let mut cases: Vec<u128> =
+            vec![0, 1, 2, 9, 10, 11, 99, 100, 101, u128::MAX];
+        for _ in 0..3000 {
+            cases.push(rng.next_u128());
+        }
+        for shift in 0..128u32 {
+            cases.push(1u128 << shift);
+        }
+        for n in cases {
+            let v = U256::from(n);
+            assert_eq!(v.log2(), n.checked_ilog2().unwrap_or(0), "log2({n})");
+            assert_eq!(
+                v.log10(),
+                n.checked_ilog10().unwrap_or(0),
+                "log10({n})"
+            );
+            assert_eq!(
+                v.log256(),
+                n.checked_ilog2().map(|b| b / 8).unwrap_or(0),
+                "log256({n})"
+            );
+        }
+    });
 }
 
 #[test]
 fn logs_cover_the_full_256_bit_range() {
-    for shift in 0..256u32 {
-        let x = U256::ONE << shift;
-        assert_eq!(x.log2(), shift, "log2(2^{shift})");
-        assert_eq!(x.log256(), shift / 8, "log256(2^{shift})");
-        if shift > 0 {
-            assert_eq!((x - U256::ONE).log2(), shift - 1);
+    native(|| {
+        for shift in 0..256u32 {
+            let x = U256::ONE << shift;
+            assert_eq!(x.log2(), shift, "log2(2^{shift})");
+            assert_eq!(x.log256(), shift / 8, "log256(2^{shift})");
+            if shift > 0 {
+                assert_eq!((x - U256::ONE).log2(), shift - 1);
+            }
         }
-    }
-    // 10^0 through 10^77, the full decimal range of a U256.
-    let ten = U256::from(10);
-    let mut p = U256::ONE;
-    for e in 0..=77u32 {
-        assert_eq!(p.log10(), e, "log10(10^{e})");
+        // 10^0 through 10^77, the full decimal range of a U256.
+        let ten = U256::from(10);
+        let mut p = U256::ONE;
+        for e in 0..=77u32 {
+            assert_eq!(p.log10(), e, "log10(10^{e})");
 
-        // `log10_rounding` derives exactness from the peeling loop rather
-        // than recomputing `10^r`; `pow` here is the independent oracle for
-        // that, across the whole decimal range rather than a handful of
-        // cases. An exact power never rounds up; its neighbours both do,
-        // in opposite directions.
-        assert_eq!(p.log10_rounding(Rounding::Ceil), e, "ceil log10(10^{e})");
-        assert_eq!(
-            (p + U256::ONE).log10_rounding(Rounding::Ceil),
-            e + 1,
-            "ceil log10(10^{e} + 1)"
-        );
-        if e > 0 {
+            // `log10_rounding` derives exactness from the peeling loop rather
+            // than recomputing `10^r`; `pow` here is the independent oracle for
+            // that, across the whole decimal range rather than a handful of
+            // cases. An exact power never rounds up; its neighbours both do,
+            // in opposite directions.
             assert_eq!(
-                (p - U256::ONE).log10_rounding(Rounding::Ceil),
+                p.log10_rounding(Rounding::Ceil),
                 e,
-                "ceil log10(10^{e} - 1)"
+                "ceil log10(10^{e})"
             );
-        }
-        for rounding in ROUNDINGS {
-            let want = p.log10()
-                + u32::from(
-                    rounding.unsigned_rounds_up() && ten.pow(p.log10()) < p,
-                );
             assert_eq!(
-                p.log10_rounding(rounding),
-                want,
-                "10^{e} {rounding:?}"
+                (p + U256::ONE).log10_rounding(Rounding::Ceil),
+                e + 1,
+                "ceil log10(10^{e} + 1)"
             );
-        }
+            if e > 0 {
+                assert_eq!(
+                    (p - U256::ONE).log10_rounding(Rounding::Ceil),
+                    e,
+                    "ceil log10(10^{e} - 1)"
+                );
+            }
+            for rounding in ROUNDINGS {
+                let want = p.log10()
+                    + u32::from(
+                        rounding.unsigned_rounds_up()
+                            && ten.pow(p.log10()) < p,
+                    );
+                assert_eq!(
+                    p.log10_rounding(rounding),
+                    want,
+                    "10^{e} {rounding:?}"
+                );
+            }
 
-        if e > 0 {
-            assert_eq!((p - U256::ONE).log10(), e - 1, "log10(10^{e} - 1)");
+            if e > 0 {
+                assert_eq!(
+                    (p - U256::ONE).log10(),
+                    e - 1,
+                    "log10(10^{e} - 1)"
+                );
+            }
+            // `10^e + 1` is still below `10^(e+1)`, so the log is unchanged.
+            assert_eq!((p + U256::ONE).log10(), e, "log10(10^{e} + 1)");
+            if e < 77 {
+                p *= ten;
+            }
         }
-        // `10^e + 1` is still below `10^(e+1)`, so the log is unchanged.
-        assert_eq!((p + U256::ONE).log10(), e, "log10(10^{e} + 1)");
-        if e < 77 {
-            p *= ten;
-        }
-    }
-    assert_eq!(U256::MAX.log10(), 77);
-    assert_eq!(U256::MAX.log2(), 255);
-    assert_eq!(U256::MAX.log256(), 31);
+        assert_eq!(U256::MAX.log10(), 77);
+        assert_eq!(U256::MAX.log2(), 255);
+        assert_eq!(U256::MAX.log256(), 31);
+    });
 }
 
 #[test]
 fn log_rounding_rounds_up_only_when_inexact() {
-    let ten = U256::from(10);
-    let cases = [
-        U256::ZERO,
-        U256::ONE,
-        U256::from(2),
-        U256::from(10),
-        U256::from(100),
-        U256::from(255),
-        U256::from(256),
-        U256::from(257),
-        U256::MAX,
-    ];
-    for n in cases {
-        for rounding in ROUNDINGS {
-            let up = rounding.unsigned_rounds_up();
+    native(|| {
+        let ten = U256::from(10);
+        let cases = [
+            U256::ZERO,
+            U256::ONE,
+            U256::from(2),
+            U256::from(10),
+            U256::from(100),
+            U256::from(255),
+            U256::from(256),
+            U256::from(257),
+            U256::MAX,
+        ];
+        for n in cases {
+            for rounding in ROUNDINGS {
+                let up = rounding.unsigned_rounds_up();
 
-            let r = n.log2();
-            let inexact = U256::ONE << r < n;
-            assert_eq!(
-                n.log2_rounding(rounding),
-                r + u32::from(up && inexact),
-                "log2({n:?}) {rounding:?}"
-            );
+                let r = n.log2();
+                let inexact = U256::ONE << r < n;
+                assert_eq!(
+                    n.log2_rounding(rounding),
+                    r + u32::from(up && inexact),
+                    "log2({n:?}) {rounding:?}"
+                );
 
-            let r = n.log10();
-            let inexact = ten.pow(r) < n;
-            assert_eq!(
-                n.log10_rounding(rounding),
-                r + u32::from(up && inexact),
-                "log10({n:?}) {rounding:?}"
-            );
+                let r = n.log10();
+                let inexact = ten.pow(r) < n;
+                assert_eq!(
+                    n.log10_rounding(rounding),
+                    r + u32::from(up && inexact),
+                    "log10({n:?}) {rounding:?}"
+                );
 
-            let r = n.log256();
-            let inexact = U256::ONE << (r * 8) < n;
-            assert_eq!(
-                n.log256_rounding(rounding),
-                r + u32::from(up && inexact),
-                "log256({n:?}) {rounding:?}"
-            );
+                let r = n.log256();
+                let inexact = U256::ONE << (r * 8) < n;
+                assert_eq!(
+                    n.log256_rounding(rounding),
+                    r + u32::from(up && inexact),
+                    "log256({n:?}) {rounding:?}"
+                );
+            }
         }
-    }
 
-    // The named answers, so a sign error in the ladder cannot hide.
-    assert_eq!(U256::from(255).log2_rounding(Rounding::Ceil), 8);
-    assert_eq!(U256::from(256).log2_rounding(Rounding::Ceil), 8);
-    assert_eq!(U256::from(257).log2_rounding(Rounding::Ceil), 9);
-    assert_eq!(U256::from(99).log10_rounding(Rounding::Ceil), 2);
-    assert_eq!(U256::from(100).log10_rounding(Rounding::Ceil), 2);
-    assert_eq!(U256::from(101).log10_rounding(Rounding::Ceil), 3);
+        // The named answers, so a sign error in the ladder cannot hide.
+        assert_eq!(U256::from(255).log2_rounding(Rounding::Ceil), 8);
+        assert_eq!(U256::from(256).log2_rounding(Rounding::Ceil), 8);
+        assert_eq!(U256::from(257).log2_rounding(Rounding::Ceil), 9);
+        assert_eq!(U256::from(99).log10_rounding(Rounding::Ceil), 2);
+        assert_eq!(U256::from(100).log10_rounding(Rounding::Ceil), 2);
+        assert_eq!(U256::from(101).log10_rounding(Rounding::Ceil), 3);
+    });
 }
 
 #[test]
@@ -952,15 +1017,20 @@ fn rounding_classifies_directions() {
 /// them from the runtime, which cannot answer at compile time.
 #[test]
 fn the_math_surface_is_const_evaluable() {
-    const WAD: U256 = U256::from(1_000_000_000_000_000_000);
-    const HALF: U256 = WAD.average(U256::ZERO);
-    const POW: U256 = U256::from(10).pow(18);
-    const CMP: core::cmp::Ordering = WAD.const_cmp(HALF);
-    const MASK: U256 = U256::MAX.const_bitxor(U256::MAX.const_not());
+    native(|| {
+        const WAD: U256 = U256::from(1_000_000_000_000_000_000);
+        const HALF: U256 = WAD.average(U256::ZERO);
+        const POW: U256 = U256::from(10).pow(18);
+        const CMP: core::cmp::Ordering = WAD.const_cmp(HALF);
+        const MASK: U256 = U256::MAX.const_bitxor(U256::MAX.const_not());
 
-    assert_eq!(HALF, WAD / U256::from(2));
-    assert_eq!(WAD.sqrt_rounding(Rounding::Ceil), U256::from(1_000_000_000));
-    assert_eq!(POW, WAD);
-    assert_eq!(CMP, core::cmp::Ordering::Greater);
-    assert_eq!(MASK, U256::MAX);
+        assert_eq!(HALF, WAD / U256::from(2));
+        assert_eq!(
+            WAD.sqrt_rounding(Rounding::Ceil),
+            U256::from(1_000_000_000)
+        );
+        assert_eq!(POW, WAD);
+        assert_eq!(CMP, core::cmp::Ordering::Greater);
+        assert_eq!(MASK, U256::MAX);
+    });
 }
