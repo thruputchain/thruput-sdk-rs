@@ -36,4 +36,16 @@ impl U256Roundtrip {
     pub fn stored_signed(&self) -> I256 {
         self.signed.get()
     }
+
+    /// `floor(sqrt(value))`. In the rv32 artifact the root comes from the
+    /// runtime, through the `U256Sqrt` host operation.
+    pub fn sqrt(&self, value: U256) -> U256 {
+        value.integer_sqrt()
+    }
+
+    /// `ceil(sqrt(value))`: the rounding variant, over the same host
+    /// operation.
+    pub fn sqrt_ceil(&self, value: U256) -> U256 {
+        value.sqrt_rounding(Rounding::Ceil)
+    }
 }
