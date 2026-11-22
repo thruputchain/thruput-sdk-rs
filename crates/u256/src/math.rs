@@ -19,8 +19,8 @@
 //! One name differs: `Math.sqrt` is [`integer_sqrt`](U256::integer_sqrt), the
 //! spelling this crate shipped with, plus
 //! [`sqrt_rounding`](U256::sqrt_rounding) for the variant that takes a
-//! direction. In a contract neither is computed here: the root is the
-//! runtime's `U256Sqrt` host operation, so those two are not `const fn`.
+//! direction. Neither is computed here: the root is the runtime's `U256Sqrt`
+//! host operation, so those two are not `const fn`.
 //!
 //! # 512-bit values
 //!
@@ -35,18 +35,19 @@
 //! `mulShr`, and both are here whole, so the pair never has to be arithmetic
 //! the caller does themselves.
 //!
-//! # In a contract
+//! # Host operations
 //!
-//! A contract does not divide at all. On `riscv32` every division on these
-//! types -- `/` and `%`, [`div_rem`](U256::div_rem) and the `checked_` forms,
+//! Nothing here divides. Every division on these types -- `/` and `%`,
+//! [`div_rem`](U256::div_rem) and the `checked_` forms,
 //! [`mul_div`](U256::mul_div) and its rounding forms, [`mul_mod`](U256::mul_mod)
 //! and what is built on it, [`ceil_div`](U256::ceil_div), `log10` and the
-//! `I256` divisions -- makes the runtime's experimental `U256MulDivRem` host
-//! operation, which needs syscall API 1.2. That is why none of them is a
-//! `const fn`. Every other target computes them here, with the same results.
+//! `I256` divisions -- is the runtime's experimental `U256MulDivRem` host
+//! operation, which needs syscall API 1.2: an `ecall` in a contract, the
+//! native executor in a native test. That is why none of them is a
+//! `const fn`.
 //!
-//! Measured by `scripts/bigint-bench.sh -b u256`, rv32, per call, both against
-//! the same executor:
+//! Measured by `scripts/bigint-bench.sh -b u256`, rv32, per call, against the
+//! software routines this crate used to carry, both on the same executor:
 //!
 //! | | Software gas | Software `.text` | Host gas | Host `.text` |
 //! |---|---:|---:|---:|---:|
@@ -64,11 +65,6 @@
 //! [`inv_mod`](U256::inv_mod) one over `div_rem` -- reach for them knowingly.
 
 use crate::U256;
-#[cfg(not(target_arch = "riscv32"))]
-use crate::{
-    LIMBS,
-    div::{WIDE_LIMBS, div_rem_512, low_limbs},
-};
 
 /// The rounding direction of an inexact result.
 ///
@@ -320,11 +316,9 @@ impl U256 {
     }
 
     /// The floor quotient and remainder of `x * y / d`, or `None` when `d` is
-    /// zero or the quotient needs more than 256 bits.
-    ///
-    /// The one place the 512-bit product meets the divider; every public
-    /// `mul_div` entry point is a thin wrapper on this. In a contract the
-    /// divider is the runtime's `U256MulDivRem` host operation.
+    /// zero or the quotient needs more than 256 bits: the runtime's
+    /// `U256MulDivRem`. Every public `mul_div` entry point is a thin wrapper
+    /// on this.
     #[inline]
     pub(crate) fn mul_div_parts(
         x: Self,
@@ -335,40 +329,8 @@ impl U256 {
         if d.is_zero() {
             return None;
         }
-        #[cfg(target_arch = "riscv32")]
-        {
-            let (q, q_hi, r) = crate::host::mul_div_rem(x, y, d);
-            if q_hi.is_zero() { Some((q, r)) } else { None }
-        }
-        #[cfg(not(target_arch = "riscv32"))]
-        {
-            Self::software_mul_div_parts(x, y, d)
-        }
-    }
-
-    /// [`mul_div_parts`](Self::mul_div_parts) in software, for every target
-    /// but a contract. `d` is not zero.
-    #[cfg(not(target_arch = "riscv32"))]
-    const fn software_mul_div_parts(
-        x: Self,
-        y: Self,
-        d: Self,
-    ) -> Option<(Self, Self)> {
-        let (lo, hi) = x.widening_mul(y);
-        let (q, r) = match div_rem_512(hi, lo, d) {
-            Some(v) => v,
-            None => return None,
-        };
-        // The quotient of a 512-bit dividend genuinely needs 512 bits when
-        // `d <= hi`; that is the overflow case, not a representable answer.
-        let mut i = LIMBS;
-        while i < WIDE_LIMBS {
-            if q[i] != 0 {
-                return None;
-            }
-            i += 1;
-        }
-        Some((Self::from_limbs(low_limbs(&q)), r))
+        let (q, q_hi, r) = crate::host::mul_div_rem(x, y, d);
+        if q_hi.is_zero() { Some((q, r)) } else { None }
     }
 
     /// `floor(x * y >> n)` computed on the exact 512-bit product, returning
@@ -529,15 +491,7 @@ impl U256 {
         if m.is_zero() {
             return None;
         }
-        #[cfg(target_arch = "riscv32")]
-        {
-            Some(crate::host::mul_div_rem(x, y, m).2)
-        }
-        #[cfg(not(target_arch = "riscv32"))]
-        {
-            let (lo, hi) = x.widening_mul(y);
-            div_rem_512(hi, lo, m).map(|(_, r)| r)
-        }
+        Some(crate::host::mul_div_rem(x, y, m).2)
     }
 
     /// `(x * y) % m`, computed on the exact 512-bit product.
@@ -606,10 +560,11 @@ impl U256 {
     /// contract.
     ///
     /// The loop takes one multiply-divide per bit of `e` and another per set
-    /// bit, up to 511 for a full-width exponent. In a contract each one is a
+    /// bit, up to 511 for a full-width exponent. Each one is a
     /// `U256MulDivRem` host call, which the bench measures at about 330 gas
-    /// as `mul_div`, so a 256-bit exponent costs up to about 170,000 gas. (In
-    /// software each was 4,801, and the exponent about two million.) An
+    /// as `mul_div`, so a 256-bit exponent costs up to about 170,000 gas. (The
+    /// software routine this crate used to carry took 4,801 each, and the
+    /// exponent about two million.) An
     /// entrypoint that lets a caller choose `e` or `m` is therefore a
     /// gas-exhaustion surface: bound the exponent, or charge for it.
     ///
@@ -793,8 +748,7 @@ impl U256 {
     /// rounding argument.
     ///
     /// Not a `const fn`, and it panics where
-    /// [`integer_sqrt`](Self::integer_sqrt) does: in a contract the root is
-    /// the runtime's.
+    /// [`integer_sqrt`](Self::integer_sqrt) does: the root is the runtime's.
     #[inline]
     pub fn sqrt_rounding(self, rounding: Rounding) -> Self {
         let r = self.integer_sqrt();
@@ -831,8 +785,7 @@ impl U256 {
     ///
     /// Peels eight digits at a time with [`div_rem_small`](Self::div_rem_small)
     /// -- `10^8` is the largest power of ten that is both a `u32` and a whole
-    /// number of digits -- so this never links Knuth D, unlike the ladder of
-    /// 256-bit constants Solidity uses.
+    /// number of digits -- so it takes at most ten divisions.
     pub fn log10(self) -> u32 {
         self.log10_parts().0
     }

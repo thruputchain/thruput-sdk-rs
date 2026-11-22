@@ -13,6 +13,8 @@
 //!   (`mul_div`, `mul_shr`, `mul_mod`), whose whole point is an intermediate
 //!   that no 256-bit oracle can hold.
 
+mod runtime_model;
+
 use thruput_u256::{Rounding, U256};
 
 uint::construct_uint! {

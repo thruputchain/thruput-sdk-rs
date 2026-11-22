@@ -11,6 +11,8 @@
 //! including the random sweeps sized to hit Knuth D's add-back correction
 //! (~2/2^32, so it needs volume).
 
+mod runtime_model;
+
 use thruput_u256::{U256, checked_mul_div_u128, mul_div_u128};
 
 uint::construct_uint! {

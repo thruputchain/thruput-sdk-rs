@@ -13,8 +13,8 @@
 //! [`U256::mul_div`], and the sign comes back afterwards. It truncates toward
 //! zero, the same rule `/` uses, and the rounding variant takes the same
 //! [`Rounding`] the unsigned side does -- where the two signed directions stop
-//! coinciding, and [`Rounding::rounds_away_from_zero`] is what decides. In a
-//! contract the unsigned half is the runtime's `U256MulDivRem` host operation,
+//! coinciding, and [`Rounding::rounds_away_from_zero`] is what decides. The
+//! unsigned half is the runtime's `U256MulDivRem` host operation,
 //! so the signed `mul_div` family is not `const fn` either.
 
 use crate::{I256, Rounding, U256};

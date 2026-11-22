@@ -22,12 +22,12 @@ crate-type = ["rlib"]
 [dependencies]
 thruput-contract-spec = { workspace = true }
 xdrs = { workspace = true }
-
-# A contract takes its square roots from the runtime (the `U256Sqrt` host
-# operation), so on riscv32 this crate reaches the syscall bindings. A host
-# computes them here and needs no dispatch path.
-[target.'cfg(target_arch = "riscv32")'.dependencies]
+# Square roots and division are the runtime's host operations, through these
+# bindings: an `ecall` in a contract, the native executor in a native test.
 thruput-xdr = { workspace = true, features = ["syscalls"] }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+thruput-xdr = { workspace = true, features = ["syscalls_mock"] }
 
 [dev-dependencies]
 # Self-dependency, to turn features on for tests only. The crate defaults to

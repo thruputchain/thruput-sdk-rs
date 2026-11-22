@@ -1,5 +1,6 @@
-//! The runtime's arithmetic host operations, which a contract calls in place
-//! of this crate's software routines. Built for `riscv32` only.
+//! The runtime's arithmetic host operations, through their generated
+//! bindings. Every division on these types is one of these calls: an `ecall`
+//! in a contract, the native executor in a native test.
 
 use crate::{LIMBS, U256};
 

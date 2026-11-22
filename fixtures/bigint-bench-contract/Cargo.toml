@@ -34,6 +34,8 @@ uint = { version = "0.10.0", default-features = false, optional = true }
 [dev-dependencies]
 # The differential test links both backends at once. See `backend-uint`.
 bigint-bench-contract = { path = ".", features = ["backend-uint"] }
+# And runs them in a native transaction, for the host operations.
+thruput-sdk = { workspace = true, features = ["dev"] }
 
 [features]
 entrypoints = []
