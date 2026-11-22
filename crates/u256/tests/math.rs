@@ -945,26 +945,20 @@ fn rounding_classifies_directions() {
 // ---------------------------------------------------------------------------
 
 /// The surface is `const fn`, which contracts lean on for tables of
-/// precomputed constants. Only a compile-time evaluation proves it. The
-/// square roots and the `mul_div` family are the exceptions: a contract takes
+/// precomputed constants. Only a compile-time evaluation proves it. Square
+/// roots and everything that divides are the exceptions: a contract takes
 /// them from the runtime, which cannot answer at compile time.
 #[test]
 fn the_math_surface_is_const_evaluable() {
     const WAD: U256 = U256::from(1_000_000_000_000_000_000);
     const HALF: U256 = WAD.average(U256::ZERO);
-    const CEIL: U256 = WAD.ceil_div(U256::from(3));
-    const L10: u32 = WAD.log10();
     const POW: U256 = U256::from(10).pow(18);
-    const INV: U256 = U256::inv_mod(U256::from(3), U256::from(7));
     const CMP: core::cmp::Ordering = WAD.const_cmp(HALF);
     const MASK: U256 = U256::MAX.const_bitxor(U256::MAX.const_not());
 
     assert_eq!(HALF, WAD / U256::from(2));
-    assert_eq!(CEIL, WAD.ceil_div(U256::from(3)));
     assert_eq!(WAD.sqrt_rounding(Rounding::Ceil), U256::from(1_000_000_000));
-    assert_eq!(L10, 18);
     assert_eq!(POW, WAD);
-    assert_eq!(INV, U256::from(5));
     assert_eq!(CMP, core::cmp::Ordering::Greater);
     assert_eq!(MASK, U256::MAX);
 }

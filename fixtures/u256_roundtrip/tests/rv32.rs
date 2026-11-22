@@ -421,6 +421,14 @@ fn multiply_divides_from_the_runtime_match_software() {
                 U256::from(u128::MAX)
             );
             assert_eq!(
+                client.div_small(U256::from(1_000_000_000_007), 1_000),
+                U256::from(1_000_000_000)
+            );
+            assert_eq!(
+                client.signed_div(I256::from(-7), I256::from(2)),
+                I256::from(-3)
+            );
+            assert_eq!(
                 client.signed_mul_div(I256::MIN, I256::from(-1), I256::ONE),
                 None
             );
@@ -540,6 +548,25 @@ fn multiply_divides_from_the_runtime_match_software() {
                     I256::checked_mul_div(sx, sy, sd),
                     "{sx:?} {sy:?} {sd:?}"
                 );
+                // Signed `/` wherever it is defined: not by zero, and not
+                // `MIN / -1`.
+                if !sd.is_zero() && !(sx == I256::MIN && sd == I256::from(-1))
+                {
+                    assert_eq!(
+                        client.signed_div(sx, sd),
+                        sx / sd,
+                        "{sx:?} {sd:?}"
+                    );
+                }
+                // `div_rem_small`, by the low 32 bits of `d`.
+                let small = d.to_limbs()[0];
+                if small != 0 {
+                    assert_eq!(
+                        client.div_small(x, small),
+                        x.div_rem_small(small).0,
+                        "{x:?} {small}"
+                    );
+                }
                 // And the low halves, at 128 bits.
                 let (a, b, c) = (low_u128(x), low_u128(y), low_u128(d));
                 assert_eq!(

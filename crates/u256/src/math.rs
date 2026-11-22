@@ -37,10 +37,11 @@
 //!
 //! # In a contract
 //!
-//! A contract does not divide a 512-bit product itself. On `riscv32`,
-//! [`mul_div`](U256::mul_div) with its rounding and `checked_` forms,
-//! [`mul_mod`](U256::mul_mod) and the functions built on it, and the `/` and
-//! `%` operators make the runtime's experimental `U256MulDivRem` host
+//! A contract does not divide at all. On `riscv32` every division on these
+//! types -- `/` and `%`, [`div_rem`](U256::div_rem) and the `checked_` forms,
+//! [`mul_div`](U256::mul_div) and its rounding forms, [`mul_mod`](U256::mul_mod)
+//! and what is built on it, [`ceil_div`](U256::ceil_div), `log10` and the
+//! `I256` divisions -- makes the runtime's experimental `U256MulDivRem` host
 //! operation, which needs syscall API 1.2. That is why none of them is a
 //! `const fn`. Every other target computes them here, with the same results.
 //!
@@ -51,15 +52,15 @@
 //! |---|---:|---:|---:|---:|
 //! | `mul_div` | 4,801 | 3,952 bytes | 331 | 484 bytes |
 //! | `/` | 1,065 | 2,448 bytes | 284 | 404 bytes |
-//! | `%` | 1,095 | 2,948 bytes | 286 | 396 bytes |
+//! | `%` | 1,095 | 2,948 bytes | 254 | 320 bytes |
+//! | `div_rem_small` | 719 | 680 bytes | 263 | 356 bytes |
+//! | `I256` `/` | 1,135 | 2,728 bytes | 337 | 764 bytes |
 //!
 //! Of a host call's gas, 171 is the runtime's: the `ecall`, the syscall base
 //! and the operation's price. The rest is the contract's own instructions,
 //! mostly copying the operands and results.
 //!
-//! [`div_rem`](U256::div_rem), [`checked_div`](U256::checked_div) and the
-//! other division methods are `const fn`, so they stay in software, Knuth D
-//! and all. [`mod_exp`](U256::mod_exp) is a loop over `mul_mod`, and
+//! [`mod_exp`](U256::mod_exp) is a loop over `mul_mod`, and
 //! [`inv_mod`](U256::inv_mod) one over `div_rem` -- reach for them knowingly.
 
 use crate::U256;
@@ -170,7 +171,7 @@ impl U256 {
     /// Division rounding toward positive infinity, returning `None` if `rhs`
     /// is zero. `Math.ceilDiv`.
     #[inline]
-    pub const fn checked_ceil_div(self, rhs: Self) -> Option<Self> {
+    pub fn checked_ceil_div(self, rhs: Self) -> Option<Self> {
         if self.is_zero() {
             // Guard the `self - 1` below, and skip the division entirely.
             // Also the one input for which the divisor being zero is *not*
@@ -183,10 +184,9 @@ impl U256 {
         // `self >= 1`, so `self - 1` cannot wrap, and the largest possible
         // result is `(MAX - 1) / 1 + 1 == MAX`: the `+ 1` cannot overflow
         // either.
-        match self.wrapping_sub(Self::ONE).checked_div(rhs) {
-            Some(q) => Some(q.wrapping_add(Self::ONE)),
-            None => None,
-        }
+        self.wrapping_sub(Self::ONE)
+            .checked_div(rhs)
+            .map(|q| q.wrapping_add(Self::ONE))
     }
 
     /// Division rounding toward positive infinity. `Math.ceilDiv`.
@@ -195,7 +195,7 @@ impl U256 {
     ///
     /// If `rhs` is zero, matching `/`.
     #[inline]
-    pub const fn ceil_div(self, rhs: Self) -> Self {
+    pub fn ceil_div(self, rhs: Self) -> Self {
         match self.checked_ceil_div(rhs) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -204,7 +204,7 @@ impl U256 {
 
     /// Division following `rounding`, returning `None` if `rhs` is zero.
     #[inline]
-    pub const fn checked_div_rounding(
+    pub fn checked_div_rounding(
         self,
         rhs: Self,
         rounding: Rounding,
@@ -227,7 +227,7 @@ impl U256 {
     ///
     /// If `rhs` is zero, matching `/`.
     #[inline]
-    pub const fn div_rounding(self, rhs: Self, rounding: Rounding) -> Self {
+    pub fn div_rounding(self, rhs: Self, rounding: Rounding) -> Self {
         match self.checked_div_rounding(rhs, rounding) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -489,7 +489,7 @@ impl U256 {
     ///
     /// The EVM's `addmod`, which `Math.sol` uses but does not re-export.
     #[inline]
-    pub const fn checked_add_mod(x: Self, y: Self, m: Self) -> Option<Self> {
+    pub fn checked_add_mod(x: Self, y: Self, m: Self) -> Option<Self> {
         let (x, y) = match (x.checked_rem(m), y.checked_rem(m)) {
             (Some(x), Some(y)) => (x, y),
             _ => return None,
@@ -512,7 +512,7 @@ impl U256 {
     ///
     /// If `m` is zero.
     #[inline]
-    pub const fn add_mod(x: Self, y: Self, m: Self) -> Self {
+    pub fn add_mod(x: Self, y: Self, m: Self) -> Self {
         match Self::checked_add_mod(x, y, m) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -644,7 +644,7 @@ impl U256 {
     /// recurrence on magnitudes is `t[k+1] = t[k-1] + q * t[k]`, and the
     /// standard bound `t <= n / gcd` keeps every intermediate inside a
     /// `U256`.
-    pub const fn inv_mod(a: Self, n: Self) -> Self {
+    pub fn inv_mod(a: Self, n: Self) -> Self {
         if n.is_zero() {
             return Self::ZERO;
         }
@@ -833,7 +833,7 @@ impl U256 {
     /// -- `10^8` is the largest power of ten that is both a `u32` and a whole
     /// number of digits -- so this never links Knuth D, unlike the ladder of
     /// 256-bit constants Solidity uses.
-    pub const fn log10(self) -> u32 {
+    pub fn log10(self) -> u32 {
         self.log10_parts().0
     }
 
@@ -846,7 +846,7 @@ impl U256 {
     /// [`pow`](Self::pow) -- and through it the general 256x256 multiply --
     /// into a function built specifically to avoid dragging in that class of
     /// code.
-    const fn log10_parts(self) -> (u32, bool) {
+    fn log10_parts(self) -> (u32, bool) {
         /// The largest power of ten fitting in a `u32`'s divisor slot.
         const P8: u32 = 100_000_000;
 
@@ -877,7 +877,7 @@ impl U256 {
     /// `log10(self)` following `rounding`, or zero for zero. `Math.log10` with
     /// a rounding argument.
     #[inline]
-    pub const fn log10_rounding(self, rounding: Rounding) -> u32 {
+    pub fn log10_rounding(self, rounding: Rounding) -> u32 {
         let (r, inexact) = self.log10_parts();
         if rounding.unsigned_rounds_up() && inexact {
             r + 1

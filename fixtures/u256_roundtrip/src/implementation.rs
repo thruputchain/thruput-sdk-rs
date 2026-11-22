@@ -83,6 +83,17 @@ impl U256Roundtrip {
         a % d
     }
 
+    /// `a / d` for a 32-bit `d`, through `div_rem_small`.
+    pub fn div_small(&self, a: U256, d: u32) -> U256 {
+        a.div_rem_small(d).0
+    }
+
+    /// The signed `a / d`, truncated, by the operator. Its magnitudes go
+    /// through `U256MulDivRem`.
+    pub fn signed_div(&self, a: I256, d: I256) -> I256 {
+        a / d
+    }
+
     /// The signed `x * y / d`, truncated, or `None` when `d` is zero or the
     /// quotient is out of range. Its magnitudes go through `U256MulDivRem`.
     pub fn signed_mul_div(&self, x: I256, y: I256, d: I256) -> Option<I256> {

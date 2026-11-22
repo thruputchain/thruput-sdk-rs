@@ -1,5 +1,10 @@
 //! Division and remainder.
 //!
+//! In a contract none of the code below is built: every division is the
+//! runtime's `U256MulDivRem` with a multiplier of one, through
+//! [`U256::checked_div_rem`]. The rest of this module is the software every
+//! other target runs, and the measurements in it are from before the move.
+//!
 //! [`U256::div_rem_small`] is a separate function rather than a fast path
 //! inside [`U256::div_rem`], so a contract that only divides by constants (or
 //! formats a decimal) links the cheap routine and not Knuth D. Measured by
@@ -15,7 +20,10 @@
 //! single shared function over the wider buffers was measured and rejected;
 //! [`knuth_d`] has the numbers.
 
-use crate::{LIMBS, U256};
+#[cfg(not(target_arch = "riscv32"))]
+use crate::LIMBS;
+use crate::U256;
+#[cfg(not(target_arch = "riscv32"))]
 use core::mem::MaybeUninit;
 
 /// The number of 32-bit limbs in a full-precision (512-bit) product.
@@ -23,9 +31,11 @@ use core::mem::MaybeUninit;
 pub(crate) const WIDE_LIMBS: usize = 2 * LIMBS;
 
 /// The base of the limb representation, as a `u64` for intermediate work.
+#[cfg(not(target_arch = "riscv32"))]
 const B: u64 = 1 << 32;
 
 /// Half-limb base, for the 64-by-32 divide below.
+#[cfg(not(target_arch = "riscv32"))]
 const HB: u32 = 1 << 16;
 
 /// Divides `(hi, lo)` by `d`. Requires `hi < d` and `d != 0`; both hold at
@@ -36,6 +46,7 @@ const HB: u32 = 1 << 16;
 /// `DIVU` is XLEN-wide, so on rv32 it lowers to `__udivdi3`/`__umoddi3`, one
 /// libcall per limb. (Verified by disassembly; it emitted zero `divu`.)
 #[inline]
+#[cfg(not(target_arch = "riscv32"))]
 const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
     debug_assert!(hi < d);
 
@@ -60,6 +71,7 @@ const fn div_rem_2by1(hi: u32, lo: u32, d: u32) -> (u32, u32) {
 /// wrapper's selects and shifts would otherwise ride along in the hot loop as
 /// dead work.
 #[inline]
+#[cfg(not(target_arch = "riscv32"))]
 const fn div_rem_2by1_normalized(hi: u32, lo: u32, d: u32) -> (u32, u32) {
     debug_assert!(hi < d);
     debug_assert!(d >> 31 == 1);
@@ -114,8 +126,16 @@ impl U256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn div_rem_small(self, rhs: u32) -> (Self, u32) {
-        self.div_rem_small_from(rhs, 0)
+    pub fn div_rem_small(self, rhs: u32) -> (Self, u32) {
+        #[cfg(target_arch = "riscv32")]
+        {
+            let (q, r) = self.div_rem(Self::from_u32(rhs));
+            (q, r.limbs[0])
+        }
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            self.div_rem_small_from(rhs, 0)
+        }
     }
 
     /// [`div_rem_small`](Self::div_rem_small), resuming from a partial
@@ -130,6 +150,7 @@ impl U256 {
     ///
     /// If `rhs` is zero. `rem` must already be below `rhs`, which every
     /// caller satisfies by construction (it is a remainder of `rhs`).
+    #[cfg(not(target_arch = "riscv32"))]
     #[inline]
     pub(crate) const fn div_rem_small_from(
         self,
@@ -163,7 +184,7 @@ impl U256 {
     ///
     /// If `rhs` is zero, matching the primitive integers (which panic on a
     /// zero divisor regardless of `overflow-checks`).
-    pub const fn div_rem(self, rhs: Self) -> (Self, Self) {
+    pub fn div_rem(self, rhs: Self) -> (Self, Self) {
         match self.checked_div_rem(rhs) {
             Some(pair) => pair,
             None => panic!("attempt to divide by zero"),
@@ -171,44 +192,56 @@ impl U256 {
     }
 
     /// Divides by another `U256`, returning `None` if `rhs` is zero.
-    pub const fn checked_div_rem(self, rhs: Self) -> Option<(Self, Self)> {
-        let dn = rhs.limb_len();
-        if dn == 0 {
+    ///
+    /// Every division in this crate comes here. In a contract it is the
+    /// runtime's `U256MulDivRem` with a multiplier of one; elsewhere it is
+    /// Knuth D below.
+    pub fn checked_div_rem(self, rhs: Self) -> Option<(Self, Self)> {
+        // Refused here, so that a zero divisor costs no host call.
+        if rhs.is_zero() {
             return None;
         }
+        #[cfg(target_arch = "riscv32")]
+        {
+            let (q, _, r) = crate::host::mul_div_rem(self, Self::ONE, rhs);
+            Some((q, r))
+        }
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            Some(self.software_div_rem(rhs))
+        }
+    }
+
+    /// [`checked_div_rem`](Self::checked_div_rem) in software, for every
+    /// target but a contract. `rhs` is not zero.
+    #[cfg(not(target_arch = "riscv32"))]
+    const fn software_div_rem(self, rhs: Self) -> (Self, Self) {
+        let dn = rhs.limb_len();
         let nn = self.limb_len();
 
         // Divisor larger than the dividend: quotient zero, remainder self.
         if nn < dn {
-            return Some((Self::ZERO, self));
+            return (Self::ZERO, self);
         }
 
-        // Separate function, not an inlined copy, so a contract using only
-        // `div_rem_small` never links the code below.
         if dn == 1 {
-            let (q, r) = self.div_rem_small(rhs.limbs[0]);
-            return Some((q, Self::from_u32(r)));
+            let (q, r) = self.div_rem_small_from(rhs.limbs[0], 0);
+            return (q, Self::from_u32(r));
         }
 
         let (q, r) = div_rem_knuth(&self.limbs, nn, &rhs.limbs, dn);
-        Some((Self::from_limbs(q), r))
+        (Self::from_limbs(q), r)
     }
     /// Division, returning `None` if `rhs` is zero.
     #[inline]
-    pub const fn checked_div(self, rhs: Self) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((q, _)) => Some(q),
-            None => None,
-        }
+    pub fn checked_div(self, rhs: Self) -> Option<Self> {
+        self.checked_div_rem(rhs).map(|(q, _)| q)
     }
 
     /// Remainder, returning `None` if `rhs` is zero.
     #[inline]
-    pub const fn checked_rem(self, rhs: Self) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((_, r)) => Some(r),
-            None => None,
-        }
+    pub fn checked_rem(self, rhs: Self) -> Option<Self> {
+        self.checked_div_rem(rhs).map(|(_, r)| r)
     }
 }
 
@@ -242,11 +275,8 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// [`div_rem_512`] divides the sixteen of a full-precision product. One body,
 /// two instantiations, each sized to its own dividend.
 ///
-/// In a contract the operators and the full-precision product go to the
-/// runtime's `U256MulDivRem` instead, so only [`div_rem`](U256::div_rem) and
-/// the other `const fn` divisions still use the narrow instantiation, and the
-/// wide one is not built for `riscv32` at all. The measurements below predate
-/// that.
+/// Neither instantiation is built for `riscv32`, where every division is the
+/// runtime's `U256MulDivRem`. The measurements below predate that.
 ///
 /// The obvious alternative -- one function over the wider buffers, called by
 /// both, since every loop is bounded by the runtime `nn`/`dn` anyway -- was
@@ -347,6 +377,7 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// (An earlier version of this comment guessed the second copy at "the 1,892
 /// bytes one copy costs over `div_small`". Measuring it said otherwise, by
 /// about 20% -- which is why it is a measurement now.)
+#[cfg(not(target_arch = "riscv32"))]
 macro_rules! knuth_d {
     ($name:ident, $n:expr) => {
         // `vn` and `un` are `MaybeUninit` scratch, so every read of them is
@@ -526,6 +557,7 @@ macro_rules! knuth_d {
     };
 }
 
+#[cfg(not(target_arch = "riscv32"))]
 knuth_d!(div_rem_knuth, LIMBS);
 // A contract divides a 512-bit product in the runtime (`U256MulDivRem`).
 #[cfg(not(target_arch = "riscv32"))]
@@ -553,7 +585,7 @@ pub(crate) const fn div_rem_512(
     // Knuth D's buffers to reach a case it does not need.
     if dn == 1 {
         let divisor = d.limbs[0];
-        let (qhi, rem) = hi.div_rem_small(divisor);
+        let (qhi, rem) = hi.div_rem_small_from(divisor, 0);
         let (qlo, rem) = lo.div_rem_small_from(divisor, rem);
         let mut q = [0u32; WIDE_LIMBS];
         let mut i = 0;

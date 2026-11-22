@@ -16,14 +16,15 @@
 //! bytes of rv32 text and its `integer_sqrt` to 12,732 -- together over a third
 //! of the 64 KiB artifact code cap.
 //!
-//! Some operations leave the crate. In a contract the square roots are the
-//! runtime's `U256Sqrt` host operation; the `mul_div` family on both types,
-//! [`U256::mul_mod`] and what is built on it, and the [`U256`] `/` and `%`
-//! operators are `U256MulDivRem`; and [`mul_div_u128`] is `U128MulDivRem`.
-//! Each has a flat price, where the routines here cost a contract from about
-//! 1,000 gas a call for `/` to about 25,000 for a square root. None of those
-//! methods is `const fn`, and on riscv32 this crate depends on the syscall
-//! bindings. The `math` module has the measurements.
+//! In a contract the square roots and every division leave the crate: the
+//! square roots are the runtime's `U256Sqrt` host operation, every division on
+//! [`U256`] and [`I256`] (operators, `div_rem` and the `checked_` forms, the
+//! `mul_div` family, `mul_mod` and what is built on it) is `U256MulDivRem`,
+//! and [`mul_div_u128`] is `U128MulDivRem`. Each has a flat price, where the
+//! routines here cost a contract from about 700 gas a call for a small
+//! divisor to about 25,000 for a square root. None of those methods is
+//! `const fn`, and on riscv32 this crate depends on the syscall bindings. The
+//! `math` module has the measurements.
 //!
 //! Both types behave like the primitives on overflow: the operators wrap when
 //! `overflow-checks` is off (as every contract profile sets it) and panic when

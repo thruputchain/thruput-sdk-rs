@@ -485,15 +485,13 @@ Some of it is not computed in the contract at all. In a contract the runtime
 answers, through experimental host operations:
 
 - `integer_sqrt` and `sqrt_rounding`, through `U256Sqrt`;
-- the `mul_div` family on [`U256`] and [`I256`], `mul_mod`, `mod_exp`,
-  `inv_mod_prime`, and the `/` and `%` operators on [`U256`], through
-  `U256MulDivRem`;
+- every division on [`U256`] and [`I256`]: the `/` and `%` operators,
+  `div_rem` and the `checked_` forms, the `mul_div` family, `mul_mod` and
+  what is built on it, through `U256MulDivRem`;
 - [`mul_div_u128`] and [`checked_mul_div_u128`], through `U128MulDivRem`.
 
 Each costs a flat price whatever the values, and needs a runtime that
-implements syscall API 1.2. None of these methods is `const fn`. `div_rem`,
-`checked_div` and the other division methods that are `const fn` stay in the
-contract.
+implements syscall API 1.2. None of these methods is `const fn`.
 
 # System functions
 

@@ -293,7 +293,7 @@ impl I256 {
     /// the dividend, matching Rust's primitives and Solidity's `int256`.
     /// `MIN / -1` is the one overflow: its quotient is `2^255`.
     #[inline]
-    pub const fn checked_div_rem(self, rhs: Self) -> Option<(Self, Self)> {
+    pub fn checked_div_rem(self, rhs: Self) -> Option<(Self, Self)> {
         if rhs.is_zero()
             || (self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE))
         {
@@ -308,7 +308,7 @@ impl I256 {
     /// negates back to `MIN` exactly; only `MIN / -1` needs the magnitude to
     /// stay positive, and that is the case the callers reject.
     #[inline]
-    const fn div_rem_unchecked(self, rhs: Self) -> (Self, Self) {
+    fn div_rem_unchecked(self, rhs: Self) -> (Self, Self) {
         let (q, r) =
             match self.unsigned_abs().checked_div_rem(rhs.unsigned_abs()) {
                 Some(v) => v,
@@ -346,7 +346,7 @@ impl I256 {
     /// [`checked_div`](Self::checked_div) if an abort is not what the call
     /// site wants.
     #[inline]
-    pub const fn div_rem(self, rhs: Self) -> (Self, Self) {
+    pub fn div_rem(self, rhs: Self) -> (Self, Self) {
         if rhs.is_zero() {
             panic!("attempt to divide by zero");
         }
@@ -364,7 +364,7 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn overflowing_div(self, rhs: Self) -> (Self, bool) {
+    pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return (Self::MIN, true);
         }
@@ -379,7 +379,7 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
+    pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return (Self::ZERO, true);
         }
@@ -388,20 +388,14 @@ impl I256 {
 
     /// Division, returning `None` if `rhs` is zero or the division overflows.
     #[inline]
-    pub const fn checked_div(self, rhs: Self) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((q, _)) => Some(q),
-            None => None,
-        }
+    pub fn checked_div(self, rhs: Self) -> Option<Self> {
+        self.checked_div_rem(rhs).map(|(q, _)| q)
     }
 
     /// Remainder, returning `None` if `rhs` is zero or the division overflows.
     #[inline]
-    pub const fn checked_rem(self, rhs: Self) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((_, r)) => Some(r),
-            None => None,
-        }
+    pub fn checked_rem(self, rhs: Self) -> Option<Self> {
+        self.checked_div_rem(rhs).map(|(_, r)| r)
     }
 
     /// Division, wrapping on overflow (`MIN / -1` is `MIN`).
@@ -410,7 +404,7 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn wrapping_div(self, rhs: Self) -> Self {
+    pub fn wrapping_div(self, rhs: Self) -> Self {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return Self::MIN;
         }
@@ -423,7 +417,7 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn wrapping_rem(self, rhs: Self) -> Self {
+    pub fn wrapping_rem(self, rhs: Self) -> Self {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return Self::ZERO;
         }
@@ -438,7 +432,7 @@ impl I256 {
     ///
     /// As [`div_rem`](Self::div_rem).
     #[inline]
-    pub const fn div_euclid(self, rhs: Self) -> Self {
+    pub fn div_euclid(self, rhs: Self) -> Self {
         let (q, r) = self.div_rem(rhs);
         if r.is_negative() {
             // Step the quotient away from zero in the divisor's direction, so
@@ -457,7 +451,7 @@ impl I256 {
     ///
     /// As [`div_rem`](Self::div_rem).
     #[inline]
-    pub const fn rem_euclid(self, rhs: Self) -> Self {
+    pub fn rem_euclid(self, rhs: Self) -> Self {
         let (_, r) = self.div_rem(rhs);
         if r.is_negative() {
             // `|rhs|` is at most `2^255`, whose wrapped form is `MIN`; adding
