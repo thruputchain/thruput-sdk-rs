@@ -13,7 +13,9 @@
 //! [`U256::mul_div`], and the sign comes back afterwards. It truncates toward
 //! zero, the same rule `/` uses, and the rounding variant takes the same
 //! [`Rounding`] the unsigned side does -- where the two signed directions stop
-//! coinciding, and [`Rounding::rounds_away_from_zero`] is what decides.
+//! coinciding, and [`Rounding::rounds_away_from_zero`] is what decides. In a
+//! contract the unsigned half is the runtime's `U256MulDivRem` host operation,
+//! so the signed `mul_div` family is not `const fn` either.
 
 use crate::{I256, Rounding, U256};
 
@@ -85,11 +87,8 @@ impl I256 {
     /// The signed counterpart of [`U256::mul_div`]; see the module docs for
     /// why it is a composition rather than a port.
     #[inline]
-    pub const fn checked_mul_div(x: Self, y: Self, d: Self) -> Option<Self> {
-        match Self::mul_div_parts(x, y, d) {
-            Some((q, _, _)) => Some(q),
-            None => None,
-        }
+    pub fn checked_mul_div(x: Self, y: Self, d: Self) -> Option<Self> {
+        Self::mul_div_parts(x, y, d).map(|(q, _, _)| q)
     }
 
     /// `x * y / d` computed on the exact 512-bit product, truncating toward
@@ -100,7 +99,7 @@ impl I256 {
     /// If `d` is zero, or if the quotient is out of range. Both panics are
     /// unconditional, as on the unsigned side.
     #[inline]
-    pub const fn mul_div(x: Self, y: Self, d: Self) -> Self {
+    pub fn mul_div(x: Self, y: Self, d: Self) -> Self {
         match Self::checked_mul_div(x, y, d) {
             Some(v) => v,
             None => {
@@ -116,16 +115,13 @@ impl I256 {
     /// `rounding`. Returns `None` if `d` is zero or the result is out of
     /// range.
     #[inline]
-    pub const fn checked_mul_div_rounding(
+    pub fn checked_mul_div_rounding(
         x: Self,
         y: Self,
         d: Self,
         rounding: Rounding,
     ) -> Option<Self> {
-        let (q, inexact, negative) = match Self::mul_div_parts(x, y, d) {
-            Some(v) => v,
-            None => return None,
-        };
+        let (q, inexact, negative) = Self::mul_div_parts(x, y, d)?;
         if !inexact || !rounding.rounds_away_from_zero(negative) {
             return Some(q);
         }
@@ -143,7 +139,7 @@ impl I256 {
     ///
     /// As [`mul_div`](Self::mul_div).
     #[inline]
-    pub const fn mul_div_rounding(
+    pub fn mul_div_rounding(
         x: Self,
         y: Self,
         d: Self,
@@ -168,21 +164,14 @@ impl I256 {
     /// zero, which loses it, and the rounding direction of an inexact
     /// zero-magnitude result still depends on which side of zero it came from.
     #[inline]
-    const fn mul_div_parts(
-        x: Self,
-        y: Self,
-        d: Self,
-    ) -> Option<(Self, bool, bool)> {
+    fn mul_div_parts(x: Self, y: Self, d: Self) -> Option<(Self, bool, bool)> {
         let negative = (x.is_negative() != y.is_negative()) != d.is_negative();
 
-        let (mag, rem) = match U256::mul_div_parts(
+        let (mag, rem) = U256::mul_div_parts(
             x.unsigned_abs(),
             y.unsigned_abs(),
             d.unsigned_abs(),
-        ) {
-            Some(v) => v,
-            None => return None,
-        };
+        )?;
 
         // The negative range reaches one further, so the bound is on the
         // magnitude rather than on the value it would become.

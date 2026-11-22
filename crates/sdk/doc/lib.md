@@ -481,10 +481,19 @@ Beyond that, [`U256`] and [`I256`] carry OpenZeppelin's `Math.sol` and
 [`Rounding`] direction — so a Solidity port has the same vocabulary. Every
 fallible one ships as a `checked_` form beside the panicking one.
 
-The square roots are the exception to "arithmetic": in a contract
-`integer_sqrt` and `sqrt_rounding` ask the runtime for the root, through the
-experimental `U256Sqrt` host operation. They cost a flat price whatever the
-value, are not `const fn`, and need a runtime that implements syscall API 1.2.
+Some of it is not computed in the contract at all. In a contract the runtime
+answers, through experimental host operations:
+
+- `integer_sqrt` and `sqrt_rounding`, through `U256Sqrt`;
+- the `mul_div` family on [`U256`] and [`I256`], `mul_mod`, `mod_exp`,
+  `inv_mod_prime`, and the `/` and `%` operators on [`U256`], through
+  `U256MulDivRem`;
+- [`mul_div_u128`] and [`checked_mul_div_u128`], through `U128MulDivRem`.
+
+Each costs a flat price whatever the values, and needs a runtime that
+implements syscall API 1.2. None of these methods is `const fn`. `div_rem`,
+`checked_div` and the other division methods that are `const fn` stay in the
+contract.
 
 # System functions
 

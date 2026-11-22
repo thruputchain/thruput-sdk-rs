@@ -526,6 +526,33 @@ impl Mul<u32> for U256 {
     }
 }
 
+impl U256 {
+    /// The quotient and remainder that `/` and `%` answer.
+    ///
+    /// In a contract they are the runtime's: `U256MulDivRem` with a multiplier
+    /// of one. [`div_rem`](Self::div_rem) and the `checked_` forms stay in
+    /// software everywhere, since they are `const fn`.
+    ///
+    /// # Panics
+    ///
+    /// If `rhs` is zero.
+    #[inline]
+    fn operator_div_rem(self, rhs: Self) -> (Self, Self) {
+        #[cfg(target_arch = "riscv32")]
+        {
+            if rhs.is_zero() {
+                panic!("attempt to divide by zero");
+            }
+            let (q, _, r) = crate::host::mul_div_rem(self, Self::ONE, rhs);
+            (q, r)
+        }
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            self.div_rem(rhs)
+        }
+    }
+}
+
 impl Div for U256 {
     type Output = Self;
 
@@ -533,7 +560,7 @@ impl Div for U256 {
     /// matching the primitive integers.
     #[inline]
     fn div(self, rhs: Self) -> Self {
-        self.div_rem(rhs).0
+        self.operator_div_rem(rhs).0
     }
 }
 
@@ -544,7 +571,7 @@ impl Rem for U256 {
     /// matching the primitive integers.
     #[inline]
     fn rem(self, rhs: Self) -> Self {
-        self.div_rem(rhs).1
+        self.operator_div_rem(rhs).1
     }
 }
 

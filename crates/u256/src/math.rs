@@ -35,25 +35,39 @@
 //! `mulShr`, and both are here whole, so the pair never has to be arithmetic
 //! the caller does themselves.
 //!
-//! # Code size
+//! # In a contract
 //!
-//! [`mul_div`](U256::mul_div) and the other full-precision entry points link
-//! their own instantiation of Knuth D, sized to a 512-bit dividend, plus the
-//! 512-bit multiply that the narrower [`U256::widening_mul_u128`] does not need.
-//! Measured by `scripts/bigint-bench.sh -o mul_div`, rv32: **3,992 bytes** of
-//! `.text` and 4712 gas per call, against 2,572 and 972 for a plain `/`. The
-//! same operation over Parity's `uint` -- which has no full-precision `mulDiv`,
-//! so the baseline widens to a `construct_uint!(PU512(8))` by hand, as a
-//! contract author there would -- costs 21,568 bytes and 22,625 gas: a third of
-//! the 64 KiB artifact code cap, for one operation.
+//! A contract does not divide a 512-bit product itself. On `riscv32`,
+//! [`mul_div`](U256::mul_div) with its rounding and `checked_` forms,
+//! [`mul_mod`](U256::mul_mod) and the functions built on it, and the `/` and
+//! `%` operators make the runtime's experimental `U256MulDivRem` host
+//! operation, which needs syscall API 1.2. That is why none of them is a
+//! `const fn`. Every other target computes them here, with the same results.
 //!
-//! A contract that uses both `/` and this family links Knuth D twice; `div`'s
-//! `knuth_d` documents why that beats sharing one copy, with the numbers.
-//! [`mod_exp`](U256::mod_exp) and [`inv_mod`](U256::inv_mod) are loops over
-//! the multiply-divide pair -- reach for them knowingly.
+//! Measured by `scripts/bigint-bench.sh -b u256`, rv32, per call, both against
+//! the same executor:
+//!
+//! | | Software gas | Software `.text` | Host gas | Host `.text` |
+//! |---|---:|---:|---:|---:|
+//! | `mul_div` | 4,801 | 3,952 bytes | 331 | 484 bytes |
+//! | `/` | 1,065 | 2,448 bytes | 284 | 404 bytes |
+//! | `%` | 1,095 | 2,948 bytes | 286 | 396 bytes |
+//!
+//! Of a host call's gas, 171 is the runtime's: the `ecall`, the syscall base
+//! and the operation's price. The rest is the contract's own instructions,
+//! mostly copying the operands and results.
+//!
+//! [`div_rem`](U256::div_rem), [`checked_div`](U256::checked_div) and the
+//! other division methods are `const fn`, so they stay in software, Knuth D
+//! and all. [`mod_exp`](U256::mod_exp) is a loop over `mul_mod`, and
+//! [`inv_mod`](U256::inv_mod) one over `div_rem` -- reach for them knowingly.
 
-use crate::div::{WIDE_LIMBS, div_rem_512, low_limbs};
-use crate::{LIMBS, U256};
+use crate::U256;
+#[cfg(not(target_arch = "riscv32"))]
+use crate::{
+    LIMBS,
+    div::{WIDE_LIMBS, div_rem_512, low_limbs},
+};
 
 /// The rounding direction of an inexact result.
 ///
@@ -231,11 +245,8 @@ impl U256 {
     /// the whole point: `x * y` may be far past [`U256::MAX`] as long as the
     /// quotient is not.
     #[inline]
-    pub const fn checked_mul_div(x: Self, y: Self, d: Self) -> Option<Self> {
-        match Self::mul_div_parts(x, y, d) {
-            Some((q, _)) => Some(q),
-            None => None,
-        }
+    pub fn checked_mul_div(x: Self, y: Self, d: Self) -> Option<Self> {
+        Self::mul_div_parts(x, y, d).map(|(q, _)| q)
     }
 
     /// `floor(x * y / d)` computed on the exact 512-bit product. `Math.mulDiv`.
@@ -248,7 +259,7 @@ impl U256 {
     /// exact-arithmetic call, not an operator with primitive behaviour to
     /// match.
     #[inline]
-    pub const fn mul_div(x: Self, y: Self, d: Self) -> Self {
+    pub fn mul_div(x: Self, y: Self, d: Self) -> Self {
         match Self::checked_mul_div(x, y, d) {
             Some(v) => v,
             None => {
@@ -264,7 +275,7 @@ impl U256 {
     /// `rounding`. Returns `None` if `d` is zero or the result exceeds
     /// [`U256::MAX`]. `Math.mulDiv` with a rounding argument.
     #[inline]
-    pub const fn checked_mul_div_rounding(
+    pub fn checked_mul_div_rounding(
         x: Self,
         y: Self,
         d: Self,
@@ -291,7 +302,7 @@ impl U256 {
     ///
     /// As [`mul_div`](Self::mul_div).
     #[inline]
-    pub const fn mul_div_rounding(
+    pub fn mul_div_rounding(
         x: Self,
         y: Self,
         d: Self,
@@ -312,9 +323,33 @@ impl U256 {
     /// zero or the quotient needs more than 256 bits.
     ///
     /// The one place the 512-bit product meets the divider; every public
-    /// `mul_div`/`mul_mod` entry point is a thin wrapper on this.
+    /// `mul_div` entry point is a thin wrapper on this. In a contract the
+    /// divider is the runtime's `U256MulDivRem` host operation.
     #[inline]
-    pub(crate) const fn mul_div_parts(
+    pub(crate) fn mul_div_parts(
+        x: Self,
+        y: Self,
+        d: Self,
+    ) -> Option<(Self, Self)> {
+        // Refused here, so that a zero divisor costs no host call.
+        if d.is_zero() {
+            return None;
+        }
+        #[cfg(target_arch = "riscv32")]
+        {
+            let (q, q_hi, r) = crate::host::mul_div_rem(x, y, d);
+            if q_hi.is_zero() { Some((q, r)) } else { None }
+        }
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            Self::software_mul_div_parts(x, y, d)
+        }
+    }
+
+    /// [`mul_div_parts`](Self::mul_div_parts) in software, for every target
+    /// but a contract. `d` is not zero.
+    #[cfg(not(target_arch = "riscv32"))]
+    const fn software_mul_div_parts(
         x: Self,
         y: Self,
         d: Self,
@@ -489,11 +524,19 @@ impl U256 {
     ///
     /// The EVM's `mulmod`, which `Math.sol` uses but does not re-export.
     #[inline]
-    pub const fn checked_mul_mod(x: Self, y: Self, m: Self) -> Option<Self> {
-        let (lo, hi) = x.widening_mul(y);
-        match div_rem_512(hi, lo, m) {
-            Some((_, r)) => Some(r),
-            None => None,
+    pub fn checked_mul_mod(x: Self, y: Self, m: Self) -> Option<Self> {
+        // Refused here, so that a zero modulus costs no host call.
+        if m.is_zero() {
+            return None;
+        }
+        #[cfg(target_arch = "riscv32")]
+        {
+            Some(crate::host::mul_div_rem(x, y, m).2)
+        }
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            let (lo, hi) = x.widening_mul(y);
+            div_rem_512(hi, lo, m).map(|(_, r)| r)
         }
     }
 
@@ -503,7 +546,7 @@ impl U256 {
     ///
     /// If `m` is zero.
     #[inline]
-    pub const fn mul_mod(x: Self, y: Self, m: Self) -> Self {
+    pub fn mul_mod(x: Self, y: Self, m: Self) -> Self {
         match Self::checked_mul_mod(x, y, m) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -523,7 +566,7 @@ impl U256 {
     /// set bit -- up to 512 for a full-width exponent. See
     /// [`mod_exp`](Self::mod_exp) for what that costs and why an
     /// attacker-chosen exponent is a gas-exhaustion surface.
-    pub const fn checked_mod_exp(b: Self, e: Self, m: Self) -> Option<Self> {
+    pub fn checked_mod_exp(b: Self, e: Self, m: Self) -> Option<Self> {
         if m.is_zero() {
             return None;
         }
@@ -533,27 +576,18 @@ impl U256 {
         }
 
         let mut result = Self::ONE;
-        let mut base = match b.checked_rem(m) {
-            Some(v) => v,
-            None => return None,
-        };
+        let mut base = b.checked_rem(m)?;
 
         let bits = e.bit_len();
         let mut i = 0;
         while i < bits {
             if e.bit(i) {
-                result = match Self::checked_mul_mod(result, base, m) {
-                    Some(v) => v,
-                    None => return None,
-                };
+                result = Self::checked_mul_mod(result, base, m)?;
             }
             i += 1;
             // Skip the final squaring: nothing reads it.
             if i < bits {
-                base = match Self::checked_mul_mod(base, base, m) {
-                    Some(v) => v,
-                    None => return None,
-                };
+                base = Self::checked_mul_mod(base, base, m)?;
             }
         }
         Some(result)
@@ -563,42 +597,38 @@ impl U256 {
     ///
     /// # Cost
     ///
-    /// **This is the most expensive function in the crate, by a wide margin,
-    /// and the one place where being a library rather than a precompile
-    /// really costs.**
+    /// **This is the most expensive function in the crate, by a wide margin.**
     ///
     /// `Math.modExp` in Solidity is not an implementation: it is a
     /// `staticcall` to the EIP-198 precompile at address `0x05`, so the
-    /// bignum runs as native client code at a flat fee. Thruput's syscall
-    /// table -- the actual analogue of the EVM's precompile slots -- carries
-    /// `kSHA256` and `kVerifySignature` (EVM `0x02` and `0x01`) but nothing
-    /// for modular exponentiation, so this runs *inside* the contract.
+    /// bignum runs as native client code at a flat fee. Thruput has no host
+    /// operation for modular exponentiation, so this loop runs in the
+    /// contract.
     ///
-    /// That means the loop is real work: once per bit of `e`, with one
-    /// full-precision multiply-divide per bit and another per set bit, up to
-    /// 512 of them for a full-width exponent. At the 4,712 gas the bench
-    /// measures for one `mul_div`, a 256-bit exponent is on the order of two
-    /// million. An entrypoint that lets a caller choose `e` or `m` is
-    /// therefore a gas-exhaustion surface: bound the exponent, or charge for
-    /// it.
+    /// The loop takes one multiply-divide per bit of `e` and another per set
+    /// bit, up to 511 for a full-width exponent. In a contract each one is a
+    /// `U256MulDivRem` host call, which the bench measures at about 330 gas
+    /// as `mul_div`, so a 256-bit exponent costs up to about 170,000 gas. (In
+    /// software each was 4,801, and the exponent about two million.) An
+    /// entrypoint that lets a caller choose `e` or `m` is therefore a
+    /// gas-exhaustion surface: bound the exponent, or charge for it.
     ///
     /// If modular exponentiation ever becomes load-bearing here -- RSA
-    /// verification, anything with a pairing behind it -- the answer is a host
-    /// syscall alongside `kSHA256`, not a better loop. That is a protocol
-    /// change rather than an SDK one, and it is tracked as
+    /// verification, anything with a pairing behind it -- the answer is a
+    /// host operation for the whole exponentiation, not a better loop. That
+    /// is a protocol change rather than an SDK one, and it is tracked as
     /// <https://github.com/thruputchain/thruput-sdk-rs/issues/383>.
     ///
-    /// Two things this does have over the Solidity version. It is a
-    /// `const fn`, where `Math.modExp` must be `view` because a `staticcall`
-    /// is not `pure`. And it cannot silently answer zero: OpenZeppelin's own
-    /// documentation warns that on a chain without the precompile the
-    /// `staticcall` succeeds and the result "may be incorrectly interpreted as
-    /// 0", which is not a failure mode an in-contract loop has.
+    /// It cannot silently answer zero, as the Solidity version can:
+    /// OpenZeppelin's own documentation warns that on a chain without the
+    /// precompile the `staticcall` succeeds and the result "may be incorrectly
+    /// interpreted as 0". Where a chain does not offer `U256MulDivRem`, the
+    /// host call fails and the contract panics.
     ///
     /// # Panics
     ///
     /// If `m` is zero.
-    pub const fn mod_exp(b: Self, e: Self, m: Self) -> Self {
+    pub fn mod_exp(b: Self, e: Self, m: Self) -> Self {
         match Self::checked_mod_exp(b, e, m) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -679,7 +709,7 @@ impl U256 {
     /// which is total and answers zero for a degenerate modulus: swapping one
     /// for the other after establishing primality elsewhere turns that zero
     /// into an abort.
-    pub const fn inv_mod_prime(a: Self, p: Self) -> Self {
+    pub fn inv_mod_prime(a: Self, p: Self) -> Self {
         Self::mod_exp(a, p.wrapping_sub(Self::from_u32(2)), p)
     }
 

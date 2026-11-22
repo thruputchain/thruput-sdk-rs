@@ -19,6 +19,7 @@ use crate::{LIMBS, U256};
 use core::mem::MaybeUninit;
 
 /// The number of 32-bit limbs in a full-precision (512-bit) product.
+#[cfg(not(target_arch = "riscv32"))]
 pub(crate) const WIDE_LIMBS: usize = 2 * LIMBS;
 
 /// The base of the limb representation, as a `u64` for intermediate work.
@@ -212,6 +213,7 @@ impl U256 {
 }
 
 /// The low [`LIMBS`] limbs of a full-precision limb array.
+#[cfg(not(target_arch = "riscv32"))]
 #[inline]
 pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
     let mut out = [0u32; LIMBS];
@@ -239,6 +241,12 @@ pub(crate) const fn low_limbs(wide: &[u32; WIDE_LIMBS]) -> [u32; LIMBS] {
 /// Two widths need this: the `U256 / U256` operators divide eight limbs, and
 /// [`div_rem_512`] divides the sixteen of a full-precision product. One body,
 /// two instantiations, each sized to its own dividend.
+///
+/// In a contract the operators and the full-precision product go to the
+/// runtime's `U256MulDivRem` instead, so only [`div_rem`](U256::div_rem) and
+/// the other `const fn` divisions still use the narrow instantiation, and the
+/// wide one is not built for `riscv32` at all. The measurements below predate
+/// that.
 ///
 /// The obvious alternative -- one function over the wider buffers, called by
 /// both, since every loop is bounded by the runtime `nn`/`dn` anyway -- was
@@ -519,6 +527,8 @@ macro_rules! knuth_d {
 }
 
 knuth_d!(div_rem_knuth, LIMBS);
+// A contract divides a 512-bit product in the runtime (`U256MulDivRem`).
+#[cfg(not(target_arch = "riscv32"))]
 knuth_d!(div_rem_knuth_wide, WIDE_LIMBS);
 
 /// Divides the 512-bit value `hi * 2^256 + lo` by `d`, returning the
@@ -527,6 +537,7 @@ knuth_d!(div_rem_knuth_wide, WIDE_LIMBS);
 /// The quotient genuinely needs 512 bits when `d <= hi`; callers that require
 /// a `U256` answer check the upper half themselves. The remainder is below
 /// `d`, so it always fits.
+#[cfg(not(target_arch = "riscv32"))]
 pub(crate) const fn div_rem_512(
     hi: U256,
     lo: U256,
@@ -600,11 +611,25 @@ pub fn mul_div_u128(a: u128, b: u128, d: u128) -> u128 {
 
 /// Computes `a * b / d` exactly, returning `None` if `d` is zero or the
 /// quotient does not fit in a `u128`.
+///
+/// In a contract this is the runtime's `U128MulDivRem` host operation.
 #[inline]
 pub fn checked_mul_div_u128(a: u128, b: u128, d: u128) -> Option<u128> {
-    let (q, _) =
-        U256::widening_mul_u128(a, b).checked_div_rem(U256::from(d))?;
-    u128::try_from(q).ok()
+    // Refused here, so that a zero divisor costs no host call.
+    if d == 0 {
+        return None;
+    }
+    #[cfg(target_arch = "riscv32")]
+    {
+        let (q, q_hi, _) = crate::host::mul_div_rem_u128(a, b, d);
+        if q_hi == 0 { Some(q) } else { None }
+    }
+    #[cfg(not(target_arch = "riscv32"))]
+    {
+        let (q, _) =
+            U256::widening_mul_u128(a, b).checked_div_rem(U256::from(d))?;
+        u128::try_from(q).ok()
+    }
 }
 
 #[cfg(test)]

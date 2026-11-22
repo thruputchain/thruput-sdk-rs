@@ -36,17 +36,7 @@ impl U256 {
 /// The root, from the runtime.
 #[cfg(target_arch = "riscv32")]
 fn host_sqrt(value: U256) -> U256 {
-    // The host reads 32 bytes, least significant first: the limbs in the
-    // order they are stored, each least significant byte first.
-    //
-    // Borrowing the limbs as those bytes, which needs `unsafe`, was measured
-    // against this copy in the `sqrt` bench kernel and compiled to the same
-    // code: the value arrives by value, and its one trip to memory is this.
-    let mut bytes = [0u8; 32];
-    for (chunk, limb) in bytes.chunks_exact_mut(4).zip(value.limbs) {
-        chunk.copy_from_slice(&limb.to_le_bytes());
-    }
-    match thruput_xdr::syscalls::U256Sqrt(&bytes) {
+    match thruput_xdr::syscalls::U256Sqrt(&crate::host::le_bytes(value)) {
         Ok(root) => U256::from_u128(root),
         Err(_) => panic!("U256Sqrt failed"),
     }

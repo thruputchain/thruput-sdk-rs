@@ -60,6 +60,8 @@
 mod arith;
 mod div;
 mod fmt;
+#[cfg(target_arch = "riscv32")]
+mod host;
 mod integration;
 mod math;
 mod signed;

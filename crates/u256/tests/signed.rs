@@ -1296,7 +1296,8 @@ fn integer_literals_and_operators_need_no_annotations() {
     assert_eq!(a << 2u8, a << 2usize);
 }
 
-/// The signed surface is `const fn` throughout, which contracts lean on.
+/// The signed surface is `const fn`, which contracts lean on, except for the
+/// `mul_div` family: a contract takes its quotients from the runtime.
 #[test]
 fn the_signed_surface_is_const_evaluable() {
     const A: I256 = I256::from(-1_000_000_000_000_000_000);
@@ -1304,14 +1305,12 @@ fn the_signed_surface_is_const_evaluable() {
     const NEG: I256 = A.wrapping_neg();
     const ABS: U256 = A.unsigned_abs();
     const AVG: I256 = A.average(B);
-    const QUOT: I256 = I256::mul_div(A, B, I256::from(7));
     const SHIFTED: I256 = A.wrapping_shr(4);
     const CMP: core::cmp::Ordering = A.const_cmp(B);
 
     assert_eq!(NEG, -A);
     assert_eq!(ABS, U256::from(1_000_000_000_000_000_000));
     assert_eq!(AVG, A.average(B));
-    assert_eq!(QUOT, I256::mul_div(A, B, I256::from(7)));
     assert_eq!(SHIFTED, A.div_euclid(I256::from(16)));
     assert_eq!(CMP, core::cmp::Ordering::Less);
 }

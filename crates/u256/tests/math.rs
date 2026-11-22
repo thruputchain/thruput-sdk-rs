@@ -946,14 +946,13 @@ fn rounding_classifies_directions() {
 
 /// The surface is `const fn`, which contracts lean on for tables of
 /// precomputed constants. Only a compile-time evaluation proves it. The
-/// square roots are the exception: a contract takes them from the runtime,
-/// which cannot answer at compile time.
+/// square roots and the `mul_div` family are the exceptions: a contract takes
+/// them from the runtime, which cannot answer at compile time.
 #[test]
 fn the_math_surface_is_const_evaluable() {
     const WAD: U256 = U256::from(1_000_000_000_000_000_000);
     const HALF: U256 = WAD.average(U256::ZERO);
     const CEIL: U256 = WAD.ceil_div(U256::from(3));
-    const SCALED: U256 = U256::mul_div(WAD, WAD, U256::from(7));
     const L10: u32 = WAD.log10();
     const POW: U256 = U256::from(10).pow(18);
     const INV: U256 = U256::inv_mod(U256::from(3), U256::from(7));
@@ -962,7 +961,6 @@ fn the_math_surface_is_const_evaluable() {
 
     assert_eq!(HALF, WAD / U256::from(2));
     assert_eq!(CEIL, WAD.ceil_div(U256::from(3)));
-    assert_eq!(SCALED, U256::mul_div(WAD, WAD, U256::from(7)));
     assert_eq!(WAD.sqrt_rounding(Rounding::Ceil), U256::from(1_000_000_000));
     assert_eq!(L10, 18);
     assert_eq!(POW, WAD);
