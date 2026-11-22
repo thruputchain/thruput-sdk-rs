@@ -122,7 +122,7 @@ it; prerequisites are added unless you pass `--no-deps`:
 | Command | Scope |
 | --- | --- |
 | `cargo gnaw list` | Tasks, with what each needs; `--groups` for groups |
-| `cargo gnaw run quick` | Formatting, annotations, version pins, dependency cooldown, SDK clippy |
+| `cargo gnaw run quick` | Formatting, annotations, inline assembly, version pins, dependency cooldown, SDK clippy |
 | `cargo gnaw run fixtures:test` | Fixture tests, after the RV32 builds they need |
 | `cargo gnaw run 'fixtures-negative:*' -k` | Negative fixtures, reporting every failure |
 | `cargo gnaw run sdk --dry-run` | The plan, without running it |
