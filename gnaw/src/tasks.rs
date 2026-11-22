@@ -12,7 +12,7 @@ use crate::rv32::{self, elf_path};
 use crate::task::{
     Cmd, Ctx, Failure, Lane, Result, Task, notable_lines, strip_ansi,
 };
-use crate::{elf, specs};
+use crate::{elf, inline_asm, specs};
 
 pub struct Group {
     pub name: &'static str,
@@ -29,10 +29,12 @@ pub static GROUPS: &[Group] = &[
     },
     Group {
         name: "quick",
-        about: "Fast checks: formatting, annotations, versions, cooldown, SDK lint",
+        about: "Fast checks: formatting, annotations, inline assembly, \
+                versions, cooldown, SDK lint",
         members: &[
             "fmt",
             "annotations",
+            "inline-asm",
             "version-check",
             "cooldown-check",
             "lint:sdk",
@@ -101,6 +103,12 @@ pub static TASKS: &[Task] = &[
         "annotations",
         "No XXX annotations in the source",
         annotations,
+    )
+    .lane(Lane::Free),
+    Task::new(
+        "inline-asm",
+        "Inline assembly only at the sites gnaw/src/inline_asm.rs allows",
+        inline_asm::check,
     )
     .lane(Lane::Free),
     Task::new(

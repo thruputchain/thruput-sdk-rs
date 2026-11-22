@@ -75,6 +75,10 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and development commands. Run
 - For version changes, follow [Cargo.toml](Cargo.toml) and
   [crates/version-check/README.md](crates/version-check/README.md), including
   dependent versions in the separate workspaces.
+- Do not add inline assembly (`asm!`, `global_asm!`, `naked_asm!`) or
+  assembly source files. The `inline-asm` check allows only the sites listed
+  in [gnaw/src/inline_asm.rs](gnaw/src/inline_asm.rs). Extending that list
+  needs maintainer approval.
 - Preserve unrelated working-tree and submodule changes. Keep commits scoped
   to the requested work.
 

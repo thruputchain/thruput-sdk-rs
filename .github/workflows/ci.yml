@@ -73,7 +73,8 @@ jobs:
     secrets:
       lint-app-private-key: ${{ secrets.PROTOCOL_SYNCHRONIZER_SECRET_KEY }}
 
-  # Formatting, annotations, version pins, dependency cooldown, and SDK clippy
+  # Formatting, annotations, inline assembly, version pins, dependency
+  # cooldown, and SDK clippy
   quick:
     needs: [dependency-policy, cooldown] # check deps before building anything
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false

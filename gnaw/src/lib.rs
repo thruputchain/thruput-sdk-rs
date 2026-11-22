@@ -12,6 +12,7 @@ pub mod contract;
 pub mod cooldown;
 pub mod elf;
 pub mod exec;
+pub mod inline_asm;
 pub mod plan;
 pub mod repo;
 pub mod report;

@@ -17,4 +17,6 @@ object = { version = "0.39", default-features = false, features = [
     "read_core",
     "std",
 ] }
+# The inline-asm check lexes Rust source; `span-locations` gives line numbers.
+proc-macro2 = { version = "1.0.92", features = ["span-locations"] }
 regex = "1.13"
