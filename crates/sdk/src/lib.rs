@@ -182,7 +182,7 @@ pub use sys_exn::rcq::*;
 
 #[doc(hidden)]
 pub mod call;
-pub use call::{Address, ContractClient, MapExceptions};
+pub use call::{Address, ContractClient, Interfaces, MapExceptions, Provides};
 // Error types returned by ordinary and exception-mapped `try_*` calls.
 pub use call::{CallError, RawCallError};
 

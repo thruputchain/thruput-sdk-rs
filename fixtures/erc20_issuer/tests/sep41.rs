@@ -1,5 +1,6 @@
 //! SEP-41 as client code over the issuer token's native interfaces.
 use erc20_issuer::*;
+use erc721::ERC165Client;
 use thruput_sdk::*;
 use thruput_sep41::{SEP41Error, SEP41View};
 
@@ -271,6 +272,65 @@ fn is_supported_reads_the_tokens_erc165_claims() {
         assert_eq!(SEP41View::new(&BARE).supports_expiry(), None);
         assert_eq!(SEP41View::new(&EMPTY).is_supported(), None);
         assert_eq!(SEP41View::new(&EMPTY).supports_expiry(), None);
+    })
+    .assert_success();
+}
+
+/// The interfaces the SEP-41 operations call, as an address type.
+type Sep41Token = Address<(ERC20Client, ERC20BurnClient, ERC20MetadataClient)>;
+
+#[test]
+fn view_from_a_typed_address() {
+    let env = setup();
+    call(&env, &ALICE, || {
+        let token = Sep41Token::new(TOKEN);
+        let view = SEP41View::at(&token);
+        assert_eq!(view.balance(&ALICE), 100);
+        assert_eq!(view.decimals(), 7);
+        view.transfer(&BOB, 40);
+        view.burn(10);
+        assert_eq!(view.balance(&ALICE), 50);
+        assert_eq!(SEP41View::new(&token).balance(&BOB), 40);
+
+        // The order of the list, and what else is in it, do not matter.
+        let wider = Address::<(
+            ERC165Client,
+            ERC20MetadataClient,
+            ERC20BurnClient,
+            ERC20Client,
+        )>::new(TOKEN);
+        assert_eq!(SEP41View::at(&wider).balance(&BOB), 40);
+    })
+    .assert_success();
+}
+
+#[test]
+fn typed_address_drives_the_interface_probe() {
+    const NFT: ContractAddress = ContractAddress::new([0x25; 32]);
+    const BARE: ContractAddress = ContractAddress::new([0x26; 32]);
+    const EMPTY: ContractAddress = ContractAddress::new([0x27; 32]);
+    let env = setup();
+    for (addr, contract) in [
+        (NFT, erc721::register_mock_contract(&env).as_contract()),
+        (BARE, counter::register_mock_contract(&env).as_contract()),
+    ] {
+        env.setup_create_contract(&contract);
+        env.setup_create_deployment(&addr, &contract);
+    }
+    call(&env, &BOB, || {
+        assert!(ERC165Client::supports_address(&Sep41Token::new(TOKEN)));
+        assert!(ERC165Client::supports_address(
+            &Address::<ERC20Client>::new(TOKEN)
+        ));
+        // One unimplemented interface fails the whole address.
+        assert!(!ERC165Client::supports_address(&Address::<(
+            ERC20Client,
+            erc721::ERC721Client
+        )>::new(TOKEN)));
+        // Implements ERC-165, but none of these; no ERC-165; no contract.
+        assert!(!ERC165Client::supports_address(&Sep41Token::new(NFT)));
+        assert!(!ERC165Client::supports_address(&Sep41Token::new(BARE)));
+        assert!(!ERC165Client::supports_address(&Sep41Token::new(EMPTY)));
     })
     .assert_success();
 }

@@ -129,7 +129,7 @@ impl<C: Interfaces> Address<C> {
 }
 
 /// The interfaces an [`Address`] is typed by: a generated client, or a tuple
-/// of them.
+/// of one to eight of them.
 pub trait Interfaces {
     /// The interface IDs, in declaration order.
     const IDS: &'static [crate::InterfaceId];
@@ -179,6 +179,7 @@ macro_rules! impl_client_tuple {
     };
 }
 
+impl_client_tuple!(A; A @ 0);
 impl_client_tuple!(A, B; A @ 0, B @ 1);
 impl_client_tuple!(A, B, C; A @ 0, B @ 1, C @ 2);
 impl_client_tuple!(A, B, C, D; A @ 0, B @ 1, C @ 2, D @ 3);
@@ -186,6 +187,14 @@ impl_client_tuple!(A, B, C, D, E; A @ 0, B @ 1, C @ 2, D @ 3, E @ 4);
 impl_client_tuple!(
     A, B, C, D, E, F;
     A @ 0, B @ 1, C @ 2, D @ 3, E @ 4, F @ 5
+);
+impl_client_tuple!(
+    A, B, C, D, E, F, G;
+    A @ 0, B @ 1, C @ 2, D @ 3, E @ 4, F @ 5, G @ 6
+);
+impl_client_tuple!(
+    A, B, C, D, E, F, G, H;
+    A @ 0, B @ 1, C @ 2, D @ 3, E @ 4, F @ 5, G @ 6, H @ 7
 );
 
 // The usual derives would bound `C`, which is only a marker.

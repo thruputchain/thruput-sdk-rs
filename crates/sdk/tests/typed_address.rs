@@ -200,6 +200,22 @@ fn lists_its_interface_ids_in_order() {
         Address::<(MetadataClient, TokenClient, HolderClient)>::INTERFACE_IDS,
         &[named, token, <HolderClient as ContractClient>::INTERFACE_ID]
     );
+    assert_eq!(Address::<(MetadataClient,)>::INTERFACE_IDS, &[named]);
+    // Eight is the most one address lists; repeats only matter to lookups.
+    type Eight = (
+        TokenClient,
+        MetadataClient,
+        TokenClient,
+        MetadataClient,
+        TokenClient,
+        MetadataClient,
+        TokenClient,
+        MetadataClient,
+    );
+    assert_eq!(
+        Address::<Eight>::INTERFACE_IDS,
+        &[token, named, token, named, token, named, token, named]
+    );
 }
 
 #[test]

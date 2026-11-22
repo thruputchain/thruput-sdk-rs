@@ -14,7 +14,8 @@ use thruput_erc20_if::{
 use thruput_erc20_metadata_if::{ERC20MetadataClient, Name, Symbol};
 use thruput_erc165_if::ERC165Client;
 use thruput_sdk::{
-    BlockHeight, ContractAddress, ensure, get_block_height, throw,
+    Address, BlockHeight, ContractAddress, Provides, ensure, get_block_height,
+    throw,
 };
 
 /// SEP-41 token operations over any token implementing `ERC20`, `ERC20Burn`
@@ -33,6 +34,22 @@ pub struct SEP41View<'a> {
 impl<'a> SEP41View<'a> {
     pub fn new(token: &'a ContractAddress) -> Self {
         Self { token }
+    }
+
+    /// A view of a token whose typed address lists every interface the
+    /// SEP-41 operations call: `ERC20`, `ERC20Burn` and `ERC20Metadata`, in
+    /// any order and among any others. An address that lacks one is a
+    /// compile error.
+    ///
+    /// The address type records an expectation; [`Self::is_supported`] asks
+    /// the token.
+    pub fn at<S, I, J, K>(token: &'a Address<S>) -> Self
+    where
+        S: Provides<ERC20Client, I>
+            + Provides<ERC20BurnClient, J>
+            + Provides<ERC20MetadataClient, K>,
+    {
+        Self::new(token.address())
     }
 
     /// Whether the token reports implementing every interface this view
