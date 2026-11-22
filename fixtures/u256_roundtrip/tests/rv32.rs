@@ -27,6 +27,9 @@ static MIN_NONCE: SHA256Hash = sha256_static!("I256_MIN_ROUNDTRIP_TEST_NONCE");
 /// And one for the square roots.
 static SQRT_NONCE: SHA256Hash = sha256_static!("U256_SQRT_TEST_NONCE");
 
+/// And one for the multiply-divides.
+static MUL_DIV_NONCE: SHA256Hash = sha256_static!("U256_MUL_DIV_TEST_NONCE");
+
 /// A value whose limbs all differ and whose top bit is set, so any limb
 /// reordering or truncation in the calldata/return/storage paths shows up.
 fn test_value() -> U256 {
@@ -283,6 +286,266 @@ fn square_roots_from_the_runtime_match_software() {
                 assert!(
                     above.checked_mul(above).is_none_or(|sq| sq > value),
                     "{value:?}"
+                );
+            }
+        })
+    })
+    .assert_success();
+}
+
+/// A xorshift generator, so the operands are the same on every run.
+fn xorshift(seed: u64) -> impl FnMut() -> u64 {
+    let mut state = seed;
+    move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    }
+}
+
+/// A value of exactly `bits` bits, zero for `bits == 0`, with its other bits
+/// scattered.
+fn of_bit_length(bits: u32, next: &mut impl FnMut() -> u64) -> U256 {
+    if bits == 0 {
+        return U256::ZERO;
+    }
+    let noise = U256::from_limbs(core::array::from_fn(|_| next() as u32));
+    let top = U256::ONE << (bits - 1);
+    top | (noise & (top - U256::ONE))
+}
+
+/// The low 128 bits of `value`.
+fn low_u128(value: U256) -> u128 {
+    u128::try_from(value & U256::from(u128::MAX)).unwrap()
+}
+
+/// Operands a multiply-divide can get wrong: the ends of the range, a zero
+/// divisor, quotients either side of 2^256, and products and divisors of
+/// every length, where the length of the divisor picks the division's path.
+fn mul_div_operands() -> Vec<(U256, U256, U256)> {
+    let top = U256::ONE << 255;
+    let mut operands = vec![
+        (U256::ZERO, U256::MAX, U256::ONE),
+        (U256::MAX, U256::MAX, U256::ZERO),
+        (U256::MAX, U256::MAX, U256::MAX),
+        (U256::MAX, U256::MAX, U256::MAX - U256::ONE),
+        (U256::MAX, U256::ONE, U256::ONE),
+        (top, U256::from(2), U256::ONE),
+        (top, U256::from(2), U256::from(2)),
+        (top, U256::from(2), U256::from(3)),
+        (test_value(), test_value(), U256::from(u128::MAX)),
+        (test_value(), U256::MAX, test_value()),
+    ];
+    let mut next = xorshift(0x2545_f491_4f6c_dd1d);
+    // A divisor of every length, under products of full width (which mostly
+    // overflow, leaving the remainder) and of a length that keeps the
+    // quotient in range.
+    for bits in 1..=256_u32 {
+        let d = of_bit_length(bits, &mut next);
+        let x = of_bit_length(256, &mut next);
+        operands.push((x, of_bit_length(256, &mut next), d));
+        operands.push((x, of_bit_length(bits - 1, &mut next), d));
+        operands.push((of_bit_length(bits, &mut next), x, d));
+    }
+    operands
+}
+
+/// The multiply-divides, where the guest and the host take different roads.
+///
+/// In the rv32 artifact `U256::checked_mul_div`, the rounding variant,
+/// `checked_mul_mod`, the `/` and `%` operators, the signed `mul_div` and
+/// `checked_mul_div_u128` are the runtime's `U256MulDivRem` and
+/// `U128MulDivRem` host operations. This test is a host program, where the
+/// same calls compute in software. The two must agree on every operand.
+///
+/// Some answers are also written out, so that a mistake both sides share
+/// cannot pass.
+#[test]
+fn multiply_divides_from_the_runtime_match_software() {
+    let contract = load_rv32_contract(RV32_PATH);
+    let env = TestEnvironment::no_cost();
+    let contract_hash = env.setup_create_contract(&contract);
+
+    env.transact(|tx| {
+        tx.call(&ContractAddress::named("test")).run(move || {
+            let addr = deploy_contract(&MUL_DIV_NONCE, &contract_hash);
+            let client = U256RoundtripClient::new(&addr);
+            let top = U256::ONE << 255;
+            let u128_top = 1_u128 << 127;
+
+            // Values whose bytes in the wrong order give another answer.
+            assert_eq!(
+                client.mul_div(top, U256::from(3), U256::from(2)),
+                Some(U256::from(3) << 254)
+            );
+            assert_eq!(
+                client.mul_div(U256::MAX, U256::MAX, U256::MAX),
+                Some(U256::MAX)
+            );
+            // The quotient is 2^256, one past the range, with remainder 1.
+            assert_eq!(
+                client.mul_div(U256::MAX, U256::MAX, U256::MAX - U256::ONE),
+                None
+            );
+            assert_eq!(client.mul_div(top, U256::from(2), U256::ONE), None);
+            assert_eq!(client.mul_div(U256::ONE, U256::ONE, U256::ZERO), None);
+            assert_eq!(
+                client.mul_div(U256::ONE, U256::ONE, U256::from(3)),
+                Some(U256::ZERO)
+            );
+            assert_eq!(
+                client.mul_div_ceil(U256::ONE, U256::ONE, U256::from(3)),
+                Some(U256::ONE)
+            );
+            // hogd's bridge test example: the quotient overflows, and the
+            // remainder is 5.
+            let a = top + (U256::ONE << 64) + U256::from(5);
+            let b = (U256::ONE << 65) + U256::ONE;
+            assert_eq!(client.mul_div(a, b, U256::ONE << 64), None);
+            assert_eq!(
+                client.mul_mod(a, b, U256::ONE << 64),
+                Some(U256::from(5))
+            );
+            assert_eq!(
+                client.mul_mod(U256::MAX, U256::MAX, U256::from(7)),
+                Some(U256::ONE)
+            );
+            assert_eq!(client.mul_mod(U256::MAX, U256::MAX, U256::ZERO), None);
+            assert_eq!(
+                client.div(U256::MAX, U256::ONE << 128),
+                U256::from(u128::MAX)
+            );
+            assert_eq!(
+                client.rem(U256::MAX, U256::ONE << 128),
+                U256::from(u128::MAX)
+            );
+            assert_eq!(
+                client.signed_mul_div(I256::MIN, I256::from(-1), I256::ONE),
+                None
+            );
+            assert_eq!(
+                client.signed_mul_div(
+                    I256::MIN,
+                    I256::from(-1),
+                    I256::from(-1)
+                ),
+                Some(I256::MIN)
+            );
+            assert_eq!(
+                client.signed_mul_div(
+                    I256::from(-7),
+                    I256::from(3),
+                    I256::from(2)
+                ),
+                Some(I256::from(-10))
+            );
+            assert_eq!(
+                client.mul_div_u128(u128::MAX, u128::MAX, u128::MAX),
+                Some(u128::MAX)
+            );
+            assert_eq!(client.mul_div_u128(u128_top, 4, 2), None);
+            assert_eq!(
+                client.mul_div_u128(u128_top, 2, 4),
+                Some(1_u128 << 126)
+            );
+            assert_eq!(client.mul_div_u128(1, 1, 0), None);
+            // 2^255 - 19 is prime; the exponent is a full 256 bits.
+            let p = top - U256::from(19);
+            assert_eq!(
+                client.mod_exp(test_value(), U256::MAX, p),
+                Some(
+                    (U256::from(
+                        0x6ee7_0e46_a989_5115_cdd4_0ad4_cfd7_696d_u128
+                    ) << 128)
+                        | U256::from(
+                            0xaf0a_e4e2_9333_0367_0c73_d3f3_8af2_b682_u128
+                        )
+                )
+            );
+            assert_eq!(
+                client.mod_exp(
+                    U256::from(3),
+                    (U256::ONE << 200) + U256::from(12345),
+                    U256::MAX
+                ),
+                Some(
+                    (U256::from(
+                        0x0e41_36c8_457b_9956_14f2_605c_0052_c6cf_u128
+                    ) << 128)
+                        | U256::from(
+                            0x8ca8_075e_93e4_c16a_1742_eaa1_5131_e4f7_u128
+                        )
+                )
+            );
+            assert_eq!(
+                client.mod_exp(U256::from(3), U256::ONE, U256::ZERO),
+                None
+            );
+
+            for (x, y, d) in mul_div_operands() {
+                let quotient = U256::checked_mul_div(x, y, d);
+                assert_eq!(
+                    client.mul_div(x, y, d),
+                    quotient,
+                    "{x:?} {y:?} {d:?}"
+                );
+                assert_eq!(
+                    client.mul_div_ceil(x, y, d),
+                    U256::checked_mul_div_rounding(x, y, d, Rounding::Ceil),
+                    "{x:?} {y:?} {d:?}"
+                );
+                let remainder = U256::checked_mul_mod(x, y, d);
+                assert_eq!(
+                    client.mul_mod(x, y, d),
+                    remainder,
+                    "{x:?} {y:?} {d:?}"
+                );
+                // The definition, so the software side is not taken on trust
+                // here either: q * d + r == x * y, with r < d.
+                if let (Some(q), Some(r)) = (quotient, remainder) {
+                    assert!(r < d, "{x:?} {y:?} {d:?}");
+                    let (lo, hi) = x.widening_mul(y);
+                    let (qd_lo, qd_hi) = q.widening_mul(d);
+                    let (sum, carry) = qd_lo.overflowing_add(r);
+                    assert_eq!(
+                        (sum, qd_hi + U256::from(u128::from(carry))),
+                        (lo, hi)
+                    );
+                }
+                if !d.is_zero() {
+                    assert_eq!(client.div(x, d), x / d, "{x:?} {d:?}");
+                    assert_eq!(client.rem(x, d), x % d, "{x:?} {d:?}");
+                }
+                // The same magnitudes with signs, from the bits of `x`.
+                let (sx, sy, sd) = (
+                    if x.bit(0) {
+                        x.cast_signed().wrapping_neg()
+                    } else {
+                        x.cast_signed()
+                    },
+                    if x.bit(1) {
+                        y.cast_signed().wrapping_neg()
+                    } else {
+                        y.cast_signed()
+                    },
+                    if x.bit(2) {
+                        d.cast_signed().wrapping_neg()
+                    } else {
+                        d.cast_signed()
+                    },
+                );
+                assert_eq!(
+                    client.signed_mul_div(sx, sy, sd),
+                    I256::checked_mul_div(sx, sy, sd),
+                    "{sx:?} {sy:?} {sd:?}"
+                );
+                // And the low halves, at 128 bits.
+                let (a, b, c) = (low_u128(x), low_u128(y), low_u128(d));
+                assert_eq!(
+                    client.mul_div_u128(a, b, c),
+                    checked_mul_div_u128(a, b, c),
+                    "{a} {b} {c}"
                 );
             }
         })
