@@ -12,6 +12,13 @@
 //! algorithm D). A divisor below `2^16` needs no estimate at all: two
 //! native divides per limb give exact digits.
 //!
+//! A 128-bit division whose divisor is `2^16` or more goes to the runtime
+//! instead: `U128MulDivRem` with a multiplier of one, at a flat price. In the
+//! `int_division` fixture's loop that is about 245 gas a division, where the
+//! routines below took 300 with both operands below `2^64` and 500 to 800
+//! with a wider divisor. A smaller divisor stays here, at 186 gas against the
+//! runtime's 230. The wider routines are built only for host tests.
+//!
 //! LLVM calls the 128-bit routines only under
 //! `-C llvm-args=-expand-div-rem-bits=128`, which the contract rustflags
 //! set. Without it LLVM expands every 128-bit `/` and `%` inline as a
@@ -220,13 +227,77 @@ pub(crate) unsafe extern "C" fn divrem128(
         if flags & SIGNED != 0 && ((n3 | d3) as i32) < 0 {
             return negative128(out, n, d, flags);
         }
-        if n2 | n3 | d2 | d3 == 0 {
-            return narrow128(out, n, d, flags);
-        }
         if d2 | d3 | (*d)[1] == 0 && (*d)[0] < HB {
             return small128(out, n, d, flags);
         }
-        wide128(out, n, d, flags)
+        // In a contract the runtime divides the rest: see the module docs.
+        #[cfg(target_arch = "riscv32")]
+        {
+            let _ = n2;
+            host128(out, n, d, flags)
+        }
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            if n2 | n3 | d2 | d3 == 0 {
+                return narrow128(out, n, d, flags);
+            }
+            wide128(out, n, d, flags)
+        }
+    }
+}
+
+/// The runtime's `U128MulDivRem`: `thruput-xdr`'s `SyscallNo::kU128MulDivRem`.
+#[cfg(target_arch = "riscv32")]
+const U128_MUL_DIV_REM: u32 = 42;
+
+/// The multiplier `U128MulDivRem` takes, so that it divides `n` itself.
+#[cfg(target_arch = "riscv32")]
+static ONE: Wide = [1, 0, 0, 0];
+
+/// Unsigned division by the runtime: `U128MulDivRem` with a multiplier of
+/// one. `d` is not zero: the language checks before it divides.
+#[cfg(target_arch = "riscv32")]
+#[inline(never)]
+unsafe extern "C" fn host128(
+    out: *mut Wide,
+    n: *const Wide,
+    d: *const Wide,
+    flags: u32,
+) {
+    use core::mem::MaybeUninit;
+    // The call writes the quotient's halves and the remainder to three
+    // distinct places. The one asked for goes straight to `out`.
+    let mut spare = [MaybeUninit::<Wide>::uninit(); 2];
+    let spare0 = spare[0].as_mut_ptr();
+    let spare1 = spare[1].as_mut_ptr();
+    let (quotient, remainder) = if flags & REM != 0 {
+        (spare0, out)
+    } else {
+        (out, spare0)
+    };
+    let error: i32;
+    // SAFETY: the syscall ABI that `thruput-syscall` speaks: the number in
+    // `a0`, arguments in `a1..a7`, the error code back in `a0`. The host
+    // reads 16 bytes at each input and writes 16 at each output, all of
+    // which are valid and the outputs distinct.
+    unsafe {
+        core::arch::asm!(
+            "ecall",
+            inlateout("a0") U128_MUL_DIV_REM => error,
+            inlateout("a1") n as u32 => _,
+            inlateout("a2") &raw const ONE as u32 => _,
+            inlateout("a3") d as u32 => _,
+            inlateout("a4") quotient as u32 => _,
+            inlateout("a5") spare1 as u32 => _,
+            inlateout("a6") remainder as u32 => _,
+            inlateout("a7") 0u32 => _,
+            options(nostack),
+        );
+    }
+    if error != 0 {
+        // A runtime without the host operation: fail the call, as a panic
+        // does.
+        unsafe { core::arch::asm!("ebreak", options(noreturn)) }
     }
 }
 
@@ -259,6 +330,7 @@ unsafe extern "C" fn negative128(
 }
 
 /// Both operands fit 64 bits.
+#[cfg(not(target_arch = "riscv32"))]
 #[cfg_attr(target_arch = "riscv32", inline(never))]
 unsafe extern "C" fn narrow128(
     out: *mut Wide,
@@ -300,6 +372,7 @@ unsafe extern "C" fn small128(
 }
 
 /// Unsigned division where an operand needs more than 64 bits.
+#[cfg(not(target_arch = "riscv32"))]
 #[cfg_attr(target_arch = "riscv32", inline(never))]
 unsafe extern "C" fn wide128(
     out: *mut Wide,
