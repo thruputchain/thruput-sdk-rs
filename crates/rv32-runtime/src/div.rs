@@ -7,17 +7,17 @@
 //! wide for a native divide. That costs hundreds of instructions for a
 //! 64-bit quotient and thousands for a 128-bit one.
 //!
-//! These replace them with schoolbook division on 32-bit limbs: each
-//! quotient limb comes from two native divides and a correction (Knuth's
-//! algorithm D). A divisor below `2^16` needs no estimate at all: two
-//! native divides per limb give exact digits.
+//! These replace them. A 64-bit division is schoolbook division on 32-bit
+//! limbs: each quotient limb comes from two native divides and a correction
+//! (Knuth's algorithm D). A divisor below `2^16` needs no estimate at all:
+//! two native divides per limb give exact digits, at 64 and at 128 bits.
 //!
-//! A 128-bit division whose divisor is `2^16` or more goes to the runtime
-//! instead: `U128MulDivRem` with a multiplier of one, at a flat price. In the
-//! `int_division` fixture's loop that is about 245 gas a division, where the
-//! routines below took 300 with both operands below `2^64` and 500 to 800
-//! with a wider divisor. A smaller divisor stays here, at 186 gas against the
-//! runtime's 230. The wider routines are built only for host tests.
+//! Any other 128-bit division goes to the runtime: `U128MulDivRem` with a
+//! multiplier of one, through its generated binding, at a flat price. In the
+//! `int_division` fixture's loop that is about 290 gas a division, where the
+//! schoolbook routines it replaced took 300 with both operands below `2^64`
+//! and 500 to 800 with a wider divisor. A divisor below `2^16` stays here, at
+//! 186 gas. Host tests stand in for the runtime with native 128-bit division.
 //!
 //! LLVM calls the 128-bit routines only under
 //! `-C llvm-args=-expand-div-rem-bits=128`, which the contract rustflags
@@ -222,37 +222,37 @@ pub(crate) unsafe extern "C" fn divrem128(
     flags: u32,
 ) {
     unsafe {
-        let (n2, n3) = ((*n)[2], (*n)[3]);
-        let (d2, d3) = ((*d)[2], (*d)[3]);
+        let (n3, d3) = ((*n)[3], (*d)[3]);
+        let d2 = (*d)[2];
         if flags & SIGNED != 0 && ((n3 | d3) as i32) < 0 {
             return negative128(out, n, d, flags);
         }
         if d2 | d3 | (*d)[1] == 0 && (*d)[0] < HB {
             return small128(out, n, d, flags);
         }
-        // In a contract the runtime divides the rest: see the module docs.
-        #[cfg(target_arch = "riscv32")]
-        {
-            let _ = n2;
-            host128(out, n, d, flags)
-        }
-        #[cfg(not(target_arch = "riscv32"))]
-        {
-            if n2 | n3 | d2 | d3 == 0 {
-                return narrow128(out, n, d, flags);
-            }
-            wide128(out, n, d, flags)
-        }
+        host128(out, n, d, flags)
     }
 }
 
-/// The runtime's `U128MulDivRem`: `thruput-xdr`'s `SyscallNo::kU128MulDivRem`.
-#[cfg(target_arch = "riscv32")]
-const U128_MUL_DIV_REM: u32 = 42;
+/// `x` as one 128-bit integer.
+#[inline(always)]
+const fn join(x: Wide) -> u128 {
+    x[0] as u128
+        | (x[1] as u128) << 32
+        | (x[2] as u128) << 64
+        | (x[3] as u128) << 96
+}
 
-/// The multiplier `U128MulDivRem` takes, so that it divides `n` itself.
-#[cfg(target_arch = "riscv32")]
-static ONE: Wide = [1, 0, 0, 0];
+/// `x` as limbs.
+#[inline(always)]
+const fn split(x: u128) -> Wide {
+    [
+        x as u32,
+        (x >> 32) as u32,
+        (x >> 64) as u32,
+        (x >> 96) as u32,
+    ]
+}
 
 /// Unsigned division by the runtime: `U128MulDivRem` with a multiplier of
 /// one. `d` is not zero: the language checks before it divides.
@@ -264,41 +264,31 @@ unsafe extern "C" fn host128(
     d: *const Wide,
     flags: u32,
 ) {
-    use core::mem::MaybeUninit;
-    // The call writes the quotient's halves and the remainder to three
-    // distinct places. The one asked for goes straight to `out`.
-    let mut spare = [MaybeUninit::<Wide>::uninit(); 2];
-    let spare0 = spare[0].as_mut_ptr();
-    let spare1 = spare[1].as_mut_ptr();
-    let (quotient, remainder) = if flags & REM != 0 {
-        (spare0, out)
+    let (n, d) = unsafe { (join(*n), join(*d)) };
+    let (quotient, _, remainder) =
+        match thruput_xdr::syscalls::U128MulDivRem(&n, &1, &d) {
+            Ok(parts) => parts,
+            Err(_) => panic!("U128MulDivRem failed"),
+        };
+    let value = if flags & REM != 0 {
+        remainder
     } else {
-        (out, spare0)
+        quotient
     };
-    let error: i32;
-    // SAFETY: the syscall ABI that `thruput-syscall` speaks: the number in
-    // `a0`, arguments in `a1..a7`, the error code back in `a0`. The host
-    // reads 16 bytes at each input and writes 16 at each output, all of
-    // which are valid and the outputs distinct.
-    unsafe {
-        core::arch::asm!(
-            "ecall",
-            inlateout("a0") U128_MUL_DIV_REM => error,
-            inlateout("a1") n as u32 => _,
-            inlateout("a2") &raw const ONE as u32 => _,
-            inlateout("a3") d as u32 => _,
-            inlateout("a4") quotient as u32 => _,
-            inlateout("a5") spare1 as u32 => _,
-            inlateout("a6") remainder as u32 => _,
-            inlateout("a7") 0u32 => _,
-            options(nostack),
-        );
-    }
-    if error != 0 {
-        // A runtime without the host operation: fail the call, as a panic
-        // does.
-        unsafe { core::arch::asm!("ebreak", options(noreturn)) }
-    }
+    unsafe { *out = split(value) };
+}
+
+/// What the runtime answers, for the host tests.
+#[cfg(not(target_arch = "riscv32"))]
+unsafe extern "C" fn host128(
+    out: *mut Wide,
+    n: *const Wide,
+    d: *const Wide,
+    flags: u32,
+) {
+    let (n, d) = unsafe { (join(*n), join(*d)) };
+    let value = if flags & REM != 0 { n % d } else { n / d };
+    unsafe { *out = split(value) };
 }
 
 /// Signed division with a negative operand: divides the magnitudes.
@@ -329,25 +319,6 @@ unsafe extern "C" fn negative128(
     }
 }
 
-/// Both operands fit 64 bits.
-#[cfg(not(target_arch = "riscv32"))]
-#[cfg_attr(target_arch = "riscv32", inline(never))]
-unsafe extern "C" fn narrow128(
-    out: *mut Wide,
-    n: *const Wide,
-    d: *const Wide,
-    flags: u32,
-) {
-    unsafe {
-        let value = divrem64(
-            (*n)[0] as u64 | ((*n)[1] as u64) << 32,
-            (*d)[0] as u64 | ((*d)[1] as u64) << 32,
-            flags & REM,
-        );
-        *out = [value as u32, (value >> 32) as u32, 0, 0];
-    }
-}
-
 /// Unsigned division by a divisor below `2^16`: two native half-limb steps
 /// per limb.
 #[cfg_attr(target_arch = "riscv32", inline(never))]
@@ -368,135 +339,6 @@ unsafe extern "C" fn small128(
         } else {
             [q0, q1, q2, q3]
         };
-    }
-}
-
-/// Unsigned division where an operand needs more than 64 bits.
-#[cfg(not(target_arch = "riscv32"))]
-#[cfg_attr(target_arch = "riscv32", inline(never))]
-unsafe extern "C" fn wide128(
-    out: *mut Wide,
-    n: *const Wide,
-    d: *const Wide,
-    flags: u32,
-) {
-    let rem = flags & REM != 0;
-    let (n, d) = unsafe { (*n, *d) };
-    // Significant limbs in each operand.
-    let m = if d[3] != 0 {
-        4
-    } else if d[2] != 0 {
-        3
-    } else if d[1] != 0 {
-        2
-    } else {
-        1
-    };
-    let k = if n[3] != 0 {
-        4
-    } else if n[2] != 0 {
-        3
-    } else if n[1] != 0 {
-        2
-    } else {
-        1
-    };
-    let mut q = [0u32; 4];
-    if k < m {
-        unsafe { *out = if rem { n } else { q } };
-        return;
-    }
-    // Normalize: shift both left until the divisor's top bit is set.
-    // SAFETY: `1 <= m <= 4`.
-    let s = unsafe { d.get_unchecked(m - 1) }.leading_zeros();
-    let mut v = [0u32; 4];
-    let mut u = [0u32; 5];
-    v[0] = d[0] << s;
-    u[0] = n[0] << s;
-    let mut i = 1;
-    while i < 4 {
-        v[i] = (d[i] << s) | spill(d[i - 1], s);
-        u[i] = (n[i] << s) | spill(n[i - 1], s);
-        i += 1;
-    }
-    u[4] = spill(n[3], s);
-    let (u, v) = (u.as_mut_ptr(), v.as_ptr());
-    // SAFETY, for every access below: `v` has 4 limbs and `u` 5; `m <= 4`,
-    // `j <= k - m`, and `k <= 4`, so `j + m <= 4`.
-    unsafe {
-        let vh = *v.add(m - 1);
-        let mut j = k - m + 1;
-        while j > 0 {
-            j -= 1;
-            let (uh, um) = (*u.add(j + m), *u.add(j + m - 1));
-            let mut qhat;
-            let mut rhat;
-            // Set once `rhat` no longer fits a limb: the estimate is final.
-            let mut settled = false;
-            if uh >= vh {
-                qhat = u32::MAX;
-                rhat = um.wrapping_add(vh);
-                settled = rhat < vh;
-            } else {
-                (qhat, rhat) = div_2by1(uh, um, vh);
-            }
-            if m == 1 {
-                // The estimate is exact for a one-limb divisor.
-                *u.add(j) = rhat;
-                *u.add(j + 1) = 0;
-            } else {
-                let (vl, ul) = (*v.add(m - 2), *u.add(j + m - 2));
-                while !settled
-                    && (qhat as u64) * (vl as u64)
-                        > ((rhat as u64) << 32) | ul as u64
-                {
-                    qhat -= 1;
-                    rhat = rhat.wrapping_add(vh);
-                    settled = rhat < vh;
-                }
-                // Multiply and subtract.
-                let mut carry = 0u32;
-                let mut borrow = false;
-                let mut i = 0;
-                while i < m {
-                    let p = (qhat as u64) * (*v.add(i) as u64) + carry as u64;
-                    carry = (p >> 32) as u32;
-                    let (t, b1) = (*u.add(i + j)).overflowing_sub(p as u32);
-                    let (t, b2) = t.overflowing_sub(borrow as u32);
-                    *u.add(i + j) = t;
-                    borrow = b1 | b2;
-                    i += 1;
-                }
-                let (t, b1) = (*u.add(j + m)).overflowing_sub(carry);
-                let (t, b2) = t.overflowing_sub(borrow as u32);
-                *u.add(j + m) = t;
-                if b1 | b2 {
-                    // One too large: add the divisor back.
-                    qhat -= 1;
-                    let mut c = false;
-                    let mut i = 0;
-                    while i < m {
-                        let (t, c1) =
-                            (*u.add(i + j)).overflowing_add(*v.add(i));
-                        let (t, c2) = t.overflowing_add(c as u32);
-                        *u.add(i + j) = t;
-                        c = c1 | c2;
-                        i += 1;
-                    }
-                    *u.add(j + m) = (*u.add(j + m)).wrapping_add(c as u32);
-                }
-            }
-            *q.get_unchecked_mut(j) = qhat;
-        }
-        if rem {
-            // The remainder is the low limbs of `u`, shifted back.
-            let mut i = 0;
-            while i < 4 {
-                q[i] = (*u.add(i) >> s) | ((*u.add(i + 1) << 1) << (31 - s));
-                i += 1;
-            }
-        }
-        *out = q;
     }
 }
 
@@ -653,22 +495,6 @@ mod tests {
 
     // The 128-bit routines.
 
-    fn wide(x: u128) -> Wide {
-        [
-            x as u32,
-            (x >> 32) as u32,
-            (x >> 64) as u32,
-            (x >> 96) as u32,
-        ]
-    }
-
-    fn join(x: Wide) -> u128 {
-        x[0] as u128
-            | (x[1] as u128) << 32
-            | (x[2] as u128) << 64
-            | (x[3] as u128) << 96
-    }
-
     /// [`native`] for 128-bit operands.
     fn native128(n: u128, d: u128, flags: u32) -> Option<u128> {
         match (flags & SIGNED != 0, flags & REM != 0) {
@@ -687,7 +513,7 @@ mod tests {
         for flags in KINDS {
             if let Some(expected) = native128(n, d, flags) {
                 let mut out = [0; 4];
-                unsafe { divrem128(&mut out, &wide(n), &wide(d), flags) };
+                unsafe { divrem128(&mut out, &split(n), &split(d), flags) };
                 assert_eq!(
                     join(out),
                     expected,
@@ -738,23 +564,7 @@ mod tests {
     }
 
     #[test]
-    fn div128_takes_every_correction() {
-        // An estimate that overshoots after refinement and is added back,
-        // for a three-limb and a four-limb divisor. A two-limb divisor's
-        // refinement is exact.
-        check128(1 << 64, (1 << 64) + 1);
-        check128((2 << 64) + 1, (1 << 64) + 1);
-        check128(1 << 96, (1 << 96) + 1);
-        check128((2 << 96) + 1, (1 << 96) + 1);
-        check128(
-            0x7FFF_FFFF_8000_0000_0000_0000_0000_0000,
-            0x8000_0000_0000_0000_0000_0001,
-        );
-        // An estimate capped at a limb's maximum, for a two-limb and a
-        // three-limb divisor.
-        check128((1 << 64) + 2, (1 << 32) + 1);
-        check128((1 << 96) + 2, (1 << 64) + 1);
-        // Signed operands at the extremes.
+    fn div128_signed_extremes() {
         check128(1 << 127, 1);
         check128(1 << 127, 1 << 127);
         check128(u128::MAX, 1 << 127);

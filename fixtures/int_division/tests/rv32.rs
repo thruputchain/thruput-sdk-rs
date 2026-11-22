@@ -87,7 +87,7 @@ fn gas_per_division(call: impl Fn(u32)) -> u64 {
 
 // Each bound is between one and a half and two times what the division
 // costs. A 128-bit division by `2^16` or more is the runtime's
-// `U128MulDivRem`, about 245 gas. The code these replaced cost several times
+// `U128MulDivRem`, about 290 gas. The code these replaced cost several times
 // the bound: compiler_builtins' 64-bit division takes about 670 gas for the
 // operands below, and LLVM's inline 128-bit division 6,400 to 10,000.
 
@@ -127,7 +127,7 @@ fn rv32_u128_division_by_two_limbs_is_bounded() {
                 rounds,
             );
         });
-        assert!(gas <= 400, "u128 division by 10^18: {gas} gas");
+        assert!(gas <= 500, "u128 division by 10^18: {gas} gas");
     });
 }
 
@@ -142,7 +142,7 @@ fn rv32_i128_division_of_positive_amounts_is_bounded() {
                 rounds,
             );
         });
-        assert!(gas <= 400, "i128 division by 10^18: {gas} gas");
+        assert!(gas <= 500, "i128 division by 10^18: {gas} gas");
     });
 }
 

@@ -559,6 +559,9 @@ dependencies = [
 [[package]]
 name = "thruput-rv32-runtime"
 version = "0.63.0"
+dependencies = [
+ "thruput-xdr",
+]
 
 [[package]]
 name = "thruput-sdk"
