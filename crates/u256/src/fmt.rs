@@ -129,10 +129,10 @@ pub(crate) fn dec_digits<'a>(
     core::str::from_utf8(&buf[pos..]).expect("decimal digits are ASCII")
 }
 
-#[cfg(feature = "fmt")]
 /// `v / 10^9` and `v % 10^9`, limb by limb. Formatting runs on the host, where
 /// a division through the runtime has no transaction to run in, so this one
 /// divides natively.
+#[cfg(feature = "fmt")]
 fn div_rem_billion(v: U256) -> (U256, u32) {
     const BILLION: u64 = 1_000_000_000;
     let mut limbs = v.limbs;

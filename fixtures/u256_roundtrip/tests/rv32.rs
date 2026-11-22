@@ -233,17 +233,9 @@ fn sqrt_values() -> Vec<U256> {
     values
 }
 
-/// The square roots, where the guest and the host take different roads.
-///
-/// In the rv32 artifact `U256::integer_sqrt` is the runtime's `U256Sqrt` host
-/// operation. This test is a host program, where the same method computes
-/// the root in software. The two must return the same root for every value,
-/// and `sqrt_rounding` is built on it on both sides.
-///
-/// Four roots are also written out, so that a mistake both sides share
-/// cannot pass: the comparison alone would not see one.
+/// The guest's square roots, from the runtime, against the native executor's.
 #[test]
-fn square_roots_from_the_runtime_match_software() {
+fn square_roots_agree_in_rv32_and_native() {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);
@@ -351,18 +343,9 @@ fn mul_div_operands() -> Vec<(U256, U256, U256)> {
     operands
 }
 
-/// The multiply-divides, where the guest and the host take different roads.
-///
-/// In the rv32 artifact `U256::checked_mul_div`, the rounding variant,
-/// `checked_mul_mod`, the `/` and `%` operators, the signed `mul_div` and
-/// `checked_mul_div_u128` are the runtime's `U256MulDivRem` and
-/// `U128MulDivRem` host operations. This test is a host program, where the
-/// same calls compute in software. The two must agree on every operand.
-///
-/// Some answers are also written out, so that a mistake both sides share
-/// cannot pass.
+/// The guest's divisions, from the runtime, against the native executor's.
 #[test]
-fn multiply_divides_from_the_runtime_match_software() {
+fn divisions_agree_in_rv32_and_native() {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
     let contract_hash = env.setup_create_contract(&contract);

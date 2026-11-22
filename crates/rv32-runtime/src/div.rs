@@ -12,12 +12,8 @@
 //! (Knuth's algorithm D). A divisor below `2^16` needs no estimate at all:
 //! two native divides per limb give exact digits, at 64 and at 128 bits.
 //!
-//! Any other 128-bit division goes to the runtime: `U128MulDivRem` with a
-//! multiplier of one, through its generated binding, at a flat price. In the
-//! `int_division` fixture's loop that is about 290 gas a division, where the
-//! schoolbook routines it replaced took 300 with both operands below `2^64`
-//! and 500 to 800 with a wider divisor. A divisor below `2^16` stays here, at
-//! 186 gas. Host tests stand in for the runtime with native 128-bit division.
+//! Any other 128-bit division goes to the runtime's `U128MulDivRem`, with a
+//! multiplier of one. Host tests stand in for it with native 128-bit division.
 //!
 //! LLVM calls the 128-bit routines only under
 //! `-C llvm-args=-expand-div-rem-bits=128`, which the contract rustflags

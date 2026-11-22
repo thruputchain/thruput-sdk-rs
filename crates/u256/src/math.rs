@@ -37,29 +37,10 @@
 //!
 //! # Host operations
 //!
-//! Nothing here divides. Every division on these types -- `/` and `%`,
-//! [`div_rem`](U256::div_rem) and the `checked_` forms,
-//! [`mul_div`](U256::mul_div) and its rounding forms, [`mul_mod`](U256::mul_mod)
-//! and what is built on it, [`ceil_div`](U256::ceil_div), `log10` and the
-//! `I256` divisions -- is the runtime's experimental `U256MulDivRem` host
-//! operation, which needs syscall API 1.2: an `ecall` in a contract, the
-//! native executor in a native test. That is why none of them is a
-//! `const fn`.
-//!
-//! Measured by `scripts/bigint-bench.sh -b u256`, rv32, per call, against the
-//! software routines this crate used to carry, both on the same executor:
-//!
-//! | | Software gas | Software `.text` | Host gas | Host `.text` |
-//! |---|---:|---:|---:|---:|
-//! | `mul_div` | 4,801 | 3,952 bytes | 331 | 484 bytes |
-//! | `/` | 1,065 | 2,448 bytes | 284 | 404 bytes |
-//! | `%` | 1,095 | 2,948 bytes | 254 | 320 bytes |
-//! | `div_rem_small` | 719 | 680 bytes | 263 | 356 bytes |
-//! | `I256` `/` | 1,135 | 2,728 bytes | 337 | 764 bytes |
-//!
-//! Of a host call's gas, 171 is the runtime's: the `ecall`, the syscall base
-//! and the operation's price. The rest is the contract's own instructions,
-//! mostly copying the operands and results.
+//! Nothing here divides. Every division on these types is the runtime's
+//! experimental `U256MulDivRem` host operation, which needs syscall API 1.2:
+//! an `ecall` in a contract, the native executor in a native test. None of
+//! them is a `const fn`.
 //!
 //! [`mod_exp`](U256::mod_exp) is a loop over `mul_mod`, and
 //! [`inv_mod`](U256::inv_mod) one over `div_rem` -- reach for them knowingly.
@@ -551,34 +532,11 @@ impl U256 {
     ///
     /// # Cost
     ///
-    /// **This is the most expensive function in the crate, by a wide margin.**
-    ///
-    /// `Math.modExp` in Solidity is not an implementation: it is a
-    /// `staticcall` to the EIP-198 precompile at address `0x05`, so the
-    /// bignum runs as native client code at a flat fee. Thruput has no host
-    /// operation for modular exponentiation, so this loop runs in the
-    /// contract.
-    ///
-    /// The loop takes one multiply-divide per bit of `e` and another per set
-    /// bit, up to 511 for a full-width exponent. Each one is a
-    /// `U256MulDivRem` host call, which the bench measures at about 330 gas
-    /// as `mul_div`, so a 256-bit exponent costs up to about 170,000 gas. (The
-    /// software routine this crate used to carry took 4,801 each, and the
-    /// exponent about two million.) An
-    /// entrypoint that lets a caller choose `e` or `m` is therefore a
-    /// gas-exhaustion surface: bound the exponent, or charge for it.
-    ///
-    /// If modular exponentiation ever becomes load-bearing here -- RSA
-    /// verification, anything with a pairing behind it -- the answer is a
-    /// host operation for the whole exponentiation, not a better loop. That
-    /// is a protocol change rather than an SDK one, and it is tracked as
+    /// One `U256MulDivRem` host call per bit of `e` and another per set bit:
+    /// up to 511 for a full-width exponent. An entrypoint that lets a caller
+    /// choose `e` or `m` is a gas-exhaustion surface: bound the exponent, or
+    /// charge for it. A host operation for the whole exponentiation is
     /// <https://github.com/thruputchain/thruput-sdk-rs/issues/383>.
-    ///
-    /// It cannot silently answer zero, as the Solidity version can:
-    /// OpenZeppelin's own documentation warns that on a chain without the
-    /// precompile the `staticcall` succeeds and the result "may be incorrectly
-    /// interpreted as 0". Where a chain does not offer `U256MulDivRem`, the
-    /// host call fails and the contract panics.
     ///
     /// # Panics
     ///
