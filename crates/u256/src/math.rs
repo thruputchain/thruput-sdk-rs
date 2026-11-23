@@ -19,7 +19,8 @@
 //! One name differs: `Math.sqrt` is [`integer_sqrt`](U256::integer_sqrt), the
 //! spelling this crate shipped with, plus
 //! [`sqrt_rounding`](U256::sqrt_rounding) for the variant that takes a
-//! direction.
+//! direction. Neither is computed here: the root is the runtime's `U256Sqrt`
+//! host operation, so those two are not `const fn`.
 //!
 //! # 512-bit values
 //!
@@ -34,25 +35,17 @@
 //! `mulShr`, and both are here whole, so the pair never has to be arithmetic
 //! the caller does themselves.
 //!
-//! # Code size
+//! # Host operations
 //!
-//! [`mul_div`](U256::mul_div) and the other full-precision entry points link
-//! their own instantiation of Knuth D, sized to a 512-bit dividend, plus the
-//! 512-bit multiply that the narrower [`U256::widening_mul_u128`] does not need.
-//! Measured by `scripts/bigint-bench.sh -o mul_div`, rv32: **3,992 bytes** of
-//! `.text` and 4712 gas per call, against 2,572 and 972 for a plain `/`. The
-//! same operation over Parity's `uint` -- which has no full-precision `mulDiv`,
-//! so the baseline widens to a `construct_uint!(PU512(8))` by hand, as a
-//! contract author there would -- costs 21,568 bytes and 22,625 gas: a third of
-//! the 64 KiB artifact code cap, for one operation.
+//! Nothing here divides. Every division on these types is the runtime's
+//! experimental `U256MulDivRem` host operation, which needs syscall API 1.2:
+//! an `ecall` in a contract, the native executor in a native test. None of
+//! them is a `const fn`.
 //!
-//! A contract that uses both `/` and this family links Knuth D twice; `div`'s
-//! `knuth_d` documents why that beats sharing one copy, with the numbers.
-//! [`mod_exp`](U256::mod_exp) and [`inv_mod`](U256::inv_mod) are loops over
-//! the multiply-divide pair -- reach for them knowingly.
+//! [`mod_exp`](U256::mod_exp) is a loop over `mul_mod`, and
+//! [`inv_mod`](U256::inv_mod) one over `div_rem` -- reach for them knowingly.
 
-use crate::div::{WIDE_LIMBS, div_rem_512, low_limbs};
-use crate::{LIMBS, U256};
+use crate::U256;
 
 /// The rounding direction of an inexact result.
 ///
@@ -155,7 +148,7 @@ impl U256 {
     /// Division rounding toward positive infinity, returning `None` if `rhs`
     /// is zero. `Math.ceilDiv`.
     #[inline]
-    pub const fn checked_ceil_div(self, rhs: Self) -> Option<Self> {
+    pub fn checked_ceil_div(self, rhs: Self) -> Option<Self> {
         if self.is_zero() {
             // Guard the `self - 1` below, and skip the division entirely.
             // Also the one input for which the divisor being zero is *not*
@@ -168,10 +161,9 @@ impl U256 {
         // `self >= 1`, so `self - 1` cannot wrap, and the largest possible
         // result is `(MAX - 1) / 1 + 1 == MAX`: the `+ 1` cannot overflow
         // either.
-        match self.wrapping_sub(Self::ONE).checked_div(rhs) {
-            Some(q) => Some(q.wrapping_add(Self::ONE)),
-            None => None,
-        }
+        self.wrapping_sub(Self::ONE)
+            .checked_div(rhs)
+            .map(|q| q.wrapping_add(Self::ONE))
     }
 
     /// Division rounding toward positive infinity. `Math.ceilDiv`.
@@ -180,7 +172,7 @@ impl U256 {
     ///
     /// If `rhs` is zero, matching `/`.
     #[inline]
-    pub const fn ceil_div(self, rhs: Self) -> Self {
+    pub fn ceil_div(self, rhs: Self) -> Self {
         match self.checked_ceil_div(rhs) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -189,20 +181,16 @@ impl U256 {
 
     /// Division following `rounding`, returning `None` if `rhs` is zero.
     #[inline]
-    pub const fn checked_div_rounding(
+    pub fn checked_div_rounding(
         self,
         rhs: Self,
         rounding: Rounding,
     ) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((q, r)) => {
-                if rounding.unsigned_rounds_up() && !r.is_zero() {
-                    Some(q.wrapping_add(Self::ONE))
-                } else {
-                    Some(q)
-                }
-            }
-            None => None,
+        let (q, r) = self.checked_div_rem(rhs)?;
+        if rounding.unsigned_rounds_up() && !r.is_zero() {
+            Some(q.wrapping_add(Self::ONE))
+        } else {
+            Some(q)
         }
     }
 
@@ -212,7 +200,7 @@ impl U256 {
     ///
     /// If `rhs` is zero, matching `/`.
     #[inline]
-    pub const fn div_rounding(self, rhs: Self, rounding: Rounding) -> Self {
+    pub fn div_rounding(self, rhs: Self, rounding: Rounding) -> Self {
         match self.checked_div_rounding(rhs, rounding) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -230,11 +218,8 @@ impl U256 {
     /// the whole point: `x * y` may be far past [`U256::MAX`] as long as the
     /// quotient is not.
     #[inline]
-    pub const fn checked_mul_div(x: Self, y: Self, d: Self) -> Option<Self> {
-        match Self::mul_div_parts(x, y, d) {
-            Some((q, _)) => Some(q),
-            None => None,
-        }
+    pub fn checked_mul_div(x: Self, y: Self, d: Self) -> Option<Self> {
+        Self::mul_div_parts(x, y, d).map(|(q, _)| q)
     }
 
     /// `floor(x * y / d)` computed on the exact 512-bit product. `Math.mulDiv`.
@@ -247,7 +232,7 @@ impl U256 {
     /// exact-arithmetic call, not an operator with primitive behaviour to
     /// match.
     #[inline]
-    pub const fn mul_div(x: Self, y: Self, d: Self) -> Self {
+    pub fn mul_div(x: Self, y: Self, d: Self) -> Self {
         match Self::checked_mul_div(x, y, d) {
             Some(v) => v,
             None => {
@@ -263,23 +248,19 @@ impl U256 {
     /// `rounding`. Returns `None` if `d` is zero or the result exceeds
     /// [`U256::MAX`]. `Math.mulDiv` with a rounding argument.
     #[inline]
-    pub const fn checked_mul_div_rounding(
+    pub fn checked_mul_div_rounding(
         x: Self,
         y: Self,
         d: Self,
         rounding: Rounding,
     ) -> Option<Self> {
-        match Self::mul_div_parts(x, y, d) {
-            Some((q, r)) => {
-                if rounding.unsigned_rounds_up() && !r.is_zero() {
-                    // Rounding up can leave the 256-bit range that the floor
-                    // quotient just fit into.
-                    q.checked_add(Self::ONE)
-                } else {
-                    Some(q)
-                }
-            }
-            None => None,
+        let (q, inexact) = Self::mul_div_parts(x, y, d)?;
+        if rounding.unsigned_rounds_up() && inexact {
+            // Rounding up can leave the 256-bit range that the floor quotient
+            // just fit into.
+            q.checked_add(Self::ONE)
+        } else {
+            Some(q)
         }
     }
 
@@ -290,7 +271,7 @@ impl U256 {
     ///
     /// As [`mul_div`](Self::mul_div).
     #[inline]
-    pub const fn mul_div_rounding(
+    pub fn mul_div_rounding(
         x: Self,
         y: Self,
         d: Self,
@@ -307,32 +288,20 @@ impl U256 {
         }
     }
 
-    /// The floor quotient and remainder of `x * y / d`, or `None` when `d` is
-    /// zero or the quotient needs more than 256 bits.
-    ///
-    /// The one place the 512-bit product meets the divider; every public
-    /// `mul_div`/`mul_mod` entry point is a thin wrapper on this.
+    /// The floor quotient of `x * y / d` and whether it was inexact, or
+    /// `None` when `d` is zero or the quotient needs more than 256 bits: the
+    /// runtime's `U256MulDivRem`. Every public `mul_div` entry point is a thin
+    /// wrapper on this.
     #[inline]
-    pub(crate) const fn mul_div_parts(
+    pub(crate) fn mul_div_parts(
         x: Self,
         y: Self,
         d: Self,
-    ) -> Option<(Self, Self)> {
-        let (lo, hi) = x.widening_mul(y);
-        let (q, r) = match div_rem_512(hi, lo, d) {
-            Some(v) => v,
-            None => return None,
-        };
-        // The quotient of a 512-bit dividend genuinely needs 512 bits when
-        // `d <= hi`; that is the overflow case, not a representable answer.
-        let mut i = LIMBS;
-        while i < WIDE_LIMBS {
-            if q[i] != 0 {
-                return None;
-            }
-            i += 1;
+    ) -> Option<(Self, bool)> {
+        if d.is_zero() {
+            return None;
         }
-        Some((Self::from_limbs(low_limbs(&q)), r))
+        crate::host::mul_div(&x, &y, &d)
     }
 
     /// `floor(x * y >> n)` computed on the exact 512-bit product, returning
@@ -453,7 +422,7 @@ impl U256 {
     ///
     /// The EVM's `addmod`, which `Math.sol` uses but does not re-export.
     #[inline]
-    pub const fn checked_add_mod(x: Self, y: Self, m: Self) -> Option<Self> {
+    pub fn checked_add_mod(x: Self, y: Self, m: Self) -> Option<Self> {
         let (x, y) = match (x.checked_rem(m), y.checked_rem(m)) {
             (Some(x), Some(y)) => (x, y),
             _ => return None,
@@ -476,7 +445,7 @@ impl U256 {
     ///
     /// If `m` is zero.
     #[inline]
-    pub const fn add_mod(x: Self, y: Self, m: Self) -> Self {
+    pub fn add_mod(x: Self, y: Self, m: Self) -> Self {
         match Self::checked_add_mod(x, y, m) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -488,12 +457,12 @@ impl U256 {
     ///
     /// The EVM's `mulmod`, which `Math.sol` uses but does not re-export.
     #[inline]
-    pub const fn checked_mul_mod(x: Self, y: Self, m: Self) -> Option<Self> {
-        let (lo, hi) = x.widening_mul(y);
-        match div_rem_512(hi, lo, m) {
-            Some((_, r)) => Some(r),
-            None => None,
+    pub fn checked_mul_mod(x: Self, y: Self, m: Self) -> Option<Self> {
+        // Refused here, so that a zero modulus costs no host call.
+        if m.is_zero() {
+            return None;
         }
+        Some(crate::host::mul_mod(&x, &y, &m))
     }
 
     /// `(x * y) % m`, computed on the exact 512-bit product.
@@ -502,7 +471,7 @@ impl U256 {
     ///
     /// If `m` is zero.
     #[inline]
-    pub const fn mul_mod(x: Self, y: Self, m: Self) -> Self {
+    pub fn mul_mod(x: Self, y: Self, m: Self) -> Self {
         match Self::checked_mul_mod(x, y, m) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -522,7 +491,7 @@ impl U256 {
     /// set bit -- up to 512 for a full-width exponent. See
     /// [`mod_exp`](Self::mod_exp) for what that costs and why an
     /// attacker-chosen exponent is a gas-exhaustion surface.
-    pub const fn checked_mod_exp(b: Self, e: Self, m: Self) -> Option<Self> {
+    pub fn checked_mod_exp(b: Self, e: Self, m: Self) -> Option<Self> {
         if m.is_zero() {
             return None;
         }
@@ -532,27 +501,18 @@ impl U256 {
         }
 
         let mut result = Self::ONE;
-        let mut base = match b.checked_rem(m) {
-            Some(v) => v,
-            None => return None,
-        };
+        let mut base = b.checked_rem(m)?;
 
         let bits = e.bit_len();
         let mut i = 0;
         while i < bits {
             if e.bit(i) {
-                result = match Self::checked_mul_mod(result, base, m) {
-                    Some(v) => v,
-                    None => return None,
-                };
+                result = Self::checked_mul_mod(result, base, m)?;
             }
             i += 1;
             // Skip the final squaring: nothing reads it.
             if i < bits {
-                base = match Self::checked_mul_mod(base, base, m) {
-                    Some(v) => v,
-                    None => return None,
-                };
+                base = Self::checked_mul_mod(base, base, m)?;
             }
         }
         Some(result)
@@ -562,42 +522,16 @@ impl U256 {
     ///
     /// # Cost
     ///
-    /// **This is the most expensive function in the crate, by a wide margin,
-    /// and the one place where being a library rather than a precompile
-    /// really costs.**
-    ///
-    /// `Math.modExp` in Solidity is not an implementation: it is a
-    /// `staticcall` to the EIP-198 precompile at address `0x05`, so the
-    /// bignum runs as native client code at a flat fee. Thruput's syscall
-    /// table -- the actual analogue of the EVM's precompile slots -- carries
-    /// `kSHA256` and `kVerifySignature` (EVM `0x02` and `0x01`) but nothing
-    /// for modular exponentiation, so this runs *inside* the contract.
-    ///
-    /// That means the loop is real work: once per bit of `e`, with one
-    /// full-precision multiply-divide per bit and another per set bit, up to
-    /// 512 of them for a full-width exponent. At the 4,712 gas the bench
-    /// measures for one `mul_div`, a 256-bit exponent is on the order of two
-    /// million. An entrypoint that lets a caller choose `e` or `m` is
-    /// therefore a gas-exhaustion surface: bound the exponent, or charge for
-    /// it.
-    ///
-    /// If modular exponentiation ever becomes load-bearing here -- RSA
-    /// verification, anything with a pairing behind it -- the answer is a host
-    /// syscall alongside `kSHA256`, not a better loop. That is a protocol
-    /// change rather than an SDK one, and it is tracked as
+    /// One `U256MulDivRem` host call per bit of `e` and another per set bit:
+    /// up to 511 for a full-width exponent. An entrypoint that lets a caller
+    /// choose `e` or `m` is a gas-exhaustion surface: bound the exponent, or
+    /// charge for it. A host operation for the whole exponentiation is
     /// <https://github.com/thruputchain/thruput-sdk-rs/issues/383>.
-    ///
-    /// Two things this does have over the Solidity version. It is a
-    /// `const fn`, where `Math.modExp` must be `view` because a `staticcall`
-    /// is not `pure`. And it cannot silently answer zero: OpenZeppelin's own
-    /// documentation warns that on a chain without the precompile the
-    /// `staticcall` succeeds and the result "may be incorrectly interpreted as
-    /// 0", which is not a failure mode an in-contract loop has.
     ///
     /// # Panics
     ///
     /// If `m` is zero.
-    pub const fn mod_exp(b: Self, e: Self, m: Self) -> Self {
+    pub fn mod_exp(b: Self, e: Self, m: Self) -> Self {
         match Self::checked_mod_exp(b, e, m) {
             Some(v) => v,
             None => panic!("attempt to divide by zero"),
@@ -613,7 +547,7 @@ impl U256 {
     /// recurrence on magnitudes is `t[k+1] = t[k-1] + q * t[k]`, and the
     /// standard bound `t <= n / gcd` keeps every intermediate inside a
     /// `U256`.
-    pub const fn inv_mod(a: Self, n: Self) -> Self {
+    pub fn inv_mod(a: Self, n: Self) -> Self {
         if n.is_zero() {
             return Self::ZERO;
         }
@@ -630,10 +564,7 @@ impl U256 {
         let mut k_odd = true;
 
         while !r1.is_zero() {
-            let (q, r) = match r0.checked_div_rem(r1) {
-                Some(v) => v,
-                None => return Self::ZERO,
-            };
+            let (q, r) = r0.div_rem(r1);
             r0 = r1;
             r1 = r;
             // Bounded above by `n`, per the identity `|t[final + 1]| = n / gcd`
@@ -678,7 +609,7 @@ impl U256 {
     /// which is total and answers zero for a degenerate modulus: swapping one
     /// for the other after establishing primality elsewhere turns that zero
     /// into an abort.
-    pub const fn inv_mod_prime(a: Self, p: Self) -> Self {
+    pub fn inv_mod_prime(a: Self, p: Self) -> Self {
         Self::mod_exp(a, p.wrapping_sub(Self::from_u32(2)), p)
     }
 
@@ -760,8 +691,11 @@ impl U256 {
 
     /// The integer square root, following `rounding`. `Math.sqrt` with a
     /// rounding argument.
+    ///
+    /// Not a `const fn`, and it panics where
+    /// [`integer_sqrt`](Self::integer_sqrt) does: the root is the runtime's.
     #[inline]
-    pub const fn sqrt_rounding(self, rounding: Rounding) -> Self {
+    pub fn sqrt_rounding(self, rounding: Rounding) -> Self {
         let r = self.integer_sqrt();
         // `r <= 2^128 - 1`, so `r * r` cannot overflow and `r + 1` cannot
         // either.
@@ -796,9 +730,8 @@ impl U256 {
     ///
     /// Peels eight digits at a time with [`div_rem_small`](Self::div_rem_small)
     /// -- `10^8` is the largest power of ten that is both a `u32` and a whole
-    /// number of digits -- so this never links Knuth D, unlike the ladder of
-    /// 256-bit constants Solidity uses.
-    pub const fn log10(self) -> u32 {
+    /// number of digits -- so it takes at most ten divisions.
+    pub fn log10(self) -> u32 {
         self.log10_parts().0
     }
 
@@ -811,7 +744,7 @@ impl U256 {
     /// [`pow`](Self::pow) -- and through it the general 256x256 multiply --
     /// into a function built specifically to avoid dragging in that class of
     /// code.
-    const fn log10_parts(self) -> (u32, bool) {
+    fn log10_parts(self) -> (u32, bool) {
         /// The largest power of ten fitting in a `u32`'s divisor slot.
         const P8: u32 = 100_000_000;
 
@@ -842,7 +775,7 @@ impl U256 {
     /// `log10(self)` following `rounding`, or zero for zero. `Math.log10` with
     /// a rounding argument.
     #[inline]
-    pub const fn log10_rounding(self, rounding: Rounding) -> u32 {
+    pub fn log10_rounding(self, rounding: Rounding) -> u32 {
         let (r, inexact) = self.log10_parts();
         if rounding.unsigned_rounds_up() && inexact {
             r + 1

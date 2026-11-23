@@ -198,14 +198,17 @@ pub mod u256 {
             Self(self.0.overflowing_mul_u32(rhs).0)
         }
 
+        // The operators, as a contract writes them, and as the `uint` backend
+        // measures them. In a contract they are the runtime's
+        // `U256MulDivRem`, where `div_rem` is software.
         #[inline]
         fn div(self, rhs: Self) -> Self {
-            Self(self.0.div_rem(rhs.0).0)
+            Self(self.0 / rhs.0)
         }
 
         #[inline]
         fn rem(self, rhs: Self) -> Self {
-            Self(self.0.div_rem(rhs.0).1)
+            Self(self.0 % rhs.0)
         }
 
         #[inline]

@@ -34,3 +34,8 @@ alloc = []
 [dependencies]
 # Intentionally minimal. The runtime is target-specific glue; we want to
 # keep its dep graph small so it builds fast and is easy to audit.
+
+# A 128-bit division by `2^16` or more is the runtime's `U128MulDivRem`,
+# through its generated binding. Every contract has this crate already.
+[target.'cfg(target_arch = "riscv32")'.dependencies]
+thruput-xdr = { workspace = true, features = ["syscalls"] }

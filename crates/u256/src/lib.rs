@@ -16,6 +16,10 @@
 //! bytes of rv32 text and its `integer_sqrt` to 12,732 -- together over a third
 //! of the 64 KiB artifact code cap.
 //!
+//! Square roots and every division are the runtime's host operations
+//! (`U256Sqrt`, `U256MulDivRem`, `U128MulDivRem`), so none of them is a
+//! `const fn`.
+//!
 //! Both types behave like the primitives on overflow: the operators wrap when
 //! `overflow-checks` is off (as every contract profile sets it) and panic when
 //! it is on. Use [`U256::checked_add`] and friends where it matters.
@@ -54,6 +58,7 @@
 mod arith;
 mod div;
 mod fmt;
+mod host;
 mod integration;
 mod math;
 mod signed;
@@ -80,6 +85,7 @@ pub(crate) const LIMBS: usize = 8;
 /// most-significant-first (see `integration`), matching xdrs' `u128`.
 ///
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[repr(transparent)]
 pub struct U256 {
     pub(crate) limbs: [u32; LIMBS],
 }

@@ -533,7 +533,10 @@ impl Div for U256 {
     /// matching the primitive integers.
     #[inline]
     fn div(self, rhs: Self) -> Self {
-        self.div_rem(rhs).0
+        if rhs.is_zero() {
+            panic!("attempt to divide by zero");
+        }
+        crate::host::div(&self, &rhs)
     }
 }
 
@@ -544,7 +547,10 @@ impl Rem for U256 {
     /// matching the primitive integers.
     #[inline]
     fn rem(self, rhs: Self) -> Self {
-        self.div_rem(rhs).1
+        if rhs.is_zero() {
+            panic!("attempt to divide by zero");
+        }
+        crate::host::rem(&self, &rhs)
     }
 }
 

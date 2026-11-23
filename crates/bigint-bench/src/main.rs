@@ -36,10 +36,16 @@ const CALLER: ContractAddress = ContractAddress::new([0xEE; 32]);
 /// Fixed operands, so a rerun on the same artifacts reports the same gas.
 ///
 /// Chosen to keep every operation on its wide path: `A` fills all 256 bits with
-/// its top bit set (so `sqrt` runs its full 128-step loop and `bit_len` cannot
-/// return early), and `B` is smaller than `A` but still over 128 bits, so
-/// `div`/`rem` take the multi-limb quotient path rather than a single-limb fast
-/// path. Neither is zero, and the kernels force divisors odd anyway.
+/// its top bit set (so a software `sqrt` runs its full 128-step loop and
+/// `bit_len` cannot return early), and `B` is smaller than `A` but still over
+/// 128 bits, so a software `div`/`rem` takes the multi-limb quotient path
+/// rather than a single-limb fast path. Neither is zero, and the kernels force
+/// divisors odd anyway.
+///
+/// On the `u256` backend `div` and `rem` are the `/` and `%` operators, which
+/// in a contract are the runtime's `U256MulDivRem` at a flat price, whatever
+/// the operands. The next paragraph describes the `uint` backend, and the
+/// `u256` one before its division moved to the runtime.
 ///
 /// **What the `div` row is not.** `B` is 201 bits — seven of eight `u32` limbs,
 /// four of four `u64` ones — so Knuth D runs its quotient loop twice on `u256`

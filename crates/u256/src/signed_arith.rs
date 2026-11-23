@@ -293,7 +293,7 @@ impl I256 {
     /// the dividend, matching Rust's primitives and Solidity's `int256`.
     /// `MIN / -1` is the one overflow: its quotient is `2^255`.
     #[inline]
-    pub const fn checked_div_rem(self, rhs: Self) -> Option<(Self, Self)> {
+    pub fn checked_div_rem(self, rhs: Self) -> Option<(Self, Self)> {
         if rhs.is_zero()
             || (self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE))
         {
@@ -302,30 +302,58 @@ impl I256 {
         Some(self.div_rem_unchecked(rhs))
     }
 
-    /// The division itself, with the two special cases already ruled out.
+    /// The division itself, wrapping: the magnitudes divided, then signed.
     ///
-    /// `MIN / 1` still reaches here and produces a magnitude of `2^255`, which
-    /// negates back to `MIN` exactly; only `MIN / -1` needs the magnitude to
-    /// stay positive, and that is the case the callers reject.
+    /// `MIN`'s magnitude is `2^255`. `MIN / 1` negates it back to `MIN`, and
+    /// `MIN / -1` leaves it as is, which is `MIN` again: the wrapped quotient.
+    /// Its remainder is zero. The callers that must not wrap check for
+    /// `MIN / -1` first; a zero divisor panics here.
     #[inline]
-    const fn div_rem_unchecked(self, rhs: Self) -> (Self, Self) {
-        let (q, r) =
-            match self.unsigned_abs().checked_div_rem(rhs.unsigned_abs()) {
-                Some(v) => v,
-                None => panic!("attempt to divide by zero"),
-            };
-        let q = if self.is_negative() != rhs.is_negative() {
-            q.wrapping_neg()
+    fn div_rem_unchecked(self, rhs: Self) -> (Self, Self) {
+        let (q, r) = self.unsigned_abs().div_rem(rhs.unsigned_abs());
+        (self.quotient_sign(rhs, q), self.remainder_sign(r))
+    }
+
+    /// The quotient alone, as [`div_rem_unchecked`](Self::div_rem_unchecked).
+    #[inline]
+    fn div_unchecked(self, rhs: Self) -> Self {
+        if rhs.is_zero() {
+            panic!("attempt to divide by zero");
+        }
+        let q = crate::host::div(&self.unsigned_abs(), &rhs.unsigned_abs());
+        self.quotient_sign(rhs, q)
+    }
+
+    /// The remainder alone, as
+    /// [`div_rem_unchecked`](Self::div_rem_unchecked).
+    #[inline]
+    fn rem_unchecked(self, rhs: Self) -> Self {
+        if rhs.is_zero() {
+            panic!("attempt to divide by zero");
+        }
+        let r = crate::host::rem(&self.unsigned_abs(), &rhs.unsigned_abs());
+        self.remainder_sign(r)
+    }
+
+    /// The quotient of the magnitudes, with the sign the operands give it.
+    #[inline(always)]
+    fn quotient_sign(self, rhs: Self, q: U256) -> Self {
+        if self.is_negative() != rhs.is_negative() {
+            q.wrapping_neg().cast_signed()
         } else {
-            q
-        };
-        // `|r| < |rhs| <= 2^255`, so the remainder is always representable.
-        let r = if self.is_negative() {
-            r.wrapping_neg()
+            q.cast_signed()
+        }
+    }
+
+    /// The remainder of the magnitudes, with the dividend's sign. `|r| <
+    /// |rhs| <= 2^255`, so it is always representable.
+    #[inline(always)]
+    fn remainder_sign(self, r: U256) -> Self {
+        if self.is_negative() {
+            r.wrapping_neg().cast_signed()
         } else {
-            r
-        };
-        (q.cast_signed(), r.cast_signed())
+            r.cast_signed()
+        }
     }
 
     /// Divides, returning the quotient and remainder.
@@ -346,7 +374,7 @@ impl I256 {
     /// [`checked_div`](Self::checked_div) if an abort is not what the call
     /// site wants.
     #[inline]
-    pub const fn div_rem(self, rhs: Self) -> (Self, Self) {
+    pub fn div_rem(self, rhs: Self) -> (Self, Self) {
         if rhs.is_zero() {
             panic!("attempt to divide by zero");
         }
@@ -364,7 +392,7 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn overflowing_div(self, rhs: Self) -> (Self, bool) {
+    pub fn overflowing_div(self, rhs: Self) -> (Self, bool) {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return (Self::MIN, true);
         }
@@ -379,7 +407,7 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
+    pub fn overflowing_rem(self, rhs: Self) -> (Self, bool) {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return (Self::ZERO, true);
         }
@@ -388,20 +416,14 @@ impl I256 {
 
     /// Division, returning `None` if `rhs` is zero or the division overflows.
     #[inline]
-    pub const fn checked_div(self, rhs: Self) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((q, _)) => Some(q),
-            None => None,
-        }
+    pub fn checked_div(self, rhs: Self) -> Option<Self> {
+        self.checked_div_rem(rhs).map(|(q, _)| q)
     }
 
     /// Remainder, returning `None` if `rhs` is zero or the division overflows.
     #[inline]
-    pub const fn checked_rem(self, rhs: Self) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((_, r)) => Some(r),
-            None => None,
-        }
+    pub fn checked_rem(self, rhs: Self) -> Option<Self> {
+        self.checked_div_rem(rhs).map(|(_, r)| r)
     }
 
     /// Division, wrapping on overflow (`MIN / -1` is `MIN`).
@@ -410,11 +432,8 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn wrapping_div(self, rhs: Self) -> Self {
-        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
-            return Self::MIN;
-        }
-        self.div_rem_unchecked(rhs).0
+    pub fn wrapping_div(self, rhs: Self) -> Self {
+        self.div_unchecked(rhs)
     }
 
     /// Remainder, wrapping on overflow (`MIN % -1` is zero).
@@ -423,11 +442,8 @@ impl I256 {
     ///
     /// If `rhs` is zero.
     #[inline]
-    pub const fn wrapping_rem(self, rhs: Self) -> Self {
-        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
-            return Self::ZERO;
-        }
-        self.div_rem_unchecked(rhs).1
+    pub fn wrapping_rem(self, rhs: Self) -> Self {
+        self.rem_unchecked(rhs)
     }
 
     /// Euclidean division: the quotient whose remainder is never negative.
@@ -438,7 +454,7 @@ impl I256 {
     ///
     /// As [`div_rem`](Self::div_rem).
     #[inline]
-    pub const fn div_euclid(self, rhs: Self) -> Self {
+    pub fn div_euclid(self, rhs: Self) -> Self {
         let (q, r) = self.div_rem(rhs);
         if r.is_negative() {
             // Step the quotient away from zero in the divisor's direction, so
@@ -457,7 +473,7 @@ impl I256 {
     ///
     /// As [`div_rem`](Self::div_rem).
     #[inline]
-    pub const fn rem_euclid(self, rhs: Self) -> Self {
+    pub fn rem_euclid(self, rhs: Self) -> Self {
         let (_, r) = self.div_rem(rhs);
         if r.is_negative() {
             // `|rhs|` is at most `2^255`, whose wrapped form is `MIN`; adding
@@ -695,7 +711,10 @@ impl Div for I256 {
     /// `overflow-checks`, matching the primitive integers.
     #[inline]
     fn div(self, rhs: Self) -> Self {
-        self.div_rem(rhs).0
+        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
+            panic!("attempt to divide with overflow");
+        }
+        self.div_unchecked(rhs)
     }
 }
 
@@ -706,7 +725,10 @@ impl Rem for I256 {
     /// regardless of `overflow-checks`, matching the primitive integers.
     #[inline]
     fn rem(self, rhs: Self) -> Self {
-        self.div_rem(rhs).1
+        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
+            panic!("attempt to divide with overflow");
+        }
+        self.rem_unchecked(rhs)
     }
 }
 

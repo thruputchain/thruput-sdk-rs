@@ -7,14 +7,17 @@
 //! one side, a shift whose out-of-range behaviour differs -- which would
 //! otherwise show up as a plausible-looking performance win.
 //!
-//! Runs on the host, so it needs neither rv32 nor the node. `crates/u256`'s
-//! own tests already assert `thruput_sdk::U256` agrees with `uint` at the
-//! *library* level; this covers the benchmark's own wiring on top of it.
+//! Runs on the host, inside a native transaction: the `u256` backend's
+//! divisions and square roots are host operations, which the native executor
+//! answers. `crates/u256`'s own tests already assert `thruput_sdk::U256`
+//! agrees with `uint` at the *library* level; this covers the benchmark's own
+//! wiring on top of it.
 
 use bigint_bench_contract::backend::Backend;
 use bigint_bench_contract::backend::parity::PU256;
 use bigint_bench_contract::backend::u256::ThruputU256;
 use bigint_bench_contract::ops;
+use thruput_sdk::Named;
 
 /// Deterministic xorshift64* sweep. Fixed seed: a failure must be reproducible.
 struct Rng(u64);
@@ -77,8 +80,27 @@ fn operand_pairs() -> Vec<((u128, u128), (u128, u128))> {
     pairs
 }
 
+/// Runs `body` in a native transaction, where the host operations have the
+/// native executor to answer them.
+fn in_transaction(body: impl FnOnce() + std::panic::UnwindSafe + 'static) {
+    let env = thruput_sdk::TestEnvironment::no_cost();
+    env.transact(|tx| {
+        tx.call(&thruput_sdk::ContractAddress::named("test"))
+            .run(body)
+    })
+    .assert_success();
+}
+
 /// Asserts `op` agrees between the two backends across the whole sweep.
 fn assert_agrees(
+    name: &'static str,
+    gh: fn(ThruputU256, ThruputU256) -> ThruputU256,
+    pa: fn(PU256, PU256) -> PU256,
+) {
+    in_transaction(move || agrees(name, gh, pa));
+}
+
+fn agrees(
     name: &str,
     gh: fn(ThruputU256, ThruputU256) -> ThruputU256,
     pa: fn(PU256, PU256) -> PU256,
@@ -171,14 +193,16 @@ fn digest_depends_on_every_bit() {
 /// directly.
 #[test]
 fn mul_div_quotient_always_fits() {
-    let mut rng = Rng(0x5EED_5EED_5EED_5EED);
-    for _ in 0..50_000 {
-        let a = rng.next_u128();
-        let b = rng.next_u128();
-        let d = b | 1;
-        assert!(
-            thruput_sdk::checked_mul_div_u128(a, b, d).is_some(),
-            "a={a:#x} b={b:#x} d={d:#x} overflows u128"
-        );
-    }
+    in_transaction(|| {
+        let mut rng = Rng(0x5EED_5EED_5EED_5EED);
+        for _ in 0..50_000 {
+            let a = rng.next_u128();
+            let b = rng.next_u128();
+            let d = b | 1;
+            assert!(
+                thruput_sdk::checked_mul_div_u128(a, b, d).is_some(),
+                "a={a:#x} b={b:#x} d={d:#x} overflows u128"
+            );
+        }
+    });
 }
