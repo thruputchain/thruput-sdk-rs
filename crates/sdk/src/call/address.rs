@@ -18,8 +18,8 @@ use crate::xdr::{
 };
 use crate::{AuthTokenError, FaultString};
 
-/// A [`ContractAddress`] typed by the client, or tuple of clients, used to
-/// call it. It encodes exactly as a `ContractAddress`.
+/// The address of a contract, typed by the client, or tuple of clients, used
+/// to call it. It encodes exactly as the untyped [`ContractAddress`].
 ///
 /// ```ignore
 /// #[contract_type]
@@ -34,7 +34,7 @@ use crate::{AuthTokenError, FaultString};
 ///
 /// Several clients go in one tuple, `Address<(A, B)>`, not `Address<A, B>`.
 /// The type records the expected interfaces and does not check them; see
-/// [Typed addresses](crate#typed-addresses).
+/// [Addresses](crate#addresses).
 #[repr(transparent)]
 pub struct Address<C> {
     address: ContractAddress,

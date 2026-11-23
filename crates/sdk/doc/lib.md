@@ -364,11 +364,11 @@ buffer fetches and decoding all report failure through the return type, so the
 only way one aborts is a closure you handed it. [`mod@exn`] states this in
 full.
 
-### Typed addresses
+### Addresses
 
-[`Address<C>`](Address) is a [`ContractAddress`] typed by the generated
-client, or tuple of clients, used to call it. Use it for a stored address or a
-parameter, so the interface is named once, at the declaration:
+Hold the address of a contract you call as an [`Address<C>`](Address), where
+`C` is the generated client, or tuple of clients, used to call it. The
+interface is then named once, at the declaration:
 
 ```rust,ignore
 #[contract_type]
@@ -387,14 +387,17 @@ one interface. Naming a client the address does not list is a compile error.
 Several clients go in one tuple of up to eight: `Address<(A, B)>`, not
 `Address<A, B>`.
 
-An `Address<C>` encodes exactly as a `ContractAddress`: its wire form, storage
-form, contract spec and event topic are the same. Changing a field between the
-two, or changing its client list, changes neither a storage layout nor an ABI.
-
 The type records an expectation and does not check it. Decoding accepts any
 address. To ask the contract, use `ERC165Client::supports_address` from
 `thruput-erc165-if`; like any ERC-165 claim, the answer is a dispatch hint,
 not an authorization boundary.
+
+If you really need an address untyped, [`ContractAddress`] is the bare
+32 bytes: for an address the contract never calls, such as an owner or a
+recipient, or for one whose interface is not known. The two encode
+identically, in wire form, storage form, contract spec and event topic, so
+changing a field between them, or changing its client list, changes neither a
+storage layout nor an ABI.
 
 # Events
 
@@ -559,8 +562,9 @@ Context about the running transaction:
 Other useful modules and types:
 
 - [`mod@types`]
-  - [`ContractAddress`](ContractAddress)
-  - [`Address`](Address): a `ContractAddress` typed by its clients
+  - [`Address`](Address): the address of a contract, typed by the clients
+    used to call it
+  - [`ContractAddress`](ContractAddress): the same address, untyped
   - [`StorageKey`](StorageKey)
   - [`PublicKey`](PublicKey)
 
