@@ -184,12 +184,6 @@ impl ERC165Client {
     /// interface the address is typed by, from one read-only
     /// `supports_interfaces` call. A failed call or an unanswered id counts
     /// as unsupported.
-    ///
-    /// An [`Address`](thruput_sdk::Address) records the expected interfaces
-    /// without checking them. Call this where a caller-supplied address
-    /// enters, if the contract should reject one that does not fit. Like any
-    /// ERC-165 claim, the answer is a dispatch hint, not an authorization
-    /// boundary.
     pub fn supports_address<S: thruput_sdk::Interfaces>(
         address: &thruput_sdk::Address<S>,
     ) -> bool {

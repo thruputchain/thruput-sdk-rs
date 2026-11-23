@@ -364,6 +364,41 @@ buffer fetches and decoding all report failure through the return type, so the
 only way one aborts is a closure you handed it. [`mod@exn`] states this in
 full.
 
+### Addresses
+
+Hold the address of a contract you call as an [`Address<C>`](Address), where
+`C` is the generated client, or tuple of clients, used to call it. The
+interface is then named once, at the declaration:
+
+```rust,ignore
+#[contract_type]
+pub struct Terms {
+    pub sale_token: Address<ERC20Client>,
+    pub payment_token: Address<(ERC20Client, ERC20MetadataClient)>,
+}
+
+terms.sale_token.client().transfer(&bidder, amount);
+ERC20MetadataClient::at(&terms.payment_token).decimals();
+```
+
+[`ContractClient::at`] names the client and works for every address that
+lists it. [`Address::client`] infers the client, which suits an address with
+one interface. Naming a client the address does not list is a compile error.
+Several clients go in one tuple of up to eight: `Address<(A, B)>`, not
+`Address<A, B>`.
+
+The type records an expectation and does not check it. Decoding accepts any
+address. To ask the contract, use `ERC165Client::supports_address` from
+`thruput-erc165-if`; like any ERC-165 claim, the answer is a dispatch hint,
+not an authorization boundary.
+
+If you really need an address untyped, [`ContractAddress`] is the bare
+32 bytes: for an address the contract never calls, such as an owner or a
+recipient, or for one whose interface is not known. The two encode
+identically, in wire form, storage form, contract spec and event topic, so
+changing a field between them, or changing its client list, changes neither a
+storage layout nor an ABI.
+
 # Events
 
 Emit with [`mod@event`]; derive the type with
@@ -527,7 +562,9 @@ Context about the running transaction:
 Other useful modules and types:
 
 - [`mod@types`]
-  - [`ContractAddress`](ContractAddress)
+  - [`Address`](Address): the address of a contract, typed by the clients
+    used to call it
+  - [`ContractAddress`](ContractAddress): the same address, untyped
   - [`StorageKey`](StorageKey)
   - [`PublicKey`](PublicKey)
 
