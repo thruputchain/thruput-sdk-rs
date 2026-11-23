@@ -36,13 +36,8 @@ impl<'a> SEP41View<'a> {
         Self { token }
     }
 
-    /// A view of a token whose typed address lists every interface the
-    /// SEP-41 operations call: `ERC20`, `ERC20Burn` and `ERC20Metadata`, in
-    /// any order and among any others. An address that lacks one is a
-    /// compile error.
-    ///
-    /// The address type records an expectation; [`Self::is_supported`] asks
-    /// the token.
+    /// A view of a token whose typed address lists `ERC20`, `ERC20Burn` and
+    /// `ERC20Metadata`, in any order.
     pub fn at<S, I, J, K>(token: &'a Address<S>) -> Self
     where
         S: Provides<ERC20Client, I>

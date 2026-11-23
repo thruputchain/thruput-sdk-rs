@@ -364,6 +364,38 @@ buffer fetches and decoding all report failure through the return type, so the
 only way one aborts is a closure you handed it. [`mod@exn`] states this in
 full.
 
+### Typed addresses
+
+[`Address<C>`](Address) is a [`ContractAddress`] typed by the generated
+client, or tuple of clients, used to call it. Use it for a stored address or a
+parameter, so the interface is named once, at the declaration:
+
+```rust,ignore
+#[contract_type]
+pub struct Terms {
+    pub sale_token: Address<ERC20Client>,
+    pub payment_token: Address<(ERC20Client, ERC20MetadataClient)>,
+}
+
+terms.sale_token.client().transfer(&bidder, amount);
+ERC20MetadataClient::at(&terms.payment_token).decimals();
+```
+
+[`ContractClient::at`] names the client and works for every address that
+lists it. [`Address::client`] infers the client, which suits an address with
+one interface. Naming a client the address does not list is a compile error.
+Several clients go in one tuple of up to eight: `Address<(A, B)>`, not
+`Address<A, B>`.
+
+An `Address<C>` encodes exactly as a `ContractAddress`: its wire form, storage
+form, contract spec and event topic are the same. Changing a field between the
+two, or changing its client list, changes neither a storage layout nor an ABI.
+
+The type records an expectation and does not check it. Decoding accepts any
+address. To ask the contract, use `ERC165Client::supports_address` from
+`thruput-erc165-if`; like any ERC-165 claim, the answer is a dispatch hint,
+not an authorization boundary.
+
 # Events
 
 Emit with [`mod@event`]; derive the type with
@@ -528,6 +560,7 @@ Other useful modules and types:
 
 - [`mod@types`]
   - [`ContractAddress`](ContractAddress)
+  - [`Address`](Address): a `ContractAddress` typed by its clients
   - [`StorageKey`](StorageKey)
   - [`PublicKey`](PublicKey)
 

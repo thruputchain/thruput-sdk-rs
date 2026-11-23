@@ -18,14 +18,8 @@ use crate::xdr::{
 };
 use crate::{AuthTokenError, FaultString};
 
-/// The address of a contract that is expected to implement the interface
-/// client `C` calls, or each interface in a tuple of clients.
-///
-/// Use it wherever a [`ContractAddress`] is stored or passed and the contract
-/// behind it is meant to be called through known interfaces: a storage field,
-/// a `#[contract_type]` field, a map key, or a `#[contract]` method
-/// parameter. The interfaces are then named once, at the declaration,
-/// instead of at every call.
+/// A [`ContractAddress`] typed by the client, or tuple of clients, used to
+/// call it. It encodes exactly as a `ContractAddress`.
 ///
 /// ```ignore
 /// #[contract_type]
@@ -35,28 +29,12 @@ use crate::{AuthTokenError, FaultString};
 /// }
 ///
 /// terms.sale_token.client().transfer(&bidder, amount);
-///
-/// ERC20Client::at(&terms.payment_token).transfer(&seller, amount);
-/// let decimals = ERC20MetadataClient::at(&terms.payment_token).decimals();
+/// ERC20MetadataClient::at(&terms.payment_token).decimals();
 /// ```
 ///
-/// [`ContractClient::at`] names the client and works for every `Address`
-/// that lists it. [`Address::client`] infers the client, so it reads best on
-/// an address with one interface. Naming a client the address does not list
-/// is a compile error.
-///
-/// An `Address<C>` encodes exactly as a [`ContractAddress`]: its wire form,
-/// storage form, contract spec and event topic are the same. Changing a field
-/// between the two, or changing its client list, therefore changes neither a
-/// storage layout nor an ABI.
-///
-/// The type records an expectation; it does not check it. Decoding accepts
-/// any address, and nothing here asks the contract which interfaces it
-/// implements. Probe the contract where a caller-supplied address enters, if
-/// the contract must not trust it.
-///
-/// A client's gas limit and invocation flags belong to a call, not to the
-/// address, so they are not part of this type. Set them on the client.
+/// Several clients go in one tuple, `Address<(A, B)>`, not `Address<A, B>`.
+/// The type records the expected interfaces and does not check them; see
+/// [Typed addresses](crate#typed-addresses).
 #[repr(transparent)]
 pub struct Address<C> {
     address: ContractAddress,
@@ -306,7 +284,7 @@ impl<C> From<Address<C>> for ContractAddress {
     }
 }
 
-// ── Wire and storage form: that of `ContractAddress` ──
+// The wire and storage form is that of `ContractAddress`.
 
 impl<'r, C> ReadXDR<'r> for Address<C> {
     #[inline]
@@ -353,7 +331,7 @@ impl<C> thruput_contract_spec::ContractTypeRefSpec for Address<C> {
         <ContractAddress as thruput_contract_spec::ContractTypeRefSpec>::INFO;
 }
 
-// ── Contract parameters, auth tokens and events: as `ContractAddress` ──
+// Contract parameters, auth tokens and events treat it as a `ContractAddress`.
 
 impl<'r, C: 'r> RefArg<'r> for Address<C> {
     type Decoded = &'r Address<C>;
