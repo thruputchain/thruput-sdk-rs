@@ -21,33 +21,39 @@ impl U256 {
     ///
     /// If `rhs` is zero, matching the primitive integers (which panic on a
     /// zero divisor regardless of `overflow-checks`).
+    #[inline]
     pub fn div_rem(self, rhs: Self) -> (Self, Self) {
-        match self.checked_div_rem(rhs) {
-            Some(pair) => pair,
-            None => panic!("attempt to divide by zero"),
+        if rhs.is_zero() {
+            panic!("attempt to divide by zero");
         }
+        crate::host::div_rem(&self, &rhs)
     }
 
     /// Divides by another `U256`, returning `None` if `rhs` is zero.
+    #[inline]
     pub fn checked_div_rem(self, rhs: Self) -> Option<(Self, Self)> {
-        // Refused here, so that a zero divisor costs no host call.
         if rhs.is_zero() {
             return None;
         }
-        let (q, _, r) = crate::host::mul_div_rem(self, Self::ONE, rhs);
-        Some((q, r))
+        Some(crate::host::div_rem(&self, &rhs))
     }
 
     /// Division, returning `None` if `rhs` is zero.
     #[inline]
     pub fn checked_div(self, rhs: Self) -> Option<Self> {
-        self.checked_div_rem(rhs).map(|(q, _)| q)
+        if rhs.is_zero() {
+            return None;
+        }
+        Some(crate::host::div(&self, &rhs))
     }
 
     /// Remainder, returning `None` if `rhs` is zero.
     #[inline]
     pub fn checked_rem(self, rhs: Self) -> Option<Self> {
-        self.checked_div_rem(rhs).map(|(_, r)| r)
+        if rhs.is_zero() {
+            return None;
+        }
+        Some(crate::host::rem(&self, &rhs))
     }
 }
 
@@ -77,10 +83,8 @@ pub fn mul_div_u128(a: u128, b: u128, d: u128) -> u128 {
 /// quotient does not fit in a `u128`. The runtime's `U128MulDivRem`.
 #[inline]
 pub fn checked_mul_div_u128(a: u128, b: u128, d: u128) -> Option<u128> {
-    // Refused here, so that a zero divisor costs no host call.
     if d == 0 {
         return None;
     }
-    let (q, q_hi, _) = crate::host::mul_div_rem_u128(a, b, d);
-    if q_hi == 0 { Some(q) } else { None }
+    crate::host::mul_div_u128(&a, &b, &d)
 }

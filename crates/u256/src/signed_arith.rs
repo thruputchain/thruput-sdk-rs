@@ -309,23 +309,50 @@ impl I256 {
     /// stay positive, and that is the case the callers reject.
     #[inline]
     fn div_rem_unchecked(self, rhs: Self) -> (Self, Self) {
-        let (q, r) =
-            match self.unsigned_abs().checked_div_rem(rhs.unsigned_abs()) {
-                Some(v) => v,
-                None => panic!("attempt to divide by zero"),
-            };
-        let q = if self.is_negative() != rhs.is_negative() {
-            q.wrapping_neg()
+        let (q, r) = self.unsigned_abs().div_rem(rhs.unsigned_abs());
+        (self.quotient_sign(rhs, q), self.remainder_sign(r))
+    }
+
+    /// The quotient alone, as [`div_rem_unchecked`](Self::div_rem_unchecked).
+    #[inline]
+    fn div_unchecked(self, rhs: Self) -> Self {
+        if rhs.is_zero() {
+            panic!("attempt to divide by zero");
+        }
+        let q = crate::host::div(&self.unsigned_abs(), &rhs.unsigned_abs());
+        self.quotient_sign(rhs, q)
+    }
+
+    /// The remainder alone, as
+    /// [`div_rem_unchecked`](Self::div_rem_unchecked).
+    #[inline]
+    fn rem_unchecked(self, rhs: Self) -> Self {
+        if rhs.is_zero() {
+            panic!("attempt to divide by zero");
+        }
+        let r = crate::host::rem(&self.unsigned_abs(), &rhs.unsigned_abs());
+        self.remainder_sign(r)
+    }
+
+    /// The quotient of the magnitudes, with the sign the operands give it.
+    #[inline(always)]
+    fn quotient_sign(self, rhs: Self, q: U256) -> Self {
+        if self.is_negative() != rhs.is_negative() {
+            q.wrapping_neg().cast_signed()
         } else {
-            q
-        };
-        // `|r| < |rhs| <= 2^255`, so the remainder is always representable.
-        let r = if self.is_negative() {
-            r.wrapping_neg()
+            q.cast_signed()
+        }
+    }
+
+    /// The remainder of the magnitudes, with the dividend's sign. `|r| <
+    /// |rhs| <= 2^255`, so it is always representable.
+    #[inline(always)]
+    fn remainder_sign(self, r: U256) -> Self {
+        if self.is_negative() {
+            r.wrapping_neg().cast_signed()
         } else {
-            r
-        };
-        (q.cast_signed(), r.cast_signed())
+            r.cast_signed()
+        }
     }
 
     /// Divides, returning the quotient and remainder.
@@ -408,7 +435,7 @@ impl I256 {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return Self::MIN;
         }
-        self.div_rem_unchecked(rhs).0
+        self.div_unchecked(rhs)
     }
 
     /// Remainder, wrapping on overflow (`MIN % -1` is zero).
@@ -421,7 +448,7 @@ impl I256 {
         if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
             return Self::ZERO;
         }
-        self.div_rem_unchecked(rhs).1
+        self.rem_unchecked(rhs)
     }
 
     /// Euclidean division: the quotient whose remainder is never negative.
@@ -689,7 +716,10 @@ impl Div for I256 {
     /// `overflow-checks`, matching the primitive integers.
     #[inline]
     fn div(self, rhs: Self) -> Self {
-        self.div_rem(rhs).0
+        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
+            panic!("attempt to divide with overflow");
+        }
+        self.div_unchecked(rhs)
     }
 }
 
@@ -700,7 +730,10 @@ impl Rem for I256 {
     /// regardless of `overflow-checks`, matching the primitive integers.
     #[inline]
     fn rem(self, rhs: Self) -> Self {
-        self.div_rem(rhs).1
+        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
+            panic!("attempt to divide with overflow");
+        }
+        self.rem_unchecked(rhs)
     }
 }
 

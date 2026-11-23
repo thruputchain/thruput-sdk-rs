@@ -167,7 +167,7 @@ impl I256 {
     fn mul_div_parts(x: Self, y: Self, d: Self) -> Option<(Self, bool, bool)> {
         let negative = (x.is_negative() != y.is_negative()) != d.is_negative();
 
-        let (mag, rem) = U256::mul_div_parts(
+        let (mag, inexact) = U256::mul_div_parts(
             x.unsigned_abs(),
             y.unsigned_abs(),
             d.unsigned_abs(),
@@ -185,6 +185,6 @@ impl I256 {
         }
 
         let q = if negative { mag.wrapping_neg() } else { mag };
-        Some((q.cast_signed(), !rem.is_zero(), negative))
+        Some((q.cast_signed(), inexact, negative))
     }
 }

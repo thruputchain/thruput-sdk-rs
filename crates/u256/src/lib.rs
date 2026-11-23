@@ -85,6 +85,7 @@ pub(crate) const LIMBS: usize = 8;
 /// most-significant-first (see `integration`), matching xdrs' `u128`.
 ///
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[repr(transparent)]
 pub struct U256 {
     pub(crate) limbs: [u32; LIMBS],
 }

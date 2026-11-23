@@ -186,15 +186,11 @@ impl U256 {
         rhs: Self,
         rounding: Rounding,
     ) -> Option<Self> {
-        match self.checked_div_rem(rhs) {
-            Some((q, r)) => {
-                if rounding.unsigned_rounds_up() && !r.is_zero() {
-                    Some(q.wrapping_add(Self::ONE))
-                } else {
-                    Some(q)
-                }
-            }
-            None => None,
+        let (q, r) = self.checked_div_rem(rhs)?;
+        if rounding.unsigned_rounds_up() && !r.is_zero() {
+            Some(q.wrapping_add(Self::ONE))
+        } else {
+            Some(q)
         }
     }
 
@@ -258,17 +254,13 @@ impl U256 {
         d: Self,
         rounding: Rounding,
     ) -> Option<Self> {
-        match Self::mul_div_parts(x, y, d) {
-            Some((q, r)) => {
-                if rounding.unsigned_rounds_up() && !r.is_zero() {
-                    // Rounding up can leave the 256-bit range that the floor
-                    // quotient just fit into.
-                    q.checked_add(Self::ONE)
-                } else {
-                    Some(q)
-                }
-            }
-            None => None,
+        let (q, inexact) = Self::mul_div_parts(x, y, d)?;
+        if rounding.unsigned_rounds_up() && inexact {
+            // Rounding up can leave the 256-bit range that the floor quotient
+            // just fit into.
+            q.checked_add(Self::ONE)
+        } else {
+            Some(q)
         }
     }
 
@@ -296,22 +288,20 @@ impl U256 {
         }
     }
 
-    /// The floor quotient and remainder of `x * y / d`, or `None` when `d` is
-    /// zero or the quotient needs more than 256 bits: the runtime's
-    /// `U256MulDivRem`. Every public `mul_div` entry point is a thin wrapper
-    /// on this.
+    /// The floor quotient of `x * y / d` and whether it was inexact, or
+    /// `None` when `d` is zero or the quotient needs more than 256 bits: the
+    /// runtime's `U256MulDivRem`. Every public `mul_div` entry point is a thin
+    /// wrapper on this.
     #[inline]
     pub(crate) fn mul_div_parts(
         x: Self,
         y: Self,
         d: Self,
-    ) -> Option<(Self, Self)> {
-        // Refused here, so that a zero divisor costs no host call.
+    ) -> Option<(Self, bool)> {
         if d.is_zero() {
             return None;
         }
-        let (q, q_hi, r) = crate::host::mul_div_rem(x, y, d);
-        if q_hi.is_zero() { Some((q, r)) } else { None }
+        crate::host::mul_div(&x, &y, &d)
     }
 
     /// `floor(x * y >> n)` computed on the exact 512-bit product, returning
@@ -472,7 +462,7 @@ impl U256 {
         if m.is_zero() {
             return None;
         }
-        Some(crate::host::mul_div_rem(x, y, m).2)
+        Some(crate::host::mul_mod(&x, &y, &m))
     }
 
     /// `(x * y) % m`, computed on the exact 512-bit product.
@@ -574,10 +564,7 @@ impl U256 {
         let mut k_odd = true;
 
         while !r1.is_zero() {
-            let (q, r) = match r0.checked_div_rem(r1) {
-                Some(v) => v,
-                None => return Self::ZERO,
-            };
+            let (q, r) = r0.div_rem(r1);
             r0 = r1;
             r1 = r;
             // Bounded above by `n`, per the identity `|t[final + 1]| = n / gcd`
