@@ -636,24 +636,26 @@ fn min_rem_minus_one_panics() {
 /// to get a value out of `MIN / -1`, and they must keep working.
 #[test]
 fn division_overflow_is_not_gated_on_overflow_checks() {
-    assert_eq!(I256::MIN.checked_div(I256::MINUS_ONE), None);
-    assert_eq!(I256::MIN.checked_rem(I256::MINUS_ONE), None);
-    assert_eq!(I256::MIN.wrapping_div(I256::MINUS_ONE), I256::MIN);
-    assert_eq!(I256::MIN.wrapping_rem(I256::MINUS_ONE), I256::ZERO);
-    assert_eq!(
-        I256::MIN.overflowing_div(I256::MINUS_ONE),
-        (I256::MIN, true)
-    );
-    assert_eq!(
-        I256::MIN.overflowing_rem(I256::MINUS_ONE),
-        (I256::ZERO, true)
-    );
+    native(|| {
+        assert_eq!(I256::MIN.checked_div(I256::MINUS_ONE), None);
+        assert_eq!(I256::MIN.checked_rem(I256::MINUS_ONE), None);
+        assert_eq!(I256::MIN.wrapping_div(I256::MINUS_ONE), I256::MIN);
+        assert_eq!(I256::MIN.wrapping_rem(I256::MINUS_ONE), I256::ZERO);
+        assert_eq!(
+            I256::MIN.overflowing_div(I256::MINUS_ONE),
+            (I256::MIN, true)
+        );
+        assert_eq!(
+            I256::MIN.overflowing_rem(I256::MINUS_ONE),
+            (I256::ZERO, true)
+        );
 
-    // And the same shapes on i128, so "like the primitives" is visible rather
-    // than asserted: these are total there too.
-    assert_eq!(i128::MIN.checked_div(-1), None);
-    assert_eq!(i128::MIN.wrapping_div(-1), i128::MIN);
-    assert_eq!(i128::MIN.overflowing_div(-1), (i128::MIN, true));
+        // And the same shapes on i128, so "like the primitives" is visible rather
+        // than asserted: these are total there too.
+        assert_eq!(i128::MIN.checked_div(-1), None);
+        assert_eq!(i128::MIN.wrapping_div(-1), i128::MIN);
+        assert_eq!(i128::MIN.overflowing_div(-1), (i128::MIN, true));
+    });
 }
 
 // ---------------------------------------------------------------------------

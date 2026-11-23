@@ -302,11 +302,12 @@ impl I256 {
         Some(self.div_rem_unchecked(rhs))
     }
 
-    /// The division itself, with the two special cases already ruled out.
+    /// The division itself, wrapping: the magnitudes divided, then signed.
     ///
-    /// `MIN / 1` still reaches here and produces a magnitude of `2^255`, which
-    /// negates back to `MIN` exactly; only `MIN / -1` needs the magnitude to
-    /// stay positive, and that is the case the callers reject.
+    /// `MIN`'s magnitude is `2^255`. `MIN / 1` negates it back to `MIN`, and
+    /// `MIN / -1` leaves it as is, which is `MIN` again: the wrapped quotient.
+    /// Its remainder is zero. The callers that must not wrap check for
+    /// `MIN / -1` first; a zero divisor panics here.
     #[inline]
     fn div_rem_unchecked(self, rhs: Self) -> (Self, Self) {
         let (q, r) = self.unsigned_abs().div_rem(rhs.unsigned_abs());
@@ -432,9 +433,6 @@ impl I256 {
     /// If `rhs` is zero.
     #[inline]
     pub fn wrapping_div(self, rhs: Self) -> Self {
-        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
-            return Self::MIN;
-        }
         self.div_unchecked(rhs)
     }
 
@@ -445,9 +443,6 @@ impl I256 {
     /// If `rhs` is zero.
     #[inline]
     pub fn wrapping_rem(self, rhs: Self) -> Self {
-        if self.const_eq(Self::MIN) && rhs.const_eq(Self::MINUS_ONE) {
-            return Self::ZERO;
-        }
         self.rem_unchecked(rhs)
     }
 
