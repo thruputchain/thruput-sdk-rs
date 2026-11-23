@@ -1,0 +1,89 @@
+error[E0277]: this address is not typed by `MetadataClient`
+  --> tests/compile-fail/typed_address_unlisted_client.rs:27:32
+   |
+27 |     let _ = MetadataClient::at(&token);
+   |             ------------------ ^^^^^^ `MetadataClient` is not among the clients of `Address<TokenClient>`
+   |             |
+   |             required by a bound introduced by this call
+   |
+help: the trait `Provides<MetadataClient, _>` is not implemented for `TokenClient`
+  --> tests/compile-fail/typed_address_unlisted_client.rs:7:1
+   |
+ 7 | #[contract(version = "1.0.0")]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: add `MetadataClient` to the address type, or retype the address with `Address::cast`
+   = help: the following other types implement trait `Provides<D, I>`:
+             `(A, B)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<C, thruput_sdk::call::At<2>>`
+             `(A, B, C, D)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C, D)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C, D)` implements `Provides<C, thruput_sdk::call::At<2>>`
+           and $N others
+note: required by a bound in `at`
+  --> src/call/contract_client.rs
+   |
+   |     fn at<S, I>(address: &super::Address<S>) -> Self
+   |        -- required by a bound in this associated function
+...
+   |         S: super::Provides<Self, I>,
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ContractClient::at`
+   = note: this error originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: this address is not typed by `OtherClient`
+  --> tests/compile-fail/typed_address_unlisted_client.rs:28:29
+   |
+28 |     let _ = OtherClient::at(&both);
+   |             --------------- ^^^^^ `OtherClient` is not among the clients of `Address<(TokenClient, MetadataClient)>`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the trait `Provides<OtherClient, _>` is not implemented for `(TokenClient, MetadataClient)`
+   = note: add `OtherClient` to the address type, or retype the address with `Address::cast`
+   = help: the following other types implement trait `Provides<D, I>`:
+             `(A, B)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<C, thruput_sdk::call::At<2>>`
+             `(A, B, C, D)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C, D)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C, D)` implements `Provides<C, thruput_sdk::call::At<2>>`
+           and $N others
+note: required by a bound in `at`
+  --> src/call/contract_client.rs
+   |
+   |     fn at<S, I>(address: &super::Address<S>) -> Self
+   |        -- required by a bound in this associated function
+...
+   |         S: super::Provides<Self, I>,
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ContractClient::at`
+
+error[E0277]: this address is not typed by `OtherClient`
+  --> tests/compile-fail/typed_address_unlisted_client.rs:29:40
+   |
+29 |     let _: Address<OtherClient> = both.narrow();
+   |                                        ^^^^^^ `OtherClient` is not among the clients of `Address<(TokenClient, MetadataClient)>`
+   |
+   = help: the trait `Provides<OtherClient, _>` is not implemented for `(TokenClient, MetadataClient)`
+   = note: add `OtherClient` to the address type, or retype the address with `Address::cast`
+   = help: the following other types implement trait `Provides<D, I>`:
+             `(A, B)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<C, thruput_sdk::call::At<2>>`
+             `(A, B, C, D)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C, D)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C, D)` implements `Provides<C, thruput_sdk::call::At<2>>`
+           and $N others
+note: required by a bound in `thruput_sdk::Address::<C>::narrow`
+  --> src/call/address.rs
+   |
+   |     pub fn narrow<D, I>(self) -> Address<D>
+   |            ------ required by a bound in this associated function
+   |     where
+   |         C: Provides<D, I>,
+   |            ^^^^^^^^^^^^^^ required by this bound in `Address::<C>::narrow`

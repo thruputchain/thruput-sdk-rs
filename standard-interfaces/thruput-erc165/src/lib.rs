@@ -150,7 +150,7 @@ macro_rules! interface_query {
             type Answer = [bool; $n];
 
             const IDS: &'static [InterfaceId] =
-                &[$($client::INTERFACE_ID),+];
+                <Self as thruput_sdk::Interfaces>::IDS;
 
             fn answer(support: &[bool]) -> [bool; $n] {
                 core::array::from_fn(|i| support.get(i) == Some(&true))
@@ -178,6 +178,29 @@ impl ERC165Client {
             .try_supports_interfaces(&query_ids::<Q>())
             .unwrap_or_default();
         Q::answer(&support)
+    }
+
+    /// Whether the contract at `address` reports implementing every
+    /// interface the address is typed by, from one read-only
+    /// `supports_interfaces` call. A failed call or an unanswered id counts
+    /// as unsupported.
+    ///
+    /// An [`Address`](thruput_sdk::Address) records the expected interfaces
+    /// without checking them. Call this where a caller-supplied address
+    /// enters, if the contract should reject one that does not fit. Like any
+    /// ERC-165 claim, the answer is a dispatch hint, not an authorization
+    /// boundary.
+    pub fn supports_address<S: thruput_sdk::Interfaces>(
+        address: &thruput_sdk::Address<S>,
+    ) -> bool {
+        // An address is typed by at most eight interfaces, so they fit.
+        let query: InterfaceIds = S::IDS.iter().copied().collect();
+        let support = ERC165Client::new(address)
+            .with_read_only()
+            .try_supports_interfaces(&query)
+            .unwrap_or_default();
+        support.len() == query.len()
+            && support.iter().all(|supported| *supported)
     }
 }
 

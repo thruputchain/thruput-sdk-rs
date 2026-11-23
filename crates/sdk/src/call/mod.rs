@@ -27,6 +27,7 @@
 //! - Call invoke syscall
 //! - Decode result
 
+mod address;
 mod calls;
 mod contract_client;
 mod contract_result;
@@ -34,6 +35,7 @@ mod encode;
 mod raw_call_error;
 mod ref_arg;
 
+pub use address::{Address, At, Interfaces, Provides, Sole};
 pub use calls::*;
 pub use contract_client::*;
 pub use contract_result::*;
