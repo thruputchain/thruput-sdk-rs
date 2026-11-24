@@ -917,4 +917,8 @@ fn contract_type_ref_helpers_cover_thruput_xdr_builtins() {
         thruput_contract_spec::type_ref::<thruput_xdr::types::BlockHeight>(),
         ContractTypeView::I64
     );
+    assert_eq!(
+        thruput_contract_spec::type_ref::<thruput_xdr::types::TimePoint>(),
+        ContractTypeView::U64
+    );
 }
