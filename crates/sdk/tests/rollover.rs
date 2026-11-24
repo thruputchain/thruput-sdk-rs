@@ -4,7 +4,6 @@
 //! period, each executed before any commits. They must all commit, in any
 //! order, and add up to the same value.
 
-use core::num::NonZeroU64;
 use std::time::Duration;
 use thruput_sdk::exn::LibraryExn;
 use thruput_sdk::storage::*;
@@ -13,7 +12,7 @@ use thruput_sdk::*;
 const ADDR: ContractAddress = ContractAddress::new([7u8; 32]);
 
 const SECOND: u64 = 1_000_000_000;
-const HOUR: NonZeroU64 = NonZeroU64::new(3_600 * SECOND).unwrap();
+const HOUR: Duration = Duration::from_secs(3_600);
 // Windows are counted from here; the first test block is at their start.
 const ORIGIN: u64 = 4_000_000_000 * SECOND;
 
@@ -26,7 +25,7 @@ fn cell() -> Rollover {
 }
 
 fn window() -> Period {
-    Period::window(ORIGIN, HOUR)
+    Period::every_from(ORIGIN, HOUR)
 }
 
 // An environment whose current block is at the start of window 0, with
@@ -39,7 +38,7 @@ fn start() -> TestEnvironmentHandle {
 }
 
 fn next_window(env: &TestEnvironmentHandle, n: u64) {
-    env.advance_block_at((ORIGIN + n * HOUR.get()).into());
+    env.advance_block_at((ORIGIN + n * 3_600 * SECOND).into());
 }
 
 // Run `f` as one committed transaction and return what it returned.
@@ -127,17 +126,21 @@ fn crowd_agrees(setup: fn(), touch: fn(usize), read: fn() -> i128) -> i128 {
 mod tally {
     use super::*;
 
+    pub fn hourly() -> Cycle<i128> {
+        window().reset_to(0)
+    }
+
     // What window 0 leaves behind, which window 2 must not count.
     pub fn leftover() {
-        cell().enter(window(), 0).add(777);
+        cell().add(hourly(), 777);
     }
 
     pub fn count(i: usize) {
-        cell().enter(window(), 0).add(i as i128 + 1);
+        cell().add(hourly(), i as i128 + 1);
     }
 
     pub fn read() -> i128 {
-        cell().peek(window(), 0)
+        cell().get(hourly())
     }
 }
 
@@ -154,19 +157,20 @@ mod quota {
 
     pub const LIMIT: i128 = 10_000;
 
+    pub fn hourly() -> Cycle<i128> {
+        window().reset_to(LIMIT)
+    }
+
     pub fn spend_most() {
-        cell().enter(window(), LIMIT).add(-9_999);
+        cell().sub(hourly(), 9_999);
     }
 
     pub fn spend(i: usize) {
-        let mut cell = cell();
-        let mut left = cell.enter(window(), LIMIT);
-        assert!(left.get() >= i as i128 + 1);
-        left.add(-(i as i128 + 1));
+        assert!(cell().take(hourly(), i as i128 + 1));
     }
 
     pub fn read() -> i128 {
-        cell().peek(window(), LIMIT)
+        cell().get(hourly())
     }
 }
 
@@ -183,21 +187,20 @@ mod decay {
     use super::*;
 
     // Half of what was there, for each window that has passed.
-    pub fn halved(lapsed: Lapsed) -> Option<i128> {
-        let windows = lapsed.to - lapsed.from.unwrap_or(lapsed.to);
-        Some(lapsed.value >> windows.min(127))
+    pub fn halved(was: Lapsed) -> i128 {
+        was.value >> was.elapsed().min(127)
     }
 
     pub fn leftover() {
-        cell().enter_with(window(), halved).add(1_000);
+        cell().add(window().reset_with(halved), 1_000);
     }
 
     pub fn count(i: usize) {
-        cell().enter_with(window(), halved).add(i as i128 + 1);
+        cell().add(window().reset_with(halved), i as i128 + 1);
     }
 
     pub fn read() -> i128 {
-        cell().peek_with(window(), halved)
+        cell().get(window().reset_with(halved))
     }
 }
 
@@ -218,11 +221,10 @@ fn a_second_touch_in_a_transaction_does_not_reset_again() {
     next_window(&env, 1);
 
     let seen = run(&env, || {
-        let mut cell = cell();
-        cell.enter(window(), 0).add(5);
+        cell().add(tally::hourly(), 5);
         // A new handle, as a second call in the transaction would make.
-        let mut again = self::cell();
-        let mut current = again.enter(window(), 0);
+        let mut again = cell();
+        let mut current = again.enter(tally::hourly());
         current.add(7);
         current.get()
     });
@@ -239,19 +241,18 @@ fn a_rule_runs_once_on_the_snapshot() {
     next_window(&env, 1);
 
     let calls = run(&env, || {
-        let mut calls = 0u32;
+        let calls = std::cell::Cell::new(0u32);
+        let counted = window().reset_with(|was: Lapsed| {
+            calls.set(calls.get() + 1);
+            // The block's start, not this transaction's additions.
+            assert_eq!(was.value, 1_000);
+            assert_eq!((was.from, was.to), (Some(0), 1));
+            decay::halved(was)
+        });
         for _ in 0..3 {
-            cell()
-                .enter_with(window(), |lapsed| {
-                    calls += 1;
-                    // The block's start, not this transaction's additions.
-                    assert_eq!(lapsed.value, 1_000);
-                    assert_eq!((lapsed.from, lapsed.to), (Some(0), 1));
-                    decay::halved(lapsed)
-                })
-                .add(1);
+            cell().add(counted, 1);
         }
-        calls
+        calls.get()
     });
     assert_eq!(calls, 1);
 
@@ -266,10 +267,11 @@ fn a_period_that_changes_within_a_transaction_is_refused() {
     let env = start();
     let refused = run(&env, || {
         let mut cell = cell();
-        cell.enter(Period::from_raw(5), 100).add(-60);
-        let refused = cell.try_enter(Period::from_raw(6), 100).err();
+        let fifth = Period::from_raw(5).reset_to(100);
+        cell.sub(fifth, 60);
+        let refused = cell.try_enter(Period::from_raw(6).reset_to(100)).err();
         // Nothing was discarded.
-        assert_eq!(cell.enter(Period::from_raw(5), 100).get(), 40);
+        assert_eq!(cell.get(fifth), 40);
         refused == Some(LibraryExn::RolloverAlreadyWritten)
     });
     assert!(refused);
@@ -285,11 +287,12 @@ fn a_rule_that_changes_its_mind_within_a_transaction_is_refused() {
 
     let refused = run(&env, || {
         let mut cell = cell();
-        cell.enter_with(window(), |_| None).add(1);
+        let unmoved = window().reset_with(|_| None);
+        cell.add(unmoved, 1);
         // Asking again and hearing the same is fine.
-        cell.enter_with(window(), |_| None).add(1);
+        cell.add(unmoved, 1);
         assert_eq!(cell.recorded(), (Some(0), 779));
-        let refused = cell.try_enter_with(window(), |_| Some(0)).err();
+        let refused = cell.try_enter(window().reset_to(0)).err();
         refused == Some(LibraryExn::RolloverAlreadyWritten)
     });
     assert!(refused);
@@ -301,7 +304,7 @@ fn restart_does_not_discard_this_transactions_additions() {
     let refused = run(&env, || {
         let mut cell = cell();
         cell.restart(window(), 50);
-        cell.enter(window(), 0).add(1);
+        cell.add(tally::hourly(), 1);
         cell.try_restart(window(), 50)
             == Err(LibraryExn::RolloverAlreadyWritten)
     });
@@ -339,7 +342,7 @@ fn a_never_written_cell_reads_as_reset() {
     let seen = run(&env, || {
         let cell = cell();
         assert_eq!(cell.recorded(), (None, 0));
-        cell.peek(window(), 9)
+        cell.get(window().reset_to(9))
     });
     assert_eq!(seen, 9);
 }
@@ -353,10 +356,9 @@ fn a_block_cannot_overspend_a_fresh_quota() {
     let env = start();
     next_window(&env, 1);
     let spend = || {
-        let mut cell = cell();
-        let mut left = cell.enter(window(), 100);
-        assert_eq!(left.get(), 100);
-        left.add(-40);
+        let hundred = window().reset_to(100);
+        assert_eq!(cell().get(hundred), 100);
+        assert!(cell().take(hundred, 40));
     };
     let mut txs: Vec<_> = (0..3).map(|_| pending(&env, spend)).collect();
     let results: Vec<_> = txs
@@ -371,7 +373,7 @@ fn a_block_cannot_overspend_a_fresh_quota() {
         [DbConflictCode::BoundsExceeded]
     );
     env.advance_block();
-    assert_eq!(run(&env, || cell().peek(window(), 100)), 20);
+    assert_eq!(run(&env, || cell().get(window().reset_to(100))), 20);
 }
 
 // The known hazard. A transaction that computes a different reset from the
@@ -381,7 +383,7 @@ fn a_block_cannot_overspend_a_fresh_quota() {
 fn transactions_that_compute_different_resets_conflict() {
     let env = start();
     next_window(&env, 1);
-    let spend = |limit: i128| move || cell().enter(window(), limit).add(-1);
+    let spend = |limit: i128| move || cell().sub(window().reset_to(limit), 1);
 
     let mut usual = pending(&env, spend(100));
     let mut odd = pending(&env, spend(50));
@@ -395,7 +397,7 @@ fn transactions_that_compute_different_resets_conflict() {
     drop((usual, odd, late));
 
     env.advance_block();
-    assert_eq!(run(&env, || cell().peek(window(), 100)), 98);
+    assert_eq!(run(&env, || cell().get(window().reset_to(100))), 98);
 }
 
 // --- A token bucket --------------------------------------------------------
@@ -423,18 +425,23 @@ mod bucket {
             u256::mul_div_u128(self.refill.into(), t.into(), period) as i128
         }
 
-        fn refilled(&self, lapsed: Lapsed) -> Option<i128> {
+        fn refilled(&self, was: Lapsed) -> Option<i128> {
             // A bucket never filled stays empty.
-            let credit = self.flowed(lapsed.to) - self.flowed(lapsed.from?);
-            let room = self.burst.saturating_sub(lapsed.value);
+            let credit = self.flowed(was.to) - self.flowed(was.from?);
+            let room = self.burst.saturating_sub(was.value);
             if credit >= room {
                 Some(self.burst)
             } else if credit == 0 {
                 // Nothing to record: leave the count where it was.
                 None
             } else {
-                Some(lapsed.value + credit)
+                Some(was.value + credit)
             }
+        }
+
+        // The bucket's cycle: refilled as of this block's timepoint.
+        fn refill(&self) -> Cycle<impl Reset + Copy + '_> {
+            Period::timepoint().reset_with(|was| self.refilled(was))
         }
     }
 
@@ -450,19 +457,11 @@ mod bucket {
         }
 
         pub fn available(&self, rate: Rate) -> i128 {
-            self.0
-                .peek_with(Period::timepoint(), |lapsed| rate.refilled(lapsed))
+            self.0.get(rate.refill())
         }
 
         pub fn take(&mut self, rate: Rate, amount: i128) -> bool {
-            let mut held = self.0.enter_with(Period::timepoint(), |lapsed| {
-                rate.refilled(lapsed)
-            });
-            if held.get() < amount {
-                return false;
-            }
-            held.add(-amount);
-            true
+            self.0.take(rate.refill(), amount)
         }
     }
 }
@@ -601,22 +600,23 @@ mod lanes {
         Keypath::default().child(&3u32).into()
     }
 
+    fn epoch() -> Cycle<i128> {
+        window().reset_to(0)
+    }
+
     pub fn old_paint() {
         paint(0);
     }
 
     pub fn paint(i: usize) {
         let (amount, shade) = (i as i128 + 1, 200 - i as i128);
-        canvas()
-            .coats
-            .at_mut(&9)
-            .enter(window(), 0)
-            .add((amount << DEPTH) | (amount * shade));
+        let stroke = (amount << DEPTH) | (amount * shade);
+        canvas().coats.at_mut(&9).add(epoch(), stroke);
     }
 
     // The mean shade, weighted by amount.
     pub fn shade() -> i128 {
-        let coat = canvas().coats.at(&9).peek(window(), 0);
+        let coat = canvas().coats.at(&9).get(epoch());
         (coat & ((1 << DEPTH) - 1)) / (coat >> DEPTH).max(1)
     }
 }
@@ -628,4 +628,24 @@ fn a_crowd_adds_to_lanes() {
         crowd_agrees(lanes::old_paint, lanes::paint, lanes::shade),
         weighted / CROWD_SUM
     );
+}
+
+// --- Periods ---------------------------------------------------------------
+
+#[test]
+fn periods_count_windows_of_the_block_timepoint() {
+    let env = start();
+    env.advance_block_at((ORIGIN + 90 * 60 * SECOND).into());
+    run(&env, || {
+        let now = ORIGIN + 90 * 60 * SECOND;
+        assert_eq!(Period::timepoint().index(), now);
+        assert_eq!(Period::hourly().index(), now / (3_600 * SECOND));
+        assert_eq!(Period::daily().index(), now / (86_400 * SECOND));
+        assert_eq!(Period::every(HOUR), Period::hourly());
+        assert_eq!(Period::every_from(ORIGIN, HOUR).index(), 1);
+        // A block before the origin is in window 0, and a zero length is
+        // taken as a nanosecond.
+        assert_eq!(Period::every_from(u64::MAX, HOUR).index(), 0);
+        assert_eq!(Period::every(Duration::ZERO), Period::timepoint());
+    });
 }
