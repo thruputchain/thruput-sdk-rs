@@ -273,6 +273,15 @@ impl TimeSpan {
         TimePoint::new((**start).saturating_add(self.nanos))
     }
 
+    /// The timepoint this long before `end`. Panics if that precedes the Unix
+    /// epoch.
+    ///
+    /// The same as `end - self`.
+    pub fn before(self, end: &TimePoint) -> TimePoint {
+        self.checked_before(end)
+            .expect("overflow when subtracting time span from timepoint")
+    }
+
     /// The timepoint this long before `end`, or `None` if that precedes the
     /// Unix epoch.
     pub fn checked_before(self, end: &TimePoint) -> Option<TimePoint> {
@@ -396,8 +405,7 @@ impl Sub<TimeSpan> for &TimePoint {
     type Output = TimePoint;
 
     fn sub(self, rhs: TimeSpan) -> TimePoint {
-        rhs.checked_before(self)
-            .expect("overflow when subtracting time span from timepoint")
+        rhs.before(self)
     }
 }
 
@@ -405,13 +413,13 @@ impl Sub<TimeSpan> for TimePoint {
     type Output = TimePoint;
 
     fn sub(self, rhs: TimeSpan) -> TimePoint {
-        &self - rhs
+        rhs.before(&self)
     }
 }
 
 impl SubAssign<TimeSpan> for TimePoint {
     fn sub_assign(&mut self, rhs: TimeSpan) {
-        *self = &*self - rhs;
+        *self = rhs.before(self);
     }
 }
 
