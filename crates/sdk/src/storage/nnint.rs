@@ -7,6 +7,13 @@ use core::fmt::Debug;
 /// A stored integer with a **commit-time floor**, not a call-time
 /// non-negativity invariant.
 ///
+/// This is the general wrapper over Thruput's mergeable integer-storage cell.
+/// [`Balance`](super::Balance) and
+/// [`CapacityConstraint`](super::CapacityConstraint) are narrower views of
+/// the same cell. Prefer `Balance` for a balance or a counter: it reads a
+/// never-written cell as zero and has no absolute `set`. Use `NNInt` when the
+/// contract needs [`set`](Self::set) or a negative floor.
+///
 /// The value is `set + add`: `set` is the last explicit [`set`](Self::set) (or
 /// the value carried from the previous transaction) and `add` is what
 /// [`inc`](Self::inc) has accumulated this transaction. The storage layer
@@ -40,6 +47,10 @@ impl From<Keypath> for NNInt {
 
 impl NNInt {
     /// Get the current value.  Aborts if location not yet set.
+    ///
+    /// [`inc`](Self::inc) and [`strict_inc`](Self::strict_inc) treat a
+    /// never-written location as zero; `get` does not. Write the location
+    /// first, or read it with [`try_get`](Self::try_get).
     pub fn get(&self) -> i128 {
         non_negative_int_get(self.key.get())
     }
