@@ -64,31 +64,6 @@ pub use thruput_u256::{
     I256, Rounding, TryFromIntError, U256, checked_mul_div_u128, mul_div_u128,
 };
 
-/// `core`'s span of time, for arithmetic on [`TimePoint`].
-///
-/// Re-exported so a contract can reach for it without naming `core` itself.
-/// `thruput-xdr` implements `+` and `-` between `TimePoint` and `Duration`:
-///
-/// ```
-/// use thruput_sdk::{Duration, TimePoint};
-///
-/// let now = TimePoint::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
-/// let deadline = &now + 7 * Duration::from_hours(24);
-/// assert!(now < deadline);
-/// ```
-///
-/// A `Duration` has no XDR form: it cannot be stored, passed to a
-/// `#[contract]` method or held in a `#[contract_type]`. Use [`TimeSpan`]
-/// there. It supports the same arithmetic on `TimePoint` and converts to and
-/// from a `Duration`. See [`mod@time`].
-///
-/// Those operators panic on overflow in every build profile, unlike the
-/// integer primitives: a deadline that silently wrapped into the past would
-/// be a security bug. [`TimePoint::checked_add`] and `saturating_add` handle
-/// the edge without panicking. [`BlockHeight`] takes the same shape against
-/// a signed number of blocks, which needs no import.
-pub use core::time::Duration;
-
 #[cfg(feature = "alloc-api")]
 extern crate alloc;
 
@@ -252,7 +227,6 @@ pub use throw::*;
 /// Allocation-free base58 conversion for public identifiers.
 pub use thruput_xdr::base58;
 pub use thruput_xdr::base58::{Base58, base58_encode};
-pub use time::TimeSpan;
 pub use types::*;
 pub use util::*;
 // XDR serialization vocabulary that is part of the SDK's public API (macro

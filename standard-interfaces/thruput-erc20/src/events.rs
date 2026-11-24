@@ -346,7 +346,7 @@ impl<'a> From<&AllowanceResetEvent<'a>> for StdAllowanceResetEvent {
             owner_address: *val.owner,
             spender_address: *val.spender,
             removed: val.removed,
-            until: val.until.clone(),
+            until: val.until,
         }
     }
 }

@@ -532,14 +532,13 @@ these methods is `const fn`.
 
 # Time
 
-[`get_block_timepoint`] returns the block's [`TimePoint`]: Unix nanoseconds,
-fixed for the block, the same for every transaction in it. Keep it as a
-`TimePoint` instead of unwrapping it to a `u64`. A `TimePoint` is a
-`#[contract_type]` field, a method parameter and a stored value, and it
-compares with `<` and `>=`. A length of time is a [`TimeSpan`], which is
-stored and passed the same way. Both encode as a `u64` of nanoseconds, so
-changing a field from `u64` nanoseconds to either changes neither a storage
-layout nor an ABI.
+[`get_block_timepoint`] returns the block's [`TimePoint`]: fixed for the
+block, the same for every transaction in it. Keep it as a `TimePoint`
+instead of unwrapping it to a `u64`. A length of time is a [`TimeSpan`].
+Both are `Copy`, and each is a `#[contract_type]` field, a method parameter
+and a stored value. Both encode as one `u64` of nanoseconds, so changing a
+field from `u64` nanoseconds to either changes neither a storage layout nor
+an ABI.
 
 A deadline is a stored timepoint:
 
@@ -552,14 +551,15 @@ pub struct Terms {
 ensure(get_block_timepoint() < terms.end, AuctionError::BiddingClosed);
 ```
 
-An expiry is a timepoint plus a span, and an age is the span between two
-timepoints:
+An expiry is a timepoint plus a span, and an age is one timepoint minus
+another:
 
 ```rust,ignore
+const LIFETIME: TimeSpan = TimeSpan::from_days(7);
+
 let now = get_block_timepoint();
-let expires = &now + terms.lifetime;
-let age = TimeSpan::between(&observed, &now);
-ensure(age <= max_age, ConsumerError::StaleObservation);
+let expires = now + LIFETIME;
+ensure(now - observed <= max_age, ConsumerError::StaleObservation);
 ```
 
 For epochs, vesting steps and rate-limit windows, [`time::period_at`] gives
@@ -567,18 +567,16 @@ the period a timepoint falls in and how far into it:
 
 ```rust,ignore
 let Period { index, elapsed } =
-    period_at(&canvas.origin, canvas.terms.epoch, &get_block_timepoint())
+    period_at(canvas.origin, canvas.terms.epoch, get_block_timepoint())
         .unwrap_or_else(|| throw(PigmentError::NotStarted));
 ```
 
 The operators panic on overflow in every build profile; the `checked_` and
-`saturating_` methods do not. `TimePoint` is not `Copy`, so pass it by
-reference and derive `Clone` on a struct that holds one. A Unix timestamp in
-seconds from outside the contract becomes a timepoint with
-`TimePoint::UNIX_EPOCH.checked_add(Duration::from_secs(secs))`. [`mod@time`]
-has the full surface, the conversions to and from [`Duration`], and the forms
-that work in a `const`. In a test, `TestEnvironment::advance_block_at` pins
-the next block's timepoint.
+`saturating_` methods do not. Use those on a span a caller supplies.
+`core::time::Duration` cannot be stored or passed to a contract; host code
+converts with `TimeSpan::from_duration` and `Duration::from`. [`mod@time`]
+says more. In a test, `TestEnvironment::advance_block_at` pins the next
+block's timepoint and `set_block_time_step` spaces the blocks after it.
 
 # System functions
 

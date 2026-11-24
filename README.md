@@ -86,7 +86,7 @@ storage guards.
 
 `get_block_timepoint()` returns a `TimePoint`. Store, pass and compare it as
 one instead of unwrapping it to a `u64`, and use `TimeSpan` for a length of
-time: a deadline is `now < terms.end`, and an expiry is `&now + lifetime`.
+time: a deadline is `now < terms.end`, and an expiry is `now + lifetime`.
 The
 [SDK guide](https://github.com/thruputchain/thruput-sdk-rs/blob/main/crates/sdk/doc/lib.md#time)
 covers deadlines, ages and periods counted from an origin.

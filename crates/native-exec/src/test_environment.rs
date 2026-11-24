@@ -8,7 +8,7 @@ use core::ffi::c_void;
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use thruput_storage_cost::StorageCostModel;
 use thruput_sys::FFIErrorCode;
 use thruput_trace::ffi_enums::InvokeErrorCode;
@@ -543,14 +543,8 @@ impl TestEnvironmentInner {
     /// block's timepoint plus `step` instead of the wall clock; `None` follows
     /// the wall clock again. See
     /// [`TestEnvironmentHandle::set_block_time_step`].
-    pub fn set_block_time_step(&mut self, step: Option<Duration>) {
-        self.clock.step = step.map(|step| {
-            u64::try_from(step.as_nanos()).unwrap_or_else(|_| {
-                panic!(
-                    "block time step {step:?} does not fit in u64 nanoseconds"
-                )
-            })
-        });
+    pub fn set_block_time_step(&mut self, step: Option<TimeSpan>) {
+        self.clock.step = step.map(TimeSpan::into_inner);
     }
 
     /// Advances to the next block as [`TestEnvironmentInner::advance_block`]
@@ -821,7 +815,7 @@ impl TestEnvironment {
     /// Give each block from `advance_block` the previous block's timepoint
     /// plus `step`, instead of the wall clock, as `thruput node
     /// --block-time-step-ms` and `dev_setBlockTimeStep` do on a local node.
-    /// `Some(Duration::ZERO)` freezes the clock: every block until the next
+    /// `Some(TimeSpan::ZERO)` freezes the clock: every block until the next
     /// `advance_block_at` carries the same timepoint. `None` follows the wall
     /// clock again, continuing from the last block rather than from today.
     ///
@@ -829,10 +823,11 @@ impl TestEnvironment {
     /// continues from it. With nothing pinned yet, the first block after a
     /// step is set takes the wall clock, and later blocks step from it.
     ///
-    /// Panics if `step` does not fit in u64 nanoseconds (about 584 years).
+    /// For a step shorter than a second, convert a `std::time::Duration`
+    /// with `TimeSpan::from_duration`.
     pub fn set_block_time_step(
         self: &TestEnvironmentHandle,
-        step: Option<Duration>,
+        step: Option<TimeSpan>,
     ) {
         self.inner.borrow_mut().set_block_time_step(step)
     }

@@ -1,17 +1,17 @@
 //! `TimePoint` and `TimeSpan` are stored, passed and returned as themselves,
-//! encode as a `u64` of nanoseconds, and count periods from an origin.
+//! encode as a `u64`, and count periods from an origin.
 
 #![allow(unexpected_cfgs)]
 
 use thruput_contract_spec::ContractTypeRefSpec;
 use thruput_sdk::storage::{Map, Value};
-use thruput_sdk::time::{Period, TimeSpanOverflow, period_at};
+use thruput_sdk::time::{Period, period_at};
 use thruput_sdk::xdr::cxs;
 use thruput_sdk::*;
 
-/// Holds a timepoint and a span, with the derives each allows.
+/// Holds a timepoint and a span: both are `Copy`.
 #[contract_type]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Schedule {
     pub origin: TimePoint,
     pub epoch: TimeSpan,
@@ -25,13 +25,6 @@ pub struct RawSchedule {
     pub origin: u64,
     pub epoch: u64,
     pub end: Option<u64>,
-}
-
-/// A span alone leaves the struct `Copy`.
-#[contract_type]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Limit {
-    pub period: TimeSpan,
 }
 
 #[derive(Event, Clone, Debug)]
@@ -53,7 +46,7 @@ impl Clock {
     pub fn set_schedule(&mut self, schedule: Schedule) {
         self.seen.at_mut(&schedule.origin).set(&schedule.epoch);
         log_event(&Scheduled {
-            origin: schedule.origin.clone(),
+            origin: schedule.origin,
             epoch: schedule.epoch,
         });
         self.schedule.set(&schedule);
@@ -90,9 +83,9 @@ impl Clock {
     /// The epoch this block falls in, and the nanoseconds into it.
     pub fn epoch_now(&self) -> (u64, TimeSpan) {
         let Period { index, elapsed } = period_at(
-            &self.origin.get(),
+            self.origin.get(),
             self.epoch.get(),
-            &get_block_timepoint(),
+            get_block_timepoint(),
         )
         .unwrap();
         (index, elapsed)
@@ -106,7 +99,8 @@ impl Clock {
 const CLOCK: ContractAddress = ContractAddress::new([0x51; 32]);
 const CALLER: ContractAddress = ContractAddress::new([0x52; 32]);
 
-const START: TimePoint = TimeSpan::from_days(30_000).after_unix_epoch();
+// 2052: after the wall clock, which the environment's first block takes.
+const START: TimePoint = TimePoint::new(30_000 * 86_400 * 1_000_000_000);
 const EPOCH: TimeSpan = TimeSpan::from_mins(1);
 
 fn environment() -> TestEnvironmentHandle {
@@ -141,10 +135,7 @@ fn encode_as_u64_nanoseconds() {
         cxs::decode::<TimeSpan>(&cxs::encode(&span).unwrap()).unwrap(),
         span
     );
-    assert_eq!(
-        <TimeSpan as cxs::ConstMaxSize>::MAX_SIZE,
-        <u64 as cxs::ConstMaxSize>::MAX_SIZE,
-    );
+    assert_eq!(START, TimePoint::UNIX_EPOCH + TimeSpan::from_days(30_000));
 
     let schedule = Schedule {
         origin: START,
@@ -153,8 +144,8 @@ fn encode_as_u64_nanoseconds() {
     };
     let raw = RawSchedule {
         origin: *START,
-        epoch: EPOCH.as_nanos(),
-        end: Some(*START + 10 * EPOCH.as_nanos()),
+        epoch: *EPOCH,
+        end: Some(*START + 10 * *EPOCH),
     };
     let bytes = cxs::encode(&schedule).unwrap();
     assert_eq!(bytes, cxs::encode(&raw).unwrap());
@@ -177,8 +168,7 @@ fn are_stored_passed_and_returned() {
         end: None,
     };
 
-    let stored = schedule.clone();
-    call(&env, move |clock| clock.set_schedule(stored));
+    call(&env, move |clock| clock.set_schedule(schedule));
     env.advance_block();
     assert_eq!(call(&env, |clock| clock.schedule()), schedule);
     assert_eq!(call(&env, |clock| clock.seen(&START)), EPOCH);
@@ -198,17 +188,15 @@ fn are_stored_passed_and_returned() {
 #[test]
 fn a_contract_counts_epochs_from_its_origin() {
     let env = environment();
+    let tick = TimeSpan::new(1);
     let origin = call(&env, |clock| clock.start(EPOCH));
     assert_eq!(origin, START);
     // Commit the origin, in a block at the same timepoint.
     env.advance_block_at(START);
     assert_eq!(call(&env, |clock| clock.epoch_now()), (0, TimeSpan::ZERO));
 
-    env.advance_block_at(START + EPOCH - TimeSpan::from_nanos(1));
-    assert_eq!(
-        call(&env, |clock| clock.epoch_now()),
-        (0, EPOCH - TimeSpan::from_nanos(1))
-    );
+    env.advance_block_at(START + EPOCH - tick);
+    assert_eq!(call(&env, |clock| clock.epoch_now()), (0, EPOCH - tick));
 
     env.advance_block_at(START + EPOCH);
     assert_eq!(call(&env, |clock| clock.epoch_now()), (1, TimeSpan::ZERO));
@@ -221,8 +209,22 @@ fn a_contract_counts_epochs_from_its_origin() {
 }
 
 #[test]
+fn a_fixed_step_spaces_blocks_by_a_span() {
+    let env = environment();
+    env.set_block_time_step(Some(EPOCH));
+    call(&env, |clock| clock.start(EPOCH));
+    for index in 1..=3 {
+        env.advance_block();
+        assert_eq!(
+            call(&env, |clock| clock.epoch_now()),
+            (index, TimeSpan::ZERO)
+        );
+    }
+}
+
+#[test]
 fn period_at_splits_time_since_an_origin() {
-    let at = |nanos| period_at(&START, EPOCH, &(START + nanos));
+    let at = |since| period_at(START, EPOCH, START + since);
     assert_eq!(
         at(TimeSpan::ZERO),
         Some(Period {
@@ -239,159 +241,19 @@ fn period_at_splits_time_since_an_origin() {
     );
 
     // Before the origin, and with no period to count in.
-    let before = START - TimeSpan::from_nanos(1);
-    assert_eq!(period_at(&START, EPOCH, &before), None);
-    assert_eq!(period_at(&START, TimeSpan::ZERO, &START), None);
+    assert_eq!(period_at(START, EPOCH, START - TimeSpan::new(1)), None);
+    assert_eq!(period_at(START, TimeSpan::ZERO, START), None);
 
     // The whole range, in the shortest period.
-    let last = TimeSpan::MAX.after_unix_epoch();
     assert_eq!(
-        period_at(&TimePoint::UNIX_EPOCH, TimeSpan::from_nanos(1), &last),
+        period_at(
+            TimePoint::UNIX_EPOCH,
+            TimeSpan::new(1),
+            TimePoint::new(u64::MAX)
+        ),
         Some(Period {
             index: u64::MAX,
             elapsed: TimeSpan::ZERO
         })
     );
-}
-
-#[test]
-fn spans_build_from_units() {
-    assert_eq!(TimeSpan::from_nanos(7).as_nanos(), 7);
-    assert_eq!(TimeSpan::from_millis(1_500).as_nanos(), 1_500_000_000);
-    assert_eq!(TimeSpan::from_secs(60), TimeSpan::from_mins(1));
-    assert_eq!(TimeSpan::from_mins(60), TimeSpan::from_hours(1));
-    assert_eq!(TimeSpan::from_hours(24), TimeSpan::from_days(1));
-    assert_eq!(TimeSpan::from_millis(2_999).as_secs(), 2);
-    assert_eq!(TimeSpan::default(), TimeSpan::ZERO);
-    assert!(TimeSpan::ZERO.is_zero());
-    assert!(!EPOCH.is_zero());
-    assert!(TimeSpan::from_secs(59) < EPOCH && EPOCH < TimeSpan::MAX);
-}
-
-#[test]
-#[should_panic(expected = "overflow in TimeSpan constructor")]
-fn a_span_past_the_range_panics() {
-    let _ = TimeSpan::from_days(u64::MAX);
-}
-
-#[test]
-fn spans_convert_to_and_from_durations() {
-    assert_eq!(Duration::from(EPOCH), Duration::from_secs(60));
-    assert_eq!(EPOCH.as_duration(), Duration::from_secs(60));
-    assert_eq!(TimeSpan::try_from(Duration::from_secs(60)), Ok(EPOCH));
-    assert_eq!(
-        TimeSpan::try_from(Duration::from_nanos(u64::MAX)),
-        Ok(TimeSpan::MAX)
-    );
-
-    let too_long = Duration::from_nanos(u64::MAX) + Duration::from_nanos(1);
-    assert_eq!(TimeSpan::try_from(too_long), Err(TimeSpanOverflow));
-    assert_eq!(TimeSpan::from_duration(Duration::MAX), None);
-
-    // The two kinds of span agree on a timepoint.
-    assert_eq!(&START + EPOCH, &START + Duration::from(EPOCH));
-    assert_eq!(
-        Duration::from(TimeSpan::between(&START, &(START + EPOCH))),
-        (START + EPOCH) - START
-    );
-}
-
-#[test]
-fn timepoints_move_by_spans() {
-    let later = &START + EPOCH;
-    assert_eq!(*later, *START + EPOCH.as_nanos());
-    assert_eq!(START + EPOCH, later);
-    assert_eq!(EPOCH.after(&START), later);
-    assert_eq!(&later - EPOCH, START);
-    assert_eq!(later.clone() - EPOCH, START);
-
-    let mut moving = START;
-    moving += EPOCH;
-    assert_eq!(moving, later);
-    moving -= EPOCH;
-    assert_eq!(moving, START);
-
-    assert_eq!(TimeSpan::between(&START, &later), EPOCH);
-    assert_eq!(TimeSpan::between(&later, &START), TimeSpan::ZERO);
-    assert_eq!(TimeSpan::checked_between(&START, &later), Some(EPOCH));
-    assert_eq!(TimeSpan::checked_between(&later, &START), None);
-
-    assert_eq!(
-        TimeSpan::since_unix_epoch(&START),
-        TimeSpan::from_days(30_000)
-    );
-    assert_eq!(TimeSpan::ZERO.after_unix_epoch(), TimePoint::UNIX_EPOCH);
-}
-
-#[test]
-fn checked_and_saturating_forms_stop_at_the_range() {
-    let last = TimeSpan::MAX.after_unix_epoch();
-    let nano = TimeSpan::from_nanos(1);
-
-    assert_eq!(nano.checked_after(&(&last - nano)), Some(last.clone()));
-    assert_eq!(nano.checked_after(&last), None);
-    assert_eq!(EPOCH.saturating_after(&last), last);
-    assert_eq!(EPOCH.saturating_after(&START), START + EPOCH);
-    assert_eq!(nano.checked_before(&TimePoint::UNIX_EPOCH), None);
-    assert_eq!(
-        nano.checked_before(&nano.after_unix_epoch()),
-        Some(TimePoint::UNIX_EPOCH)
-    );
-
-    assert_eq!(TimeSpan::MAX.checked_add(nano), None);
-    assert_eq!(EPOCH.checked_add(EPOCH), Some(TimeSpan::from_mins(2)));
-    assert_eq!(TimeSpan::ZERO.checked_sub(nano), None);
-    assert_eq!(EPOCH.checked_sub(EPOCH), Some(TimeSpan::ZERO));
-    assert_eq!(TimeSpan::MAX.checked_mul(2), None);
-    assert_eq!(EPOCH.checked_mul(60), Some(TimeSpan::from_hours(1)));
-}
-
-#[test]
-fn spans_add_scale_and_divide() {
-    let mut span = EPOCH + TimeSpan::from_secs(30);
-    assert_eq!(span, TimeSpan::from_secs(90));
-    span -= TimeSpan::from_secs(30);
-    span += EPOCH;
-    assert_eq!(span, 2 * EPOCH);
-    assert_eq!(EPOCH * 2, 2 * EPOCH);
-    assert_eq!(EPOCH / 4, TimeSpan::from_secs(15));
-    assert_eq!(EPOCH - TimeSpan::from_secs(1), TimeSpan::from_secs(59));
-
-    assert_eq!(
-        TimeSpan::from_secs(150).checked_div_rem(EPOCH),
-        Some((2, TimeSpan::from_secs(30)))
-    );
-    assert_eq!(EPOCH.checked_div_rem(TimeSpan::ZERO), None);
-}
-
-#[test]
-#[should_panic(expected = "overflow when adding time span to timepoint")]
-fn a_timepoint_past_the_range_panics() {
-    let _ = TimeSpan::MAX.after_unix_epoch() + TimeSpan::from_nanos(1);
-}
-
-#[test]
-#[should_panic(
-    expected = "overflow when subtracting time span from timepoint"
-)]
-fn a_timepoint_before_the_epoch_panics() {
-    let _ = TimePoint::UNIX_EPOCH - TimeSpan::from_nanos(1);
-}
-
-#[test]
-#[should_panic(expected = "overflow when adding time spans")]
-fn a_sum_of_spans_past_the_range_panics() {
-    let _ = TimeSpan::MAX + TimeSpan::from_nanos(1);
-}
-
-#[test]
-#[should_panic(expected = "overflow when subtracting time spans")]
-fn a_negative_span_panics() {
-    let _ = TimeSpan::ZERO - TimeSpan::from_nanos(1);
-}
-
-#[test]
-#[should_panic(expected = "overflow when multiplying time span")]
-fn a_scaled_span_past_the_range_panics() {
-    let _ = TimeSpan::MAX * 2;
 }

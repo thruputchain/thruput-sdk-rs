@@ -70,6 +70,7 @@ impl_receive_noop!(
     crate::types::ContractAddress,
     crate::types::BlockHeight,
     crate::types::TimePoint,
+    crate::types::TimeSpan,
     crate::types::SHA256Hash,
     crate::types::Ed25519PublicKey,
     crate::types::Ed25519Signature,
