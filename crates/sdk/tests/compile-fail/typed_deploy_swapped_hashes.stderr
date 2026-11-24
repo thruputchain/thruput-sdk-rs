@@ -1,0 +1,111 @@
+error[E0308]: mismatched types
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:20:25
+   |
+20 |     let _ = code.deploy(&code);
+   |                  ------ ^^^^^ expected `&DeployNonce`, found `&CodeHash<TokenClient>`
+   |                  |
+   |                  arguments to this method are incorrect
+   |
+   = note: expected reference `&thruput_sdk::DeployNonce`
+              found reference `&thruput_sdk::CodeHash<TokenClient>`
+note: method defined here
+  --> src/deploy/typed.rs
+   |
+   |     pub fn deploy(&self, nonce: &DeployNonce) -> Address<C> {
+   |            ^^^^^^
+
+error[E0308]: mismatched types
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:21:33
+   |
+21 |     let _ = code.deploy_address(&code);
+   |                  -------------- ^^^^^ expected `&DeployNonce`, found `&CodeHash<TokenClient>`
+   |                  |
+   |                  arguments to this method are incorrect
+   |
+   = note: expected reference `&thruput_sdk::DeployNonce`
+              found reference `&thruput_sdk::CodeHash<TokenClient>`
+note: method defined here
+  --> src/deploy/typed.rs
+   |
+   |     pub fn deploy_address(&self, nonce: &DeployNonce) -> Address<C> {
+   |            ^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:22:48
+   |
+22 |     let _ = code.deploy_address_for(&deployer, &code);
+   |                  ------------------            ^^^^^ expected `&DeployNonce`, found `&CodeHash<TokenClient>`
+   |                  |
+   |                  arguments to this method are incorrect
+   |
+   = note: expected reference `&thruput_sdk::DeployNonce`
+              found reference `&thruput_sdk::CodeHash<TokenClient>`
+note: method defined here
+  --> src/deploy/typed.rs
+   |
+   |     pub fn deploy_address_for(
+   |            ^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `deploy` found for struct `thruput_sdk::DeployNonce` in the current scope
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:25:19
+   |
+25 |     let _ = nonce.deploy(&code);
+   |                   ^^^^^^ method not found in `thruput_sdk::DeployNonce`
+
+error[E0308]: mismatched types
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:28:25
+   |
+28 |     let _ = code.deploy(&hash);
+   |                  ------ ^^^^^ expected `&DeployNonce`, found `&SHA256Hash`
+   |                  |
+   |                  arguments to this method are incorrect
+   |
+   = note: expected reference `&thruput_sdk::DeployNonce`
+              found reference `&thruput_sdk::SHA256Hash`
+note: method defined here
+  --> src/deploy/typed.rs
+   |
+   |     pub fn deploy(&self, nonce: &DeployNonce) -> Address<C> {
+   |            ^^^^^^
+
+error[E0308]: arguments to this function are incorrect
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:31:13
+   |
+31 |     let _ = deploy_contract(&code, &nonce);
+   |             ^^^^^^^^^^^^^^^        ------ expected `&SHA256Hash`, found `&DeployNonce`
+   |
+note: expected `&SHA256Hash`, found `&CodeHash<TokenClient>`
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:31:29
+   |
+31 |     let _ = deploy_contract(&code, &nonce);
+   |                             ^^^^^
+   = note: expected reference `&thruput_sdk::SHA256Hash`
+              found reference `&thruput_sdk::CodeHash<TokenClient>`
+   = note: expected reference `&thruput_sdk::SHA256Hash`
+              found reference `&thruput_sdk::DeployNonce`
+note: function defined here
+  --> src/deploy.rs
+   |
+   | pub fn deploy_contract(
+   |        ^^^^^^^^^^^^^^^
+
+error[E0308]: arguments to this function are incorrect
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:32:13
+   |
+32 |     let _ = deploy_contract(&nonce, &code);
+   |             ^^^^^^^^^^^^^^^ ------ expected `&SHA256Hash`, found `&DeployNonce`
+   |
+   = note: expected reference `&thruput_sdk::SHA256Hash`
+              found reference `&thruput_sdk::DeployNonce`
+note: expected `&SHA256Hash`, found `&CodeHash<TokenClient>`
+  --> tests/compile-fail/typed_deploy_swapped_hashes.rs:32:37
+   |
+32 |     let _ = deploy_contract(&nonce, &code);
+   |                                     ^^^^^
+   = note: expected reference `&thruput_sdk::SHA256Hash`
+              found reference `&thruput_sdk::CodeHash<TokenClient>`
+note: function defined here
+  --> src/deploy.rs
+   |
+   | pub fn deploy_contract(
+   |        ^^^^^^^^^^^^^^^

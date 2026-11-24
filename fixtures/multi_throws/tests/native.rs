@@ -6,11 +6,11 @@ use thruput_sdk::*;
 fn native_multi_throws() {
     let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test"))
-            .run(move || common::multi_throws_test(&contract_hash))
+            .run(move || common::multi_throws_test(&code))
     })
     .assert_success();
 }
@@ -19,11 +19,11 @@ fn native_multi_throws() {
 fn native_multi_throws_undecodable() {
     let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test"))
-            .run(move || common::multi_throws_test_undecodable(&contract_hash))
+            .run(move || common::multi_throws_test_undecodable(&code))
     })
     .assert_success();
 }
@@ -32,11 +32,11 @@ fn native_multi_throws_undecodable() {
 fn native_multi_throws_relay_preserves_payload() {
     let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            common::multi_throws_test_relay_preserves_payload(&contract_hash)
+            common::multi_throws_test_relay_preserves_payload(&code)
         })
     })
     .assert_success();
@@ -46,12 +46,12 @@ fn native_multi_throws_relay_preserves_payload() {
 fn native_multi_throws_relay_payload_readable_after_interleave() {
     let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
             common::multi_throws_test_relay_payload_readable_after_interleave(
-                &contract_hash,
+                &code,
             )
         })
     })
@@ -62,11 +62,11 @@ fn native_multi_throws_relay_payload_readable_after_interleave() {
 fn native_multi_throws_relay_undecodable_twice() {
     let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            common::multi_throws_test_relay_undecodable_twice(&contract_hash)
+            common::multi_throws_test_relay_undecodable_twice(&code)
         })
     })
     .assert_success();
@@ -76,11 +76,11 @@ fn native_multi_throws_relay_undecodable_twice() {
 fn native_multi_throws_malicious_library_error() {
     let env = thruput_sdk::TestEnvironment::default();
     let test_contract = multi_throws::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            common::multi_throws_test_malicious_library_error(&contract_hash)
+            common::multi_throws_test_malicious_library_error(&code)
         })
     })
     .assert_success();
