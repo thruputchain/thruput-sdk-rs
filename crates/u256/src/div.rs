@@ -89,13 +89,9 @@ pub fn checked_mul_div_u128(a: u128, b: u128, d: u128) -> Option<u128> {
     crate::host::mul_div_u128(&a, &b, &d)
 }
 
-/// Computes `a * b / d` exactly on signed amounts, truncating toward zero,
-/// without the intermediate product needing to fit in 128 bits.
-///
-/// The signed counterpart of [`mul_div_u128`], for the `i128` amounts the
-/// token interfaces use: a pro-rata share needs no casts in or out. The sign
-/// rule is the one `/` uses, so wherever `a * b` fits in an `i128` the result
-/// is `a * b / d`. See [`mul_div_rounding_i128`] for the other directions.
+/// Computes `a * b / d` exactly on signed amounts, truncating toward zero
+/// as `/` does, without the intermediate product needing to fit in 128 bits.
+/// See [`mul_div_rounding_i128`] for the other directions.
 ///
 /// # Panics
 ///
@@ -163,13 +159,9 @@ pub fn checked_mul_div_rounding_i128(
     }
 }
 
-/// The truncated quotient of `a * b / d`, whether it was inexact, and the
-/// sign it carries, or `None` when `d` is zero or the quotient is out of
-/// range. The magnitudes go through the runtime's `U128MulDivRem`, in one
-/// call.
-///
-/// The sign is returned because a zero quotient loses it, and the rounding
-/// direction of an inexact one still depends on it.
+/// The truncated quotient of `a * b / d`, whether it was inexact, and
+/// whether the exact result is negative, or `None` when `d` is zero or the
+/// quotient is out of range.
 #[inline]
 fn mul_div_i128_parts(
     a: i128,
