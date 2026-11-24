@@ -1,12 +1,13 @@
-use super::keypath::{Keypath, LeafKey};
+use super::capacity_constraint::CapacityConstraint;
+use super::keypath::Keypath;
 use super::value::Value;
 use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
-use crate::sys_exn::nnint_internal as nnint;
 use core::time::Duration;
 
-/// A mergeable integer whose contents belong to a period, and start over
-/// when the period changes. **Prototype**: see [the verdict](#verdict).
+/// A [`CapacityConstraint`] whose contents belong to a period, and start
+/// over when the period changes. **Prototype**: see
+/// [the verdict](#verdict).
 ///
 /// A rate-limit window, a per-epoch tally and a token bucket are all this
 /// cell. Say when it starts over and what to, as a [`Cycle`], and use it
@@ -32,29 +33,33 @@ use core::time::Duration;
 /// The first touch in a new period must replace what the last period left
 /// before adding to it. On Thruput "the first touch" is every transaction
 /// in the first block of the period. They all execute against the same
-/// snapshot, and they can all commit only if each writes the *same* reset
-/// and then its own delta: identical sets of an integer merge, and so do
-/// the deltas on top of them (see [`NNInt`](super::NNInt)).
+/// snapshot, and they can all commit only if each sets the *same* capacity
+/// and then records its own consumption.
 ///
-/// `Rollover` owns what a hand-written version has to get right:
+/// [`CapacityConstraint`] already provides the set and the consumption, and
+/// refuses a set that is not the first write in its transaction. What each
+/// contract writes around it by hand is which period the capacity is from,
+/// whether that period has passed, and what to set if it has, once for
+/// writers and again for readers. `Rollover` is that wrapper:
 ///
-/// - **The reset is computed from the snapshot.** A rule sees the value and
-///   period as of the block's start ([`Lapsed`]), never this transaction's
-///   own pending changes.
-/// - **The reset is the first write, once.** A second touch in the same
-///   transaction resets nothing. A reset that would discard writes this
-///   transaction has already made is refused with
-///   [`LibraryExn::RolloverAlreadyWritten`].
-/// - **Every write resets first.** There is no way to add to a lapsed cell.
+/// - **It remembers the period**, in a key beside the capacity, and
+///   advances it with the reset.
+/// - **Every write resets first** if the period is new, and a second touch
+///   in the same transaction resets nothing.
 /// - **Readers see a lapsed cell as reset**, without writing, by passing
 ///   [`get`](Self::get) the cycle the writers use.
+/// - **A reset is computed from the snapshot or refused.** A rule that
+///   runs after this transaction has already consumed sees that
+///   consumption, but the reset it asks for is then refused by
+///   [`set_capacity`](CapacityConstraint::set_capacity) with
+///   [`LibraryExn::CapacityConstraintAlreadyWritten`].
 ///
-/// The value is in `0..=i128::MAX`. Like [`NNInt::inc`](super::NNInt::inc),
-/// [`add`](Self::add) and [`sub`](Self::sub) are checked at *commit*, for
-/// the block's merged total: a block's transactions that together take the
-/// value below zero are not all admitted. That is what makes
-/// [`take`](Self::take) a rate limit: it refuses what this transaction can
-/// see does not fit, and the runtime refuses what the block cannot fit.
+/// The value is the constraint's remaining capacity, so it is held at or
+/// above zero at *commit*, for the block's merged total: a block's
+/// transactions that together take it below zero are not all admitted.
+/// That is what makes [`take`](Self::take) a rate limit: it refuses what
+/// this transaction can see does not fit, and the runtime refuses what the
+/// block cannot fit.
 ///
 /// # What the contract still owes
 ///
@@ -76,11 +81,15 @@ use core::time::Duration;
 ///
 /// # Storage
 ///
-/// Two storage items: the period in one key and the integer in another. A
-/// reset writes both. A touch that does not reset reads the period and
+/// Two storage items: the period in one key and the capacity in another.
+/// A reset writes both. A touch that does not reset reads the period and
 /// writes one delta, and a constant reset never loads the old value.
 /// Several operations in one call are cheaper through
 /// [`enter`](Self::enter), which checks the period once.
+///
+/// Unlike a bare [`CapacityConstraint`], every operation is flushed to
+/// storage before it returns, so other handles to the cell in the same
+/// transaction see it.
 ///
 /// # What it does not express
 ///
@@ -100,8 +109,9 @@ use core::time::Duration;
 /// lane-packed tally written against it.
 ///
 /// For it: one type covers the constant reset and the carry-over. Adding
-/// without resetting, and resetting twice in a transaction, stop being
-/// possible. Readers and writers share one [`Cycle`] value.
+/// without resetting stops being possible. Readers and writers share one
+/// [`Cycle`] value. It is a thin layer: the cell and its first-write rule
+/// are [`CapacityConstraint`]'s.
 ///
 /// Against it: the logic it replaces is about ten lines per contract. It
 /// cannot check the property that matters most, that a cycle's inputs are
@@ -113,10 +123,9 @@ use core::time::Duration;
 ///
 /// It has not been built into a guest contract, measured for gas, or
 /// added to the fixtures.
-#[derive(Debug)]
 pub struct Rollover {
     period: Value<u64>,
-    cell: LeafKey,
+    held: CapacityConstraint,
 }
 
 /// A period: the index a [`Rollover`] cell marks its contents with.
@@ -261,7 +270,8 @@ where
 /// What a reset rule is given: a cell whose period has passed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Lapsed {
-    /// The cell's value as of the block's start.
+    /// The cell's value: as of the block's start, unless this transaction
+    /// has already consumed from it, in which case a reset is refused.
     pub value: i128,
 
     /// The period that value is from, or `None` if the cell was never
@@ -284,14 +294,9 @@ impl From<Keypath> for Rollover {
     fn from(keypath: Keypath) -> Self {
         Self {
             period: keypath.child(&0u32).into(),
-            cell: keypath.child(&1u32).into(),
+            held: keypath.child(&1u32).into(),
         }
     }
-}
-
-fn sum(set: i128, add: i128) -> Result<i128, LibraryExn> {
-    set.checked_add(add)
-        .ok_or(LibraryExn::NonNegativeIntOverflow)
 }
 
 impl Rollover {
@@ -310,22 +315,22 @@ impl Rollover {
         cycle: Cycle<R>,
     ) -> Result<i128, LibraryExn> {
         let recorded = self.recorded_period()?;
-        let (set, add) = self.load()?;
+        let value = self.held.try_get_remaining_capacity()?;
         if recorded != Some(cycle.period.0) {
             let lapsed = Lapsed {
-                value: set,
+                value,
                 from: recorded,
                 to: cycle.period.0,
             };
-            if let Some(value) = cycle.reset.reset(lapsed) {
-                return Ok(value);
+            if let Some(reset) = cycle.reset.reset(lapsed) {
+                return Ok(reset);
             }
         }
-        sum(set, add)
+        Ok(value)
     }
 
     /// Add `delta`, which may be negative, starting the period over first
-    /// if it is new. The range is enforced at commit, for the block's
+    /// if it is new. The floor is enforced at commit, for the block's
     /// merged total.
     ///
     /// *Throws:* any error [`try_enter`](Self::try_enter) or
@@ -358,39 +363,31 @@ impl Rollover {
     /// Like [`enter`](Self::enter), but report failure as `Err` instead of
     /// aborting.
     ///
-    /// [`LibraryExn::RolloverAlreadyWritten`] if the reset would discard
-    /// writes this transaction has already made to the cell: its period, or
-    /// what its cycle resets to, changed within the transaction. A negative
-    /// reset value is an underflow. On `Err` the cell is unmodified.
+    /// [`LibraryExn::CapacityConstraintAlreadyWritten`] if the reset is not
+    /// the first write to the cell in this transaction, and is not a repeat
+    /// of the value already set: its period, or what its cycle resets to,
+    /// changed within the transaction. A negative reset value is an
+    /// underflow. On `Err` the cell is unmodified.
     pub fn try_enter<R: Reset>(
         &mut self,
         cycle: Cycle<R>,
     ) -> Result<Current<'_>, LibraryExn> {
         let Cycle { period, reset } = cycle;
         let recorded = self.recorded_period()?;
-        if recorded == Some(period.0) {
-            return Ok(Current { cell: self });
-        }
-        // Lapsed, or never written. What this transaction has pending tells
-        // whether it has been here before, without a load.
-        let (set, add) = nnint::try_get_values(self.cell.get())?;
-        if set.is_some() {
-            // Reset already, under another period.
-            return Err(LibraryExn::RolloverAlreadyWritten);
-        }
-        // No pending set, so the base the rule sees is the snapshot.
-        let value = if R::READS_VALUE { self.load()?.0 } else { 0 };
-        let lapsed = Lapsed {
-            value,
-            from: recorded,
-            to: period.0,
-        };
-        if let Some(value) = reset.reset(lapsed) {
-            if add != 0 {
-                // An earlier touch was told there was nothing to reset.
-                return Err(LibraryExn::RolloverAlreadyWritten);
+        if recorded != Some(period.0) {
+            let value = if R::READS_VALUE {
+                self.held.try_get_remaining_capacity()?
+            } else {
+                0
+            };
+            let lapsed = Lapsed {
+                value,
+                from: recorded,
+                to: period.0,
+            };
+            if let Some(value) = reset.reset(lapsed) {
+                self.write(period, value)?;
             }
-            self.write(period, value)?;
         }
         Ok(Current { cell: self })
     }
@@ -401,8 +398,9 @@ impl Rollover {
     /// the cell compute a different reset and conflict with it. Use it to
     /// lay the cell out, or when the terms of its cycle change.
     ///
-    /// *Throws:* [`LibraryExn::RolloverAlreadyWritten`] if this transaction
-    /// has added to the cell; a negative `value` as an underflow.
+    /// *Throws:* [`LibraryExn::CapacityConstraintAlreadyWritten`] if this
+    /// transaction has already written the cell, other than by setting the
+    /// same value; a negative `value` as an underflow.
     pub fn restart(&mut self, period: Period, value: i128) {
         self.try_restart(period, value).or_re_throw()
     }
@@ -414,20 +412,15 @@ impl Rollover {
         period: Period,
         value: i128,
     ) -> Result<(), LibraryExn> {
-        let (_, add) = nnint::try_get_values(self.cell.get())?;
-        if add != 0 {
-            return Err(LibraryExn::RolloverAlreadyWritten);
-        }
         self.write(period, value)
     }
 
     /// What is stored, whatever the period: the period it is from (`None`
     /// if never written) and the value. For tests and diagnostics.
     pub fn recorded(&self) -> (Option<u64>, i128) {
-        let (set, add) = self.load().or_re_throw();
         (
             self.recorded_period().or_re_throw(),
-            sum(set, add).or_re_throw(),
+            self.held.get_remaining_capacity(),
         )
     }
 
@@ -440,17 +433,8 @@ impl Rollover {
         }
     }
 
-    /// The integer's base and delta, reading a never-written cell as zero.
-    /// The base is the pending set, or failing that the snapshot.
-    fn load(&self) -> Result<(i128, i128), LibraryExn> {
-        match nnint::try_get_values_force(self.cell.get()) {
-            Ok(values) => Ok(values),
-            Err(e) if e.is_storage_missing() => Ok((0, 0)),
-            Err(e) => Err(e),
-        }
-    }
-
-    /// Set `value` for `period`, discarding pending deltas.
+    /// Set `value` for `period`. The constraint refuses unless this is the
+    /// transaction's first write to it, or repeats the value already set.
     fn write(
         &mut self,
         period: Period,
@@ -459,9 +443,9 @@ impl Rollover {
         if value < 0 {
             return Err(LibraryExn::NonNegativeIntUnderflow);
         }
-        self.period.try_set(&period.0)?;
-        let key = &self.cell;
-        nnint::try_set_add(key.get(), Some(value), 0, key.is_exclusive())
+        self.held.try_set_capacity(value)?;
+        self.held.try_flush()?;
+        self.period.try_set(&period.0)
     }
 }
 
@@ -485,13 +469,12 @@ impl Current<'_> {
     /// Like [`get`](Self::get), but report failure as `Err` instead of
     /// aborting.
     pub fn try_get(&self) -> Result<i128, LibraryExn> {
-        let (set, add) = self.cell.load()?;
-        sum(set, add)
+        self.cell.held.try_get_remaining_capacity()
     }
 
     /// Add `delta`, which may be negative, without loading the value.
     ///
-    /// The range is enforced at commit, for the block's merged total.
+    /// The floor is enforced at commit, for the block's merged total.
     /// Throws only if the deltas accumulated this transaction overflow.
     pub fn add(&mut self, delta: i128) {
         self.try_add(delta).or_re_throw()
@@ -500,23 +483,22 @@ impl Current<'_> {
     /// Like [`add`](Self::add), but report failure as `Err` instead of
     /// aborting.
     pub fn try_add(&mut self, delta: i128) -> Result<(), LibraryExn> {
-        let key = &self.cell.cell;
-        let (set, add) = nnint::try_get_values(key.get())?;
-        let add = add.checked_add(delta).ok_or(if delta < 0 {
-            LibraryExn::NonNegativeIntUnderflow
-        } else {
-            LibraryExn::NonNegativeIntOverflow
-        })?;
-        nnint::try_set_add(key.get(), set, add, key.is_exclusive())
+        let amount = delta
+            .checked_neg()
+            .ok_or(LibraryExn::NonNegativeIntOverflow)?;
+        self.try_sub(amount)
     }
 
     /// Subtract `amount`: [`add`](Self::add) of its negation.
     pub fn sub(&mut self, amount: i128) {
-        let delta = amount
-            .checked_neg()
-            .ok_or(LibraryExn::NonNegativeIntOverflow)
-            .or_re_throw();
-        self.add(delta)
+        self.try_sub(amount).or_re_throw()
+    }
+
+    /// Like [`sub`](Self::sub), but report failure as `Err` instead of
+    /// aborting.
+    pub fn try_sub(&mut self, amount: i128) -> Result<(), LibraryExn> {
+        self.cell.held.try_consume_capacity(amount)?;
+        self.cell.held.try_flush()
     }
 
     /// Subtract `amount` if the cell holds that much, and say whether it
@@ -541,7 +523,6 @@ impl super::node::StorageType for Rollover {}
 impl super::deletable::Deletable for Rollover {
     fn delete_internal(&mut self, exclusive: bool) {
         self.period.delete_internal(exclusive);
-        let exclusive = exclusive || self.cell.is_exclusive();
-        crate::sys_exn::delete::delete(self.cell.get(), exclusive);
+        self.held.delete_internal(exclusive);
     }
 }

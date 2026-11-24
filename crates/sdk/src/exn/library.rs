@@ -123,17 +123,6 @@ pub enum LibraryExn {
         error("no entrypoint on this contract matches the invoked method")
     )]
     UnknownMethod = 13,
-
-    /// A [`Rollover`](crate::storage::Rollover) reset would discard writes
-    /// this transaction already made to the cell: its period, or the inputs
-    /// to its reset rule, changed within the transaction.
-    #[cfg_attr(
-        not(target_arch = "riscv32"),
-        error(
-            "rollover: reset conflicts with a prior write this transaction"
-        )
-    )]
-    RolloverAlreadyWritten = 14,
 }
 
 impl From<HandlingError> for LibraryExn {

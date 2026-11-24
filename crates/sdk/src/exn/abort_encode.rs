@@ -211,7 +211,6 @@ mod tests {
         assert_wire_compat(LibraryExn::StorageKeypathOverflow);
         assert_wire_compat(LibraryExn::CapacityConstraintAlreadyWritten);
         assert_wire_compat(LibraryExn::UnknownMethod);
-        assert_wire_compat(LibraryExn::RolloverAlreadyWritten);
     }
 
     #[test]

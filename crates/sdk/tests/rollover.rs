@@ -269,10 +269,10 @@ fn a_period_that_changes_within_a_transaction_is_refused() {
         let mut cell = cell();
         let fifth = Period::from_raw(5).reset_to(100);
         cell.sub(fifth, 60);
-        let refused = cell.try_enter(Period::from_raw(6).reset_to(100)).err();
+        let refused = cell.try_enter(Period::from_raw(6).reset_to(90)).err();
         // Nothing was discarded.
         assert_eq!(cell.get(fifth), 40);
-        refused == Some(LibraryExn::RolloverAlreadyWritten)
+        refused == Some(LibraryExn::CapacityConstraintAlreadyWritten)
     });
     assert!(refused);
 }
@@ -293,7 +293,7 @@ fn a_rule_that_changes_its_mind_within_a_transaction_is_refused() {
         cell.add(unmoved, 1);
         assert_eq!(cell.recorded(), (Some(0), 779));
         let refused = cell.try_enter(window().reset_to(0)).err();
-        refused == Some(LibraryExn::RolloverAlreadyWritten)
+        refused == Some(LibraryExn::CapacityConstraintAlreadyWritten)
     });
     assert!(refused);
 }
@@ -305,8 +305,10 @@ fn restart_does_not_discard_this_transactions_additions() {
         let mut cell = cell();
         cell.restart(window(), 50);
         cell.add(tally::hourly(), 1);
-        cell.try_restart(window(), 50)
-            == Err(LibraryExn::RolloverAlreadyWritten)
+        // Repeating the value set is harmless; another would lose the 1.
+        cell.restart(window(), 50);
+        cell.try_restart(window(), 60)
+            == Err(LibraryExn::CapacityConstraintAlreadyWritten)
     });
     assert!(refused);
     env.advance_block();
