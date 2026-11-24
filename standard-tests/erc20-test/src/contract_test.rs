@@ -13,12 +13,14 @@ mod metadata {
 #[cfg(feature = "metadata")]
 use metadata::*;
 
-hash_ident! { static TEST_NONCE: SHA256Hash;  }
+hash_ident! { static TEST_NONCE: DeployNonce; }
 hash_ident! { static OTHER: ContractAddress; }
 
-pub fn erc20_test_setup(target_contract_hash: &SHA256Hash) -> ContractAddress {
+pub fn erc20_test_setup(
+    target: &CodeHash<ERC20Client>,
+) -> Address<ERC20Client> {
     // Deploy the target contract
-    deploy_contract(&TEST_NONCE, target_contract_hash)
+    target.deploy(&TEST_NONCE)
 }
 
 /// Test the logic of an ERC20 contract

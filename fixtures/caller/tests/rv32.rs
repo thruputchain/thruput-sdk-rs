@@ -8,8 +8,8 @@ use common::*;
 use std::sync::{Arc, Mutex};
 use thruput_erc20_if::ERC20Client;
 use thruput_sdk::{
-    ContractAddress, FrameAction, FrameHandle, Named, SHA256Hash,
-    deploy_contract, get_current_address,
+    CodeHash, ContractAddress, DeployNonce, FrameAction, FrameHandle, Named,
+    get_current_address,
 };
 
 // These paths only work for the fixtures directory
@@ -25,13 +25,17 @@ fn caller_test_rv32() {
 
     let env = thruput_sdk::TestEnvironment::no_cost();
 
-    let erc20_hash = env.setup_create_contract(&erc20_contract);
-    let caller_hash = env.setup_create_contract(&caller_contract);
+    let erc20_code = CodeHash::<ERC20Client>::new(
+        env.setup_create_contract(&erc20_contract),
+    );
+    let caller_code = CodeHash::<CallerClient>::new(
+        env.setup_create_contract(&caller_contract),
+    );
 
     let result = env.transact(|tx| {
         tx.call(&thruput_sdk::ContractAddress::named("test"))
             .run(move || {
-                caller_test_inner(&erc20_hash, &caller_hash);
+                caller_test_inner(&erc20_code, &caller_code);
             })
     });
     result.assert_success();
@@ -49,10 +53,10 @@ fn caller_test_rv32() {
     );
 }
 
-static STACK_ERC20_NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("ERC20_STACK_USAGE_NONCE");
-static STACK_CALLER_NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("CALLER_STACK_USAGE_NONCE");
+static STACK_ERC20_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("ERC20_STACK_USAGE_NONCE"));
+static STACK_CALLER_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("CALLER_STACK_USAGE_NONCE"));
 
 /// The stack records are each frame's own. A frame that runs no rv32 code
 /// reports none even after other frames of the transaction have; a frame
@@ -64,8 +68,12 @@ fn rv32_stack_usage_is_per_frame() {
     let caller_contract = thruput_sdk::load_rv32_contract(CALLER_PATH);
 
     let env = thruput_sdk::TestEnvironment::no_cost();
-    let erc20_hash = env.setup_create_contract(&erc20_contract);
-    let caller_hash = env.setup_create_contract(&caller_contract);
+    let erc20_code = CodeHash::<ERC20Client>::new(
+        env.setup_create_contract(&erc20_contract),
+    );
+    let caller_code = CodeHash::<CallerClient>::new(
+        env.setup_create_contract(&caller_contract),
+    );
 
     // The addresses the body deploys to, for the assertions after it. An
     // `Arc<Mutex<_>>` rather than a `Cell`: the body must be `UnwindSafe`.
@@ -78,12 +86,10 @@ fn rv32_stack_usage_is_per_frame() {
             .run_continuable(move |frame: &mut FrameHandle| {
                 // The root body's own rv32 calls: one invocation each,
                 // neither calling another contract.
-                let erc20_addr =
-                    deploy_contract(&STACK_ERC20_NONCE, &erc20_hash);
+                let erc20_addr = *erc20_code.deploy(&STACK_ERC20_NONCE);
                 ERC20Client::new(&erc20_addr)
                     .initialize(&get_current_address());
-                let caller_addr =
-                    deploy_contract(&STACK_CALLER_NONCE, &caller_hash);
+                let caller_addr = *caller_code.deploy(&STACK_CALLER_NONCE);
                 CallerClient::new(&caller_addr).initialize(&erc20_addr);
                 *deployed_slot.lock().unwrap() =
                     Some((erc20_addr, caller_addr));
@@ -143,12 +149,13 @@ fn rv32_stack_usage_is_per_frame() {
     );
 }
 
-static NATIVE_ERC20_NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("ERC20_NATIVE_FRAME_NONCE");
-static NATIVE_CALLER_NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("CALLER_NATIVE_FRAME_NONCE");
-static NATIVE_MOCK_CALLER_NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("MOCK_CALLER_NATIVE_FRAME_NONCE");
+static NATIVE_ERC20_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("ERC20_NATIVE_FRAME_NONCE"));
+static NATIVE_CALLER_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("CALLER_NATIVE_FRAME_NONCE"));
+static NATIVE_MOCK_CALLER_NONCE: DeployNonce = DeployNonce::new(
+    thruput_sdk::sha256_static!("MOCK_CALLER_NATIVE_FRAME_NONCE"),
+);
 
 /// Invoking a native contract (a mock registered in this process, which
 /// hogd's native runtime runs) records nothing, so a frame that invokes
@@ -163,10 +170,16 @@ fn native_contract_frames_report_no_rv32_record() {
     let caller_contract = thruput_sdk::load_rv32_contract(CALLER_PATH);
 
     let env = thruput_sdk::TestEnvironment::no_cost();
-    let erc20_hash = env.setup_create_contract(&erc20_contract);
-    let caller_hash = env.setup_create_contract(&caller_contract);
+    let erc20_code = CodeHash::<ERC20Client>::new(
+        env.setup_create_contract(&erc20_contract),
+    );
+    let caller_code = CodeHash::<CallerClient>::new(
+        env.setup_create_contract(&caller_contract),
+    );
     // The caller contract again, running natively as a mock.
-    let mock_caller_hash = *caller::register_mock_contract(&env).as_hash();
+    let mock_caller_code = CodeHash::<CallerClient>::of_mock(
+        &caller::register_mock_contract(&env),
+    );
 
     // (erc20, rv32 caller, native caller) addresses, for the later
     // transaction and the assertions after the body.
@@ -179,22 +192,18 @@ fn native_contract_frames_report_no_rv32_record() {
         tx.call(&ContractAddress::named("test"))
             .run_continuable(move |frame: &mut FrameHandle| {
                 // The body's rv32 calls: initialize both, then check_balance.
-                let erc20_addr =
-                    deploy_contract(&NATIVE_ERC20_NONCE, &erc20_hash);
+                let erc20_addr = *erc20_code.deploy(&NATIVE_ERC20_NONCE);
                 ERC20Client::new(&erc20_addr)
                     .initialize(&get_current_address());
-                let caller_addr =
-                    deploy_contract(&NATIVE_CALLER_NONCE, &caller_hash);
+                let caller_addr = *caller_code.deploy(&NATIVE_CALLER_NONCE);
                 let caller = CallerClient::new(&caller_addr);
                 caller.initialize(&erc20_addr);
                 assert_eq!(0, caller.check_balance(&ContractAddress::zero()));
 
                 // Then a native call from the same body: `initialize` on the
                 // mock caller runs natively and calls no contract.
-                let mock_caller_addr = deploy_contract(
-                    &NATIVE_MOCK_CALLER_NONCE,
-                    &mock_caller_hash,
-                );
+                let mock_caller_addr =
+                    *mock_caller_code.deploy(&NATIVE_MOCK_CALLER_NONCE);
                 let mock_caller = CallerClient::new(&mock_caller_addr);
                 mock_caller.initialize(&erc20_addr);
                 *deployed_slot.lock().unwrap() =

@@ -1,13 +1,14 @@
 use recursive_type::*;
 use thruput_sdk::*;
 
-static NONCE: SHA256Hash = thruput_sdk::sha256_static!("RECURSIVE_TYPE_TEST");
+static NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("RECURSIVE_TYPE_TEST"));
 
-fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
+fn setup() -> (TestEnvironmentHandle, CodeHash<Client>) {
     let env = thruput_sdk::TestEnvironment::no_cost();
     let test_contract = recursive_type::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
-    (env, contract_hash)
+    let code = CodeHash::of_mock(&test_contract);
+    (env, code)
 }
 
 fn leaf(value: u32) -> Tree {
@@ -28,11 +29,10 @@ fn node(value: u32, left: Tree, right: Tree) -> Tree {
 
 #[test]
 fn depth_of_leaf_is_one() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = Client::new(&addr);
+            let client = code.deploy(&NONCE).client();
             assert_eq!(client.depth(leaf(42)), 1);
         })
     })
@@ -41,11 +41,10 @@ fn depth_of_leaf_is_one() {
 
 #[test]
 fn depth_of_balanced_tree() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = Client::new(&addr);
+            let client = code.deploy(&NONCE).client();
 
             //        1
             //       / \
@@ -61,11 +60,10 @@ fn depth_of_balanced_tree() {
 
 #[test]
 fn depth_of_right_spine() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = Client::new(&addr);
+            let client = code.deploy(&NONCE).client();
 
             let tree = Tree {
                 value: 1,
@@ -88,11 +86,10 @@ fn depth_of_right_spine() {
 
 #[test]
 fn forest_leaf_depth_is_one() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = Client::new(&addr);
+            let client = code.deploy(&NONCE).client();
 
             let f = Forest {
                 trees: vec![],
@@ -106,11 +103,10 @@ fn forest_leaf_depth_is_one() {
 
 #[test]
 fn forest_nested_depth() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = Client::new(&addr);
+            let client = code.deploy(&NONCE).client();
 
             let f = Forest {
                 label: 1,
@@ -136,11 +132,10 @@ fn forest_nested_depth() {
 
 #[test]
 fn unbox_u32() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = Client::new(&addr);
+            let client = code.deploy(&NONCE).client();
             assert_eq!(client.unbox(Box::new(99)), 99);
         })
     })

@@ -3,11 +3,11 @@
 use exn_catch::*;
 use thruput_sdk::*;
 
-pub static TEST_NONCE: thruput_sdk::SHA256Hash =
-    thruput_sdk::sha256_static!("EXN_CATCH_TEST_NONCE");
+pub static TEST_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("EXN_CATCH_TEST_NONCE"));
 
-pub static TEST_NONCE_2: thruput_sdk::SHA256Hash =
-    thruput_sdk::sha256_static!("EXN_CATCH_TEST_NONCE_2");
+pub static TEST_NONCE_2: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("EXN_CATCH_TEST_NONCE_2"));
 
 fn check_classification(classify: impl Fn(u32) -> u32) {
     for (which, expected) in [0, 2, 3, 4, 5, 6, 1, 7].into_iter().enumerate() {
@@ -15,17 +15,15 @@ fn check_classification(classify: impl Fn(u32) -> u32) {
     }
 }
 
-pub fn exn_catch_test(contract_hash: &SHA256Hash) {
-    let caller = deploy_contract(&TEST_NONCE, contract_hash);
-    let target = deploy_contract(&TEST_NONCE_2, contract_hash);
-    let client = ExnCatchClient::new(&caller);
+pub fn exn_catch_test(code: &CodeHash<ExnCatchClient>) {
+    let client = code.deploy(&TEST_NONCE).client();
+    let target = *code.deploy(&TEST_NONCE_2);
     check_classification(|which| client.classify(target, which));
 }
 
-pub fn exn_catch_mapped_test(contract_hash: &SHA256Hash) {
-    let caller = deploy_contract(&TEST_NONCE, contract_hash);
-    let target = deploy_contract(&TEST_NONCE_2, contract_hash);
-    let client = ExnCatchClient::new(&caller);
+pub fn exn_catch_mapped_test(code: &CodeHash<ExnCatchClient>) {
+    let client = code.deploy(&TEST_NONCE).client();
+    let target = *code.deploy(&TEST_NONCE_2);
     check_classification(|which| client.classify_mapped(target, which));
 
     client.classify_then_throw(target, 0);

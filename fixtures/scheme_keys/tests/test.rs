@@ -5,7 +5,8 @@ use thruput_sdk::event::EmittedEvent;
 use thruput_sdk::internal::decode_xdr;
 use thruput_sdk::*;
 
-static NONCE: SHA256Hash = thruput_sdk::sha256_static!("SCHEME_KEYS_NONCE");
+static NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("SCHEME_KEYS_NONCE"));
 
 /// Calls into the contract come from here: a contract cannot be invoked from
 /// its own frame.
@@ -65,13 +66,15 @@ fn setup() -> (TestEnvironmentHandle, ContractAddress) {
         .no_cost()
         .with_max_bytestring_len(4096)
         .build();
-    let hash = *scheme_keys::register_mock_contract(&env).as_hash();
+    let code = CodeHash::<SchemeKeysClient>::of_mock(
+        &scheme_keys::register_mock_contract(&env),
+    );
     // `Arc<Mutex<_>>` rather than a `Cell`: the body must be `UnwindSafe`.
     let deployed = Arc::new(Mutex::new(None));
     let slot = deployed.clone();
     env.transact(|tx| {
         tx.call(&caller()).run(move || {
-            *slot.lock().unwrap() = Some(deploy_contract(&NONCE, &hash));
+            *slot.lock().unwrap() = Some(*code.deploy(&NONCE));
         })
     })
     .assert_success();

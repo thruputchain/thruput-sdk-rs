@@ -4,15 +4,15 @@ use exceptions::*;
 use thruput_sdk::sys::{SyscallErrorCode, SyscallNo};
 use thruput_sdk::*;
 
-pub static TEST_NONCE: thruput_sdk::SHA256Hash =
-    thruput_sdk::sha256_static!("EXCEPTIONS_TEST_NONCE");
+pub static TEST_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("EXCEPTIONS_TEST_NONCE"));
 
-pub fn exceptions_test(contract_hash: &SHA256Hash) {
+pub fn exceptions_test(code: &CodeHash<Client>) {
     // Deploy the contract under test
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
+    let addr = code.deploy(&TEST_NONCE);
 
     // Create a client to interact with the contract
-    let client = Client::new(&addr);
+    let client = addr.client();
 
     client.hello();
 
@@ -87,11 +87,11 @@ pub fn exceptions_test(contract_hash: &SHA256Hash) {
 }
 
 #[allow(unused)]
-pub fn panic_test(contract_hash: &SHA256Hash) {
+pub fn panic_test(code: &CodeHash<Client>) {
     //
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
+    let addr = code.deploy(&TEST_NONCE);
     //
-    let client = Client::new(&addr);
+    let client = addr.client();
 
     match client.try_panics() {
         Err(CallError::Fault(f)) => {

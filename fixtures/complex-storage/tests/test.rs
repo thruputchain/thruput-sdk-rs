@@ -14,26 +14,26 @@ fn contract_root_registers_its_domain() {
     assert_eq!(thruput_sdk::storage::check_duplicate(records), None);
 }
 
-static NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("COMPLEX_STORAGE_NONCE");
+static NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("COMPLEX_STORAGE_NONCE"));
 
 /// Helper: set up the fibonacci contract in a test environment.
-fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
+fn setup() -> (TestEnvironmentHandle, CodeHash<ComplexStorageClient>) {
     let env = TestEnvironment::no_cost();
     let contract = complex_storage::register_mock_contract(&env);
-    let contract_hash = contract.as_hash().clone();
-    (env, contract_hash)
+    let code = CodeHash::of_mock(&contract);
+    (env, code)
 }
 
 #[test]
 fn test_basic_usage() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -54,13 +54,13 @@ fn test_basic_usage() {
 
 #[test]
 fn test_persistence_across_blocks() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -92,14 +92,14 @@ fn test_persistence_across_blocks() {
 
 #[test]
 fn test_load_mut() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
 
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
 

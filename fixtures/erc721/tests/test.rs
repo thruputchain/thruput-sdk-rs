@@ -17,9 +17,9 @@ use thruput_erc721_if::{
 use thruput_sdk::call::CallError;
 use thruput_sdk::*;
 
-hash_ident! { static TOKEN_NONCE: SHA256Hash; }
-hash_ident! { static RECEIVER_NONCE: SHA256Hash; }
-hash_ident! { static COUNTER_NONCE: SHA256Hash; }
+hash_ident! { static TOKEN_NONCE: DeployNonce; }
+hash_ident! { static RECEIVER_NONCE: DeployNonce; }
+hash_ident! { static COUNTER_NONCE: DeployNonce; }
 hash_ident! { static ADMIN: ContractAddress; }
 hash_ident! { static ALICE: ContractAddress; }
 hash_ident! { static BOB: ContractAddress; }
@@ -55,12 +55,12 @@ fn onchain_metadata() -> TokenMetadata {
 /// `ALICE`.
 fn deploy_token(env: &TestEnvironmentHandle) -> ContractAddress {
     let contract = erc721::register_mock_contract(env);
-    let hash = *contract.as_hash();
+    let code = CodeHash::<NftAdminClient>::of_mock(&contract);
 
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
-            let addr = deploy_contract(&TOKEN_NONCE, &hash);
-            let admin = NftAdminClient::new(&addr);
+            let addr = code.deploy(&TOKEN_NONCE);
+            let admin = addr.client();
             admin.initialize(
                 &ADMIN,
                 NAME.try_into().unwrap(),
@@ -68,7 +68,7 @@ fn deploy_token(env: &TestEnvironmentHandle) -> ContractAddress {
             );
             admin.mint(&ALICE, &id(1), uri_metadata(1));
             admin.mint(&ALICE, &id(2), uri_metadata(2));
-            addr
+            *addr
         })
     });
     result.assert_success();
@@ -80,15 +80,18 @@ fn deploy_token(env: &TestEnvironmentHandle) -> ContractAddress {
 fn deploy_destinations(
     env: &TestEnvironmentHandle,
 ) -> (ContractAddress, ContractAddress) {
-    let receiver_hash =
-        *erc721_receiver::register_mock_contract(env).as_hash();
-    let counter_hash = *counter::register_mock_contract(env).as_hash();
+    let receiver_code = CodeHash::<ReceiverClient>::of_mock(
+        &erc721_receiver::register_mock_contract(env),
+    );
+    let counter_code = CodeHash::<counter::CounterClient>::of_mock(
+        &counter::register_mock_contract(env),
+    );
 
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
             (
-                deploy_contract(&RECEIVER_NONCE, &receiver_hash),
-                deploy_contract(&COUNTER_NONCE, &counter_hash),
+                *receiver_code.deploy(&RECEIVER_NONCE),
+                *counter_code.deploy(&COUNTER_NONCE),
             )
         })
     });
@@ -163,13 +166,17 @@ fn approvals_for_all(
 fn mint_sets_owner_balance_metadata_and_events() {
     let env = TestEnvironment::no_cost();
     let contract = erc721::register_mock_contract(&env);
-    let hash = *contract.as_hash();
+    let code = CodeHash::<(
+        NftAdminClient,
+        ERC721Client,
+        ERC721MetadataClient,
+    )>::of_mock(&contract);
     let big = TokenId::new([0xff; 32]);
 
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
-            let addr = deploy_contract(&TOKEN_NONCE, &hash);
-            let admin = NftAdminClient::new(&addr);
+            let addr = code.deploy(&TOKEN_NONCE);
+            let admin = NftAdminClient::at(&addr);
             admin.initialize(
                 &ADMIN,
                 NAME.try_into().unwrap(),
@@ -197,7 +204,7 @@ fn mint_sets_owner_balance_metadata_and_events() {
                 Some(NftError::TokenAlreadyMinted),
             );
 
-            let token = ERC721Client::new(&addr);
+            let token = ERC721Client::at(&addr);
             assert_eq!(token.owner_of(&id(1)), ALICE);
             assert_eq!(token.owner_of(&big), BOB);
             assert_eq!(token.balance_of(&ALICE), 1);
@@ -205,7 +212,7 @@ fn mint_sets_owner_balance_metadata_and_events() {
             assert_eq!(token.balance_of(&OPERATOR), 0);
             assert_eq!(token.get_approved(&id(1)), *CONTRACT_ADDR_ZERO);
 
-            let meta = ERC721MetadataClient::new(&addr);
+            let meta = ERC721MetadataClient::at(&addr);
             assert_eq!(meta.name().as_str(), NAME);
             assert_eq!(meta.symbol().as_str(), SYMBOL);
             // Metadata comes back as minted; only the off-chain kind has
@@ -233,7 +240,7 @@ fn mint_sets_owner_balance_metadata_and_events() {
             missing(meta.try_token_uri(&id(9)).map(drop));
             missing(meta.try_token_metadata(&id(9)).map(drop));
             missing(token.try_transfer_from(&ALICE, &BOB, &id(9)));
-            addr
+            *addr
         })
     });
     result.assert_success();

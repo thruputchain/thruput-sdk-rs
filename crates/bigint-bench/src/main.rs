@@ -28,7 +28,7 @@ use thruput_sdk::*;
 
 /// Distinct per artifact only in that it must be *some* nonce; the address it
 /// derives is never referenced outside the transaction that deploys it.
-const NONCE: SHA256Hash = SHA256Hash::new([0x2A; 32]);
+const NONCE: DeployNonce = DeployNonce::new(SHA256Hash::new([0x2A; 32]));
 
 /// The transaction's root caller.
 const CALLER: ContractAddress = ContractAddress::new([0xEE; 32]);
@@ -149,12 +149,13 @@ fn measure_gas(path: &Path, iters: u32) -> u64 {
     let contract = load_rv32_contract(path);
 
     let env = TestEnvironment::no_cost();
-    let contract_hash = env.setup_create_contract(&contract);
+    let code = CodeHash::<BigIntBenchClient>::new(
+        env.setup_create_contract(&contract),
+    );
 
     let result = env.transact(|tx| {
         tx.call(&CALLER).run(move || -> (u64, u64) {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = BigIntBenchClient::new(&addr);
+            let client = code.deploy(&NONCE).client();
 
             let before = stats::gas_remaining();
             let digest = client.run(iters, A_HI, A_LO, B_HI, B_LO);

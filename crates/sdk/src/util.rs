@@ -14,6 +14,11 @@ macro_rules! hash_ident {
         $vis static $name: $crate::SHA256Hash =
             $crate::SHA256Hash::new($crate::sha256_array_ident!($name));
     };
+    { $vis:vis static $name:ident: DeployNonce; } => {
+        $vis static $name: $crate::DeployNonce = $crate::DeployNonce::new(
+            $crate::SHA256Hash::new($crate::sha256_array_ident!($name)),
+        );
+    };
     { $vis:vis static $name:ident: ContractAddress; } => {
         $vis static $name: $crate::ContractAddress =
             $crate::ContractAddress::new($crate::sha256_array_ident!($name));

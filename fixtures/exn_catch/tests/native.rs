@@ -12,14 +12,14 @@ fn native_exn_catch_mapped() {
     run(common::exn_catch_mapped_test);
 }
 
-fn run(test: fn(&SHA256Hash)) {
+fn run(test: fn(&CodeHash<exn_catch::ExnCatchClient>)) {
     let env = thruput_sdk::TestEnvironment::default();
     let test_contract = exn_catch::register_mock_contract(&env);
-    let contract_hash = *test_contract.as_hash();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test"))
-            .run(move || test(&contract_hash))
+            .run(move || test(&code))
     })
     .assert_success();
 }

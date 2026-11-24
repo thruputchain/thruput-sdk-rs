@@ -4,7 +4,7 @@ use ref_args::{Bytes, Label, Point, RefArgsClient, Words, expected};
 use thruput_sdk::xdr::{BytesM, VecM};
 use thruput_sdk::*;
 
-hash_ident! { static NONCE: SHA256Hash; }
+hash_ident! { static NONCE: DeployNonce; }
 hash_ident! { static CALLER: ContractAddress; }
 
 /// Deploys the contract and runs `body` against a client for it.
@@ -12,12 +12,14 @@ fn with_client(
     body: impl FnOnce(RefArgsClient) + std::panic::UnwindSafe + 'static,
 ) {
     let env = TestEnvironment::no_cost();
-    let hash = *ref_args::register_mock_contract(&env).as_hash();
+    let code = CodeHash::<RefArgsClient>::of_mock(
+        &ref_args::register_mock_contract(&env),
+    );
 
     let result = env.transact(|tx| {
         tx.call(&CALLER).run(move || {
-            let addr = deploy_contract(&NONCE, &hash);
-            body(RefArgsClient::new(&addr));
+            let addr = code.deploy(&NONCE);
+            body(addr.client());
         })
     });
     result.assert_success();

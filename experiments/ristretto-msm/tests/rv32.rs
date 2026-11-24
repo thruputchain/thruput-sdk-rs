@@ -6,10 +6,11 @@ fn run(check: fn(&ristretto_msm::RistrettoMsmClient)) {
         .expect("set RISTRETTO_MSM_RV32_ARTIFACT to the experimental .rv32a");
     let contract = thruput_sdk::load_rv32_contract(&path);
     let env = thruput_sdk::TestEnvironment::no_cost();
-    let hash = env.setup_create_contract(&contract);
+    let code =
+        thruput_sdk::CodeHash::new(env.setup_create_contract(&contract));
     env.transact(|tx| {
         tx.call(&thruput_sdk::ContractAddress::named("test"))
-            .run(move || common::run(&hash, check))
+            .run(move || common::run(&code, check))
     })
     .assert_success();
 }

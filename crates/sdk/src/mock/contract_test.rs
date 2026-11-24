@@ -115,19 +115,17 @@ where
     F: FnOnce(&C) + UnwindSafe,
     C: crate::call::ContractClient,
 {
-    static CLIENT_TEST_NONCE: SHA256Hash =
-        SHA256Hash::new(hash_to_array!("CLIENT_TEST_NONCE"));
+    static CLIENT_TEST_NONCE: DeployNonce =
+        DeployNonce::new(SHA256Hash::new(hash_to_array!("CLIENT_TEST_NONCE")));
 
     let env = TestEnvironment::no_cost();
-    let test_contract = register(&env);
-    let contract_hash = *test_contract.as_hash();
+    let code = CodeHash::<C>::of_mock(&register(&env));
 
     env.transact(|tx| {
         let caller = <ContractAddress as Named>::named("client_test");
         tx.call(&caller).run(move || {
             // Deploy the contract under test and hand the caller a client.
-            let addr = deploy_contract(&CLIENT_TEST_NONCE, &contract_hash);
-            let client = C::new(&addr);
+            let client = C::at(&code.deploy(&CLIENT_TEST_NONCE));
             run_test(&client);
         })
     })
@@ -135,14 +133,20 @@ where
 }
 
 mod contract_test_guest {
-    use crate::SHA256Hash;
+    use crate::CodeHash;
     use alloc::boxed::Box;
     use core::error::Error;
 
+    /// A test body for [`test_rv32`](super::test_rv32).
     pub trait ContractTest {
+        /// The client, or tuple of clients, of the contract under test.
+        type Client;
+
+        /// Runs the test. `code` is the code hash of the contract under
+        /// test, which is registered and not yet deployed.
         fn run(
             &self,
-            contract_hash: &SHA256Hash,
+            code: &CodeHash<Self::Client>,
         ) -> Result<(), Box<dyn Error>>;
     }
 }
@@ -218,7 +222,7 @@ where
     let contract_hash = env.setup_create_contract(&contract);
 
     let mut handler = guest_test_handler(&env, move || -> () {
-        test.run(&contract_hash)
+        test.run(CodeHash::from_ref(&contract_hash))
             .unwrap_or_else(|e| panic!("run method failed: {}", e));
     });
 

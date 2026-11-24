@@ -15,7 +15,7 @@ use thruput_erc165_if::{ERC165Client, InterfaceIds, InterfaceSupport};
 use thruput_sdk::call::CallError;
 use thruput_sdk::*;
 
-hash_ident! { static TEST_NONCE: SHA256Hash; }
+hash_ident! { static TEST_NONCE: DeployNonce; }
 hash_ident! { static ADMIN: ContractAddress; }
 hash_ident! { static OTHER: ContractAddress; }
 
@@ -26,18 +26,18 @@ const TOKEN_DECIMALS: u32 = 6;
 /// Deploy the contract and initialize it (with metadata) as `ADMIN`.
 fn deploy_and_init(env: &TestEnvironmentHandle) -> ContractAddress {
     let contract = erc20_pausable::register_mock_contract(env);
-    let hash = *contract.as_hash();
+    let code = CodeHash::<ERC20MetadataClient>::of_mock(&contract);
 
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
-            let addr = deploy_contract(&TEST_NONCE, &hash);
-            ERC20MetadataClient::new(&addr).initialize(
+            let addr = code.deploy(&TEST_NONCE);
+            ERC20MetadataClient::at(&addr).initialize(
                 &ADMIN,
                 Some(TOKEN_NAME.try_into().unwrap()),
                 Some(TOKEN_SYMBOL.try_into().unwrap()),
                 Some(TOKEN_DECIMALS),
             );
-            addr
+            *addr
         })
     });
     result.assert_success();
@@ -71,13 +71,18 @@ fn revoked_events(
 fn initialize_sets_metadata_and_roles() {
     let env = TestEnvironment::no_cost();
     let contract = erc20_pausable::register_mock_contract(&env);
-    let hash = *contract.as_hash();
+    let code = CodeHash::<(
+        ERC20MetadataClient,
+        ERC20Client,
+        AccessControlClient,
+        ERC20PausableClient,
+    )>::of_mock(&contract);
 
     let result = env.transact(|tx| {
         tx.call(&ADMIN).run(move || {
-            let addr = deploy_contract(&TEST_NONCE, &hash);
+            let addr = code.deploy(&TEST_NONCE);
 
-            let meta = ERC20MetadataClient::new(&addr);
+            let meta = ERC20MetadataClient::at(&addr);
             meta.initialize(
                 &ADMIN,
                 Some(TOKEN_NAME.try_into().unwrap()),
@@ -96,7 +101,7 @@ fn initialize_sets_metadata_and_roles() {
 
             // A second initialize (through either interface) is rejected.
             assert_eq!(
-                ERC20Client::new(&addr)
+                ERC20Client::at(&addr)
                     .try_initialize(&ADMIN)
                     .unwrap_err()
                     .try_as(),
@@ -104,7 +109,7 @@ fn initialize_sets_metadata_and_roles() {
             );
 
             // The administrator starts with both roles; nobody else has any.
-            let access = AccessControlClient::new(&addr);
+            let access = AccessControlClient::at(&addr);
             assert!(access.has_role(DEFAULT_ADMIN_ROLE, &ADMIN));
             assert!(access.has_role(&PAUSER_ROLE, &ADMIN));
             assert!(!access.has_role(DEFAULT_ADMIN_ROLE, &OTHER));
@@ -115,7 +120,7 @@ fn initialize_sets_metadata_and_roles() {
             );
 
             // The token starts unpaused.
-            assert!(!ERC20PausableClient::new(&addr).paused());
+            assert!(!ERC20PausableClient::at(&addr).paused());
         })
     });
     result.assert_success();
@@ -314,16 +319,18 @@ fn supports_interface_reports_derived_claims() {
         PausableTokenContract as Token,
     };
 
-    hash_ident! { static BARE_NONCE: SHA256Hash; }
+    hash_ident! { static BARE_NONCE: DeployNonce; }
 
     let env = TestEnvironment::no_cost();
     let addr = deploy_and_init(&env);
     // A real contract that does not implement ERC-165.
-    let bare_hash = *counter::register_mock_contract(&env).as_hash();
+    let bare_code = CodeHash::<counter::CounterClient>::of_mock(
+        &counter::register_mock_contract(&env),
+    );
 
     let result = env.transact(|tx| {
         tx.call(&OTHER).run(move || {
-            let bare_addr = deploy_contract(&BARE_NONCE, &bare_hash);
+            let bare_addr = *bare_code.deploy(&BARE_NONCE);
             let erc165 = ERC165Client::new(&addr);
 
             // Every implemented interface, named through the trait...
@@ -343,7 +350,9 @@ fn supports_interface_reports_derived_claims() {
             ));
             // `supports` names the interfaces by their clients.
             assert_eq!(
-                erc165.supports::<(thruput_erc20_if::ERC20Client, ERC165Client)>(),
+                erc165
+                    .supports::<(thruput_erc20_if::ERC20Client, ERC165Client)>(
+                    ),
                 [true, true]
             );
 

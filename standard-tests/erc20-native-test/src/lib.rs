@@ -8,18 +8,19 @@ pub use thruput_erc20_test::*;
 
 use thruput_sdk::hash_ident;
 use thruput_sdk::{
-    ContractAddress, MatchExn, Named, SHA256Hash, TestEnvironmentHandle,
+    CodeHash, ContractAddress, MatchExn, Named, SHA256Hash,
+    TestEnvironmentHandle,
 };
 
 pub fn test_erc20_contract(
     env: TestEnvironmentHandle,
     test_contract_hash: &SHA256Hash,
 ) {
-    let test_contract_hash = *test_contract_hash;
+    let target = CodeHash::new(*test_contract_hash);
 
     let result = env.transact(|tx| {
         tx.call(&ContractAddress::named("erc20_test")).run(move || {
-            let deployed_addr = erc20_test_setup(&test_contract_hash);
+            let deployed_addr = erc20_test_setup(&target);
             let model = erc20_test(&deployed_addr);
             // The model itself isn't XDR-able; its expected event log is,
             // and it's all the post-commit check needs.
