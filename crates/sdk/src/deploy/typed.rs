@@ -23,29 +23,10 @@ use crate::{AuthTokenError, FaultString};
 /// used to call a contract deployed from it. It encodes exactly as the
 /// untyped [`SHA256Hash`].
 ///
-/// ```ignore
-/// #[contract_type]
-/// pub struct FactoryConfig {
-///     pub drop_code: CodeHash<NftDropClient>,
-/// }
-///
-/// let nonce = DeployNonce::derive(&(DEPLOYMENT_DOMAIN, &creator, salt));
-/// let drop = config.drop_code.deploy(&nonce);
-/// drop.client().initialize(&creator, definition);
-/// ```
-///
-/// [`deploy`](Self::deploy) returns an [`Address<C>`], so the interface
-/// named where the code hash is declared is the one the new contract is
-/// called through. Several clients go in one tuple, `CodeHash<(A, B)>`.
-///
-/// The type records the expected interfaces and does not check them:
-/// decoding accepts any hash, and deployment does not inspect the code. It
-/// also does not convert to a `&SHA256Hash` implicitly, so it cannot be
-/// passed where a [`DeployNonce`] or another hash is expected; see
-/// [Deployment](crate#deployment).
-///
-/// `Debug` is implemented on host targets only, to keep formatting code out
-/// of guest builds.
+/// [`deploy`](Self::deploy) returns an [`Address<C>`]. The type records the
+/// expected interfaces and does not check them, and it does not convert to a
+/// `&SHA256Hash` implicitly; see [Deployment](crate#deployment). `Debug` is
+/// implemented on host targets only.
 #[repr(transparent)]
 pub struct CodeHash<C> {
     hash: SHA256Hash,
@@ -65,9 +46,7 @@ impl<C> CodeHash<C> {
 
     /// Type a borrowed `hash` as the code of a contract called through `C`.
     pub const fn from_ref(hash: &SHA256Hash) -> &Self {
-        // SAFETY: `CodeHash<C>` is `repr(transparent)` over `SHA256Hash`
-        // (its other field is a zero-sized `PhantomData`), so the two have
-        // the same layout and validity.
+        // SAFETY: `CodeHash<C>` is `repr(transparent)` over `SHA256Hash`.
         unsafe { &*(hash as *const SHA256Hash as *const Self) }
     }
 
@@ -128,24 +107,10 @@ impl<C> CodeHash<C> {
 /// it determines the address of the new contract. It encodes exactly as the
 /// untyped [`SHA256Hash`].
 ///
-/// A deployer can use each nonce once per code hash. A factory that deploys
-/// on behalf of its callers derives the nonce from a domain tag, the caller
-/// and a caller-chosen salt, so one caller cannot take another's address:
-///
-/// ```ignore
-/// pub fn create_drop(&mut self, salt: &DeployNonce) -> Address<NftDropClient> {
-///     let creator = get_caller();
-///     let nonce = DeployNonce::derive(&(DEPLOYMENT_DOMAIN, &creator, salt));
-///     self.config.get().drop_code.deploy(&nonce)
-/// }
-/// ```
-///
-/// The type says what the hash is for and checks nothing about it. It does
-/// not convert to a `&SHA256Hash` implicitly, so it cannot be passed where a
-/// [`CodeHash`] or another hash is expected.
-///
-/// `Debug` is implemented on host targets only, to keep formatting code out
-/// of guest builds.
+/// A deployer uses each nonce once per code hash. The type says what the
+/// hash is for and checks nothing about it, and it does not convert to a
+/// `&SHA256Hash` implicitly; see [Deployment](crate#deployment). `Debug` is
+/// implemented on host targets only.
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeployNonce(SHA256Hash);
@@ -184,9 +149,6 @@ impl DeployNonce {
     }
 }
 
-// Formatting is for host builds: tests and tools. A guest build has no
-// `Debug` for this type, so a contract cannot pull formatting code in
-// through it.
 #[cfg(not(target_arch = "riscv32"))]
 impl fmt::Debug for DeployNonce {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
