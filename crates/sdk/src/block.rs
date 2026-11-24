@@ -35,6 +35,10 @@ pub fn get_network_hash() -> NetworkHash {
 /// header, so every node executing this block sees the same value. It is not
 /// the time this call is made.
 ///
+/// Keep the result as a [`TimePoint`]: it is stored, passed and compared as
+/// one. [`mod@crate::time`] has the arithmetic, and
+/// [`TimeSpan`](crate::TimeSpan) for lengths of time.
+///
 /// Throws a syscall exception (aborting the frame) if the host call fails.
 pub fn get_block_timepoint() -> TimePoint {
     let mut timepoint: TimePoint = 0u64.into();

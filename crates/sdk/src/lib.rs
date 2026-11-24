@@ -64,18 +64,23 @@ pub use thruput_u256::{
     I256, Rounding, TryFromIntError, U256, checked_mul_div_u128, mul_div_u128,
 };
 
-/// A span of time, for arithmetic on [`TimePoint`].
+/// `core`'s span of time, for arithmetic on [`TimePoint`].
 ///
-/// `core`'s own type, re-exported so a contract can reach for it without
-/// naming `core` itself. `thruput-xdr` implements `+` and `-` between
-/// `TimePoint` and `Duration`, so a deadline reads the way it does in
-/// Solidity:
+/// Re-exported so a contract can reach for it without naming `core` itself.
+/// `thruput-xdr` implements `+` and `-` between `TimePoint` and `Duration`:
 ///
-/// ```ignore
-/// let now = thruput_sdk::block::get_block_timepoint();
-/// let deadline = &now + 7 * Duration::from_hours(24);
-/// if now > deadline { ... }
 /// ```
+/// use thruput_sdk::{Duration, TimePoint};
+///
+/// let now = TimePoint::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
+/// let deadline = &now + 7 * Duration::from_hours(24);
+/// assert!(now < deadline);
+/// ```
+///
+/// A `Duration` has no XDR form: it cannot be stored, passed to a
+/// `#[contract]` method or held in a `#[contract_type]`. Use [`TimeSpan`]
+/// there. It supports the same arithmetic on `TimePoint` and converts to and
+/// from a `Duration`. See [`mod@time`].
 ///
 /// Those operators panic on overflow in every build profile, unlike the
 /// integer primitives: a deadline that silently wrapped into the past would
@@ -201,6 +206,7 @@ pub mod exn;
 pub mod interface_table;
 pub mod signer;
 pub mod stats;
+pub mod time;
 pub mod types;
 
 // Implementation modules, reachable only through the root re-exports below,
@@ -246,6 +252,7 @@ pub use throw::*;
 /// Allocation-free base58 conversion for public identifiers.
 pub use thruput_xdr::base58;
 pub use thruput_xdr::base58::{Base58, base58_encode};
+pub use time::TimeSpan;
 pub use types::*;
 pub use util::*;
 // XDR serialization vocabulary that is part of the SDK's public API (macro
