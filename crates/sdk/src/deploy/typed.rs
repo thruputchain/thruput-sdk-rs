@@ -2,6 +2,7 @@
 //! with its own type.
 
 use core::cmp::Ordering;
+#[cfg(not(target_arch = "riscv32"))]
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
@@ -42,6 +43,9 @@ use crate::{AuthTokenError, FaultString};
 /// also does not convert to a `&SHA256Hash` implicitly, so it cannot be
 /// passed where a [`DeployNonce`] or another hash is expected; see
 /// [Deployment](crate#deployment).
+///
+/// `Debug` is implemented on host targets only, to keep formatting code out
+/// of guest builds.
 #[repr(transparent)]
 pub struct CodeHash<C> {
     hash: SHA256Hash,
@@ -139,6 +143,9 @@ impl<C> CodeHash<C> {
 /// The type says what the hash is for and checks nothing about it. It does
 /// not convert to a `&SHA256Hash` implicitly, so it cannot be passed where a
 /// [`CodeHash`] or another hash is expected.
+///
+/// `Debug` is implemented on host targets only, to keep formatting code out
+/// of guest builds.
 #[repr(transparent)]
 #[derive(Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeployNonce(SHA256Hash);
@@ -177,6 +184,10 @@ impl DeployNonce {
     }
 }
 
+// Formatting is for host builds: tests and tools. A guest build has no
+// `Debug` for this type, so a contract cannot pull formatting code in
+// through it.
+#[cfg(not(target_arch = "riscv32"))]
 impl fmt::Debug for DeployNonce {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.0, f)
@@ -200,6 +211,7 @@ impl<C> Default for CodeHash<C> {
     }
 }
 
+#[cfg(not(target_arch = "riscv32"))]
 impl<C> fmt::Debug for CodeHash<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.hash, f)
