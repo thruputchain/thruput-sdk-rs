@@ -3,11 +3,11 @@
 use multi_throws::*;
 use thruput_sdk::*;
 
-pub static TEST_NONCE: thruput_sdk::SHA256Hash =
-    thruput_sdk::sha256_static!("MULTI_THROWS_TEST_NONCE");
+pub static TEST_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("MULTI_THROWS_TEST_NONCE"));
 
-pub static TEST_NONCE_2: thruput_sdk::SHA256Hash =
-    thruput_sdk::sha256_static!("MULTI_THROWS_TEST_NONCE_2");
+pub static TEST_NONCE_2: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("MULTI_THROWS_TEST_NONCE_2"));
 
 /// One place that handles every exception this contract can produce.
 ///
@@ -25,9 +25,8 @@ fn classify(e: &CallError) -> &'static str {
     })
 }
 
-pub fn multi_throws_test(contract_hash: &SHA256Hash) {
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let client = MultiClient::new(&addr);
+pub fn multi_throws_test(code: &CodeHash<MultiClient>) {
+    let client = code.deploy(&TEST_NONCE).client();
 
     // Test 1: Success path
     assert_eq!(client.try_succeed(), Ok(42));
@@ -63,7 +62,7 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
     // Deploy a second instance; call forward_alpha on the first, which
     // calls throw_alpha_not_found on the second via the non-try method.
     // re_throw should forward the error so we see AlphaError here.
-    let addr2 = deploy_contract(&TEST_NONCE_2, contract_hash);
+    let addr2 = *code.deploy(&TEST_NONCE_2);
     assert_eq!(
         classify(&client.try_forward_alpha(addr2.clone()).unwrap_err()),
         "alpha-not-found"
@@ -97,9 +96,8 @@ pub fn multi_throws_test(contract_hash: &SHA256Hash) {
 /// a type the payload cannot produce, so `match_exn!` sweeps it into `_`.
 /// `try_decode` is what tells the two apart, and this pins both halves —
 /// the fall-through and the report.
-pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let client = MultiClient::new(&addr);
+pub fn multi_throws_test_undecodable(code: &CodeHash<MultiClient>) {
+    let client = code.deploy(&TEST_NONCE).client();
 
     match client.try_throw_undecodable() {
         Err(ref e @ CallError::Exception(ref raw)) => {
@@ -125,10 +123,11 @@ pub fn multi_throws_test_undecodable(contract_hash: &SHA256Hash) {
     }
 }
 
-pub fn multi_throws_test_relay_preserves_payload(contract_hash: &SHA256Hash) {
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let addr2 = deploy_contract(&TEST_NONCE_2, contract_hash);
-    let client = MultiClient::new(&addr);
+pub fn multi_throws_test_relay_preserves_payload(
+    code: &CodeHash<MultiClient>,
+) {
+    let client = code.deploy(&TEST_NONCE).client();
+    let addr2 = *code.deploy(&TEST_NONCE_2);
 
     match client.try_relay_undecodable(addr2) {
         Err(CallError::Exception(raw)) => {
@@ -149,11 +148,10 @@ pub fn multi_throws_test_relay_preserves_payload(contract_hash: &SHA256Hash) {
 }
 
 pub fn multi_throws_test_relay_payload_readable_after_interleave(
-    contract_hash: &SHA256Hash,
+    code: &CodeHash<MultiClient>,
 ) {
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let addr2 = deploy_contract(&TEST_NONCE_2, contract_hash);
-    let client = MultiClient::new(&addr);
+    let client = code.deploy(&TEST_NONCE).client();
+    let addr2 = *code.deploy(&TEST_NONCE_2);
 
     // Same relay path, but here we assert observe-then-decide: the caught
     // exception's payload must still be readable (not just re-throwable)
@@ -178,10 +176,11 @@ pub fn multi_throws_test_relay_payload_readable_after_interleave(
     }
 }
 
-pub fn multi_throws_test_relay_undecodable_twice(contract_hash: &SHA256Hash) {
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let addr2 = deploy_contract(&TEST_NONCE_2, contract_hash);
-    let client = MultiClient::new(&addr);
+pub fn multi_throws_test_relay_undecodable_twice(
+    code: &CodeHash<MultiClient>,
+) {
+    let client = code.deploy(&TEST_NONCE).client();
+    let addr2 = *code.deploy(&TEST_NONCE_2);
 
     // The contract catches two undecodable exceptions and holds both alive
     // simultaneously (asserting both decode correctly across an
@@ -208,9 +207,10 @@ pub fn multi_throws_test_relay_undecodable_twice(contract_hash: &SHA256Hash) {
 /// SDK error: `LibraryExn` is matched by the same selector-then-decode
 /// route as any other exception type, so the decode failure keeps it out of
 /// every typed arm.
-pub fn multi_throws_test_malicious_library_error(contract_hash: &SHA256Hash) {
-    let addr = deploy_contract(&TEST_NONCE, contract_hash);
-    let client = MultiClient::new(&addr);
+pub fn multi_throws_test_malicious_library_error(
+    code: &CodeHash<MultiClient>,
+) {
+    let client = code.deploy(&TEST_NONCE).client();
 
     match client.try_throw_malicious_library_error() {
         Err(ref e @ CallError::Exception(ref raw)) => {

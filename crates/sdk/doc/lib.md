@@ -330,8 +330,8 @@ Everything structural — `Ok`, `Fault`, `Invalid` — stays an ordinary Rust
 downcasting. See [`match_exn!`] for the matching rules.
 
 Use [`InvokeConfig`] (or the generated `with_gas_limit` constructor) to bound
-the gas a subcall may spend, and [`deploy_contract`] to create new contracts.
-[`get_deploy_address`] computes the resulting address ahead of time.
+the gas a subcall may spend, and [`CodeHash::deploy`] to create new
+contracts; see [Deployment](#deployment).
 
 At the frame level, contract execution ends in one of three states:
 
@@ -398,6 +398,45 @@ recipient, or for one whose interface is not known. The two encode
 identically, in wire form, storage form, contract spec and event topic, so
 changing a field between them, or changing its client list, changes neither a
 storage layout nor an ABI.
+
+### Deployment
+
+A contract deploys another from the hash of its code and a nonce. Hold the
+hash as a [`CodeHash<C>`](CodeHash), where `C` is the client, or tuple of
+clients, for the interfaces the code implements, and the nonce as a
+[`DeployNonce`]:
+
+```rust,ignore
+#[contract_type]
+pub struct FactoryConfig {
+    pub drop_code: CodeHash<NftDropClient>,
+}
+
+let nonce = DeployNonce::derive(&(DEPLOYMENT_DOMAIN, &creator, salt));
+let drop = config.drop_code.deploy(&nonce);
+drop.client().initialize(&creator, definition);
+```
+
+[`CodeHash::deploy`] returns an [`Address<C>`](Address), so the new contract
+is called through the interface the code hash names.
+[`CodeHash::deploy_address`] and [`CodeHash::deploy_address_for`] compute the
+same address without deploying. The address depends on the deployer, the
+nonce and the code hash, so a deployer uses each nonce once per code hash.
+[`DeployNonce::derive`] hashes a tuple into a nonce; a factory includes its
+caller there, so that one caller cannot take the address of another.
+
+Both types encode as a [`SHA256Hash`], in wire form, storage form, contract
+spec and event topic. Neither converts to one implicitly: passing a nonce for
+a code hash, or either for another hash, is a compile error. As with an
+address, the types record an expectation and do not check it. Decoding
+accepts any hash, and deployment does not inspect the code.
+
+[`deploy_contract`], [`get_deploy_address`] and
+[`get_deploy_address_for_other`] are the untyped forms. They take two
+`&SHA256Hash` in a row and return a [`ContractAddress`].
+
+In a native test, [`CodeHash::of_mock`] gives the typed code hash of a
+registered mock contract.
 
 # Events
 
@@ -565,6 +604,8 @@ Other useful modules and types:
   - [`Address`](Address): the address of a contract, typed by the clients
     used to call it
   - [`ContractAddress`](ContractAddress): the same address, untyped
+  - [`CodeHash`](CodeHash), [`DeployNonce`](DeployNonce): the code hash
+    and nonce of a deployment
   - [`StorageKey`](StorageKey)
   - [`PublicKey`](PublicKey)
 

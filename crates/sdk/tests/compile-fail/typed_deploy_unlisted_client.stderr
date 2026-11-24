@@ -1,0 +1,81 @@
+error[E0277]: this address is not typed by `MetadataClient`
+  --> tests/compile-fail/typed_deploy_unlisted_client.rs:28:32
+   |
+28 |     let _ = MetadataClient::at(&token.deploy(&nonce));
+   |             ------------------ ^^^^^^^^^^^^^^^^^^^^^ `MetadataClient` is not among the clients of `Address<TokenClient>`
+   |             |
+   |             required by a bound introduced by this call
+   |
+help: the trait `Provides<MetadataClient, _>` is not implemented for `TokenClient`
+  --> tests/compile-fail/typed_deploy_unlisted_client.rs:7:1
+   |
+ 7 | #[contract(version = "1.0.0")]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: add `MetadataClient` to the address type, or retype the address with `Address::cast`
+   = help: the following other types implement trait `Provides<D, I>`:
+             `(A, B)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<C, thruput_sdk::call::At<2>>`
+             `(A, B, C, D)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C, D)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C, D)` implements `Provides<C, thruput_sdk::call::At<2>>`
+           and $N others
+note: required by a bound in `at`
+  --> src/call/contract_client.rs
+   |
+   |     fn at<S, I>(address: &super::Address<S>) -> Self
+   |        -- required by a bound in this associated function
+...
+   |         S: super::Provides<Self, I>,
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ContractClient::at`
+   = note: this error originates in the attribute macro `contract` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: this address is not typed by `OtherClient`
+  --> tests/compile-fail/typed_deploy_unlisted_client.rs:29:29
+   |
+29 |     let _ = OtherClient::at(&both.deploy_address(&nonce));
+   |             --------------- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `OtherClient` is not among the clients of `Address<(TokenClient, MetadataClient)>`
+   |             |
+   |             required by a bound introduced by this call
+   |
+   = help: the trait `Provides<OtherClient, _>` is not implemented for `(TokenClient, MetadataClient)`
+   = note: add `OtherClient` to the address type, or retype the address with `Address::cast`
+   = help: the following other types implement trait `Provides<D, I>`:
+             `(A, B)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C)` implements `Provides<C, thruput_sdk::call::At<2>>`
+             `(A, B, C, D)` implements `Provides<A, thruput_sdk::call::At<0>>`
+             `(A, B, C, D)` implements `Provides<B, thruput_sdk::call::At<1>>`
+             `(A, B, C, D)` implements `Provides<C, thruput_sdk::call::At<2>>`
+           and $N others
+note: required by a bound in `at`
+  --> src/call/contract_client.rs
+   |
+   |     fn at<S, I>(address: &super::Address<S>) -> Self
+   |        -- required by a bound in this associated function
+...
+   |         S: super::Provides<Self, I>,
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `ContractClient::at`
+
+error[E0308]: mismatched types
+  --> tests/compile-fail/typed_deploy_unlisted_client.rs:30:26
+   |
+30 |     let _: OtherClient = token.deploy(&nonce).client();
+   |            -----------   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `OtherClient`, found `TokenClient`
+   |            |
+   |            expected due to this
+
+error[E0308]: mismatched types
+  --> tests/compile-fail/typed_deploy_unlisted_client.rs:31:35
+   |
+31 |     let _: Address<OtherClient> = token.deploy(&nonce);
+   |            --------------------   ^^^^^^^^^^^^^^^^^^^^ expected `Address<OtherClient>`, found `Address<TokenClient>`
+   |            |
+   |            expected due to this
+   |
+   = note: expected struct `thruput_sdk::Address<OtherClient>`
+              found struct `thruput_sdk::Address<TokenClient>`
