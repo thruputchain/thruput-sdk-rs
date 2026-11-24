@@ -55,6 +55,8 @@ impl_collect_noop!(
     str,
     crate::types::ContractAddress,
     crate::types::BlockHeight,
+    crate::types::TimePoint,
+    crate::types::TimeSpan,
     crate::types::SHA256Hash,
     crate::types::Ed25519PublicKey,
     crate::types::Ed25519Signature,

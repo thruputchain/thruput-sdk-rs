@@ -5,7 +5,7 @@ use thruput_xdr::{
     types::{
         BlockHeight, ContractAddress, CryptographicScheme, Ed25519PublicKey,
         Ed25519Signature, MlDsa65PublicKey, MlDsa65Signature, PublicKey,
-        SHA256Hash, Signature,
+        SHA256Hash, Signature, TimePoint, TimeSpan,
     },
 };
 
@@ -23,6 +23,18 @@ impl ContractTypeRefSpec for ContractAddress {
 impl ContractTypeRefSpec for BlockHeight {
     const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
         ty: view::ContractTypeView::I64,
+    };
+}
+
+impl ContractTypeRefSpec for TimePoint {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::U64,
+    };
+}
+
+impl ContractTypeRefSpec for TimeSpan {
+    const INFO: ContractTypeInfo<'static> = ContractTypeInfo {
+        ty: view::ContractTypeView::U64,
     };
 }
 

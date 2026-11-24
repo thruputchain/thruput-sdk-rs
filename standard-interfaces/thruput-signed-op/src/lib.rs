@@ -88,7 +88,7 @@ impl Operation {
     /// The `(nonce, block_expiry_height)` pair a verifier consumes.
     pub fn uniquifier(&self) -> Uniquifier {
         Uniquifier {
-            block_expiry_height: self.block_expiry_height.clone(),
+            block_expiry_height: self.block_expiry_height,
             nonce: self.nonce,
         }
     }

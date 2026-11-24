@@ -569,6 +569,54 @@ Each costs a flat price whatever the values. The operations are
 experimental: on a chain that does not offer them, the call fails. None of
 these methods is `const fn`.
 
+# Time
+
+[`get_block_timepoint`] returns the block's [`TimePoint`]: fixed for the
+block, the same for every transaction in it. Keep it as a `TimePoint`
+instead of unwrapping it to a `u64`. A length of time is a [`TimeSpan`].
+Both are `Copy`, and each is a `#[contract_type]` field, a method parameter
+and a stored value. Both encode as one `u64` of nanoseconds, so changing a
+field from `u64` nanoseconds to either changes neither a storage layout nor
+an ABI.
+
+A deadline is a stored timepoint:
+
+```rust,ignore
+#[contract_type]
+pub struct Terms {
+    pub end: TimePoint,
+}
+
+ensure(get_block_timepoint() < terms.end, AuctionError::BiddingClosed);
+```
+
+An expiry is a timepoint plus a span, and an age is one timepoint minus
+another:
+
+```rust,ignore
+const LIFETIME: TimeSpan = TimeSpan::from_days(7);
+
+let now = get_block_timepoint();
+let expires = now + LIFETIME;
+ensure(now - observed <= max_age, ConsumerError::StaleObservation);
+```
+
+For epochs, vesting steps and rate-limit windows, [`time::period_at`] gives
+the period a timepoint falls in and how far into it:
+
+```rust,ignore
+let Period { index, elapsed } =
+    period_at(canvas.origin, canvas.terms.epoch, get_block_timepoint())
+        .unwrap_or_else(|| throw(PigmentError::NotStarted));
+```
+
+The operators panic on overflow in every build profile; the `checked_` and
+`saturating_` methods do not. Use those on a span a caller supplies.
+`core::time::Duration` cannot be stored or passed to a contract; host code
+converts with `TimeSpan::from_duration` and `Duration::from`. [`mod@time`]
+says more. In a test, `TestEnvironment::advance_block_at` pins the next
+block's timepoint and `set_block_time_step` spaces the blocks after it.
+
 # System functions
 
 The SDK provides convenient wrappers around Thruput syscalls:
@@ -593,7 +641,8 @@ The SDK provides convenient wrappers around Thruput syscalls:
 
 Context about the running transaction:
 
-- [`mod@block`]: the height of the block being executed in
+- [`mod@block`]: the height and timepoint of the block being executed in
+- [`mod@time`]: timepoints, spans and periods; see [Time](#time)
 - [`mod@stats`]: transaction statistics, including
   [`gas_remaining()`](stats::gas_remaining)
 - [`log_str`], [`fn@log`]: contract logging

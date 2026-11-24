@@ -1,7 +1,7 @@
 //! The block-data syscalls, exercised against the real host.
 
 use thruput_sdk::contract_test;
-use thruput_sdk::{Duration, Named, TimePoint};
+use thruput_sdk::{Named, TimePoint, TimeSpan};
 
 contract_test!(network_hash_is_the_environments_configured_network {
     // contract_test! builds a TestEnvironment on the default test network, so
@@ -22,7 +22,7 @@ contract_test!(block_timepoint_is_fixed_for_the_block {
     let first = thruput_sdk::block::get_block_timepoint();
     let second = thruput_sdk::block::get_block_timepoint();
     assert_eq!(first, second);
-    assert_ne!(first.clone().into_inner(), 0);
+    assert_ne!(first.into_inner(), 0);
 });
 
 contract_test!(block_height_and_timepoint_are_independent {
@@ -39,10 +39,12 @@ contract_test!(block_height_and_timepoint_are_independent {
 
 /// The wall clock, as the timepoint the host would stamp a block with now.
 fn wall_clock() -> TimePoint {
+    let since_epoch = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock is before the Unix epoch");
     TimePoint::UNIX_EPOCH
-        + std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("system clock is before the Unix epoch")
+        + TimeSpan::from_duration(since_epoch)
+            .expect("system clock is past the range of a timepoint")
 }
 
 fn read_block_timepoint(
@@ -76,7 +78,7 @@ fn block_timepoint_defaults_to_a_real_clock_reading() {
     // real Unix-nanosecond reading from the constant the host used to report:
     // 1'700'000'000 is a Unix *seconds* value in a nanoseconds field, so it
     // sits about fifty years below `before`.
-    let window = before.clone()..=after.clone();
+    let window = before..=after;
     for observed in [&first, &second] {
         assert!(
             window.contains(observed),
@@ -108,16 +110,16 @@ fn advance_block_at_pins_the_timepoint() {
 
     // Pin forward from where we are: the environment opens its first block on
     // the wall clock, and blocks may not move backwards.
-    const ONE_HOUR: Duration = Duration::from_hours(1);
-    let pinned = &read_block_timepoint(&env, &address) + ONE_HOUR;
+    const ONE_HOUR: TimeSpan = TimeSpan::from_hours(1);
+    let pinned = read_block_timepoint(&env, &address) + ONE_HOUR;
 
-    env.advance_block_at(pinned.clone());
+    env.advance_block_at(pinned);
     assert_eq!(read_block_timepoint(&env, &address), pinned);
     // Still fixed for the whole block.
     assert_eq!(read_block_timepoint(&env, &address), pinned);
 
-    let later = &pinned + ONE_HOUR;
-    env.advance_block_at(later.clone());
+    let later = pinned + ONE_HOUR;
+    env.advance_block_at(later);
     assert_eq!(read_block_timepoint(&env, &address), later);
 }
 
@@ -129,7 +131,7 @@ fn advance_block_at_refuses_to_go_backwards() {
         thruput_sdk::ContractAddress::named("block_timepoint_backwards");
 
     let now = read_block_timepoint(&env, &address);
-    env.advance_block_at(&now - Duration::from_nanos(1));
+    env.advance_block_at(now - TimeSpan::new(1));
 }
 
 #[test]
@@ -139,15 +141,15 @@ fn later_blocks_continue_from_a_pinned_timepoint() {
         thruput_sdk::ContractAddress::named("block_timepoint_continues");
 
     // Pin three days ahead; a plain advance should continue from there.
-    const THREE_DAYS: Duration = Duration::from_hours(72);
-    let pinned = &read_block_timepoint(&env, &address) + THREE_DAYS;
-    env.advance_block_at(pinned.clone());
+    const THREE_DAYS: TimeSpan = TimeSpan::from_hours(72);
+    let pinned = read_block_timepoint(&env, &address) + THREE_DAYS;
+    env.advance_block_at(pinned);
 
     env.advance_block();
     let next = read_block_timepoint(&env, &address);
     assert!(next >= pinned, "{} < {}", *next, *pinned);
     assert!(
-        next < &pinned + Duration::from_hours(1),
+        next < pinned + TimeSpan::from_hours(1),
         "{} jumped past {}",
         *next,
         *pinned
@@ -162,9 +164,9 @@ fn a_zero_step_freezes_the_clock_at_a_pinned_timepoint() {
     let env = thruput_sdk::TestEnvironment::no_cost();
     let address = thruput_sdk::ContractAddress::named("block_step_frozen");
 
-    let tick = &read_block_timepoint(&env, &address) + Duration::from_hours(1);
-    env.advance_block_at(tick.clone());
-    env.set_block_time_step(Some(Duration::ZERO));
+    let tick = read_block_timepoint(&env, &address) + TimeSpan::from_hours(1);
+    env.advance_block_at(tick);
+    env.set_block_time_step(Some(TimeSpan::ZERO));
     for _ in 0..3 {
         std::thread::sleep(std::time::Duration::from_millis(2));
         env.advance_block();
@@ -177,21 +179,21 @@ fn a_step_spaces_blocks_exactly() {
     let env = thruput_sdk::TestEnvironment::no_cost();
     let address = thruput_sdk::ContractAddress::named("block_step_spaced");
 
-    const STEP: Duration = Duration::from_secs(12);
+    const STEP: TimeSpan = TimeSpan::from_secs(12);
     let pinned =
-        &read_block_timepoint(&env, &address) + Duration::from_hours(1);
-    env.advance_block_at(pinned.clone());
+        read_block_timepoint(&env, &address) + TimeSpan::from_hours(1);
+    env.advance_block_at(pinned);
     env.set_block_time_step(Some(STEP));
     env.advance_block();
-    assert_eq!(read_block_timepoint(&env, &address), &pinned + STEP);
+    assert_eq!(read_block_timepoint(&env, &address), pinned + STEP);
     env.advance_block();
-    assert_eq!(read_block_timepoint(&env, &address), &pinned + 2 * STEP);
+    assert_eq!(read_block_timepoint(&env, &address), pinned + 2 * STEP);
 
     // A pin still wins, and stepping continues from it.
-    let repinned = &pinned + Duration::from_hours(24);
-    env.advance_block_at(repinned.clone());
+    let repinned = pinned + TimeSpan::from_hours(24);
+    env.advance_block_at(repinned);
     env.advance_block();
-    assert_eq!(read_block_timepoint(&env, &address), &repinned + STEP);
+    assert_eq!(read_block_timepoint(&env, &address), repinned + STEP);
 }
 
 #[test]
@@ -200,12 +202,12 @@ fn without_a_pin_the_first_stepped_block_takes_the_wall_clock() {
     let address = thruput_sdk::ContractAddress::named("block_step_unpinned");
 
     let before = wall_clock();
-    env.set_block_time_step(Some(Duration::ZERO));
+    env.set_block_time_step(Some(TimeSpan::ZERO));
     env.advance_block();
     let first = read_block_timepoint(&env, &address);
     let after = wall_clock();
     assert!(
-        (before.clone()..=after.clone()).contains(&first),
+        (before..=after).contains(&first),
         "timepoint {} outside [{}, {}]",
         *first,
         *before,
@@ -222,10 +224,10 @@ fn clearing_the_step_continues_from_the_last_block() {
     let env = thruput_sdk::TestEnvironment::no_cost();
     let address = thruput_sdk::ContractAddress::named("block_step_cleared");
 
-    const THREE_DAYS: Duration = Duration::from_hours(72);
-    let pinned = &read_block_timepoint(&env, &address) + THREE_DAYS;
-    env.advance_block_at(pinned.clone());
-    env.set_block_time_step(Some(Duration::ZERO));
+    const THREE_DAYS: TimeSpan = TimeSpan::from_hours(72);
+    let pinned = read_block_timepoint(&env, &address) + THREE_DAYS;
+    env.advance_block_at(pinned);
+    env.set_block_time_step(Some(TimeSpan::ZERO));
     env.advance_block();
     env.set_block_time_step(None);
 
@@ -233,16 +235,9 @@ fn clearing_the_step_continues_from_the_last_block() {
     let next = read_block_timepoint(&env, &address);
     assert!(next >= pinned, "{} < {}", *next, *pinned);
     assert!(
-        next < &pinned + Duration::from_hours(1),
+        next < pinned + TimeSpan::from_hours(1),
         "{} jumped back toward today or past {}",
         *next,
         *pinned
     );
-}
-
-#[test]
-#[should_panic(expected = "does not fit in u64 nanoseconds")]
-fn a_step_beyond_u64_nanoseconds_panics() {
-    let env = thruput_sdk::TestEnvironment::no_cost();
-    env.set_block_time_step(Some(Duration::MAX));
 }

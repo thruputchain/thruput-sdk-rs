@@ -151,6 +151,8 @@ owned_ref_arg!(
     bool,
     (),
     crate::types::BlockHeight,
+    crate::types::TimePoint,
+    crate::types::TimeSpan,
     thruput_u256::U256,
     thruput_u256::I256,
 );
