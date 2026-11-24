@@ -47,7 +47,8 @@ pub use thruput_contract_spec as __contract_spec;
 /// guards) for money math.
 ///
 /// For the exact `a * b / d` that motivates most reaches for a 256-bit type,
-/// see [`u256::mul_div_u128`] (`u128` in, `u128` out) or [`U256::mul_div`]
+/// see [`u256::mul_div_i128`] (`i128` amounts in and out),
+/// [`u256::mul_div_u128`] (`u128` in, `u128` out) or [`U256::mul_div`]
 /// (256-bit throughout, on an exact 512-bit intermediate). The crate also
 /// carries OpenZeppelin's `Math.sol` and `SignedMath.sol` surfaces —
 /// `mul_shr`, `mul_mod`, `mod_exp`, `inv_mod`, `average`, `ceil_div`,
@@ -61,7 +62,9 @@ pub use thruput_contract_spec as __contract_spec;
 /// [`I256::from_i32`]/[`I256::from_i64`].
 pub use thruput_u256 as u256;
 pub use thruput_u256::{
-    I256, Rounding, TryFromIntError, U256, checked_mul_div_u128, mul_div_u128,
+    I256, Rounding, TryFromIntError, U256, checked_mul_div_i128,
+    checked_mul_div_rounding_i128, checked_mul_div_u128, mul_div_i128,
+    mul_div_rounding_i128, mul_div_u128,
 };
 
 /// A span of time, for arithmetic on [`TimePoint`].

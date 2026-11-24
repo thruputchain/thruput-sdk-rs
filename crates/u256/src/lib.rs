@@ -67,7 +67,10 @@ mod signed_fmt;
 mod signed_math;
 mod sqrt;
 
-pub use div::{checked_mul_div_u128, mul_div_u128};
+pub use div::{
+    checked_mul_div_i128, checked_mul_div_rounding_i128, checked_mul_div_u128,
+    mul_div_i128, mul_div_rounding_i128, mul_div_u128,
+};
 pub use math::Rounding;
 pub use signed::I256;
 

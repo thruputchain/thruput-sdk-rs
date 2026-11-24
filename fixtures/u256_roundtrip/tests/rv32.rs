@@ -441,6 +441,16 @@ fn divisions_agree_in_rv32_and_native() {
                 Some(1_u128 << 126)
             );
             assert_eq!(client.mul_div_u128(1, 1, 0), None);
+            assert_eq!(client.mul_div_i128(-7, 3, 2), Some(-10));
+            assert_eq!(client.mul_div_i128_floor(-7, 3, 2), Some(-11));
+            assert_eq!(client.mul_div_i128_floor(7, 3, 2), Some(10));
+            assert_eq!(
+                client.mul_div_i128(i128::MAX, i128::MIN, i128::MAX),
+                Some(i128::MIN)
+            );
+            assert_eq!(client.mul_div_i128(i128::MIN, -1, 1), None);
+            assert_eq!(client.mul_div_i128(1, 1, 0), None);
+            assert_eq!(client.mul_div_i128_floor(1, 1, 0), None);
             // 2^255 - 19 is prime; the exponent is a full 256 bits.
             let p = top - U256::from(19);
             assert_eq!(
@@ -555,6 +565,18 @@ fn divisions_agree_in_rv32_and_native() {
                 assert_eq!(
                     client.mul_div_u128(a, b, c),
                     checked_mul_div_u128(a, b, c),
+                    "{a} {b} {c}"
+                );
+                // And those read as signed.
+                let (a, b, c) = (a as i128, b as i128, c as i128);
+                assert_eq!(
+                    client.mul_div_i128(a, b, c),
+                    checked_mul_div_i128(a, b, c),
+                    "{a} {b} {c}"
+                );
+                assert_eq!(
+                    client.mul_div_i128_floor(a, b, c),
+                    checked_mul_div_rounding_i128(a, b, c, Rounding::Floor),
                     "{a} {b} {c}"
                 );
             }

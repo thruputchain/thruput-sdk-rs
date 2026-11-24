@@ -133,14 +133,19 @@ pub(crate) fn mul_mod(x: &U256, y: &U256, d: &U256) -> U256 {
     mul_div_rem(x, y, d, Parts::rem)
 }
 
-/// `floor(a * b / d)`, or `None` if it needs more than 128 bits, by
-/// `U128MulDivRem`. `d` is not zero.
+/// `a * b` divided by `d`, by `U128MulDivRem`: what `take` reads from the
+/// quotient's low and high 128 bits and the remainder.
 ///
 /// # Panics
 ///
 /// If the host operation fails, as for [`mul_div_rem`].
 #[inline(always)]
-pub(crate) fn mul_div_u128(a: &u128, b: &u128, d: &u128) -> Option<u128> {
+fn mul_div_rem_u128<R>(
+    a: &u128,
+    b: &u128,
+    d: &u128,
+    take: impl FnOnce(u128, u128, u128) -> R,
+) -> R {
     let mut lo = MaybeUninit::uninit();
     let mut hi = MaybeUninit::uninit();
     let mut rem = MaybeUninit::uninit();
@@ -152,5 +157,25 @@ pub(crate) fn mul_div_u128(a: &u128, b: &u128, d: &u128) -> Option<u128> {
         panic!("U128MulDivRem failed");
     }
     // SAFETY: a successful call writes all three.
-    unsafe { (hi.assume_init() == 0).then(|| lo.assume_init()) }
+    unsafe { take(lo.assume_init(), hi.assume_init(), rem.assume_init()) }
+}
+
+/// `floor(a * b / d)`, or `None` if it needs more than 128 bits. `d` is not
+/// zero.
+#[inline(always)]
+pub(crate) fn mul_div_u128(a: &u128, b: &u128, d: &u128) -> Option<u128> {
+    mul_div_rem_u128(a, b, d, |lo, hi, _| (hi == 0).then_some(lo))
+}
+
+/// `floor(a * b / d)` and whether it was inexact, or `None` if the quotient
+/// needs more than 128 bits. `d` is not zero.
+#[inline(always)]
+pub(crate) fn mul_div_u128_inexact(
+    a: &u128,
+    b: &u128,
+    d: &u128,
+) -> Option<(u128, bool)> {
+    mul_div_rem_u128(a, b, d, |lo, hi, rem| {
+        (hi == 0).then_some((lo, rem != 0))
+    })
 }

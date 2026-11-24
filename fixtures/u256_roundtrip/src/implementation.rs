@@ -106,4 +106,22 @@ impl U256Roundtrip {
     pub fn mul_div_u128(&self, a: u128, b: u128, d: u128) -> Option<u128> {
         checked_mul_div_u128(a, b, d)
     }
+
+    /// The signed `a * b / d` over `i128`, truncated, or `None` when `d` is
+    /// zero or the quotient is out of range. Its magnitudes go through
+    /// `U128MulDivRem`.
+    pub fn mul_div_i128(&self, a: i128, b: i128, d: i128) -> Option<i128> {
+        checked_mul_div_i128(a, b, d)
+    }
+
+    /// The same, rounded toward negative infinity, which also reads the
+    /// remainder.
+    pub fn mul_div_i128_floor(
+        &self,
+        a: i128,
+        b: i128,
+        d: i128,
+    ) -> Option<i128> {
+        checked_mul_div_rounding_i128(a, b, d, Rounding::Floor)
+    }
 }

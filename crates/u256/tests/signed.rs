@@ -20,7 +20,10 @@ mod native;
 
 use native::native;
 
-use thruput_u256::{I256, ParseI256Error, Rounding, U256};
+use thruput_u256::{
+    I256, ParseI256Error, Rounding, U256, checked_mul_div_i128,
+    checked_mul_div_rounding_i128, mul_div_i128, mul_div_rounding_i128,
+};
 
 uint::construct_uint! {
     /// The unsigned oracle: four 64-bit limbs.
@@ -1134,6 +1137,188 @@ fn signed_mul_div_truncates_and_rounds_by_direction() {
 fn signed_mul_div_overflow_panics() {
     native(|| {
         let _ = I256::mul_div(I256::MIN, I256::MINUS_ONE, I256::ONE);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// mul_div_i128
+// ---------------------------------------------------------------------------
+
+#[test]
+fn mul_div_i128_matches_the_256_bit_entry_point() {
+    native(|| {
+        let mut rng = Rng(0x2718_2818_2845_9045);
+        let edges = [i128::MIN, i128::MIN + 1, -7, -1, 0, 1, 7, i128::MAX];
+        let mut cases: Vec<(i128, i128, i128)> = Vec::new();
+        for a in edges {
+            for b in edges {
+                for d in edges {
+                    cases.push((a, b, d));
+                }
+            }
+        }
+        for i in 0..6000 {
+            // Full-width operands mostly overflow or divide to nothing, so
+            // most cases narrow them to keep quotients near the boundary.
+            let shift = [0, 0, 1, 40, 64, 100][i % 6];
+            cases.push((
+                rng.next_i128(),
+                rng.next_i128() >> shift,
+                rng.next_i128() >> shift,
+            ));
+        }
+
+        let mut in_range = 0usize;
+        for (a, b, d) in cases {
+            for rounding in ROUNDINGS {
+                // The I256 family holds the product and the quotient
+                // exactly; only the narrowing back can fail.
+                let expect = I256::checked_mul_div_rounding(
+                    I256::from(a),
+                    I256::from(b),
+                    I256::from(d),
+                    rounding,
+                )
+                .and_then(|q| i128::try_from(q).ok());
+                assert_eq!(
+                    checked_mul_div_rounding_i128(a, b, d, rounding),
+                    expect,
+                    "mul_div({a}, {b}, {d}) {rounding:?}"
+                );
+                if rounding == Rounding::Trunc {
+                    assert_eq!(checked_mul_div_i128(a, b, d), expect);
+                }
+                if let Some(q) = expect {
+                    assert_eq!(mul_div_rounding_i128(a, b, d, rounding), q);
+                    in_range += 1;
+                }
+            }
+        }
+        assert!(in_range > 8000);
+    });
+}
+
+#[test]
+fn mul_div_i128_agrees_with_the_operators_where_they_do_not_overflow() {
+    native(|| {
+        let mut rng = Rng(0x1618_0339_8874_9894);
+        for _ in 0..5000 {
+            let a = rng.next_i128() >> 64;
+            let b = rng.next_i128() >> 65;
+            let d = rng.next_i128() >> 70;
+            if d == 0 {
+                continue;
+            }
+            assert_eq!(mul_div_i128(a, b, d), a * b / d, "{a} * {b} / {d}");
+            assert_eq!(
+                mul_div_rounding_i128(a, b, d, Rounding::Floor),
+                (a * b).div_euclid(d) - i128::from(d < 0 && a * b % d != 0),
+                "{a} * {b} / {d}"
+            );
+        }
+    });
+}
+
+#[test]
+fn mul_div_i128_truncates_and_rounds_by_direction() {
+    native(|| {
+        assert_eq!(mul_div_i128(7, 1, 2), 3);
+        assert_eq!(mul_div_i128(-7, 1, 2), -3);
+        assert_eq!(mul_div_i128(7, -1, -2), 3);
+        for (rounding, negative, positive) in [
+            (Rounding::Floor, -4, 3),
+            (Rounding::Ceil, -3, 4),
+            (Rounding::Trunc, -3, 3),
+            (Rounding::Expand, -4, 4),
+        ] {
+            assert_eq!(mul_div_rounding_i128(-7, 1, 2, rounding), negative);
+            assert_eq!(mul_div_rounding_i128(7, 1, 2, rounding), positive);
+            // An exact quotient is the same in every direction.
+            assert_eq!(mul_div_rounding_i128(-6, 1, 2, rounding), -3);
+        }
+        // A quotient that truncates to zero keeps the sign it rounds by.
+        assert_eq!(mul_div_rounding_i128(-1, 1, 2, Rounding::Floor), -1);
+        assert_eq!(mul_div_rounding_i128(-1, 1, 2, Rounding::Ceil), 0);
+        assert_eq!(mul_div_rounding_i128(1, 1, 2, Rounding::Ceil), 1);
+
+        // A pro-rata share whose product needs more than 128 bits.
+        let supply = 1_000_000_000_000_000_000_000_000_000_i128;
+        assert_eq!(mul_div_i128(supply, supply / 3, supply), supply / 3);
+    });
+}
+
+#[test]
+fn checked_mul_div_i128_reports_failures() {
+    native(|| {
+        assert_eq!(checked_mul_div_i128(1, 1, 0), None);
+        assert_eq!(
+            checked_mul_div_rounding_i128(1, 1, 0, Rounding::Ceil),
+            None
+        );
+        // The negative range reaches one further than the positive one.
+        assert_eq!(checked_mul_div_i128(i128::MIN, 1, 1), Some(i128::MIN));
+        assert_eq!(checked_mul_div_i128(i128::MIN, -1, 1), None);
+        assert_eq!(checked_mul_div_i128(i128::MIN, 1, -1), None);
+        assert_eq!(
+            checked_mul_div_i128(i128::MIN, i128::MIN, i128::MIN),
+            Some(i128::MIN)
+        );
+        assert_eq!(
+            checked_mul_div_i128(i128::MAX, i128::MAX, i128::MAX),
+            Some(i128::MAX)
+        );
+        assert_eq!(checked_mul_div_i128(i128::MAX, 2, 1), None);
+        assert_eq!(checked_mul_div_i128(i128::MIN, i128::MIN, 1), None);
+        // Rounding can leave the range the truncated quotient fits in.
+        // (2^64 - 1) * (2^64 + 1) / 2 is 2^127 - 1/2.
+        let (a, b) = ((1_i128 << 64) - 1, (1_i128 << 64) + 1);
+        assert_eq!(checked_mul_div_i128(a, b, 2), Some(i128::MAX));
+        assert_eq!(
+            checked_mul_div_rounding_i128(a, b, 2, Rounding::Ceil),
+            None
+        );
+        assert_eq!(checked_mul_div_i128(a, -b, 2), Some(-i128::MAX));
+        assert_eq!(
+            checked_mul_div_rounding_i128(a, -b, 2, Rounding::Floor),
+            Some(i128::MIN)
+        );
+        // 2^128 + 1 in its two prime factors: halved, 2^127 + 1/2.
+        let (a, b) = (59_649_589_127_497_217, 5_704_689_200_685_129_054_721);
+        assert_eq!(checked_mul_div_i128(a, b, 2), None);
+        assert_eq!(checked_mul_div_i128(a, -b, 2), Some(i128::MIN));
+        assert_eq!(
+            checked_mul_div_rounding_i128(a, -b, 2, Rounding::Floor),
+            None
+        );
+    });
+}
+
+#[test]
+#[should_panic(expected = "attempt to divide by zero")]
+fn mul_div_i128_by_zero_panics() {
+    let _ = mul_div_i128(1, 1, 0);
+}
+
+#[test]
+#[should_panic(expected = "attempt to divide by zero")]
+fn mul_div_rounding_i128_by_zero_panics() {
+    let _ = mul_div_rounding_i128(1, 1, 0, Rounding::Floor);
+}
+
+#[test]
+#[should_panic(expected = "mul_div_i128 quotient out of range for i128")]
+fn mul_div_i128_overflow_panics() {
+    native(|| {
+        let _ = mul_div_i128(i128::MIN, -1, 1);
+    });
+}
+
+#[test]
+#[should_panic(expected = "mul_div_i128 quotient out of range for i128")]
+fn mul_div_rounding_i128_overflow_panics() {
+    native(|| {
+        let (a, b) = ((1_i128 << 64) - 1, (1_i128 << 64) + 1);
+        let _ = mul_div_rounding_i128(a, b, 2, Rounding::Expand);
     });
 }
 
