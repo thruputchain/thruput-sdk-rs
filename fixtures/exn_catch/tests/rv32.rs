@@ -17,16 +17,16 @@ fn rv32_exn_catch_mapped() {
     run(common::exn_catch_mapped_test);
 }
 
-fn run(test: fn(&SHA256Hash)) {
+fn run(test: fn(&CodeHash<exn_catch::ExnCatchClient>)) {
     let path = std::env::var("EXN_CATCH_RV32_ARTIFACT")
         .unwrap_or_else(|_| RV32_PATH.into());
     let contract = thruput_sdk::load_rv32_contract(&path);
     let env = thruput_sdk::TestEnvironment::no_cost();
-    let contract_hash = env.setup_create_contract(&contract);
+    let code = CodeHash::new(env.setup_create_contract(&contract));
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test"))
-            .run(move || test(&contract_hash))
+            .run(move || test(&code))
     })
     .assert_success();
 }

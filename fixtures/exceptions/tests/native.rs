@@ -8,11 +8,11 @@ fn native_exceptions() {
 
     // Register the contract with the test environment
     let test_contract = exceptions::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test"))
-            .run(move || common::exceptions_test(&contract_hash))
+            .run(move || common::exceptions_test(&code))
     })
     .assert_success();
 }
@@ -23,11 +23,11 @@ fn native_panic() {
 
     // Register the contract with the test environment
     let test_contract = exceptions::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
+    let code = CodeHash::of_mock(&test_contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test"))
-            .run(move || common::panic_test(&contract_hash))
+            .run(move || common::panic_test(&code))
     })
     .assert_success();
 }

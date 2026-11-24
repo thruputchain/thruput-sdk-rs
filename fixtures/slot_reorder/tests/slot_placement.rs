@@ -3,7 +3,8 @@ use std::panic::AssertUnwindSafe;
 
 use slot_reorder::*;
 
-static NONCE: SHA256Hash = thruput_sdk::sha256_static!("SLOT_REORDER_NONCE");
+static NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("SLOT_REORDER_NONCE"));
 
 /// Slots >= 63 take multi-byte CXS index encodings (2-, 3-, and 5-byte
 /// forms). Lock the derive's field derivation against runtime `child()`
@@ -21,11 +22,11 @@ struct WideSlots {
     d: Value<u64>,
 }
 
-fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
+fn setup() -> (TestEnvironmentHandle, CodeHash<SlotReorderClient>) {
     let env = TestEnvironment::no_cost();
     let contract = slot_reorder::register_mock_contract(&env);
-    let contract_hash = contract.as_hash().clone();
-    (env, contract_hash)
+    let code = CodeHash::of_mock(&contract);
+    (env, code)
 }
 
 /// Verify that `#[slot(N)]` pins control where data is stored, not declaration order.
@@ -36,13 +37,13 @@ fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
 ///   - `third`  declared third, no pin         → lives at child(&2u32) (positional)
 #[test]
 fn slot_pins_control_storage_placement() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy.assert_success();

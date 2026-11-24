@@ -14,7 +14,8 @@ use thruput_sdk::*;
 // Test working directory is the example contract directory.
 const RV32_PATH: &str = "../../target/thruput/custom_allocator.rv32a";
 
-static NONCE: SHA256Hash = sha256_static!("CUSTOM_ALLOCATOR_NONCE");
+static NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("CUSTOM_ALLOCATOR_NONCE"));
 
 /// Deploys the artifact and runs `test` against its client.
 fn with_client(
@@ -22,11 +23,12 @@ fn with_client(
 ) {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
-    let hash = env.setup_create_contract(&contract);
+    let code = CodeHash::<CustomAllocatorClient>::new(
+        env.setup_create_contract(&contract),
+    );
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &hash);
-            test(&CustomAllocatorClient::new(&addr));
+            test(&code.deploy(&NONCE).client());
         })
     })
     .assert_success();

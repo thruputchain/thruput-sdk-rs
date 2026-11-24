@@ -1,25 +1,23 @@
 use counter::CounterClient;
 use thruput_sdk::*;
 
-static COUNTER_NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("COUNTER_TEST_NONCE");
+static COUNTER_NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("COUNTER_TEST_NONCE"));
 
-fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
+fn setup() -> (TestEnvironmentHandle, CodeHash<CounterClient>) {
     let env = thruput_sdk::TestEnvironment::no_cost();
     let test_contract = counter::register_mock_contract(&env);
-    let contract_hash = test_contract.as_hash().clone();
-    (env, contract_hash)
+    let code = CodeHash::of_mock(&test_contract);
+    (env, code)
 }
 
 #[test]
 fn test_counter_basic() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
-
-            let client = CounterClient::new(&addr);
+            let client = code.deploy(&COUNTER_NONCE).client();
 
             // Initialize with value 10
             client.initialize(10);
@@ -41,13 +39,11 @@ fn test_counter_basic() {
 
 #[test]
 fn test_counter_underflow() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
-
-            let client = CounterClient::new(&addr);
+            let client = code.deploy(&COUNTER_NONCE).client();
 
             // Initialize with 5
             client.initialize(5);
@@ -67,13 +63,11 @@ fn test_counter_underflow() {
 
 #[test]
 fn test_gas_limit_does_not_propagate() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&COUNTER_NONCE, &contract_hash);
-
-            let client = CounterClient::new(&addr);
+            let client = code.deploy(&COUNTER_NONCE).client();
             client.initialize(10);
 
             // Native mock instructions are unmetered, but their syscalls

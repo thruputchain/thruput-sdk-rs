@@ -1,19 +1,18 @@
 use codegen_hygiene::HygieneClient;
 use thruput_sdk::*;
 
-static NONCE: SHA256Hash =
-    thruput_sdk::sha256_static!("CODEGEN_HYGIENE_NONCE");
+static NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("CODEGEN_HYGIENE_NONCE"));
 
 #[test]
 fn params_named_after_generated_locals_pass_through() {
     let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = codegen_hygiene::register_mock_contract(&env);
-    let hash = contract.as_hash().clone();
+    let code = CodeHash::<HygieneClient>::of_mock(&contract);
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &hash);
-            let client = HygieneClient::new(&addr);
+            let client = code.deploy(&NONCE).client();
 
             assert_eq!(client.echo_entrypoint(42), 42);
             assert_eq!(client.echo_args(43), 43);

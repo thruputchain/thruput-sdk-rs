@@ -12,10 +12,10 @@ use u256_roundtrip_caller::U256RoundtripCallerClient;
 const CALLEE_PATH: &str = "../../target/thruput/u256_roundtrip.rv32a";
 const CALLER_PATH: &str = "../../target/thruput/u256_roundtrip_caller.rv32a";
 
-static CALLEE_NONCE: SHA256Hash =
-    sha256_static!("U256_ROUNDTRIP_CALLEE_NONCE");
-static CALLER_NONCE: SHA256Hash =
-    sha256_static!("U256_ROUNDTRIP_CALLER_NONCE");
+static CALLEE_NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("U256_ROUNDTRIP_CALLEE_NONCE"));
+static CALLER_NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("U256_ROUNDTRIP_CALLER_NONCE"));
 
 #[test]
 fn u256_roundtrips_guest_to_guest_rv32() {
@@ -23,14 +23,18 @@ fn u256_roundtrips_guest_to_guest_rv32() {
     let caller = load_rv32_contract(CALLER_PATH);
 
     let env = TestEnvironment::no_cost();
-    let callee_hash = env.setup_create_contract(&callee);
-    let caller_hash = env.setup_create_contract(&caller);
+    let callee_code = CodeHash::<u256_roundtrip::U256RoundtripClient>::new(
+        env.setup_create_contract(&callee),
+    );
+    let caller_code = CodeHash::<U256RoundtripCallerClient>::new(
+        env.setup_create_contract(&caller),
+    );
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let callee_addr = deploy_contract(&CALLEE_NONCE, &callee_hash);
-            let caller_addr = deploy_contract(&CALLER_NONCE, &caller_hash);
-            U256RoundtripCallerClient::new(&caller_addr).run(&callee_addr);
+            let callee_addr = callee_code.deploy(&CALLEE_NONCE);
+            let caller_addr = caller_code.deploy(&CALLER_NONCE);
+            caller_addr.client().run(&callee_addr);
         })
     })
     .assert_success();

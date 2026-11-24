@@ -9,7 +9,7 @@ const ALICE: ContractAddress = ContractAddress::new([0x13; 32]);
 const BOB: ContractAddress = ContractAddress::new([0x14; 32]);
 const SPENDER: ContractAddress = ContractAddress::new([0x15; 32]);
 const OTHER: ContractAddress = ContractAddress::new([0x16; 32]);
-const NONCE: SHA256Hash = SHA256Hash::new([0x17; 32]);
+const NONCE: DeployNonce = DeployNonce::new(SHA256Hash::new([0x17; 32]));
 fn token() -> ERC20Client {
     ERC20Client::new(&TOKEN)
 }
@@ -41,7 +41,10 @@ fn call(
 }
 fn register(
     env: &TestEnvironmentHandle,
-) -> (thruput_sdk::types::Contract, SHA256Hash) {
+) -> (
+    thruput_sdk::types::Contract,
+    CodeHash<(ERC20AdminClient, ERC20MetadataClient, ERC20Client)>,
+) {
     if let Some(path) = std::env::var_os("ISSUER_TOKEN_RV32_ARTIFACT") {
         let contract = thruput_sdk::types::Contract::kRv32 {
             rv32_contract: thruput_sdk::types::contract::ContractBlob {
@@ -50,11 +53,11 @@ fn register(
                 ),
             },
         };
-        let hash = env.setup_create_contract(&contract);
-        (contract, hash)
+        let code = CodeHash::new(env.setup_create_contract(&contract));
+        (contract, code)
     } else {
         let mock = erc20_issuer::register_mock_contract(env);
-        (mock.as_contract(), *mock.as_hash())
+        (mock.as_contract(), CodeHash::of_mock(&mock))
     }
 }
 fn setup_with(policy: Policy) -> TestEnvironmentHandle {
@@ -119,24 +122,24 @@ fn erc_error(r: TransactResult, expected: ERC20Error) {
 #[test]
 fn atomic_deployment_metadata_and_all_initializers_share_one_guard() {
     let env = TestEnvironment::no_cost();
-    let (_, hash) = register(&env);
+    let (_, code) = register(&env);
     let r = env.transact(|tx| {
         tx.call(&ADMIN).run(|| {
-            let addr = deploy_contract(&NONCE, &hash);
-            ERC20AdminClient::new(&addr).initialize(
+            let addr = code.deploy(&NONCE);
+            ERC20AdminClient::at(&addr).initialize(
                 &MINTER,
                 "Name".try_into().unwrap(),
                 "ABCDEFGHIJKL".try_into().unwrap(),
                 7,
                 policy(),
             );
-            let meta = ERC20MetadataClient::new(&addr);
+            let meta = ERC20MetadataClient::at(&addr);
             assert_eq!(meta.symbol().unwrap().as_str(), "ABCDEFGHIJKL");
             assert_eq!(meta.name().unwrap().as_str(), "Name");
             assert_eq!(meta.decimals(), Some(7));
-            assert_eq!(ERC20AdminClient::new(&addr).admin(), ADMIN);
-            assert_eq!(ERC20Client::new(&addr).total_supply(), 0);
-            addr
+            assert_eq!(ERC20AdminClient::at(&addr).admin(), ADMIN);
+            assert_eq!(ERC20Client::at(&addr).total_supply(), 0);
+            *addr
         })
     });
     r.assert_success();

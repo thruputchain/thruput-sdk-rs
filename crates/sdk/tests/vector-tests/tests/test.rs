@@ -4,25 +4,26 @@ use std::panic::AssertUnwindSafe;
 use thruput_sdk::*;
 use vector_tests::*;
 
-static NONCE: SHA256Hash = thruput_sdk::sha256_static!("VECTOR_TEST_NONCE");
+static NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("VECTOR_TEST_NONCE"));
 
 /// Helper: set up the fibonacci contract in a test environment.
-fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
+fn setup() -> (TestEnvironmentHandle, CodeHash<VectorTestClient>) {
     let env = TestEnvironment::no_cost();
     let contract = env.register_mock(VectorTestContract::__mock);
-    let contract_hash = *contract.as_hash();
-    (env, contract_hash)
+    let code = CodeHash::<VectorTestClient>::of_mock(&contract);
+    (env, code)
 }
 
 #[test]
 fn test_vector_basic_usage() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -77,13 +78,13 @@ fn test_vector_basic_usage() {
 
 #[test]
 fn test_vector_pop() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -111,13 +112,13 @@ fn test_vector_pop() {
 
 #[test]
 fn test_iter_sum() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -141,13 +142,13 @@ fn test_iter_sum() {
 
 #[test]
 fn test_iter_mut_inc_all() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -180,13 +181,13 @@ fn test_iter_mut_inc_all() {
 
 #[test]
 fn test_concurrent_shared_delete() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -251,13 +252,13 @@ fn test_concurrent_shared_delete() {
 /// reads back as missing, and the surviving elements keep their indices.
 #[test]
 fn test_element_delete_is_a_durable_hole() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -318,13 +319,13 @@ fn test_element_delete_is_a_durable_hole() {
 /// in place: the delete is part of the reverted frame, not applied eagerly.
 #[test]
 fn test_element_delete_reverts_with_the_transaction() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -375,13 +376,13 @@ fn test_element_delete_reverts_with_the_transaction() {
 /// conflict on the len slot.
 #[test]
 fn test_element_deletes_do_not_conflict_on_len() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -436,13 +437,13 @@ fn test_element_deletes_do_not_conflict_on_len() {
 /// expect: a later `inc` treats the missing slot as zero and recreates it.
 #[test]
 fn test_deleted_nnint_element_resurrects_on_inc() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();
@@ -494,13 +495,13 @@ fn test_deleted_nnint_element_resurrects_on_inc() {
 /// vector's elements and its len, leaving sibling entries alone.
 #[test]
 fn test_nested_vector_delete_through_map_entry() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
     let addr = Cell::new(ContractAddress::default());
 
     let deploy_result = env.transact(|tx| {
         tx.call(&ContractAddress::named("caller"))
             .run(AssertUnwindSafe(|| {
-                addr.set(thruput_sdk::deploy_contract(&NONCE, &contract_hash));
+                addr.set(*code.deploy(&NONCE));
             }))
     });
     deploy_result.assert_success();

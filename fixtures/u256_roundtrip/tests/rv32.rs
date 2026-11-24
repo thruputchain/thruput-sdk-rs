@@ -15,20 +15,25 @@ use u256_roundtrip::U256RoundtripClient;
 // Test working directory is the example contract directory.
 const RV32_PATH: &str = "../../target/thruput/u256_roundtrip.rv32a";
 
-static NONCE: SHA256Hash = sha256_static!("U256_ROUNDTRIP_TEST_NONCE");
+static NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("U256_ROUNDTRIP_TEST_NONCE"));
 
 /// A distinct deploy nonce, so the signed test gets its own contract instance
 /// and cannot read storage the unsigned one wrote.
-static SIGNED_NONCE: SHA256Hash = sha256_static!("I256_ROUNDTRIP_TEST_NONCE");
+static SIGNED_NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("I256_ROUNDTRIP_TEST_NONCE"));
 
 /// And one more, for the `I256::MIN` case below.
-static MIN_NONCE: SHA256Hash = sha256_static!("I256_MIN_ROUNDTRIP_TEST_NONCE");
+static MIN_NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("I256_MIN_ROUNDTRIP_TEST_NONCE"));
 
 /// And one for the square roots.
-static SQRT_NONCE: SHA256Hash = sha256_static!("U256_SQRT_TEST_NONCE");
+static SQRT_NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("U256_SQRT_TEST_NONCE"));
 
 /// And one for the multiply-divides.
-static MUL_DIV_NONCE: SHA256Hash = sha256_static!("U256_MUL_DIV_TEST_NONCE");
+static MUL_DIV_NONCE: DeployNonce =
+    DeployNonce::new(sha256_static!("U256_MUL_DIV_TEST_NONCE"));
 
 /// A value whose limbs all differ and whose top bit is set, so any limb
 /// reordering or truncation in the calldata/return/storage paths shows up.
@@ -52,15 +57,16 @@ fn signed_test_value() -> I256 {
 fn u256_roundtrips_through_rv32_entrypoint_and_storage() {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
-    let contract_hash = env.setup_create_contract(&contract);
+    let code = CodeHash::<U256RoundtripClient>::new(
+        env.setup_create_contract(&contract),
+    );
 
     let arg = test_value();
     let expected = arg.checked_add(U256::ONE).unwrap();
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy(&NONCE).client();
 
             assert_eq!(client.add_one_and_store(arg), expected);
             // Read back within the same transaction.
@@ -75,8 +81,7 @@ fn u256_roundtrips_through_rv32_entrypoint_and_storage() {
     // the commit and read back identically from a fresh storage handle.
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = get_deploy_address(&NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy_address(&NONCE).client();
 
             assert_eq!(client.stored(), expected);
         })
@@ -91,7 +96,9 @@ fn u256_roundtrips_through_rv32_entrypoint_and_storage() {
 fn i256_roundtrips_through_rv32_entrypoint_and_storage() {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
-    let contract_hash = env.setup_create_contract(&contract);
+    let code = CodeHash::<U256RoundtripClient>::new(
+        env.setup_create_contract(&contract),
+    );
 
     let arg = signed_test_value();
     let expected = arg.wrapping_neg();
@@ -99,8 +106,7 @@ fn i256_roundtrips_through_rv32_entrypoint_and_storage() {
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&SIGNED_NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy(&SIGNED_NONCE).client();
 
             assert_eq!(client.negate_and_store(arg), expected);
             assert_eq!(client.stored_signed(), expected);
@@ -117,8 +123,7 @@ fn i256_roundtrips_through_rv32_entrypoint_and_storage() {
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = get_deploy_address(&SIGNED_NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy_address(&SIGNED_NONCE).client();
 
             assert_eq!(client.stored_signed(), arg);
         })
@@ -152,7 +157,9 @@ fn i256_roundtrips_through_rv32_entrypoint_and_storage() {
 fn i256_min_negates_to_itself_through_rv32() {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
-    let contract_hash = env.setup_create_contract(&contract);
+    let code = CodeHash::<U256RoundtripClient>::new(
+        env.setup_create_contract(&contract),
+    );
 
     // Not `-I256::MIN`: that is the overflow this test exists to pin, and
     // the operator would panic on it here (the harness builds checked).
@@ -161,8 +168,7 @@ fn i256_min_negates_to_itself_through_rv32() {
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&MIN_NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy(&MIN_NONCE).client();
 
             // Negating in the guest returns `MIN` unchanged...
             assert_eq!(client.negate_and_store(arg), I256::MIN);
@@ -179,8 +185,7 @@ fn i256_min_negates_to_itself_through_rv32() {
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = get_deploy_address(&MIN_NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy_address(&MIN_NONCE).client();
 
             assert_eq!(client.stored_signed(), I256::MIN);
         })
@@ -238,12 +243,13 @@ fn sqrt_values() -> Vec<U256> {
 fn square_roots_agree_in_rv32_and_native() {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
-    let contract_hash = env.setup_create_contract(&contract);
+    let code = CodeHash::<U256RoundtripClient>::new(
+        env.setup_create_contract(&contract),
+    );
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&SQRT_NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy(&SQRT_NONCE).client();
 
             // 2^255 sits in the top byte of the 32 the host reads, so a
             // value handed over in the wrong order gets a different root.
@@ -348,12 +354,13 @@ fn mul_div_operands() -> Vec<(U256, U256, U256)> {
 fn divisions_agree_in_rv32_and_native() {
     let contract = load_rv32_contract(RV32_PATH);
     let env = TestEnvironment::no_cost();
-    let contract_hash = env.setup_create_contract(&contract);
+    let code = CodeHash::<U256RoundtripClient>::new(
+        env.setup_create_contract(&contract),
+    );
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let addr = deploy_contract(&MUL_DIV_NONCE, &contract_hash);
-            let client = U256RoundtripClient::new(&addr);
+            let client = code.deploy(&MUL_DIV_NONCE).client();
             let top = U256::ONE << 255;
             let u128_top = 1_u128 << 127;
 

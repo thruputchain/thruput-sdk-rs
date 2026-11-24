@@ -6,19 +6,20 @@ const CONTRACT_ADDR: ContractAddress = ContractAddress::new([0x01; 32]);
 /// A separate "caller" address — client calls originate from here.
 const CALLER_ADDR: ContractAddress = ContractAddress::new([0xFF; 32]);
 
-static NONCE: SHA256Hash = thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE");
-static NONCE_A: SHA256Hash =
-    thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_A");
-static NONCE_B: SHA256Hash =
-    thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_B");
+static NONCE: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE"));
+static NONCE_A: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_A"));
+static NONCE_B: DeployNonce =
+    DeployNonce::new(thruput_sdk::sha256_static!("STORAGE_ERRORS_NONCE_B"));
 
 /// Register the mock contract and pre-deploy at CONTRACT_ADDR.
-fn setup() -> (TestEnvironmentHandle, SHA256Hash) {
+fn setup() -> (TestEnvironmentHandle, CodeHash<StorageErrorClient>) {
     let env = thruput_sdk::TestEnvironment::no_cost();
     let contract = storage_errors::register_mock_contract(&env);
-    let contract_hash = contract.as_hash().clone();
+    let code = CodeHash::of_mock(&contract);
     contract.deploy_contract_to(&CONTRACT_ADDR);
-    (env, contract_hash)
+    (env, code)
 }
 
 // -- Happy paths --
@@ -271,11 +272,10 @@ fn guard_dropped_before_early_return_succeeds() {
 fn early_return_with_live_guard_fails_loudly() {
     let caught =
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let (env, contract_hash) = setup();
+            let (env, code) = setup();
             env.transact(|tx| {
                 tx.call(&ContractAddress::named("test")).run(move || -> () {
-                    let addr = deploy_contract(&NONCE, &contract_hash);
-                    let client = StorageErrorClient::new(&addr);
+                    let client = code.deploy(&NONCE).client();
                     client.initialize();
                     // Deliberately `try_`: the check must be unswallowable. A
                     // plain panic would be rewritten to a Deterministic error
@@ -312,20 +312,19 @@ fn early_return_with_live_guard_fails_loudly() {
 
 #[test]
 fn guard_across_nested_call_is_not_a_false_positive() {
-    let (env, contract_hash) = setup();
+    let (env, code) = setup();
 
     env.transact(|tx| {
         tx.call(&ContractAddress::named("test")).run(move || {
-            let a = deploy_contract(&NONCE_A, &contract_hash);
-            let b = deploy_contract(&NONCE_B, &contract_hash);
-            let ca = StorageErrorClient::new(&a);
-            let cb = StorageErrorClient::new(&b);
+            let ca = code.deploy(&NONCE_A).client();
+            let b = code.deploy(&NONCE_B);
+            let cb = b.client();
             ca.initialize();
             cb.initialize(); // b's vector has len 3
 
             // a holds a ValueMut across the call into b; b's normal return
             // must not trip the live-guard check (b's frame has no guards).
-            assert_eq!(ca.guard_across_call(b.clone()), 4); // 0 + 1 + 3
+            assert_eq!(ca.guard_across_call(*b), 4); // 0 + 1 + 3
 
             // a's guard flushed on drop.
             assert_eq!(ca.get_plain(), 4);

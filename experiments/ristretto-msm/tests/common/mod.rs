@@ -5,10 +5,12 @@ use curve25519_dalek::{
 use ristretto_msm::RistrettoMsmClient;
 use thruput_sdk::*;
 
-pub fn run(contract_hash: &SHA256Hash, check: fn(&RistrettoMsmClient)) {
-    let address =
-        deploy_contract(&sha256_static!("ristretto-msm"), contract_hash);
-    check(&RistrettoMsmClient::new(&address));
+pub fn run(
+    code: &CodeHash<RistrettoMsmClient>,
+    check: fn(&RistrettoMsmClient),
+) {
+    let nonce = DeployNonce::new(sha256_static!("ristretto-msm"));
+    check(&code.deploy(&nonce).client());
 }
 
 fn packed(scalar: &Scalar, point: &RistrettoPoint) -> [u8; 64] {
