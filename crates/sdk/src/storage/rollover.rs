@@ -47,7 +47,7 @@ use core::num::NonZeroU64;
 /// tally.add(1);
 /// ```
 ///
-/// The value is in `0..=L::MAX`. Like [`NNInt::inc`](super::NNInt::inc),
+/// The value is in `0..=i128::MAX`. Like [`NNInt::inc`](super::NNInt::inc),
 /// [`Current::add`] is checked at *commit*, for the block's merged total: a
 /// block's transactions that together take the value below zero, or above
 /// the maximum, are not all admitted.
@@ -70,18 +70,16 @@ use core::num::NonZeroU64;
 /// The reset value is consulted only when the period changes. A limit
 /// lowered mid-period applies from the next period.
 ///
-/// # Where the tag lives
+/// # Storage
 ///
-/// | Layout | Storage items | Writes on reset | Value range | Tag |
-/// | --- | --- | --- | --- | --- |
-/// | [`Split`] (default) | 2 | 2 | `0..=i128::MAX` | 64 bits, own key |
-/// | [`Packed`] | 1 | 1 | `0..2^95` | 32 bits, modulo `2^32 - 1` |
+/// Two storage items: the period tag in one key and the integer in
+/// another. A reset writes both. A touch that does not reset reads the tag
+/// and writes one delta, and a constant reset never loads the old value.
 ///
-/// A touch that does not reset reads the tag and writes one delta in either
-/// layout. With `Split` a constant reset never loads the old value.
-/// `Packed` is what a contract with thousands of cells wants (one deposit
-/// per cell); it gives up 32 bits of value, and a cell left untouched for
-/// exactly `2^32 - 1` periods is taken for current.
+/// A contract with thousands of cells may want the tag packed into the
+/// integer's low bits instead, for one item per cell at the cost of value
+/// range. That is a separate type if it is wanted; an earlier revision of
+/// this prototype had it as a second layout.
 ///
 /// # What it does not express
 ///
@@ -90,7 +88,7 @@ use core::num::NonZeroU64;
 ///   carry analysis remain the contract's.
 /// - A reset that depends on other transactions in the same block. No
 ///   contract can express that; they are not visible.
-/// - An upper bound below the layout's maximum. The runtime enforces only
+/// - An upper bound below `i128::MAX`. The runtime enforces only
 ///   `0` and the integer's own range across a block. Count *down* from a
 ///   limit rather than up toward one.
 ///
@@ -100,8 +98,7 @@ use core::num::NonZeroU64;
 /// `crates/sdk/tests/rollover.rs`, and include a token bucket and a
 /// lane-packed tally written against it.
 ///
-/// For it: one type covers the constant reset and the carry-over, in both
-/// layouts. It turns two conventions into things that cannot be got
+/// For it: one type covers the constant reset and the carry-over. It turns two conventions into things that cannot be got
 /// wrong: adding without resetting, and resetting twice in a transaction.
 /// Readers get the writers' rule through [`peek_with`](Self::peek_with).
 ///
@@ -116,8 +113,9 @@ use core::num::NonZeroU64;
 /// It has not been built into a guest contract, measured for gas, or
 /// added to the fixtures.
 #[derive(Debug)]
-pub struct Rollover<L: TagLayout = Split> {
-    keys: L::Keys,
+pub struct Rollover {
+    tag: Value<u64>,
+    cell: LeafKey,
 }
 
 /// A period: the index a [`Rollover`] cell tags its contents with.
@@ -168,85 +166,14 @@ pub struct Lapsed {
     pub value: i128,
 
     /// The period that value is from, or `None` if the cell was never
-    /// written. [`Packed`] keeps the period modulo `2^32 - 1`.
+    /// written.
     pub from: Option<u64>,
 
     /// The period being entered.
     pub to: u64,
 }
 
-/// Where a [`Rollover`] keeps its period tag. Implemented by [`Split`] and
-/// [`Packed`].
-#[allow(private_bounds)]
-pub trait TagLayout: Layout {}
-
-/// The tag in its own key: two storage items, the full integer range.
-#[derive(Debug)]
-pub struct Split;
-
-/// The tag in the low 32 bits of the integer: one storage item, 95 bits of
-/// value.
-///
-/// The tag is the period modulo `2^32 - 1`, plus one, so that a zero tag
-/// means the cell was never written.
-#[derive(Debug)]
-pub struct Packed;
-
-impl TagLayout for Split {}
-impl TagLayout for Packed {}
-
-/// A cell's base and delta, in the value's own units: `set` is the pending
-/// set, or failing that the snapshot.
-struct Loaded {
-    tag: Option<u64>,
-    set: i128,
-    add: i128,
-}
-
-trait Layout {
-    type Keys: From<Keypath> + core::fmt::Debug;
-    const MAX: i128;
-
-    /// The tag, as this transaction sees it.
-    fn tag(keys: &Self::Keys) -> Result<Option<u64>, LibraryExn>;
-    /// Tag and value, as this transaction sees them.
-    fn load(keys: &Self::Keys) -> Result<Loaded, LibraryExn>;
-    /// The integer's key, for its pending values.
-    fn cell(keys: &Self::Keys) -> &LeafKey;
-    fn same(tag: u64, period: Period) -> bool;
-    /// Set `value` for `period`, discarding pending deltas.
-    fn reset(
-        keys: &mut Self::Keys,
-        period: Period,
-        value: i128,
-    ) -> Result<(), LibraryExn>;
-    /// `delta`, in the units the integer is stored in.
-    fn scale(delta: i128) -> Result<i128, LibraryExn>;
-    fn delete(keys: &mut Self::Keys, exclusive: bool);
-}
-
-fn sum(set: i128, add: i128) -> Result<i128, LibraryExn> {
-    set.checked_add(add)
-        .ok_or(LibraryExn::NonNegativeIntOverflow)
-}
-
-/// The integer's base and delta, reading a never-written cell as zero.
-fn load_cell(key: &LeafKey) -> Result<(i128, i128), LibraryExn> {
-    match nnint::try_get_values_force(key.get()) {
-        Ok(values) => Ok(values),
-        Err(e) if e.is_storage_missing() => Ok((0, 0)),
-        Err(e) => Err(e),
-    }
-}
-
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct SplitKeys {
-    tag: Value<u64>,
-    cell: LeafKey,
-}
-
-impl From<Keypath> for SplitKeys {
+impl From<Keypath> for Rollover {
     fn from(keypath: Keypath) -> Self {
         Self {
             tag: keypath.child(&0u32).into(),
@@ -255,140 +182,56 @@ impl From<Keypath> for SplitKeys {
     }
 }
 
-impl Layout for Split {
-    type Keys = SplitKeys;
-    const MAX: i128 = i128::MAX;
+fn sum(set: i128, add: i128) -> Result<i128, LibraryExn> {
+    set.checked_add(add)
+        .ok_or(LibraryExn::NonNegativeIntOverflow)
+}
 
-    fn tag(keys: &SplitKeys) -> Result<Option<u64>, LibraryExn> {
-        match keys.tag.try_get() {
+fn non_negative(value: i128) -> Result<i128, LibraryExn> {
+    if value < 0 {
+        Err(LibraryExn::NonNegativeIntUnderflow)
+    } else {
+        Ok(value)
+    }
+}
+
+impl Rollover {
+    /// The tag as this transaction sees it: `None` if never written.
+    fn tag(&self) -> Result<Option<u64>, LibraryExn> {
+        match self.tag.try_get() {
             Ok(tag) => Ok(Some(tag)),
             Err(e) if e.is_storage_missing() => Ok(None),
             Err(e) => Err(e),
         }
     }
 
-    fn load(keys: &SplitKeys) -> Result<Loaded, LibraryExn> {
-        let (set, add) = load_cell(&keys.cell)?;
-        Ok(Loaded {
-            tag: Self::tag(keys)?,
-            set,
-            add,
-        })
-    }
-
-    fn cell(keys: &SplitKeys) -> &LeafKey {
-        &keys.cell
-    }
-
-    fn same(tag: u64, period: Period) -> bool {
-        tag == period.0
-    }
-
-    fn reset(
-        keys: &mut SplitKeys,
-        period: Period,
-        value: i128,
-    ) -> Result<(), LibraryExn> {
-        keys.tag.try_set(&period.0)?;
-        let key = &keys.cell;
-        nnint::try_set_add(key.get(), Some(value), 0, key.is_exclusive())
-    }
-
-    fn scale(delta: i128) -> Result<i128, LibraryExn> {
-        Ok(delta)
-    }
-
-    fn delete(keys: &mut SplitKeys, exclusive: bool) {
-        use super::deletable::Deletable;
-        keys.tag.delete_internal(exclusive);
-        let exclusive = exclusive || keys.cell.is_exclusive();
-        crate::sys_exn::delete::delete(keys.cell.get(), exclusive);
-    }
-}
-
-const TAG_BITS: u32 = 32;
-
-/// A period's packed tag: never zero, which is a never-written cell's.
-fn packed_tag(period: Period) -> u32 {
-    (period.0 % u64::from(u32::MAX)) as u32 + 1
-}
-
-impl Layout for Packed {
-    type Keys = LeafKey;
-    const MAX: i128 = i128::MAX >> TAG_BITS;
-
-    fn tag(key: &LeafKey) -> Result<Option<u64>, LibraryExn> {
-        Ok(Self::load(key)?.tag)
-    }
-
-    fn load(key: &LeafKey) -> Result<Loaded, LibraryExn> {
-        // Deltas are multiples of `2^TAG_BITS`, so the tag is the base's.
-        let (set, add) = load_cell(key)?;
-        Ok(Loaded {
-            tag: (set as u32).checked_sub(1).map(u64::from),
-            set: set >> TAG_BITS,
-            add: add >> TAG_BITS,
-        })
-    }
-
-    fn cell(key: &LeafKey) -> &LeafKey {
-        key
-    }
-
-    fn same(tag: u64, period: Period) -> bool {
-        tag + 1 == u64::from(packed_tag(period))
-    }
-
-    fn reset(
-        key: &mut LeafKey,
-        period: Period,
-        value: i128,
-    ) -> Result<(), LibraryExn> {
-        let packed = (value << TAG_BITS) | i128::from(packed_tag(period));
-        nnint::try_set_add(key.get(), Some(packed), 0, key.is_exclusive())
-    }
-
-    fn scale(delta: i128) -> Result<i128, LibraryExn> {
-        delta.checked_mul(1 << TAG_BITS).ok_or(if delta < 0 {
-            LibraryExn::NonNegativeIntUnderflow
-        } else {
-            LibraryExn::NonNegativeIntOverflow
-        })
-    }
-
-    fn delete(key: &mut LeafKey, exclusive: bool) {
-        let exclusive = exclusive || key.is_exclusive();
-        crate::sys_exn::delete::delete(key.get(), exclusive);
-    }
-}
-
-impl<L: TagLayout> From<Keypath> for Rollover<L> {
-    fn from(keypath: Keypath) -> Self {
-        Self {
-            keys: keypath.into(),
+    /// The integer's base and delta, reading a never-written cell as zero.
+    /// The base is the pending set, or failing that the snapshot.
+    fn load(&self) -> Result<(i128, i128), LibraryExn> {
+        match nnint::try_get_values_force(self.cell.get()) {
+            Ok(values) => Ok(values),
+            Err(e) if e.is_storage_missing() => Ok((0, 0)),
+            Err(e) => Err(e),
         }
     }
-}
 
-fn in_range<L: Layout>(value: i128) -> Result<i128, LibraryExn> {
-    if value < 0 {
-        Err(LibraryExn::NonNegativeIntUnderflow)
-    } else if value > L::MAX {
-        Err(LibraryExn::NonNegativeIntOverflow)
-    } else {
-        Ok(value)
+    /// Set `value` for `period`, discarding pending deltas.
+    fn reset(
+        &mut self,
+        period: Period,
+        value: i128,
+    ) -> Result<(), LibraryExn> {
+        let value = non_negative(value)?;
+        self.tag.try_set(&period.0)?;
+        let key = &self.cell;
+        nnint::try_set_add(key.get(), Some(value), 0, key.is_exclusive())
     }
-}
-
-impl<L: TagLayout> Rollover<L> {
-    /// The largest value the cell holds.
-    pub const MAX: i128 = L::MAX;
 
     /// Enter `period`, resetting the cell to `reset_to` if its contents are
     /// from another period, and return a guard to read and add through.
     ///
     /// *Throws:* any error [`try_enter`](Self::try_enter) would return.
-    pub fn enter(&mut self, period: Period, reset_to: i128) -> Current<'_, L> {
+    pub fn enter(&mut self, period: Period, reset_to: i128) -> Current<'_> {
         self.try_enter(period, reset_to).or_re_throw()
     }
 
@@ -398,13 +241,13 @@ impl<L: TagLayout> Rollover<L> {
     ///
     /// [`LibraryExn::RolloverAlreadyWritten`] if this transaction has
     /// already written the cell under a different period, so that the reset
-    /// would discard those writes. A `reset_to` outside `0..=MAX` is an
-    /// underflow or overflow. On `Err` the cell is unmodified.
+    /// would discard those writes. A negative `reset_to` is an underflow.
+    /// On `Err` the cell is unmodified.
     pub fn try_enter(
         &mut self,
         period: Period,
         reset_to: i128,
-    ) -> Result<Current<'_, L>, LibraryExn> {
+    ) -> Result<Current<'_>, LibraryExn> {
         self.roll(period, |_, _| Ok(Some(reset_to)))?;
         Ok(Current { cell: self })
     }
@@ -428,7 +271,7 @@ impl<L: TagLayout> Rollover<L> {
         &mut self,
         period: Period,
         rule: impl FnOnce(Lapsed) -> Option<i128>,
-    ) -> Current<'_, L> {
+    ) -> Current<'_> {
         self.try_enter_with(period, rule).or_re_throw()
     }
 
@@ -439,9 +282,9 @@ impl<L: TagLayout> Rollover<L> {
         &mut self,
         period: Period,
         rule: impl FnOnce(Lapsed) -> Option<i128>,
-    ) -> Result<Current<'_, L>, LibraryExn> {
-        self.roll(period, |keys, from| {
-            let value = L::load(keys)?.set;
+    ) -> Result<Current<'_>, LibraryExn> {
+        self.roll(period, |this, from| {
+            let (value, _) = this.load()?;
             Ok(rule(Lapsed {
                 value,
                 from,
@@ -454,31 +297,28 @@ impl<L: TagLayout> Rollover<L> {
     fn roll(
         &mut self,
         period: Period,
-        reset: impl FnOnce(
-            &L::Keys,
-            Option<u64>,
-        ) -> Result<Option<i128>, LibraryExn>,
+        reset: impl FnOnce(&Self, Option<u64>) -> Result<Option<i128>, LibraryExn>,
     ) -> Result<(), LibraryExn> {
-        let tag = L::tag(&self.keys)?;
-        if tag.is_some_and(|tag| L::same(tag, period)) {
+        let tag = self.tag()?;
+        if tag == Some(period.0) {
             return Ok(());
         }
         // Lapsed, or never written. What this transaction has pending tells
         // whether it has been here before, without a load.
-        let (set, add) = nnint::try_get_values(L::cell(&self.keys).get())?;
+        let (set, add) = nnint::try_get_values(self.cell.get())?;
         if set.is_some() {
             // Reset already, under another period.
             return Err(LibraryExn::RolloverAlreadyWritten);
         }
         // No pending set, so the base the rule sees is the snapshot.
-        let Some(value) = reset(&self.keys, tag)? else {
+        let Some(value) = reset(self, tag)? else {
             return Ok(());
         };
         if add != 0 {
             // An earlier touch was told there was nothing to reset.
             return Err(LibraryExn::RolloverAlreadyWritten);
         }
-        L::reset(&mut self.keys, period, in_range::<L>(value)?)
+        self.reset(period, value)
     }
 
     /// The cell's value in `period`, without writing: what it holds if its
@@ -504,8 +344,9 @@ impl<L: TagLayout> Rollover<L> {
         period: Period,
         rule: impl FnOnce(Lapsed) -> Option<i128>,
     ) -> Result<i128, LibraryExn> {
-        let Loaded { tag, set, add } = L::load(&self.keys)?;
-        if !tag.is_some_and(|tag| L::same(tag, period)) {
+        let tag = self.tag()?;
+        let (set, add) = self.load()?;
+        if tag != Some(period.0) {
             let lapsed = Lapsed {
                 value: set,
                 from: tag,
@@ -521,8 +362,8 @@ impl<L: TagLayout> Rollover<L> {
     /// What is stored, whatever the period: the tag (`None` if never
     /// written) and the value. For tests and diagnostics.
     pub fn recorded(&self) -> (Option<u64>, i128) {
-        let Loaded { tag, set, add } = L::load(&self.keys).or_re_throw();
-        (tag, sum(set, add).or_re_throw())
+        let (set, add) = self.load().or_re_throw();
+        (self.tag().or_re_throw(), sum(set, add).or_re_throw())
     }
 
     /// Set the cell to `value` for `period`, whatever it held.
@@ -532,8 +373,7 @@ impl<L: TagLayout> Rollover<L> {
     /// lay the cell out, or when the terms of its rule change.
     ///
     /// *Throws:* [`LibraryExn::RolloverAlreadyWritten`] if this transaction
-    /// has added to the cell; a `value` outside `0..=MAX` as an underflow
-    /// or overflow.
+    /// has added to the cell; a negative `value` as an underflow.
     pub fn restart(&mut self, period: Period, value: i128) {
         self.try_restart(period, value).or_re_throw()
     }
@@ -545,21 +385,21 @@ impl<L: TagLayout> Rollover<L> {
         period: Period,
         value: i128,
     ) -> Result<(), LibraryExn> {
-        let (_, add) = nnint::try_get_values(L::cell(&self.keys).get())?;
+        let (_, add) = nnint::try_get_values(self.cell.get())?;
         if add != 0 {
             return Err(LibraryExn::RolloverAlreadyWritten);
         }
-        L::reset(&mut self.keys, period, in_range::<L>(value)?)
+        self.reset(period, value)
     }
 }
 
 /// A [`Rollover`] cell that has been brought into the current period: the
 /// only way to add to one.
-pub struct Current<'a, L: TagLayout = Split> {
-    cell: &'a mut Rollover<L>,
+pub struct Current<'a> {
+    cell: &'a mut Rollover,
 }
 
-impl<L: TagLayout> Current<'_, L> {
+impl Current<'_> {
     /// The value: as of the block's start, reset if the period changed,
     /// plus what this transaction has added.
     ///
@@ -573,7 +413,7 @@ impl<L: TagLayout> Current<'_, L> {
     /// Like [`get`](Self::get), but report failure as `Err` instead of
     /// aborting.
     pub fn try_get(&self) -> Result<i128, LibraryExn> {
-        let Loaded { set, add, .. } = L::load(&self.cell.keys)?;
+        let (set, add) = self.cell.load()?;
         sum(set, add)
     }
 
@@ -588,9 +428,9 @@ impl<L: TagLayout> Current<'_, L> {
     /// Like [`add`](Self::add), but report failure as `Err` instead of
     /// aborting.
     pub fn try_add(&mut self, delta: i128) -> Result<(), LibraryExn> {
-        let key = L::cell(&self.cell.keys);
+        let key = &self.cell.cell;
         let (set, add) = nnint::try_get_values(key.get())?;
-        let add = add.checked_add(L::scale(delta)?).ok_or(if delta < 0 {
+        let add = add.checked_add(delta).ok_or(if delta < 0 {
             LibraryExn::NonNegativeIntUnderflow
         } else {
             LibraryExn::NonNegativeIntOverflow
@@ -599,11 +439,13 @@ impl<L: TagLayout> Current<'_, L> {
     }
 }
 
-impl<L: TagLayout> super::sealed::Sealed for Rollover<L> {}
-impl<L: TagLayout> super::node::StorageType for Rollover<L> {}
+impl super::sealed::Sealed for Rollover {}
+impl super::node::StorageType for Rollover {}
 
-impl<L: TagLayout> super::deletable::Deletable for Rollover<L> {
+impl super::deletable::Deletable for Rollover {
     fn delete_internal(&mut self, exclusive: bool) {
-        L::delete(&mut self.keys, exclusive);
+        self.tag.delete_internal(exclusive);
+        let exclusive = exclusive || self.cell.is_exclusive();
+        crate::sys_exn::delete::delete(self.cell.get(), exclusive);
     }
 }

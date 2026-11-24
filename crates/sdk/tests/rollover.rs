@@ -21,7 +21,7 @@ const ORIGIN: u64 = 4_000_000_000 * SECOND;
 const CROWD: usize = 40;
 const CROWD_SUM: i128 = (CROWD * (CROWD + 1) / 2) as i128;
 
-fn cell<L: TagLayout>() -> Rollover<L> {
+fn cell() -> Rollover {
     Keypath::default().child(&1u32).into()
 }
 
@@ -128,30 +128,23 @@ mod tally {
     use super::*;
 
     // What window 0 leaves behind, which window 2 must not count.
-    pub fn leftover<L: TagLayout>() {
-        cell::<L>().enter(window(), 0).add(777);
+    pub fn leftover() {
+        cell().enter(window(), 0).add(777);
     }
 
-    pub fn count<L: TagLayout>(i: usize) {
-        cell::<L>().enter(window(), 0).add(i as i128 + 1);
+    pub fn count(i: usize) {
+        cell().enter(window(), 0).add(i as i128 + 1);
     }
 
-    pub fn read<L: TagLayout>() -> i128 {
-        cell::<L>().peek(window(), 0)
+    pub fn read() -> i128 {
+        cell().peek(window(), 0)
     }
 }
 
 #[test]
 fn a_crowd_starts_a_window_together() {
     use tally::*;
-    assert_eq!(
-        crowd_agrees(leftover::<Split>, count::<Split>, read::<Split>),
-        CROWD_SUM
-    );
-    assert_eq!(
-        crowd_agrees(leftover::<Packed>, count::<Packed>, read::<Packed>),
-        CROWD_SUM
-    );
+    assert_eq!(crowd_agrees(leftover, count, read), CROWD_SUM);
 }
 
 // The same, counting down from a limit: what a rate limit does, since the
@@ -161,19 +154,19 @@ mod quota {
 
     pub const LIMIT: i128 = 10_000;
 
-    pub fn spend_most<L: TagLayout>() {
-        cell::<L>().enter(window(), LIMIT).add(-9_999);
+    pub fn spend_most() {
+        cell().enter(window(), LIMIT).add(-9_999);
     }
 
-    pub fn spend<L: TagLayout>(i: usize) {
-        let mut cell = cell::<L>();
+    pub fn spend(i: usize) {
+        let mut cell = cell();
         let mut left = cell.enter(window(), LIMIT);
         assert!(left.get() >= i as i128 + 1);
         left.add(-(i as i128 + 1));
     }
 
-    pub fn read<L: TagLayout>() -> i128 {
-        cell::<L>().peek(window(), LIMIT)
+    pub fn read() -> i128 {
+        cell().peek(window(), LIMIT)
     }
 }
 
@@ -181,14 +174,7 @@ mod quota {
 fn a_crowd_spends_from_a_fresh_quota() {
     use quota::*;
     let left = LIMIT - CROWD_SUM;
-    assert_eq!(
-        crowd_agrees(spend_most::<Split>, spend::<Split>, read::<Split>),
-        left
-    );
-    assert_eq!(
-        crowd_agrees(spend_most::<Packed>, spend::<Packed>, read::<Packed>),
-        left
-    );
+    assert_eq!(crowd_agrees(spend_most, spend, read), left);
 }
 
 // --- A carry-over: the reset depends on what the last period left ----------
@@ -202,16 +188,16 @@ mod decay {
         Some(lapsed.value >> windows.min(127))
     }
 
-    pub fn leftover<L: TagLayout>() {
-        cell::<L>().enter_with(window(), halved).add(1_000);
+    pub fn leftover() {
+        cell().enter_with(window(), halved).add(1_000);
     }
 
-    pub fn count<L: TagLayout>(i: usize) {
-        cell::<L>().enter_with(window(), halved).add(i as i128 + 1);
+    pub fn count(i: usize) {
+        cell().enter_with(window(), halved).add(i as i128 + 1);
     }
 
-    pub fn read<L: TagLayout>() -> i128 {
-        cell::<L>().peek_with(window(), halved)
+    pub fn read() -> i128 {
+        cell().peek_with(window(), halved)
     }
 }
 
@@ -220,28 +206,22 @@ fn a_crowd_carries_the_last_window_over() {
     use decay::*;
     // Two windows on, a quarter of the 1,000 is left.
     let expected = 250 + CROWD_SUM;
-    assert_eq!(
-        crowd_agrees(leftover::<Split>, count::<Split>, read::<Split>),
-        expected
-    );
-    assert_eq!(
-        crowd_agrees(leftover::<Packed>, count::<Packed>, read::<Packed>),
-        expected
-    );
+    assert_eq!(crowd_agrees(leftover, count, read), expected);
 }
 
 // --- Within one transaction ------------------------------------------------
 
-fn second_touch_keeps_the_first<L: TagLayout>() {
+#[test]
+fn a_second_touch_in_a_transaction_does_not_reset_again() {
     let env = start();
-    run(&env, tally::leftover::<L>);
+    run(&env, tally::leftover);
     next_window(&env, 1);
 
     let seen = run(&env, || {
-        let mut cell = cell::<L>();
+        let mut cell = cell();
         cell.enter(window(), 0).add(5);
         // A new handle, as a second call in the transaction would make.
-        let mut again = self::cell::<L>();
+        let mut again = self::cell();
         let mut current = again.enter(window(), 0);
         current.add(7);
         current.get()
@@ -249,24 +229,19 @@ fn second_touch_keeps_the_first<L: TagLayout>() {
     assert_eq!(seen, 12);
 
     env.advance_block();
-    assert_eq!(run(&env, tally::read::<L>), 12);
+    assert_eq!(run(&env, tally::read), 12);
 }
 
 #[test]
-fn a_second_touch_in_a_transaction_does_not_reset_again() {
-    second_touch_keeps_the_first::<Split>();
-    second_touch_keeps_the_first::<Packed>();
-}
-
-fn rule_sees_the_snapshot<L: TagLayout>() {
+fn a_rule_runs_once_on_the_snapshot() {
     let env = start();
-    run(&env, decay::leftover::<L>);
+    run(&env, decay::leftover);
     next_window(&env, 1);
 
     let calls = run(&env, || {
         let mut calls = 0u32;
         for _ in 0..3 {
-            cell::<L>()
+            cell()
                 .enter_with(window(), |lapsed| {
                     calls += 1;
                     // The block's start, not this transaction's additions.
@@ -281,21 +256,16 @@ fn rule_sees_the_snapshot<L: TagLayout>() {
     assert_eq!(calls, 1);
 
     env.advance_block();
-    assert_eq!(run(&env, decay::read::<L>), 503);
-}
-
-#[test]
-fn a_rule_runs_once_on_the_snapshot() {
-    rule_sees_the_snapshot::<Split>();
-    rule_sees_the_snapshot::<Packed>();
+    assert_eq!(run(&env, decay::read), 503);
 }
 
 // A transaction whose period changes under it would reset twice and lose its
 // own first addition. It is refused instead.
-fn refuses_a_second_period<L: TagLayout>() {
+#[test]
+fn a_period_that_changes_within_a_transaction_is_refused() {
     let env = start();
     let refused = run(&env, || {
-        let mut cell = cell::<L>();
+        let mut cell = cell();
         cell.enter(Period::from_raw(5), 100).add(-60);
         let refused = cell.try_enter(Period::from_raw(6), 100).err();
         // Nothing was discarded.
@@ -305,22 +275,16 @@ fn refuses_a_second_period<L: TagLayout>() {
     assert!(refused);
 }
 
-#[test]
-fn a_period_that_changes_within_a_transaction_is_refused() {
-    refuses_a_second_period::<Split>();
-    refuses_a_second_period::<Packed>();
-}
-
 // A rule that first says there is nothing to record, and later in the same
 // transaction says there is, would discard what was added in between.
 #[test]
 fn a_rule_that_changes_its_mind_within_a_transaction_is_refused() {
     let env = start();
-    run(&env, tally::leftover::<Split>);
+    run(&env, tally::leftover);
     next_window(&env, 1);
 
     let refused = run(&env, || {
-        let mut cell = cell::<Split>();
+        let mut cell = cell();
         cell.enter_with(window(), |_| None).add(1);
         // Asking again and hearing the same is fine.
         cell.enter_with(window(), |_| None).add(1);
@@ -335,7 +299,7 @@ fn a_rule_that_changes_its_mind_within_a_transaction_is_refused() {
 fn restart_does_not_discard_this_transactions_additions() {
     let env = start();
     let refused = run(&env, || {
-        let mut cell = cell::<Split>();
+        let mut cell = cell();
         cell.restart(window(), 50);
         cell.enter(window(), 0).add(1);
         cell.try_restart(window(), 50)
@@ -343,48 +307,41 @@ fn restart_does_not_discard_this_transactions_additions() {
     });
     assert!(refused);
     env.advance_block();
-    assert_eq!(run(&env, tally::read::<Split>), 51);
+    assert_eq!(run(&env, tally::read), 51);
 }
 
 // --- Readers ---------------------------------------------------------------
 
-fn stale_read_is_empty<L: TagLayout>() {
+#[test]
+fn a_stale_read_is_empty_and_writes_nothing() {
     let env = start();
-    run(&env, tally::leftover::<L>);
+    run(&env, tally::leftover);
     env.advance_block();
-    assert_eq!(run(&env, tally::read::<L>), 777);
+    assert_eq!(run(&env, tally::read), 777);
 
     next_window(&env, 3);
-    assert_eq!(run(&env, tally::read::<L>), 0);
-    assert_eq!(run(&env, quota::read::<L>), quota::LIMIT);
+    assert_eq!(run(&env, tally::read), 0);
+    assert_eq!(run(&env, quota::read), quota::LIMIT);
 
     // The reads recorded nothing: storage still holds window 0's tally.
     env.advance_block();
     let (tag, value) = run(&env, || {
-        let (tag, value) = cell::<L>().recorded();
+        let (tag, value) = cell().recorded();
         (tag.unwrap_or(u64::MAX), value)
     });
     assert_eq!((tag, value), (0, 777));
 }
 
 #[test]
-fn a_stale_read_is_empty_and_writes_nothing() {
-    stale_read_is_empty::<Split>();
-    stale_read_is_empty::<Packed>();
-}
-
-#[test]
 fn a_never_written_cell_reads_as_reset() {
     let env = start();
     next_window(&env, 4);
-    let (split, packed) = run(&env, || {
-        let split = cell::<Split>();
-        let packed = cell::<Packed>();
-        assert_eq!(split.recorded(), (None, 0));
-        assert_eq!(packed.recorded(), (None, 0));
-        (split.peek(window(), 9), packed.peek(window(), 9))
+    let seen = run(&env, || {
+        let cell = cell();
+        assert_eq!(cell.recorded(), (None, 0));
+        cell.peek(window(), 9)
     });
-    assert_eq!((split, packed), (9, 9));
+    assert_eq!(seen, 9);
 }
 
 // --- What the runtime refuses ----------------------------------------------
@@ -396,7 +353,7 @@ fn a_block_cannot_overspend_a_fresh_quota() {
     let env = start();
     next_window(&env, 1);
     let spend = || {
-        let mut cell = cell::<Packed>();
+        let mut cell = cell();
         let mut left = cell.enter(window(), 100);
         assert_eq!(left.get(), 100);
         left.add(-40);
@@ -414,17 +371,17 @@ fn a_block_cannot_overspend_a_fresh_quota() {
         [DbConflictCode::BoundsExceeded]
     );
     env.advance_block();
-    assert_eq!(run(&env, || cell::<Packed>().peek(window(), 100)), 20);
+    assert_eq!(run(&env, || cell().peek(window(), 100)), 20);
 }
 
 // The known hazard. A transaction that computes a different reset from the
 // rest of the block (here, as if an earlier call in it had lowered the
 // limit) cannot share the block with them. Whichever commits second loses.
-fn different_resets_conflict<L: TagLayout>() {
+#[test]
+fn transactions_that_compute_different_resets_conflict() {
     let env = start();
     next_window(&env, 1);
-    let spend =
-        |limit: i128| move || cell::<L>().enter(window(), limit).add(-1);
+    let spend = |limit: i128| move || cell().enter(window(), limit).add(-1);
 
     let mut usual = pending(&env, spend(100));
     let mut odd = pending(&env, spend(50));
@@ -438,13 +395,7 @@ fn different_resets_conflict<L: TagLayout>() {
     drop((usual, odd, late));
 
     env.advance_block();
-    assert_eq!(run(&env, || cell::<L>().peek(window(), 100)), 98);
-}
-
-#[test]
-fn transactions_that_compute_different_resets_conflict() {
-    different_resets_conflict::<Split>();
-    different_resets_conflict::<Packed>();
+    assert_eq!(run(&env, || cell().peek(window(), 100)), 98);
 }
 
 // --- A token bucket --------------------------------------------------------
@@ -643,7 +594,7 @@ mod lanes {
     // As a contract would declare it.
     #[derive(Storage)]
     struct Canvas {
-        coats: Map<u32, Rollover<Packed>>,
+        coats: Map<u32, Rollover>,
     }
 
     fn canvas() -> Canvas {
@@ -671,30 +622,10 @@ mod lanes {
 }
 
 #[test]
-fn a_crowd_adds_to_packed_lanes() {
+fn a_crowd_adds_to_lanes() {
     let weighted: i128 = (0..CROWD as i128).map(|i| (i + 1) * (200 - i)).sum();
     assert_eq!(
         crowd_agrees(lanes::old_paint, lanes::paint, lanes::shade),
         weighted / CROWD_SUM
     );
-}
-
-// `Packed` keeps the period modulo `2^32 - 1`; a zero tag is a cell never
-// written. Periods on either side of the wrap are still distinct.
-#[test]
-fn packed_periods_wrap_without_meeting_zero() {
-    let env = start();
-    let wrap = u64::from(u32::MAX);
-    run(&env, move || {
-        let mut cell = cell::<Packed>();
-        cell.enter(Period::from_raw(wrap - 1), 0).add(5);
-        assert_eq!(cell.recorded(), (Some(wrap - 1), 5));
-    });
-    env.advance_block();
-    run(&env, move || {
-        let mut cell = cell::<Packed>();
-        assert_eq!(cell.peek(Period::from_raw(wrap - 1), 0), 5);
-        assert_eq!(cell.enter(Period::from_raw(wrap), 0).get(), 0);
-        assert_eq!(cell.recorded(), (Some(0), 0));
-    });
 }
