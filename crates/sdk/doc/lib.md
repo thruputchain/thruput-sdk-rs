@@ -255,6 +255,11 @@ the contract needs an absolute `set` or a negative floor. Its `get` aborts on
 a never-written cell, so write each key before reading it, or read with
 `try_get`.
 
+Within a block, decreases are admitted against the value at the block's start
+(or the value the block sets). An increase from another transaction in the
+same block does not make room for them: it counts from the next block.
+[`CapacityConstraint`](storage::CapacityConstraint) follows the same rule.
+
 [`Deletable`](derive@crate::Deletable) derives recursive deletion for a
 storage struct.
 
