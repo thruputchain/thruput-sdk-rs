@@ -573,6 +573,10 @@ Each costs a flat price whatever the values. The operations are
 experimental: on a chain that does not offer them, the call fails. None of
 these methods is `const fn`.
 
+A native test answers these operations through the test executor. A host
+program that is not a test, such as a tool that prints a `U256`, has no
+executor: enable the `software-arithmetic` feature of `thruput-u256` there.
+
 # Time
 
 [`get_block_timepoint`] returns the block's [`TimePoint`]: fixed for the

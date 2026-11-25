@@ -59,6 +59,12 @@ thruput-contract-spec = { workspace = true }
 # root makes. The tests run their bodies inside one of its transactions.
 thruput-native-exec = { workspace = true }
 
+# Runs with no native executor, so it needs the software path: see
+# `software-arithmetic` below. gnaw's `sdk:test` runs every test with it.
+[[test]]
+name = "host"
+required-features = ["software-arithmetic"]
+
 [features]
 # No default features: this crate is built into contracts, and a guest build
 # that picks up `std` by accident does not link. Hosts opt in with
@@ -73,6 +79,16 @@ alloc = ["xdrs/alloc"]
 # decimal-division loop and its rodata, which no release contract should be
 # paying for. `Debug` is NOT behind this feature -- see `fmt.rs`.
 fmt = []
+
+# Divide and take square roots in software instead of through the runtime's
+# host operations. For host programs, such as the CLI printing a contract's
+# `U256` return value: off a contract the host operations reach the native
+# test executor, and a program without one does not link.
+#
+# Off by default, so a contract's native tests exercise the host operations.
+# Ignored on riscv32: a contract always uses the runtime. Software is one bit
+# per step, far too slow to meter.
+software-arithmetic = []
 
 # Requires a nightly compiler: enables `#![feature(cfg_overflow_checks)]` so
 # the operators key their overflow panics off the real `-C overflow-checks`

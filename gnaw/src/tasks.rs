@@ -387,6 +387,12 @@ fn sdk_test(ctx: &mut Ctx) -> Result {
             "u256 no-default-features",
             &["check", "-p", "thruput-u256", "--no-default-features"],
         ),
+        // The software division host tools use: every u256 test again on
+        // it, and the ones that run with no transaction.
+        (
+            "u256 software-arithmetic",
+            &["test", "-p", "thruput-u256", "-F", "software-arithmetic"],
+        ),
         (
             "sdk std",
             &["test", "-p", "thruput-sdk", "-Fstd", "--tests"],

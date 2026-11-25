@@ -10,9 +10,6 @@ impl U256 {
     ///
     /// If the host operation fails.
     pub fn integer_sqrt(self) -> Self {
-        match thruput_xdr::syscalls::U256Sqrt(crate::host::bytes(&self)) {
-            Ok(root) => Self::from_u128(root),
-            Err(_) => panic!("U256Sqrt failed"),
-        }
+        Self::from_u128(crate::host::sqrt(&self))
     }
 }
