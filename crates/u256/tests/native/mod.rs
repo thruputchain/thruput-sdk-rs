@@ -1,9 +1,10 @@
 //! Runs a test body in a native transaction.
 //!
-//! `thruput-u256` divides and takes square roots only through the runtime's
-//! host operations, and the native executor answers them only inside a
-//! transaction. A panic in the body is carried out of the transaction and
-//! resumed here, so `#[should_panic]` sees the body's own message.
+//! The arithmetic does not need one: off a contract, `thruput-u256` divides
+//! and takes square roots in software (`tests/host.rs` runs without). These
+//! tests keep the transaction so they run as a contract's native tests do. A
+//! panic in the body is carried out of the transaction and resumed here, so
+//! `#[should_panic]` sees the body's own message.
 
 use std::panic::{self, AssertUnwindSafe};
 use thruput_native_exec::test_environment::TestEnvironment;

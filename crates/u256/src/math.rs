@@ -37,10 +37,10 @@
 //!
 //! # Host operations
 //!
-//! Nothing here divides. Every division on these types is the runtime's
-//! experimental `U256MulDivRem` host operation, which needs syscall API 1.2:
-//! an `ecall` in a contract, the native executor in a native test. None of
-//! them is a `const fn`.
+//! Nothing here divides. In a contract, every division on these types is the
+//! runtime's experimental `U256MulDivRem` host operation, an `ecall`, which
+//! needs syscall API 1.2. Other builds compute the same results in software.
+//! None of them is a `const fn`.
 //!
 //! [`mod_exp`](U256::mod_exp) is a loop over `mul_mod`, and
 //! [`inv_mod`](U256::inv_mod) one over `div_rem` -- reach for them knowingly.

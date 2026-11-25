@@ -559,8 +559,8 @@ Beyond that, [`U256`] and [`I256`] carry OpenZeppelin's `Math.sol` and
 [`Rounding`] direction — so a Solidity port has the same vocabulary. Every
 fallible one ships as a `checked_` form beside the panicking one.
 
-Implementation of the [`I256`] and [`U256`] interfaces is currently aided by
-runtime operations:
+In a contract, the implementation of the [`I256`] and [`U256`] interfaces is
+currently aided by runtime operations:
 
 - `integer_sqrt` and `sqrt_rounding`: `U256Sqrt`;
 - every division on [`U256`] and [`I256`] (the `/` and `%` operators,
@@ -571,7 +571,8 @@ runtime operations:
 
 Each costs a flat price whatever the values. The operations are
 experimental: on a chain that does not offer them, the call fails. None of
-these methods is `const fn`.
+these methods is `const fn`. Outside a contract, in a host program or a
+native test, the same methods compute their results in software.
 
 # Time
 
