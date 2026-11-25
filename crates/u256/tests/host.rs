@@ -1,6 +1,6 @@
 //! Division, formatting and square roots with no runtime: a host program,
 //! such as the CLI printing a contract's `U256` return value, has no native
-//! executor and runs no transaction.
+//! executor and runs no transaction. Needs the `software-arithmetic` feature.
 
 use thruput_u256::{
     I256, U256, checked_mul_div_i128, checked_mul_div_u128, mul_div_i128,

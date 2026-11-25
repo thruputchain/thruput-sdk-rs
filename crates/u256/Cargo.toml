@@ -22,12 +22,12 @@ crate-type = ["rlib"]
 [dependencies]
 thruput-contract-spec = { workspace = true }
 xdrs = { workspace = true }
-
-# In a contract, square roots and division are the runtime's host operations,
-# through these bindings. Other builds compute them in software and need no
-# runtime.
-[target.'cfg(target_arch = "riscv32")'.dependencies]
+# Square roots and division are the runtime's host operations, through these
+# bindings: an `ecall` in a contract, the native executor in a native test.
 thruput-xdr = { workspace = true, features = ["syscalls"] }
+
+[target.'cfg(not(target_arch = "riscv32"))'.dependencies]
+thruput-xdr = { workspace = true, features = ["syscalls_mock"] }
 
 [dev-dependencies]
 # Self-dependency, to turn features on for tests only. The crate defaults to
@@ -55,10 +55,15 @@ uint = { version = "0.10.0", default-features = false }
 xdrs = { workspace = true, features = ["alloc"] }
 # Likewise: the ABI-pinning test names spec types directly.
 thruput-contract-spec = { workspace = true }
-# The tests run their bodies inside a native transaction, as a contract's
-# native tests do.
+# The native executor answers the host operations every division and square
+# root makes. The tests run their bodies inside one of its transactions.
 thruput-native-exec = { workspace = true }
-thruput-xdr = { workspace = true }
+
+# Runs with no native executor, so it needs the software path: see
+# `software-arithmetic` below. gnaw's `sdk:test` runs every test with it.
+[[test]]
+name = "host"
+required-features = ["software-arithmetic"]
 
 [features]
 # No default features: this crate is built into contracts, and a guest build
@@ -74,6 +79,16 @@ alloc = ["xdrs/alloc"]
 # decimal-division loop and its rodata, which no release contract should be
 # paying for. `Debug` is NOT behind this feature -- see `fmt.rs`.
 fmt = []
+
+# Divide and take square roots in software instead of through the runtime's
+# host operations. For host programs, such as the CLI printing a contract's
+# `U256` return value: off a contract the host operations reach the native
+# test executor, and a program without one does not link.
+#
+# Off by default, so a contract's native tests exercise the host operations.
+# Ignored on riscv32: a contract always uses the runtime. Software is one bit
+# per step, far too slow to meter.
+software-arithmetic = []
 
 # Requires a nightly compiler: enables `#![feature(cfg_overflow_checks)]` so
 # the operators key their overflow panics off the real `-C overflow-checks`

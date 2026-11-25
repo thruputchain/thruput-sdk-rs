@@ -1,7 +1,10 @@
 //! The runtime's arithmetic host operations, through their generated
-//! bindings. In a contract every division on these types is one of these
-//! calls, an `ecall`. Any other build computes the same results in software
-//! (`soft`), so a host program needs no runtime.
+//! bindings. Every division on these types is one of these calls: an `ecall`
+//! in a contract, the native executor in a native test.
+//!
+//! A host program has neither. With the `software-arithmetic` feature, a
+//! build that is not a contract computes the same results in software
+//! instead (`soft`). On riscv32 the feature does nothing.
 //!
 //! The host reads the operands and writes the results in place. Each entry
 //! point takes out only the results its caller uses: a whole result tuple
@@ -17,7 +20,7 @@ use crate::U256;
 const _: () = assert!(cfg!(target_endian = "little"));
 
 /// `value`, as the 32 bytes the runtime reads.
-#[cfg(target_arch = "riscv32")]
+#[cfg(any(not(feature = "software-arithmetic"), target_arch = "riscv32"))]
 #[inline(always)]
 pub(crate) fn bytes(value: &U256) -> &[u8; 32] {
     // SAFETY: `U256` is a transparent `[u32; 8]`: 32 bytes, aligned at least
@@ -26,7 +29,7 @@ pub(crate) fn bytes(value: &U256) -> &[u8; 32] {
 }
 
 /// `value`, as the 32 bytes the runtime writes.
-#[cfg(target_arch = "riscv32")]
+#[cfg(any(not(feature = "software-arithmetic"), target_arch = "riscv32"))]
 #[inline(always)]
 fn bytes_mut(value: &mut MaybeUninit<U256>) -> &mut MaybeUninit<[u8; 32]> {
     // SAFETY: as for `bytes`, and any 32 bytes are a valid `U256`.
@@ -60,7 +63,7 @@ fn mul_div_rem<R>(
         hi: MaybeUninit::uninit(),
         rem: MaybeUninit::uninit(),
     };
-    #[cfg(target_arch = "riscv32")]
+    #[cfg(any(not(feature = "software-arithmetic"), target_arch = "riscv32"))]
     if thruput_xdr::syscalls::uninit_U256MulDivRem(
         bytes(x),
         bytes(y),
@@ -73,7 +76,7 @@ fn mul_div_rem<R>(
     {
         panic!("U256MulDivRem failed");
     }
-    #[cfg(not(target_arch = "riscv32"))]
+    #[cfg(all(feature = "software-arithmetic", not(target_arch = "riscv32")))]
     {
         let (lo, hi) = x.widening_mul(*y);
         let (lo, hi, rem) = soft::div_rem(lo, hi, *d);
@@ -158,7 +161,7 @@ fn mul_div_rem_u128<R>(
     d: &u128,
     take: impl FnOnce(u128, u128, u128) -> R,
 ) -> R {
-    #[cfg(target_arch = "riscv32")]
+    #[cfg(any(not(feature = "software-arithmetic"), target_arch = "riscv32"))]
     {
         let mut lo = MaybeUninit::uninit();
         let mut hi = MaybeUninit::uninit();
@@ -173,7 +176,7 @@ fn mul_div_rem_u128<R>(
         // SAFETY: a successful call writes all three.
         unsafe { take(lo.assume_init(), hi.assume_init(), rem.assume_init()) }
     }
-    #[cfg(not(target_arch = "riscv32"))]
+    #[cfg(all(feature = "software-arithmetic", not(target_arch = "riscv32")))]
     {
         let product = U256::widening_mul_u128(*a, *b);
         let (q, _, rem) =
@@ -190,19 +193,18 @@ fn mul_div_rem_u128<R>(
 /// If the host operation fails.
 #[inline(always)]
 pub(crate) fn sqrt(x: &U256) -> u128 {
-    #[cfg(target_arch = "riscv32")]
+    #[cfg(any(not(feature = "software-arithmetic"), target_arch = "riscv32"))]
     match thruput_xdr::syscalls::U256Sqrt(bytes(x)) {
         Ok(root) => root,
         Err(_) => panic!("U256Sqrt failed"),
     }
-    #[cfg(not(target_arch = "riscv32"))]
+    #[cfg(all(feature = "software-arithmetic", not(target_arch = "riscv32")))]
     soft::sqrt(*x)
 }
 
-/// The same results in software, for builds that are not contracts: a host
-/// program has no runtime to ask. One bit per step, and nothing faster: only
-/// tools and native tests run it.
-#[cfg(not(target_arch = "riscv32"))]
+/// The same results in software, for a host program, which has no runtime to
+/// ask. One bit per step, and nothing faster: only tools run it.
+#[cfg(all(feature = "software-arithmetic", not(target_arch = "riscv32")))]
 mod soft {
     use crate::U256;
 

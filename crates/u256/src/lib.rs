@@ -16,10 +16,11 @@
 //! bytes of rv32 text and its `integer_sqrt` to 12,732 -- together over a third
 //! of the 64 KiB artifact code cap.
 //!
-//! In a contract, square roots and every division are the runtime's host
-//! operations (`U256Sqrt`, `U256MulDivRem`, `U128MulDivRem`), so none of them
-//! is a `const fn`. Any other build, such as a host tool or a native test,
-//! computes them in software and needs no runtime.
+//! Square roots and every division are the runtime's host operations
+//! (`U256Sqrt`, `U256MulDivRem`, `U128MulDivRem`), so none of them is a
+//! `const fn`. A host program has no runtime to answer them and does not link
+//! without the `software-arithmetic` feature, which computes them in software
+//! on every target but a contract's.
 //!
 //! Both types behave like the primitives on overflow: the operators wrap when
 //! `overflow-checks` is off (as every contract profile sets it) and panic when
