@@ -541,9 +541,13 @@ For money math, be explicit rather than relying on operators:
 
 - `checked_add` / `checked_sub` / `checked_mul` on the primitives and on
   [`U256`], with a typed throw on `None`;
-- [`mul_div_u128`] / [`checked_mul_div_u128`] for `a * b / d` with a 256-bit
-  intermediate (the panics of [`mul_div_u128`] are unconditional, not
-  `overflow-checks`-gated);
+- [`mul_div_i128`] / [`checked_mul_div_i128`] for `a * b / d` on `i128`
+  amounts, such as a pro-rata share, with a 256-bit intermediate and no
+  casts. The result truncates toward zero, as `/` does;
+  [`mul_div_rounding_i128`] / [`checked_mul_div_rounding_i128`] take a
+  [`Rounding`] direction. The panics of the unchecked forms are
+  unconditional, not `overflow-checks`-gated;
+- [`mul_div_u128`] / [`checked_mul_div_u128`] for the same on `u128`;
 - [`U256::mul_div`] when the operands are themselves 256-bit — full
   precision, on an exact 512-bit intermediate;
 - the storage-level guards [`NNInt`](storage::NNInt) and
@@ -562,8 +566,8 @@ runtime operations:
 - every division on [`U256`] and [`I256`] (the `/` and `%` operators,
   `div_rem` and the `checked_` forms, the `mul_div` family, `mul_mod` and
   what is built on it): `U256MulDivRem`;
-- [`mul_div_u128`] and [`checked_mul_div_u128`], and every 128-bit `/` and
-  `%` in a contract: `U128MulDivRem`.
+- [`mul_div_u128`], [`mul_div_i128`] and their `checked_` and rounding
+  forms, and every 128-bit `/` and `%` in a contract: `U128MulDivRem`.
 
 Each costs a flat price whatever the values. The operations are
 experimental: on a chain that does not offer them, the call fails. None of
