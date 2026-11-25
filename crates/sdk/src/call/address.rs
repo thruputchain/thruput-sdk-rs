@@ -1,6 +1,7 @@
 //! [`Address<C>`]: a contract address typed by the client used to call it.
 
 use core::cmp::Ordering;
+#[cfg(not(target_arch = "riscv32"))]
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::marker::PhantomData;
@@ -34,7 +35,8 @@ use crate::{AuthTokenError, FaultString};
 ///
 /// Several clients go in one tuple, `Address<(A, B)>`, not `Address<A, B>`.
 /// The type records the expected interfaces and does not check them; see
-/// [Addresses](crate#addresses).
+/// [Addresses](crate#addresses). `Debug` is implemented on host
+/// targets only.
 #[repr(transparent)]
 pub struct Address<C> {
     address: ContractAddress,
@@ -192,6 +194,7 @@ impl<C> Default for Address<C> {
     }
 }
 
+#[cfg(not(target_arch = "riscv32"))]
 impl<C> fmt::Debug for Address<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(&self.address, f)
