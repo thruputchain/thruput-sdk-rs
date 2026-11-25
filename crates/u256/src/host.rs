@@ -234,14 +234,14 @@ mod soft {
             let carry = rem.bit(255);
             rem = rem.wrapping_shl(1);
             if bit {
-                rem = rem | U256::ONE;
+                rem |= U256::ONE;
             }
             if carry || rem.const_ge(d) {
                 rem = rem.wrapping_sub(d);
                 if i < 256 {
-                    q_lo = q_lo | U256::ONE.wrapping_shl(i);
+                    q_lo |= U256::ONE.wrapping_shl(i);
                 } else {
-                    q_hi = q_hi | U256::ONE.wrapping_shl(i - 256);
+                    q_hi |= U256::ONE.wrapping_shl(i - 256);
                 }
             }
         }
