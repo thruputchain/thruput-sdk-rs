@@ -60,8 +60,8 @@ fn mldsa65(seed: u8) -> Key {
 }
 
 fn setup() -> (TestEnvironmentHandle, ContractAddress) {
-    // An ML-DSA-65 key is 1953 bytes encoded, over the default 1024-byte
-    // limit on one storage value.
+    // An ML-DSA-65 key is 1953 bytes encoded. State a storage-value limit that
+    // admits it rather than rely on the default.
     let env = TestEnvironment::builder()
         .no_cost()
         .with_max_bytestring_len(4096)

@@ -577,10 +577,8 @@ contract_test!(test_vector_iter_empty {
     assert_eq!(vec.iter().count(), 0);
 });
 
-// (This test environment uses the default configured bytestring limit of
-// 1024 bytes, below the SDK's read scratch, so a stored value too large for
-// the read buffer can't be constructed here — the undecodable-value tests below
-// cover the StorageSerialization surface instead.)
+// The default bytestring limit fits the read scratch, so no stored value here
+// can overflow it. The undecodable-value tests below cover StorageSerialization.
 
 #[test]
 fn test_value_undecodable_read_reports_err() {

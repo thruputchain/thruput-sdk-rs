@@ -18,8 +18,8 @@ pub use xdrs::{
 use crate::internal::mu_buf::MUBuf;
 
 /// The single fixed-buffer size for every no-alloc scratch / return / calldata
-/// buffer. It is sized above the protocol's value-channel caps (events,
-/// storage bytestrings, and returns are all 1024) with headroom for calldata
+/// buffer. It covers the protocol's default value-channel caps (events and
+/// returns 1024, storage bytestrings 4096) with headroom for calldata
 /// and cross-call args, which the protocol leaves unbounded. There is no
 /// SDK-side per-channel cap: the host enforces the protocol limits, so this is
 /// purely "how much a no-alloc contract is willing to buffer."

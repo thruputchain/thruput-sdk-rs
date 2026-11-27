@@ -2,11 +2,9 @@
 //! an argument, kept in storage and hashed, and a [`Signature`] verified
 //! against it, whether the key is Ed25519 or ML-DSA-65.
 //!
-//! An ML-DSA-65 key is 1953 bytes encoded, over the chain-default 1024-byte
-//! limits on an event, a frame's return buffer and a storage value. So the
-//! contract names keys by [`key_id`] in its event and its getter, and storing
-//! one needs a chain whose `max_bytestring_len` admits it. Calldata (64 KiB
-//! by default) carries one as an argument without help.
+//! An ML-DSA-65 key (1953 bytes) exceeds the 1024-byte event and return caps,
+//! so the event and getter name keys by [`key_id`]. The default
+//! `max_bytestring_len` (4096) admits a stored key.
 
 extern crate alloc;
 
