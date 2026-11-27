@@ -42,6 +42,9 @@ pub use value::*;
 pub mod capacity_constraint;
 pub use capacity_constraint::*;
 
+pub mod rollover;
+pub use rollover::*;
+
 pub mod map;
 pub use map::*;
 
