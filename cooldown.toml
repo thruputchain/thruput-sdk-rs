@@ -9,12 +9,6 @@ lockfile-baseline = "ignore"
 [registry]
 global-min-publish-age = "8 days"
 
-# Security fix for RUSTSEC-2026-0574 to RUSTSEC-2026-0582 (heapless unsound
-# APIs, fixed in 0.9.4). (remove this after 2026 Nov 26)
-[[allow.exact]]
-crate = "heapless"
-version = "0.9.4"
-
 # Exemptions for first-party (thruput-*) crates.
 [[allow.package]]
 crates = [
