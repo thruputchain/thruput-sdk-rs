@@ -236,12 +236,30 @@ Important storage-model rules:
   [`Node<T>`](storage::Node), for example `Vector<Node<MyFields>>`.
 
 Two types enforce their invariant in the storage layer instead of in contract
-code: [`NNInt`](storage::NNInt) for counters that must not go negative, and
-[`Balance`](storage::Balance), whose `increase`/`decrease` fail on overflow
-and overdraft in every build profile (see [Arithmetic](#arithmetic)). This
-matters most under concurrency: when two transactions in the same block both
-move a balance, the check has to hold against the committed value, not the
-one the contract read.
+code. Start with [`Balance`](storage::Balance): it is non-negative, reads a
+never-written cell as zero, and has no absolute `set`. Its
+`increase`/`decrease` fail on overflow and overdraft in every build profile
+(see [Arithmetic](#arithmetic)); use them to move a balance. This matters most
+under concurrency: when two transactions in the same block both move a
+balance, the check has to hold against the committed value, not the one the
+contract read.
+
+`Balance` is also the type for a counter that only grows, such as votes cast
+or units sold. Count with
+[`lazy_increase`](storage::Balance::lazy_increase): an increase cannot
+overdraw, so the checked form adds a storage load and can only catch `i128`
+overflow.
+
+[`NNInt`](storage::NNInt) is the general form of the same cell. Use it when
+the contract needs an absolute `set` or a negative floor. Its `get` aborts on
+a never-written cell, so write each key before reading it, or read with
+`try_get`.
+
+Within a block, decreases are admitted against the value at the block's start
+(or the value the block sets). An increase from another transaction in the
+same block does not make room for them: it counts from the next block.
+[`CapacityConstraint`](storage::CapacityConstraint) follows the same rule.
+
 [`Deletable`](derive@crate::Deletable) derives recursive deletion for a
 storage struct.
 

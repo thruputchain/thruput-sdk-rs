@@ -10,6 +10,10 @@ use crate::sys_exn::nnint_internal as nnint;
 /// end of each block. Contracts express not their state variables directly,
 /// but the changes in state variables that a transaction intends to make.
 ///
+/// A block's consumption must fit the capacity at the block's start, or the
+/// capacity its transactions set. Capacity that another transaction releases
+/// in the same block does not make room: it is available from the next block.
+///
 /// Some kinds of constraints can be expressed directly as checks within one
 /// transaction. This data type is not for those kinds of constraints.
 /// Rather, this type is how a contract can tell the Thruput runtime about

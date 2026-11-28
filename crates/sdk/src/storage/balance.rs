@@ -3,8 +3,8 @@ use crate::exn::LibraryExn;
 use crate::re_throw::OrReThrow;
 use crate::sys_exn::nnint_internal as nnint;
 
-/// A non-negative, zero-defaulting balance backed by Thruput's mergeable
-/// integer-storage cell.
+/// A non-negative, zero-defaulting balance or counter backed by Thruput's
+/// mergeable integer-storage cell.
 ///
 /// Values are in `0..=i128::MAX`. Operations reject a negative amount with
 /// [`LibraryExn::NonNegativeIntUnderflow`].
@@ -21,8 +21,16 @@ use crate::sys_exn::nnint_internal as nnint;
 ///   committed balance. Deltas from concurrent transactions can merge; the
 ///   runtime checks the committed result when the transaction commits.
 ///
+/// Use the checked forms to move a balance: a debit can fail, and the caller
+/// gets the error during execution. `Balance` is also the type for a counter
+/// that only grows, such as votes cast or units sold. Count with
+/// [`lazy_increase`](Self::lazy_increase): an increase cannot overdraw, so
+/// [`increase`](Self::increase) loads the cell only to check for `i128`
+/// overflow.
+///
 /// Unlike [`NNInt`](super::NNInt), `Balance` exposes no absolute `set` or
-/// signed-adjustment operation. A missing storage cell reads as zero.
+/// signed-adjustment operation. A missing storage cell reads as zero. Prefer
+/// `Balance` unless the contract needs one of those operations.
 ///
 /// `Balance` uses the same storage representation as `NNInt`, so an existing
 /// non-negative `NNInt` can be read as a balance. Setting that cell negative
