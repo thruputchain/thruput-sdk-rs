@@ -54,7 +54,7 @@ fn rv32_shift_matches_model() {
         let src = 50u32;
         for len in lengths() {
             // Overlaps in both directions, at distances below, at and above
-            // a word, and well past one.
+            // a word and a 32-byte block, and the disjoint case.
             for distance in
                 [-33i32, -32, -31, -5, -4, -3, -1, 0, 1, 3, 4, 5, 31, 32, 33]
             {
@@ -84,8 +84,8 @@ fn rv32_fill_matches_model() {
     });
 }
 
-/// Gas for 32 more bytes, measured between two lengths that are both whole
-/// words. Each method's other work does not depend on the
+/// Gas for one more 32-byte block, measured between two lengths that are
+/// both whole blocks. Each method's other work does not depend on the
 /// length, so the difference is the routine's loop alone. Both lengths
 /// encode to the same number of calldata bytes, so decoding them costs the
 /// same.
@@ -101,37 +101,50 @@ fn gas_per_block(call: impl Fn(u32)) -> u64 {
 }
 
 // In the test executor a load costs 3 gas, a taken branch 2, and a store
-// or an addition 1. A five-instruction copy loop then costs 64 per 32
-// bytes, and a three-instruction fill loop 32. One more instruction per
-// word, which is what these loops once carried, costs 8 more.
+// or an addition 1. A block of eight words then costs 36 to copy and 11 to
+// fill. The bounds leave room for a different instruction selection, and
+// fail if a loop goes back to one word per iteration: that costs at least
+// 64 per block to copy and 32 to fill.
 
 #[test]
-fn rv32_copy_takes_five_instructions_per_word() {
+fn rv32_copy_is_unrolled() {
     with_client(|c| {
         let gas = gas_per_block(|len| {
             c.copy(len, 0, 0);
         });
-        assert!(gas <= 64, "memcpy: {gas} gas per 32 bytes");
+        assert!(gas <= 44, "memcpy: {gas} gas per 32 bytes");
     });
 }
 
 #[test]
-fn rv32_forward_shift_takes_five_instructions_per_word() {
+fn rv32_forward_shift_is_unrolled() {
     with_client(|c| {
         // The destination is below the source, so the move runs forward.
         let gas = gas_per_block(|len| {
             c.shift(len, 40, 8);
         });
-        assert!(gas <= 64, "memmove: {gas} gas per 32 bytes");
+        assert!(gas <= 44, "memmove: {gas} gas per 32 bytes");
     });
 }
 
 #[test]
-fn rv32_fill_takes_three_instructions_per_word() {
+fn rv32_disjoint_shift_above_source_is_unrolled() {
+    with_client(|c| {
+        // The destination is past the source's end, so nothing overlaps
+        // and the move can still run forward.
+        let gas = gas_per_block(|len| {
+            c.shift(len, 8, 260);
+        });
+        assert!(gas <= 44, "memmove: {gas} gas per 32 bytes");
+    });
+}
+
+#[test]
+fn rv32_fill_is_unrolled() {
     with_client(|c| {
         let gas = gas_per_block(|len| {
             c.fill(len, 0, 0x5A);
         });
-        assert!(gas <= 32, "memset: {gas} gas per 32 bytes");
+        assert!(gas <= 16, "memset: {gas} gas per 32 bytes");
     });
 }
